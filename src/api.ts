@@ -215,6 +215,12 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     return json({ alternatives: alternatives.map(toProjectKnowledgeView) });
   }
 
+  const shortAlternativesMatch = path.match(/^\/api\/alternatives\/([^/]+)$/);
+  if (shortAlternativesMatch) {
+    const alternatives = await findAlternatives(env, decodeURIComponent(shortAlternativesMatch[1]), parseLimit(url.searchParams.get("limit")));
+    return json({ alternatives: alternatives.map(toProjectKnowledgeView) });
+  }
+
   return errorJson(404, "not_found", "Unknown API endpoint.");
 }
 

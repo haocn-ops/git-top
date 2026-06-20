@@ -1,5 +1,6 @@
 import { handleApi } from "./api";
 import { renderExplorer, renderGraph } from "./explorer";
+import { renderProjectGraphPage } from "./graph-page";
 import { errorJson } from "./http";
 import { handleMcp } from "./mcp";
 import { renderProjectPage } from "./project-page";
@@ -16,6 +17,14 @@ export default {
 
     if (url.pathname === "/graph") {
       return renderGraph();
+    }
+
+    const graphProjectId = graphProjectIdFromPath(url.pathname);
+    if (graphProjectId) {
+      const response = await renderProjectGraphPage(env, graphProjectId);
+      if (response) {
+        return response;
+      }
     }
 
     if (url.pathname.startsWith("/api/")) {
@@ -41,6 +50,16 @@ export default {
     ctx.waitUntil(syncGithubProjects(env, { limit: 5, trigger: "cron" }));
   }
 };
+
+function graphProjectIdFromPath(pathname: string): string | null {
+  const ownerRepoMatch = pathname.match(/^\/graph\/([^/]+)\/([^/]+)$/);
+  if (ownerRepoMatch) {
+    return `${decodeURIComponent(ownerRepoMatch[1])}/${decodeURIComponent(ownerRepoMatch[2])}`;
+  }
+
+  const slugMatch = pathname.match(/^\/graph\/([^/]+)$/);
+  return slugMatch ? decodeURIComponent(slugMatch[1]) : null;
+}
 
 function projectIdFromPath(pathname: string): string | null {
   const projectMatch = pathname.match(/^\/projects\/([^/]+)\/([^/]+)$/);

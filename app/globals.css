@@ -1058,6 +1058,43 @@ h2 {
   overflow-wrap: anywhere;
 }
 
+.graph-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.graph-edge-line {
+  stroke: #b7c5cc;
+  stroke-width: 1.6;
+}
+
+.graph-svg-node {
+  stroke: var(--line-strong);
+  fill: #fbfdfd;
+}
+
+.graph-svg-node.project {
+  stroke: #8fd0b1;
+  fill: #eefaf4;
+}
+
+.graph-svg-node.deployment {
+  stroke: #b8cdf0;
+  fill: #f0f6ff;
+}
+
+.graph-svg-node.category {
+  stroke: #dfd2a9;
+  fill: #fff8e7;
+}
+
+.graph-svg-label {
+  fill: #22313a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .compact-score strong {
   font-size: 58px;
 }

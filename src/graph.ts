@@ -60,7 +60,8 @@ export interface AgentScoreBreakdown {
 }
 
 export function buildKnowledgeGraph(projects: ProjectKnowledge[], focusRepo?: string, limit = 24): ProjectGraph {
-  const selected = selectGraphProjects(projects, focusRepo, limit);
+  const focus = focusRepo ? findProjectByAlias(projects, focusRepo) : null;
+  const selected = selectGraphProjects(projects, focus?.project.id ?? focusRepo, limit);
   const nodes = new Map<string, KnowledgeGraphNode>();
   const edges: KnowledgeGraphEdge[] = [];
 
@@ -106,7 +107,7 @@ export function buildKnowledgeGraph(projects: ProjectKnowledge[], focusRepo?: st
   }
 
   return {
-    focus: focusRepo,
+    focus: focus?.project.id ?? focusRepo,
     nodes: Array.from(nodes.values()),
     edges: dedupeEdges(edges)
   };
@@ -165,7 +166,7 @@ function selectGraphProjects(projects: ProjectKnowledge[], focusRepo: string | u
     return [...projects].sort((a, b) => calculateAgentScore(b) - calculateAgentScore(a)).slice(0, boundedLimit);
   }
 
-  const focus = projects.find((item) => item.project.id === focusRepo || item.project.fullName === focusRepo);
+  const focus = findProjectByAlias(projects, focusRepo);
   if (!focus) {
     return projects.slice(0, boundedLimit);
   }
@@ -185,6 +186,27 @@ function selectGraphProjects(projects: ProjectKnowledge[], focusRepo: string | u
 
 function alternativesFor(item: ProjectKnowledge, projects: ProjectKnowledge[]) {
   return item.agentCard.alternatives.length > 0 ? item.agentCard.alternatives : generateAlternatives(item, projects, 4);
+}
+
+function findProjectByAlias(projects: ProjectKnowledge[], value: string): ProjectKnowledge | null {
+  const wanted = normalizeProjectAlias(value);
+  return (
+    projects.find((item) =>
+      [
+        item.project.id,
+        item.project.fullName,
+        item.project.name,
+        item.project.fullName.replace("/", "-"),
+        item.project.fullName.replace("/", "--")
+      ]
+        .map(normalizeProjectAlias)
+        .includes(wanted)
+    ) ?? null
+  );
+}
+
+function normalizeProjectAlias(value: string): string {
+  return value.trim().toLowerCase().replace(/^\/+|\/+$/g, "");
 }
 
 function compareColumns(a: CompareColumn, b: CompareColumn, context: { deployment?: string }): number {

@@ -680,7 +680,7 @@ const graphHtml = String.raw`<!doctype html>
     <div class="page">
       <nav class="nav">
         <a class="brand" href="/"><span class="brand-mark">G</span><span>Git.Top</span></a>
-        <div class="nav-links"><a href="/">Home</a><a href="/api/graph?repo=cloudflare/agents">Graph API</a><a href="/mcp">MCP</a></div>
+        <div class="nav-links"><a href="/">Home</a><a href="/graph/cloudflare-agents">Project Graph</a><a href="/api/graph?repo=cloudflare-agents">Graph API</a><a href="/mcp">MCP</a></div>
       </nav>
 
       <header class="header">
@@ -688,7 +688,7 @@ const graphHtml = String.raw`<!doctype html>
           <p class="eyebrow">Project Knowledge Graph</p>
           <h1>Knowledge, then Graph, then Agent</h1>
         </div>
-        <a class="button primary" href="/api/graph?repo=cloudflare/agents">JSON</a>
+        <a class="button primary" href="/graph/cloudflare-agents">Open Project Graph</a>
       </header>
 
       <section class="grid">
@@ -717,7 +717,7 @@ const graphHtml = String.raw`<!doctype html>
       init();
       async function init() {
         const [graph, project, comparison] = await Promise.all([
-          getJson("/api/graph?repo=cloudflare/agents&limit=18"),
+          getJson("/api/graph?repo=cloudflare-agents&limit=18"),
           getJson("/api/project/cloudflare/agents"),
           getJson("/api/compare")
         ]);
