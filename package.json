@@ -1,0 +1,32 @@
+{
+  "name": "git-top",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "next:dev": "next dev",
+    "next:build": "next build",
+    "next:start": "next start",
+    "deploy": "wrangler deploy",
+    "check": "tsc --noEmit",
+    "seed:validate": "node scripts/validate-seed-repositories.mjs",
+    "quality:check": "node scripts/check-quality.mjs",
+    "db:execute": "wrangler d1 execute git-top --local --file=./schema.sql",
+    "db:seed": "wrangler d1 execute git-top --local --file=./seed.sql"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260612.0",
+    "@types/node": "^25.9.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.8.3",
+    "wrangler": "^4.20.5"
+  },
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "next": "^16.2.9",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  }
+}

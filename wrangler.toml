@@ -1,0 +1,19 @@
+name = "git-top"
+main = "src/index.ts"
+compatibility_date = "2026-06-16"
+workers_dev = true
+routes = [
+  { pattern = "git.top", custom_domain = true }
+]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "git-top"
+database_id = "d37123ac-e75e-4056-bc22-68f30fc988a2"
+
+[triggers]
+crons = ["0 */12 * * *"]
+
+[vars]
+# Set real values with `wrangler secret put GITHUB_TOKEN` and
+# `wrangler secret put SYNC_SECRET` for production deployments.
