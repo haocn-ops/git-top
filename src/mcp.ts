@@ -6,6 +6,7 @@ import {
   searchProjects
 } from "./db";
 import { buildKnowledgeGraph, compareProjectKnowledge } from "./graph";
+import { normalizeGrpRequest, runGrpQuery } from "./grp";
 import { errorJson, json, stringifyApiJson } from "./http";
 import { toProjectKnowledgeView } from "./project-view";
 import type { Env, ProjectKnowledge } from "./types";
@@ -15,6 +16,13 @@ interface RpcRequest {
   id?: string | number | null;
   method?: string;
   params?: Record<string, unknown>;
+}
+
+interface ToolErrorResult {
+  toolError: {
+    code: number;
+    message: string;
+  };
 }
 
 const tools = [
@@ -153,6 +161,51 @@ const tools = [
       },
       required: ["project_ids"]
     }
+  },
+  {
+    name: "git_top_grp_query",
+    description: "Run Git.Top Graph Reasoning Protocol over the open-source knowledge graph to produce project sets, paths, stacks, alternatives, and explanations.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        goal: { type: "string" },
+        mode: {
+          type: "string",
+          enum: ["plan", "compare", "find", "compose"]
+        },
+        constraints: {
+          type: "object",
+          properties: {
+            deploy: {
+              type: "array",
+              items: { type: "string" }
+            },
+            license: { type: "string" },
+            complexity: {
+              type: "string",
+              enum: ["low", "medium", "high"]
+            },
+            agent_ready: { type: "boolean" },
+            language: { type: "string" },
+            category: { type: "string" }
+          }
+        },
+        context: {
+          type: "object",
+          properties: {
+            previous_selected_projects: {
+              type: "array",
+              items: { type: "string" }
+            },
+            current_stack: {
+              type: "array",
+              items: { type: "string" }
+            }
+          }
+        }
+      },
+      required: ["goal"]
+    }
   }
 ];
 
@@ -180,6 +233,9 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
     const name = String(body.params?.name ?? "");
     const args = (body.params?.arguments ?? {}) as Record<string, unknown>;
     const result = await callTool(name, args, env);
+    if (isToolErrorResult(result)) {
+      return rpcError(body.id ?? null, result.toolError.code, result.toolError.message);
+    }
     return rpcResult(body.id, {
       content: [
         {
@@ -279,12 +335,29 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
     return compareProjectKnowledge(foundProjects, { deployment: stringArg(args.deployment) });
   }
 
+  if (name === "git_top_grp_query") {
+    const parsed = normalizeGrpRequest(args);
+    if (!parsed.ok) {
+      return {
+        toolError: {
+          code: -32602,
+          message: parsed.message
+        }
+      };
+    }
+    return runGrpQuery(await listProjectKnowledge(env), parsed.request);
+  }
+
   return {
-    error: {
-      code: "unknown_tool",
+    toolError: {
+      code: -32601,
       message: `Unknown tool: ${name}`
     }
   };
+}
+
+function isToolErrorResult(value: unknown): value is ToolErrorResult {
+  return Boolean(value && typeof value === "object" && "toolError" in value);
 }
 
 function rpcResult(id: RpcRequest["id"], result: unknown): Response {

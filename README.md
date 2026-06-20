@@ -54,8 +54,10 @@ Omit `offset` to use the stored seed cursor. Cron syncs use this cursor and adva
 - `GET /api/trending`
 - `GET /api/category/:name`
 - `GET /api/recommend`
+- `GET /api/compare`
 - `GET /api/alternatives/:owner/:name`
+- `POST /api/grp/query`
 - `POST /api/admin/sync`
 - `POST /api/admin/alternatives`
 
-See [git_top_v1.md](./git_top_v1.md) for the V1 development spec.
+See [git_top_v1.md](./git_top_v1.md) for the V1 development spec and [git_top_grp_v1.md](./git_top_grp_v1.md) for the GRP v1 reasoning protocol implementation spec.

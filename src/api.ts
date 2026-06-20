@@ -12,6 +12,7 @@ import {
 import { generateAlternativesForAll } from "./alternatives";
 import { defaultSeedRepositories } from "./github";
 import { buildKnowledgeGraph, compareProjectKnowledge } from "./graph";
+import { normalizeGrpRequest, runGrpQuery } from "./grp";
 import { errorJson, json, parseBool, parseLimit, rawJson } from "./http";
 import { toProjectKnowledgeView } from "./project-view";
 import { buildQualityReport } from "./quality";
@@ -76,6 +77,30 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
         }
       }
     );
+  }
+
+  if (path === "/api/grp/query") {
+    if (request.method !== "POST") {
+      return errorJson(405, "method_not_allowed", "GRP query endpoint requires POST.");
+    }
+
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return errorJson(400, "invalid_json", "GRP query endpoint requires a valid JSON body.");
+    }
+
+    const parsed = normalizeGrpRequest(body);
+    if (!parsed.ok) {
+      return errorJson(400, "invalid_grp_request", parsed.message);
+    }
+
+    return json(runGrpQuery(await listProjectKnowledge(env), parsed.request), {
+      headers: {
+        "cache-control": "no-store"
+      }
+    });
   }
 
   if (request.method !== "GET") {
