@@ -199,6 +199,15 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     return json(toProjectKnowledgeView(project));
   }
 
+  const shortProjectMatch = path.match(/^\/api\/project\/([^/]+)$/);
+  if (shortProjectMatch) {
+    const project = await getProjectKnowledge(env, decodeURIComponent(shortProjectMatch[1]));
+    if (!project) {
+      return errorJson(404, "project_not_found", `Project ${decodeURIComponent(shortProjectMatch[1])} was not found.`);
+    }
+    return json(toProjectKnowledgeView(project));
+  }
+
   const alternativesMatch = path.match(/^\/api\/alternatives\/([^/]+)\/([^/]+)$/);
   if (alternativesMatch) {
     const id = `${decodeURIComponent(alternativesMatch[1])}/${decodeURIComponent(alternativesMatch[2])}`;

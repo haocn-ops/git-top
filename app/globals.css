@@ -875,6 +875,35 @@ h2 {
   gap: 12px;
 }
 
+.project-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(255, 255, 255, 0.92)),
+    var(--surface);
+  box-shadow: var(--shadow);
+  padding: 22px;
+}
+
+.project-hero > div {
+  display: grid;
+  gap: 12px;
+}
+
+.score-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.compact-metric {
+  min-height: 118px;
+}
+
 .overview-panel {
   display: grid;
   gap: 16px;
@@ -1326,7 +1355,8 @@ h2 {
   .project-card-grid,
   .agent-grid,
   .three-panel-grid,
-  .node-map {
+  .node-map,
+  .score-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1387,8 +1417,14 @@ h2 {
   .project-card-grid,
   .agent-grid,
   .three-panel-grid,
-  .node-map {
+  .node-map,
+  .score-grid {
     grid-template-columns: 1fr;
+  }
+
+  .project-hero {
+    flex-direction: column;
+    padding: 18px;
   }
 
   .hero-section {

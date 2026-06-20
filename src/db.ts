@@ -297,7 +297,19 @@ export async function getSyncedProjectCount(env: Env): Promise<number> {
 
 export async function getProjectKnowledge(env: Env, id: string): Promise<ProjectKnowledge | null> {
   const projects = await listProjectKnowledge(env);
-  return projects.find((item) => item.project.id === id || item.project.fullName === id) ?? null;
+  const wanted = normalizeProjectId(id);
+  return (
+    projects.find((item) => {
+      const aliases = [
+        item.project.id,
+        item.project.fullName,
+        item.project.name,
+        item.project.fullName.replace("/", "-"),
+        item.project.fullName.replace("/", "--")
+      ].map(normalizeProjectId);
+      return aliases.includes(wanted);
+    }) ?? null
+  );
 }
 
 export async function searchProjects(env: Env, filters: ProjectFilters): Promise<ProjectKnowledge[]> {
@@ -681,6 +693,10 @@ function byGitScore(a: ProjectKnowledge, b: ProjectKnowledge): number {
 
 function normalize(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
+}
+
+function normalizeProjectId(value: string | null | undefined): string {
+  return normalize(value).replace(/^\/+|\/+$/g, "");
 }
 
 function parseJson<T>(value: string, fallback: T): T {
