@@ -11,6 +11,7 @@ import {
 } from "./db";
 import { generateAlternativesForAll } from "./alternatives";
 import { defaultSeedRepositories } from "./github";
+import { buildKnowledgeGraph, compareProjectKnowledge } from "./graph";
 import { errorJson, json, parseBool, parseLimit, rawJson } from "./http";
 import { toProjectKnowledgeView } from "./project-view";
 import { buildQualityReport } from "./quality";
@@ -105,6 +106,16 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     });
   }
 
+  if (path === "/api/graph") {
+    return json(
+      buildKnowledgeGraph(
+        await listProjectKnowledge(env),
+        url.searchParams.get("repo") ?? undefined,
+        parseLimit(url.searchParams.get("limit")) ?? 24
+      )
+    );
+  }
+
   if (path === "/api/schema/agent-card.v1") {
     return rawJson(agentCardJsonSchema);
   }
@@ -157,6 +168,16 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       query: Object.fromEntries(url.searchParams.entries()),
       recommendations
     });
+  }
+
+  if (path === "/api/compare") {
+    const ids = (url.searchParams.get("repos") ?? url.searchParams.get("repo") ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+    const all = await listProjectKnowledge(env);
+    const projects = ids.length > 0 ? all.filter((item) => ids.includes(item.project.id) || ids.includes(item.project.fullName)) : all.slice(0, 3);
+    return json(compareProjectKnowledge(projects, { deployment: url.searchParams.get("deployment") ?? undefined }));
   }
 
   const categoryMatch = path.match(/^\/api\/category\/([^/]+)$/);

@@ -1,9 +1,11 @@
 import {
   findAlternatives,
   getProjectKnowledge,
+  listProjectKnowledge,
   recommendProjects,
   searchProjects
 } from "./db";
+import { buildKnowledgeGraph, compareProjectKnowledge } from "./graph";
 import { errorJson, json, stringifyApiJson } from "./http";
 import { toProjectKnowledgeView } from "./project-view";
 import type { Env, ProjectKnowledge } from "./types";
@@ -123,6 +125,17 @@ const tools = [
     }
   },
   {
+    name: "get_project_graph",
+    description: "Return graph nodes and edges for project relationships, alternatives, deployments, use cases, and dependencies.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_id: { type: "string" },
+        limit: { type: "number" }
+      }
+    }
+  },
+  {
     name: "compare_projects",
     description: "Compare projects by deployment, maintenance, difficulty, Cloudflare readiness, and use case fit.",
     inputSchema: {
@@ -135,7 +148,8 @@ const tools = [
         criteria: {
           type: "array",
           items: { type: "string" }
-        }
+        },
+        deployment: { type: "string" }
       },
       required: ["project_ids"]
     }
@@ -252,23 +266,17 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
     };
   }
 
+  if (name === "get_project_graph") {
+    return {
+      graph: buildKnowledgeGraph(await listProjectKnowledge(env), stringArg(args.project_id), numberArg(args.limit) ?? 24)
+    };
+  }
+
   if (name === "compare_projects") {
     const ids = arrayArg(args.project_ids);
     const projects = await Promise.all(ids.map((id) => getProjectKnowledge(env, String(id))));
     const foundProjects = projects.filter(isProjectKnowledge);
-    return {
-      projects: foundProjects,
-      recommendation_order: foundProjects
-        .sort((a, b) => b.metrics.gitScore - a.metrics.gitScore)
-        .map((item) => ({
-          project_id: item.project.id,
-          git_score: item.metrics.gitScore,
-          maintenance_score: item.metrics.maintenanceScore,
-          cloudflare_ready: item.agentCard.cloudflareReady,
-          difficulty: item.agentCard.difficulty,
-          deployment: item.agentCard.deployment
-        }))
-    };
+    return compareProjectKnowledge(foundProjects, { deployment: stringArg(args.deployment) });
   }
 
   return {

@@ -20,6 +20,13 @@ export interface ProjectKnowledgeView {
   };
   qualityScore: number;
   agentScore: number;
+  agentScoreBreakdown: {
+    documentation: number;
+    maintenance: number;
+    deployment: number;
+    popularity: number;
+    community: number;
+  };
 }
 
 export function toProjectKnowledgeView(item: ProjectKnowledge): ProjectKnowledgeView {
@@ -48,18 +55,30 @@ export function toProjectKnowledgeView(item: ProjectKnowledge): ProjectKnowledge
       releaseFrequency180d: item.metrics.releases180d
     },
     qualityScore,
-    agentScore
+    agentScore,
+    agentScoreBreakdown: getAgentScoreParts(item)
   };
 }
 
 export function calculateAgentScore(item: ProjectKnowledge): number {
+  const parts = getAgentScoreParts(item);
+  return Math.round(parts.documentation * 0.22 + parts.maintenance * 0.24 + parts.deployment * 0.2 + parts.popularity * 0.18 + parts.community * 0.16);
+}
+
+function getAgentScoreParts(item: ProjectKnowledge): ProjectKnowledgeView["agentScoreBreakdown"] {
   const documentation = item.agentCard.summaryForAgent.length > 80 ? 90 : 72;
   const maintenance = item.metrics.maintenanceScore;
   const deployment = Math.min(100, 50 + item.agentCard.deployment.length * 10 + (item.agentCard.cloudflareReady ? 20 : 0));
   const popularity = Math.min(100, Math.round(Math.log10(Math.max(item.project.stars, 1)) * 20));
   const community = Math.min(100, 45 + item.metrics.contributors90d);
 
-  return Math.round(documentation * 0.22 + maintenance * 0.24 + deployment * 0.2 + popularity * 0.18 + community * 0.16);
+  return {
+    documentation,
+    maintenance,
+    deployment,
+    popularity,
+    community
+  };
 }
 
 function inferDependencies(item: ProjectKnowledge): string[] {

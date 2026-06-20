@@ -3,11 +3,12 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
-import { BarChart3, Braces, Building2, Github, LayoutDashboard, Settings, Shield, UserPlus, UsersRound } from "lucide-react";
+import { BarChart3, Braces, Building2, Github, LayoutDashboard, Network, Settings, Shield, UserPlus, UsersRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 const navigation: Array<{ href: Route; label: string; icon: LucideIcon }> = [
   { href: "/", label: "Home", icon: LayoutDashboard },
+  { href: "/graph", label: "Graph", icon: Network },
   { href: "/users", label: "Users", icon: UsersRound },
   { href: "/register", label: "Register", icon: UserPlus },
   { href: "/projects", label: "Projects", icon: Braces },

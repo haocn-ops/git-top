@@ -7,6 +7,15 @@ export function renderExplorer(): Response {
   });
 }
 
+export function renderGraph(): Response {
+  return new Response(graphHtml, {
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "public, max-age=120"
+    }
+  });
+}
+
 const html = String.raw`<!doctype html>
 <html lang="en">
   <head>
@@ -461,6 +470,7 @@ const html = String.raw`<!doctype html>
           <span>Git.Top</span>
         </a>
         <div class="nav-links">
+          <a href="/graph">Graph</a>
           <a href="/api/search?q=cloudflare%20agent%20framework">Agent API</a>
           <a href="/mcp">MCP</a>
           <a href="/api/schema/project.v2">Schema</a>
@@ -474,6 +484,7 @@ const html = String.raw`<!doctype html>
           <p class="hero-lede">Understand open source projects beyond stars. Git.Top turns GitHub repositories into structured knowledge agents can search, compare, evaluate, and deploy.</p>
           <div class="actions">
             <a class="button primary" href="#projects">Explore Projects</a>
+            <a class="button secondary" href="/graph">Knowledge Graph</a>
             <a class="button secondary" href="/api/search?q=cloudflare%20agent%20framework">Agent API</a>
           </div>
         </div>
@@ -538,10 +549,10 @@ const html = String.raw`<!doctype html>
           <p class="muted">search_projects, get_project, get_alternatives, get_deployment, and get_quality_score.</p>
         </article>
         <article class="panel">
-          <div class="feature-icon">SEO</div>
-          <p class="eyebrow">Project Pages</p>
-          <h2>Ready for SSR project knowledge pages</h2>
-          <p class="muted">Each repo can expose title, description, FAQ, alternatives, comparison, and deployment notes.</p>
+          <div class="feature-icon">KG</div>
+          <p class="eyebrow">Knowledge Graph</p>
+          <h2>Relationships are the product surface</h2>
+          <p class="muted">Alternatives, deployments, dependencies, use cases, and categories become reusable graph edges.</p>
         </article>
       </section>
 
@@ -605,6 +616,127 @@ const html = String.raw`<!doctype html>
           .replaceAll(">", "&gt;")
           .replaceAll('"', "&quot;")
           .replaceAll("'", "&#39;");
+      }
+    </script>
+  </body>
+</html>`;
+
+const graphHtml = String.raw`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Git.Top Graph | Project Knowledge Graph</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f8fb;
+        --surface: #ffffff;
+        --ink: #182026;
+        --muted: #66737c;
+        --line: #dce3e8;
+        --teal: #0f766e;
+        --green: #147d4f;
+        --shadow: 0 16px 40px rgba(17, 24, 39, 0.08);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-width: 320px; background: var(--bg); color: var(--ink); }
+      a { color: inherit; text-decoration: none; }
+      h1, h2, h3, p { margin: 0; }
+      .page { max-width: 1240px; margin: 0 auto; padding: 22px; }
+      .nav, .header, .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+      .nav { margin-bottom: 18px; }
+      .brand { display: flex; align-items: center; gap: 10px; font-weight: 900; }
+      .brand-mark, .feature-icon { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 8px; background: #e6f3ef; color: var(--teal); }
+      .nav-links { display: flex; gap: 10px; color: #40505a; font-weight: 800; }
+      .eyebrow { color: #0b5d56; font-size: 12px; font-weight: 900; text-transform: uppercase; }
+      h1 { font-size: clamp(32px, 5vw, 56px); line-height: 1; margin-top: 4px; }
+      h2 { font-size: 19px; line-height: 1.2; }
+      .muted { color: var(--muted); line-height: 1.55; }
+      .button { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-weight: 900; padding: 9px 12px; }
+      .button.primary { border-color: var(--teal); background: var(--teal); color: #fff; }
+      .panel { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); padding: 16px; }
+      .grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 12px; margin-top: 18px; }
+      .node-map { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+      .node { display: grid; gap: 6px; min-height: 106px; border: 1px solid var(--line); border-radius: 8px; background: #fbfdfd; padding: 12px; }
+      .node.project { border-color: #b7dfcc; background: #eefaf4; }
+      .node.deployment { background: #f0f6ff; }
+      .node.category { background: #fff8e7; }
+      .node span, .node small { color: var(--muted); font-size: 12px; font-weight: 900; text-transform: uppercase; }
+      .node strong { overflow-wrap: anywhere; }
+      .score strong { display: inline-block; font-size: 58px; line-height: 0.9; margin-top: 8px; }
+      .list { display: grid; gap: 9px; margin-top: 14px; }
+      .list div { border-top: 1px solid var(--line); padding-top: 9px; }
+      .list div:first-child { border-top: 0; padding-top: 0; }
+      .compare { display: grid; min-width: 860px; margin-top: 12px; }
+      .compare-row { display: grid; grid-template-columns: minmax(240px, 1.3fr) 100px 80px 80px 100px 100px; gap: 12px; align-items: center; border-top: 1px solid var(--line); padding: 12px 0; }
+      .compare-head { border-top: 0; color: var(--muted); font-size: 12px; font-weight: 900; text-transform: uppercase; }
+      .table-wrap { overflow-x: auto; margin-top: 18px; }
+      @media (max-width: 900px) { .grid, .node-map { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <nav class="nav">
+        <a class="brand" href="/"><span class="brand-mark">G</span><span>Git.Top</span></a>
+        <div class="nav-links"><a href="/">Home</a><a href="/api/graph?repo=cloudflare/agents">Graph API</a><a href="/mcp">MCP</a></div>
+      </nav>
+
+      <header class="header">
+        <div>
+          <p class="eyebrow">Project Knowledge Graph</p>
+          <h1>Knowledge, then Graph, then Agent</h1>
+        </div>
+        <a class="button primary" href="/api/graph?repo=cloudflare/agents">JSON</a>
+      </header>
+
+      <section class="grid">
+        <article class="panel">
+          <div class="panel-heading"><div><p class="eyebrow">Focus Graph</p><h2>cloudflare/agents</h2></div><span id="graph-count" class="button">Loading</span></div>
+          <div class="node-map" id="node-map"></div>
+        </article>
+        <aside class="panel score">
+          <p class="eyebrow">Agent Score</p>
+          <strong id="agent-score">-</strong><span>/100</span>
+          <div class="list" id="score-list"></div>
+        </aside>
+      </section>
+
+      <section class="panel table-wrap">
+        <div class="panel-heading"><div><p class="eyebrow">Compare Matrix</p><h2>What agents need to decide</h2></div><a class="button" href="/api/compare">Compare API</a></div>
+        <div class="compare" id="compare"></div>
+      </section>
+    </div>
+    <script>
+      const nodeMap = document.querySelector("#node-map");
+      const graphCount = document.querySelector("#graph-count");
+      const agentScore = document.querySelector("#agent-score");
+      const scoreList = document.querySelector("#score-list");
+      const compare = document.querySelector("#compare");
+      init();
+      async function init() {
+        const [graph, project, comparison] = await Promise.all([
+          getJson("/api/graph?repo=cloudflare/agents&limit=18"),
+          getJson("/api/project/cloudflare/agents"),
+          getJson("/api/compare")
+        ]);
+        graphCount.textContent = graph.nodes.length + " nodes / " + graph.edges.length + " edges";
+        nodeMap.innerHTML = graph.nodes.slice(0, 18).map((node) => '<div class="node ' + escapeHtml(node.kind) + '"><span>' + escapeHtml(node.kind) + '</span><strong>' + escapeHtml(node.label) + '</strong>' + (node.score ? '<small>' + escapeHtml(node.score) + '/100</small>' : '') + '</div>').join("");
+        agentScore.textContent = project.agent_score || "-";
+        const parts = project.agent_score_breakdown || {};
+        scoreList.innerHTML = ["documentation", "deployment", "maintenance", "community", "popularity"].map((key) => '<div><strong>' + key + '</strong><p class="muted">' + escapeHtml(parts[key] ?? "-") + '</p></div>').join("");
+        compare.innerHTML = '<div class="compare-row compare-head"><span>Project</span><span>Stars</span><span>Agent</span><span>Local</span><span>Cloudflare</span><span>Score</span></div>' +
+          (comparison.projects || []).map((project) => '<div class="compare-row"><strong>' + escapeHtml(project.repo) + '</strong><span>' + Number(project.stars || 0).toLocaleString() + '</span><span>' + yes(project.agent) + '</span><span>' + yes(project.local) + '</span><span>' + yes(project.cloudflare) + '</span><strong>' + escapeHtml(project.agent_score) + '</strong></div>').join("");
+      }
+      async function getJson(path) {
+        const response = await fetch(path, { headers: { accept: "application/json" } });
+        if (!response.ok) throw new Error(path + " HTTP " + response.status);
+        return response.json();
+      }
+      function yes(value) { return value ? "Yes" : "No"; }
+      function escapeHtml(value) {
+        return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
       }
     </script>
   </body>

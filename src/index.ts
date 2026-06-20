@@ -1,5 +1,5 @@
 import { handleApi } from "./api";
-import { renderExplorer } from "./explorer";
+import { renderExplorer, renderGraph } from "./explorer";
 import { errorJson } from "./http";
 import { handleMcp } from "./mcp";
 import { syncGithubProjects } from "./sync";
@@ -11,6 +11,10 @@ export default {
 
     if (url.pathname === "/" || url.pathname === "/explorer") {
       return renderExplorer();
+    }
+
+    if (url.pathname === "/graph") {
+      return renderGraph();
     }
 
     if (url.pathname.startsWith("/api/")) {
