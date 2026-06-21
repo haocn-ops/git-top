@@ -1,6 +1,6 @@
 # Git.Top Eval Quality
 
-Generated at: 2026-06-21T00:31:04.008Z
+Generated at: 2026-06-21T00:37:33.008Z
 
 This report summarizes the CI-safe recommendation and classification baseline. Evaluation knowledge is built from hand-authored seed projects first, generated Agent Card fixtures second, and synthetic seed metadata last.
 

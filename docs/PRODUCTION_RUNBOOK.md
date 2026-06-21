@@ -54,6 +54,14 @@ pnpm smoke:prod
 
 The current V1 release policy is manual deploy with scripted gates. Do not enable CI-driven production deploys until D1 migration order, production secrets, and rollback ownership are explicit in the CI workflow.
 
+GitHub Actions runs the local public V1 release gate with production smoke disabled:
+
+```sh
+pnpm release:check -- --skip-prod-smoke
+```
+
+This catches validation and local D1 integration regressions on PRs without requiring production credentials.
+
 For a preview or local Worker:
 
 ```sh
@@ -113,6 +121,32 @@ Review:
 - `coverage.stale_project_rate`
 
 Treat `metadata.source: "seed"` as a degraded data-source mode even if API requests still succeed.
+
+## Classification Overrides
+
+Use the low-confidence review report to decide whether a generated classification needs an operator override:
+
+```sh
+pnpm quality:review
+```
+
+Persist a reviewed override:
+
+```sh
+curl -X POST https://git.top/api/admin/classification-overrides \
+  -H "authorization: Bearer $SYNC_SECRET" \
+  -H "content-type: application/json" \
+  -d '{"project_id":"cloudflare/agents","category":"agent_framework","cloudflare_ready":true,"reviewed_by":"operator"}'
+```
+
+List current overrides:
+
+```sh
+curl https://git.top/api/admin/classification-overrides \
+  -H "authorization: Bearer $SYNC_SECRET"
+```
+
+Overrides are an audit ledger first. Apply them to generated Agent Cards only after the review policy for that correction type is clear.
 
 ## Rollback Notes
 

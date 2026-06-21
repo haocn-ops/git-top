@@ -20,6 +20,26 @@ await ensureTable(
     FOREIGN KEY (project_id) REFERENCES projects(id)
   );`
 );
+await ensureTable(
+  "classification_overrides",
+  `CREATE TABLE IF NOT EXISTS classification_overrides (
+    project_id TEXT PRIMARY KEY,
+    category TEXT,
+    difficulty TEXT,
+    deployment_json TEXT,
+    cloudflare_ready INTEGER,
+    classification_json TEXT NOT NULL DEFAULT '{}',
+    notes TEXT,
+    reviewed_by TEXT,
+    reviewed_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES projects(id)
+  );`
+);
+await ensureIndex(
+  "idx_classification_overrides_reviewed_at",
+  "CREATE INDEX IF NOT EXISTS idx_classification_overrides_reviewed_at ON classification_overrides(reviewed_at DESC);"
+);
 
 console.log(`Prepared local D1 database ${databaseName}.`);
 
@@ -43,6 +63,17 @@ async function ensureTable(table, statement) {
 
   await wranglerD1(["--command", statement]);
   console.log(`Added missing local D1 table ${table}.`);
+}
+
+async function ensureIndex(indexName, statement) {
+  const info = await wranglerD1(["--json", "--command", `SELECT name FROM sqlite_master WHERE type = 'index' AND name = '${indexName}';`]);
+  const rows = parseD1Results(info.stdout);
+  if (rows.some((row) => row.name === indexName)) {
+    return;
+  }
+
+  await wranglerD1(["--command", statement]);
+  console.log(`Added missing local D1 index ${indexName}.`);
 }
 
 async function wranglerD1(args) {

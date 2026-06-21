@@ -60,6 +60,20 @@ CREATE TABLE IF NOT EXISTS star_snapshots (
   FOREIGN KEY (project_id) REFERENCES projects(id)
 );
 
+CREATE TABLE IF NOT EXISTS classification_overrides (
+  project_id TEXT PRIMARY KEY,
+  category TEXT,
+  difficulty TEXT,
+  deployment_json TEXT,
+  cloudflare_ready INTEGER,
+  classification_json TEXT NOT NULL DEFAULT '{}',
+  notes TEXT,
+  reviewed_by TEXT,
+  reviewed_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (project_id) REFERENCES projects(id)
+);
+
 CREATE TABLE IF NOT EXISTS sync_state (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,
@@ -89,3 +103,4 @@ CREATE INDEX IF NOT EXISTS idx_agent_cards_cloudflare_ready ON agent_cards(cloud
 CREATE INDEX IF NOT EXISTS idx_metrics_git_score ON project_metrics(git_score DESC);
 CREATE INDEX IF NOT EXISTS idx_metrics_maintenance_score ON project_metrics(maintenance_score DESC);
 CREATE INDEX IF NOT EXISTS idx_sync_runs_started_at ON sync_runs(started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_classification_overrides_reviewed_at ON classification_overrides(reviewed_at DESC);

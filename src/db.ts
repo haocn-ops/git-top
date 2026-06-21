@@ -1,5 +1,18 @@
 import { seedProjects } from "./seed";
-import type { AgentCard, Alternative, Env, Project, ProjectKnowledge, ProjectMetrics, SyncFailure, SyncRun } from "./types";
+import type {
+  AgentCard,
+  Alternative,
+  Category,
+  ClassificationOverride,
+  Deployment,
+  Difficulty,
+  Env,
+  Project,
+  ProjectKnowledge,
+  ProjectMetrics,
+  SyncFailure,
+  SyncRun
+} from "./types";
 
 interface ProjectRow {
   id: string;
@@ -67,6 +80,31 @@ interface SyncRunRow {
   alternatives_updated: number;
   synced_json: string;
   failed_json: string;
+}
+
+interface ClassificationOverrideRow {
+  project_id: string;
+  category: Category | null;
+  difficulty: Difficulty | null;
+  deployment_json: string | null;
+  cloudflare_ready: number | null;
+  classification_json: string;
+  notes: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string;
+  updated_at: string;
+}
+
+export interface ClassificationOverrideInput {
+  projectId: string;
+  category?: Category | null;
+  difficulty?: Difficulty | null;
+  deployment?: Deployment[] | null;
+  cloudflareReady?: boolean | null;
+  classification?: AgentCard["classification"] | null;
+  notes?: string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string;
 }
 
 export interface ProjectFilters {
@@ -298,6 +336,77 @@ export async function insertSyncRun(env: Env, run: SyncRun): Promise<void> {
       JSON.stringify(run.failed)
     )
     .run();
+}
+
+export async function listClassificationOverrides(env: Env, limit = 100): Promise<ClassificationOverride[]> {
+  if (!env.DB) {
+    return [];
+  }
+
+  const normalizedLimit = Math.min(Math.max(Math.trunc(limit), 1), 500);
+  const rows = await env.DB.prepare(
+    `SELECT project_id, category, difficulty, deployment_json, cloudflare_ready, classification_json,
+            notes, reviewed_by, reviewed_at, updated_at
+     FROM classification_overrides
+     ORDER BY reviewed_at DESC
+     LIMIT ?`
+  )
+    .bind(normalizedLimit)
+    .all<ClassificationOverrideRow>();
+
+  return (rows.results ?? []).map(rowToClassificationOverride);
+}
+
+export async function upsertClassificationOverride(env: Env, input: ClassificationOverrideInput): Promise<ClassificationOverride> {
+  if (!env.DB) {
+    throw new Error("D1 database binding is required for classification overrides.");
+  }
+
+  const now = new Date().toISOString();
+  const reviewedAt = input.reviewedAt ?? now;
+
+  await env.DB.prepare(
+    `INSERT INTO classification_overrides (
+      project_id, category, difficulty, deployment_json, cloudflare_ready, classification_json,
+      notes, reviewed_by, reviewed_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(project_id) DO UPDATE SET
+      category = excluded.category,
+      difficulty = excluded.difficulty,
+      deployment_json = excluded.deployment_json,
+      cloudflare_ready = excluded.cloudflare_ready,
+      classification_json = excluded.classification_json,
+      notes = excluded.notes,
+      reviewed_by = excluded.reviewed_by,
+      reviewed_at = excluded.reviewed_at,
+      updated_at = excluded.updated_at`
+  )
+    .bind(
+      input.projectId,
+      input.category ?? null,
+      input.difficulty ?? null,
+      input.deployment ? JSON.stringify(input.deployment) : null,
+      input.cloudflareReady === undefined || input.cloudflareReady === null ? null : input.cloudflareReady ? 1 : 0,
+      JSON.stringify(input.classification ?? {}),
+      input.notes ?? null,
+      input.reviewedBy ?? null,
+      reviewedAt,
+      now
+    )
+    .run();
+
+  return {
+    projectId: input.projectId,
+    category: input.category ?? null,
+    difficulty: input.difficulty ?? null,
+    deployment: input.deployment ?? null,
+    cloudflareReady: input.cloudflareReady ?? null,
+    classification: input.classification ?? null,
+    notes: input.notes ?? null,
+    reviewedBy: input.reviewedBy ?? null,
+    reviewedAt,
+    updatedAt: now
+  };
 }
 
 export interface StarDeltaSnapshot {
@@ -750,6 +859,21 @@ function rowToMetrics(row: MetricsRow): ProjectMetrics {
     maintenanceScore: row.maintenance_score,
     signalConfidence: parseJson<ProjectMetrics["signalConfidence"]>(row.signal_confidence_json ?? "{}", {}),
     calculatedAt: row.calculated_at
+  };
+}
+
+function rowToClassificationOverride(row: ClassificationOverrideRow): ClassificationOverride {
+  return {
+    projectId: row.project_id,
+    category: row.category,
+    difficulty: row.difficulty,
+    deployment: row.deployment_json ? parseJson<Deployment[]>(row.deployment_json, []) : null,
+    cloudflareReady: row.cloudflare_ready === null ? null : row.cloudflare_ready === 1,
+    classification: parseJson<AgentCard["classification"]>(row.classification_json, {}),
+    notes: row.notes,
+    reviewedBy: row.reviewed_by,
+    reviewedAt: row.reviewed_at,
+    updatedAt: row.updated_at
   };
 }
 

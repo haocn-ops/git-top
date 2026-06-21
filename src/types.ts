@@ -88,6 +88,19 @@ export interface ClassificationSignal {
   evidence: string[];
 }
 
+export interface ClassificationOverride {
+  projectId: string;
+  category: Category | null;
+  difficulty: Difficulty | null;
+  deployment: Deployment[] | null;
+  cloudflareReady: boolean | null;
+  classification: AgentCard["classification"] | null;
+  notes: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string;
+  updatedAt: string;
+}
+
 export interface ProjectMetrics {
   projectId: string;
   stars30dDelta: number;

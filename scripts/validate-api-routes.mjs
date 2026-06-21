@@ -13,6 +13,7 @@ await testMethodAndBodyValidation();
 await testMockD1Source();
 await testD1FallbackReasons();
 await testSyncStatusWithMockD1();
+await testClassificationOverridesWithMockD1();
 
 console.log("Validated API route behavior with seed and mocked D1 data sources.");
 
@@ -121,6 +122,10 @@ async function testMethodAndBodyValidation() {
   const adminSync = await request("/api/admin/sync", { method: "POST" });
   assert.equal(adminSync.status, 401);
   assert.equal(adminSync.body.error.code, "unauthorized");
+
+  const adminOverrides = await request("/api/admin/classification-overrides");
+  assert.equal(adminOverrides.status, 401);
+  assert.equal(adminOverrides.body.error.code, "unauthorized");
 }
 
 async function testMockD1Source() {
@@ -211,6 +216,75 @@ async function testSyncStatusWithMockD1() {
   assert.equal(degraded.body.last_failed_sync_at, "2026-06-20T02:00:00Z");
   assert.equal(degraded.body.last_error.repository, mockD1ProjectId);
   assert.equal(degraded.body.last_error.error, "rate limited");
+}
+
+async function testClassificationOverridesWithMockD1() {
+  const d1Env = {
+    ...mockD1Env({ classificationOverrides: [] }),
+    SYNC_SECRET: "test-secret"
+  };
+  const headers = {
+    authorization: "Bearer test-secret",
+    "content-type": "application/json"
+  };
+
+  const create = await request(
+    "/api/admin/classification-overrides",
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        project_id: mockD1ProjectId,
+        category: "agent_framework",
+        difficulty: "beginner",
+        deployment: ["cloudflare", "serverless"],
+        cloudflare_ready: true,
+        classification: {
+          category: {
+            confidence: "high",
+            evidence: ["Manual review confirmed agent framework category."]
+          }
+        },
+        notes: "Reviewed from low-confidence report.",
+        reviewed_by: "api-test",
+        reviewed_at: "2026-06-21T00:00:00Z"
+      })
+    },
+    d1Env
+  );
+  assert.equal(create.status, 200);
+  assert.equal(create.body.override.project_id, mockD1ProjectId);
+  assert.equal(create.body.override.category, "agent_framework");
+  assert.deepEqual(create.body.override.deployment, ["cloudflare", "serverless"]);
+  assert.equal(create.body.override.cloudflare_ready, true);
+
+  const list = await request(
+    "/api/admin/classification-overrides?limit=10",
+    {
+      headers: {
+        authorization: "Bearer test-secret"
+      }
+    },
+    d1Env
+  );
+  assert.equal(list.status, 200);
+  assert.equal(list.body.count, 1);
+  assert.equal(list.body.overrides[0].project_id, mockD1ProjectId);
+
+  const invalid = await request(
+    "/api/admin/classification-overrides",
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        project_id: "bad",
+        category: "agent_framework"
+      })
+    },
+    d1Env
+  );
+  assert.equal(invalid.status, 400);
+  assert.equal(invalid.body.error.code, "invalid_classification_override");
 }
 
 async function getJson(path) {

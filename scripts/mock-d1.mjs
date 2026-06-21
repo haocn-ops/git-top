@@ -21,6 +21,7 @@ class MockStatement {
       starSnapshot: null,
       syncRuns: [],
       knowledge: null,
+      classificationOverrides: [],
       ...config
     };
   }
@@ -51,6 +52,11 @@ class MockStatement {
         results: this.config.syncRuns
       };
     }
+    if (this.sql.includes("FROM classification_overrides")) {
+      return {
+        results: this.config.classificationOverrides
+      };
+    }
     return {
       results: []
     };
@@ -77,6 +83,38 @@ class MockStatement {
   }
 
   async run() {
+    if (this.sql.includes("classification_overrides")) {
+      const [
+        project_id,
+        category,
+        difficulty,
+        deployment_json,
+        cloudflare_ready,
+        classification_json,
+        notes,
+        reviewed_by,
+        reviewed_at,
+        updated_at
+      ] = this.bindings;
+      const nextRow = {
+        project_id,
+        category,
+        difficulty,
+        deployment_json,
+        cloudflare_ready,
+        classification_json,
+        notes,
+        reviewed_by,
+        reviewed_at,
+        updated_at
+      };
+      const index = this.config.classificationOverrides.findIndex((row) => row.project_id === project_id);
+      if (index >= 0) {
+        this.config.classificationOverrides[index] = nextRow;
+      } else {
+        this.config.classificationOverrides.unshift(nextRow);
+      }
+    }
     return {
       success: true
     };

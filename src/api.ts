@@ -2,11 +2,13 @@ import {
   findAlternativesFromList,
   getProjectKnowledgeFromList,
   getHealth,
+  listClassificationOverrides,
   getSyncStatus,
   getTrendingFromList,
   listProjectKnowledgeWithMeta,
   recommendProjectList,
   searchProjectList,
+  upsertClassificationOverride,
   updateProjectAlternatives
 } from "./db";
 import { generateAlternativesForAll } from "./alternatives";
@@ -18,7 +20,7 @@ import { toProjectKnowledgeView } from "./project-view";
 import { buildQualityReport } from "./quality";
 import { agentCardJsonSchema, projectKnowledgeJsonSchema, projectV2JsonSchema } from "./schema";
 import { syncGithubProjects } from "./sync";
-import type { Env } from "./types";
+import type { AgentCard, Category, Deployment, Difficulty, Env } from "./types";
 
 export async function handleApi(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -79,6 +81,63 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
         }
       }
     );
+  }
+
+  if (path === "/api/admin/classification-overrides") {
+    if (!["GET", "POST"].includes(request.method)) {
+      return errorJson(405, "method_not_allowed", "Classification overrides endpoint supports GET and POST.");
+    }
+
+    if (!isAuthorizedAdmin(request, env)) {
+      return errorJson(401, "unauthorized", "Missing or invalid admin authorization.");
+    }
+
+    if (request.method === "GET") {
+      try {
+        const overrides = await listClassificationOverrides(env, parseLimit(url.searchParams.get("limit")) ?? 100);
+        return json(
+          {
+            overrides,
+            count: overrides.length
+          },
+          {
+            headers: {
+              "cache-control": "no-store"
+            }
+          }
+        );
+      } catch (error) {
+        return errorJson(500, "classification_override_read_failed", formatError(error));
+      }
+    }
+
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return errorJson(400, "invalid_json", "Classification override endpoint requires a valid JSON body.");
+    }
+
+    const parsed = parseClassificationOverrideInput(body);
+    if (!parsed.ok) {
+      return errorJson(400, "invalid_classification_override", parsed.message);
+    }
+
+    try {
+      const override = await upsertClassificationOverride(env, parsed.input);
+      return json(
+        {
+          override
+        },
+        {
+          headers: {
+            "cache-control": "no-store"
+          }
+        }
+      );
+    } catch (error) {
+      return errorJson(500, "classification_override_write_failed", formatError(error));
+    }
   }
 
   if (path === "/api/grp/query") {
@@ -298,4 +357,131 @@ function isAuthorizedAdmin(request: Request, env: Env): boolean {
   const auth = request.headers.get("authorization") ?? "";
   const expected = `Bearer ${env.SYNC_SECRET}`;
   return auth === expected;
+}
+
+type ClassificationOverrideParseResult =
+  | {
+      ok: true;
+      input: Parameters<typeof upsertClassificationOverride>[1];
+    }
+  | {
+      ok: false;
+      message: string;
+    };
+
+function parseClassificationOverrideInput(body: unknown): ClassificationOverrideParseResult {
+  if (!body || typeof body !== "object") {
+    return { ok: false, message: "Request body must be an object." };
+  }
+
+  const data = body as Record<string, unknown>;
+  const projectId = stringField(data, "projectId") ?? stringField(data, "project_id");
+  if (!projectId || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(projectId)) {
+    return { ok: false, message: "project_id must be a GitHub owner/name repository id." };
+  }
+
+  const category = optionalEnum<Category>(data, "category", [
+    "agent_framework",
+    "coding_agent",
+    "browser_agent",
+    "rag_framework",
+    "vector_database",
+    "llm_gateway",
+    "llm_eval",
+    "prompt_tooling",
+    "workflow_automation",
+    "local_llm_runtime",
+    "ai_app_template",
+    "mcp_server",
+    "ai_observability",
+    "other"
+  ]);
+  if (!category.ok) {
+    return { ok: false, message: category.message };
+  }
+
+  const difficulty = optionalEnum<Difficulty>(data, "difficulty", ["beginner", "intermediate", "advanced"]);
+  if (!difficulty.ok) {
+    return { ok: false, message: difficulty.message };
+  }
+
+  const deployment = optionalStringArray(data, "deployment");
+  if (!deployment.ok) {
+    return { ok: false, message: deployment.message };
+  }
+
+  const cloudflareReady = optionalBoolean(data, "cloudflareReady", "cloudflare_ready");
+  if (!cloudflareReady.ok) {
+    return { ok: false, message: cloudflareReady.message };
+  }
+
+  const classification = data.classification === undefined ? null : (data.classification as AgentCard["classification"]);
+
+  return {
+    ok: true,
+    input: {
+      projectId,
+      category: category.value,
+      difficulty: difficulty.value,
+      deployment: deployment.value as Deployment[] | null,
+      cloudflareReady: cloudflareReady.value,
+      classification,
+      notes: stringField(data, "notes"),
+      reviewedBy: stringField(data, "reviewedBy") ?? stringField(data, "reviewed_by"),
+      reviewedAt: stringField(data, "reviewedAt") ?? stringField(data, "reviewed_at") ?? undefined
+    }
+  };
+}
+
+function stringField(data: Record<string, unknown>, key: string): string | null {
+  const value = data[key];
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function optionalEnum<T extends string>(
+  data: Record<string, unknown>,
+  key: string,
+  values: readonly T[]
+): { ok: true; value: T | null } | { ok: false; message: string } {
+  const value = data[key];
+  if (value === undefined || value === null) {
+    return { ok: true, value: null };
+  }
+  if (typeof value !== "string" || !values.includes(value as T)) {
+    return { ok: false, message: `${key} must be one of: ${values.join(", ")}.` };
+  }
+  return { ok: true, value: value as T };
+}
+
+function optionalStringArray(
+  data: Record<string, unknown>,
+  key: string
+): { ok: true; value: string[] | null } | { ok: false; message: string } {
+  const value = data[key];
+  if (value === undefined || value === null) {
+    return { ok: true, value: null };
+  }
+  if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) {
+    return { ok: false, message: `${key} must be an array of strings.` };
+  }
+  return { ok: true, value };
+}
+
+function optionalBoolean(
+  data: Record<string, unknown>,
+  camelKey: string,
+  snakeKey: string
+): { ok: true; value: boolean | null } | { ok: false; message: string } {
+  const value = data[camelKey] ?? data[snakeKey];
+  if (value === undefined || value === null) {
+    return { ok: true, value: null };
+  }
+  if (typeof value !== "boolean") {
+    return { ok: false, message: `${snakeKey} must be a boolean.` };
+  }
+  return { ok: true, value };
+}
+
+function formatError(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown error";
 }

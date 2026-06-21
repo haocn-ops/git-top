@@ -27,5 +27,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Validate
-        run: pnpm validate
+      - name: Public V1 release gate
+        run: pnpm release:check -- --skip-prod-smoke

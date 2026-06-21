@@ -184,6 +184,36 @@ curl -X POST http://localhost:8787/api/admin/sync \
   -d '{"repositories":["cloudflare/agents","modelcontextprotocol/servers"],"limit":2}'
 ```
 
+## Admin Classification Overrides
+
+Classification overrides require `SYNC_SECRET`. They provide a reviewed correction ledger for low-confidence or ambiguous classifications.
+
+List overrides:
+
+```sh
+curl https://git.top/api/admin/classification-overrides \
+  -H "authorization: Bearer $SYNC_SECRET"
+```
+
+Create or update an override:
+
+```sh
+curl -X POST https://git.top/api/admin/classification-overrides \
+  -H "authorization: Bearer $SYNC_SECRET" \
+  -H "content-type: application/json" \
+  -d '{
+    "project_id": "cloudflare/agents",
+    "category": "agent_framework",
+    "difficulty": "beginner",
+    "deployment": ["cloudflare", "serverless", "local"],
+    "cloudflare_ready": true,
+    "notes": "Manual review confirmed Workers-native deployment.",
+    "reviewed_by": "operator"
+  }'
+```
+
+Overrides are persisted separately from generated Agent Cards so review decisions can be audited before they are applied to runtime classification behavior.
+
 ## Sync Status
 
 ```sh
