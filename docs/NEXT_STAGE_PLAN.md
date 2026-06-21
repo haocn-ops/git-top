@@ -31,7 +31,7 @@ Completion notes:
 
 - Production deployment is live at `https://git.top`.
 - Production D1 smoke verification passes with `metadata.source: "d1"`.
-- The seed baseline has 378 repositories across all 13 V1 categories, including 70 live-checked repositories added after the 308-repository public V1 baseline.
+- The seed baseline has 438 repositories across all 13 V1 categories, including the latest 60-repository live-checked expansion after the 378-repository public V1 baseline.
 - CI-safe evaluation, local evaluation, ranking experiments, low-confidence review, local D1 integration, and production smoke checks are available.
 - `pnpm release:check` is the repeatable public V1 release gate.
 
@@ -106,11 +106,11 @@ Initial baseline:
 - `/api/quality` now includes a `coverage` object with category coverage, missing categories, low-confidence classification rate, stale project rate, Cloudflare-ready count, and average scores.
 - The seed list has reached 120 repositories and covers all 13 V1 categories.
 - `pnpm validate` now includes `seed:coverage` and `eval:quality` so coverage and recommendation regressions are part of the default gate.
-- After live verification cleanup and the first curated expansion batch, the current seed baseline is 378 repositories and covers all 13 V1 categories.
+- After live verification cleanup and curated expansion batches, the current seed baseline is 438 repositories and covers all 13 V1 categories.
 
 Next expansion target:
 
-- Grow from 378 toward 500 repositories.
+- Grow from 438 toward 500 repositories.
 - Add live sync verification for renamed, archived, or unavailable repositories.
 - Keep the larger seed set synced into local D1 fixtures and integration data so evaluation stays on generated Agent Cards instead of synthetic seed metadata.
 
@@ -122,7 +122,7 @@ Live verification:
 - If GitHub rate limits unauthenticated requests, the script stops early and reports `nextOffset`; resume with `pnpm seed:live-check -- --offset <nextOffset> --limit 20`.
 - A full unauthenticated run hit GitHub API rate limits after 40 successful checks.
 - A full authenticated run using `GITHUB_TOKEN` found and cleaned renamed, archived, and missing repositories.
-- The latest full authenticated live check passed with 308/308 repositories OK.
+- The latest authenticated expansion live check passed with 60/60 newly added repositories OK.
 
 Acceptance criteria:
 
@@ -133,8 +133,8 @@ Acceptance criteria:
 Public V1 completion:
 
 - `pnpm seed:validate` now enforces the 300-repository public V1 minimum.
-- The current seed list has 378 repositories.
-- The latest authenticated expansion live check passed with 70/70 newly added repositories OK.
+- The current seed list has 438 repositories.
+- The latest authenticated expansion live check passed with 60/60 newly added repositories OK.
 - Expansion toward 500 remains a quality-controlled growth task rather than a V1 blocker.
 - `pnpm seed:candidates` now generates a live GitHub-backed candidate review queue in `docs/SEED_CANDIDATES.md` so future expansion can be curated instead of guessed.
 
@@ -180,7 +180,7 @@ Initial baseline:
 - `pnpm db:execute` prepares local D1 for current schema expectations, including optional columns missing from older local databases.
 - `pnpm db:integration` now seeds local D1, starts a temporary local Worker, and validates `/api/health`, `/api/search`, `/api/project/:owner/:repo`, `/api/quality`, and `/api/sync/status` against the real D1-backed HTTP path.
 - The baseline has expanded from 6 to 21 cases and covers search, recommendation, GRP, local LLM runtime, vector databases, prompt tooling, observability, workflow automation, coding agents, browser agents, coding resource hubs, AI app resource collections, MCP observability integrations, open SaaS templates, ambiguous-name repositories that require README/topic evidence, and Cloudflare-readiness false positives.
-- Current eval baseline: evaluated cases 21, generated fixture projects 384, D1 fixture projects 384, effective generated fixture projects 378, local D1 seed projects 382, synthetic projects 0, top-1 hit rate 1.0, top-3 hit rate 1.0, category accuracy 1.0, deployment accuracy 1.0, Cloudflare readiness accuracy 1.0, unacceptable hit count 0.
+- Current eval baseline: evaluated cases 21, generated fixture projects 444, D1 fixture projects 444, effective generated fixture projects 438, synthetic projects 0, top-1 hit rate 1.0, top-3 hit rate 1.0, category accuracy 1.0, deployment accuracy 1.0, Cloudflare readiness accuracy 1.0, unacceptable hit count 0.
 - Seed category hints are shared by coverage and evaluation scripts so category drift is easier to catch while the seed list grows.
 
 Next evaluation target:
@@ -192,13 +192,13 @@ Next evaluation target:
 - Cloudflare-readiness regression now tracks a dedicated readiness accuracy metric and covers false positives where Cloudflare Workers is mentioned but Python, filesystem, Docker daemon, or Postgres blockers prevent direct Workers readiness.
 - Cloudflare readiness evidence now separates positive signals (`Cloudflare signal: ...`) from blockers (`Runtime blocker: ...`) and regression validation requires both sides for Cloudflare-mentioned projects.
 - `pnpm quality:review` now writes `docs/LOW_CONFIDENCE_REVIEW.md` from generated Agent Card fixtures and keeps the default validation loop aware of low-confidence classification, collection semantics, and weak evidence review items.
-- Current low-confidence review baseline: 382 projects reviewed, 20 projects needing review, 15 low-confidence signals, 37 medium-confidence signals.
+- Current low-confidence review baseline: 442 projects reviewed, 21 projects needing review, 15 low-confidence signals, 38 medium-confidence signals.
 - `pnpm eval:quality` remains the CI-safe regression gate, while `pnpm eval:local` now runs broader generated category and deployment probes across the fixture-backed project set and writes `docs/EVAL_LOCAL.md`.
-- Current local eval baseline: evaluated cases 22, generated fixture projects 384, D1 fixture projects 384, effective generated fixture projects 378, synthetic projects 0, top-1 hit rate 0.727, top-3 hit rate 0.727, category accuracy 1.0, deployment accuracy 1.0, Cloudflare readiness accuracy 1.0, unacceptable hit count 0.
+- Current local eval baseline: evaluated cases 22, generated fixture projects 444, D1 fixture projects 444, effective generated fixture projects 438, synthetic projects 0, top-1 hit rate 0.682, top-3 hit rate 0.727, category accuracy 1.0, deployment accuracy 1.0, Cloudflare readiness accuracy 1.0, unacceptable hit count 0.
 - The first local tuning targets are ranking order, not classification correctness: category probes for `agent_framework` and `rag_framework`, plus deployment probes for `local`, `docker`, and `serverless`.
 - Eval reports now include a `Review Focus` section that lists top-1/top-3 misses, expected candidates, observed candidates, and tuning hints. This keeps ranking experiments grounded before changing global scoring weights.
 - `pnpm eval:ranking` now compares offline ranking strategies against both CI-safe and local eval cases and writes `docs/RANKING_EXPERIMENTS.md`, so scoring experiments can be rejected before touching runtime search.
-- Current ranking experiment result: `browse_mode_quality` preserves CI-safe top-1/top-3 at 1.0 while improving the full-seed local baseline top-1/top-3 from 0.727 to 0.864.
+- Current ranking experiment result: `browse_mode_quality` preserves CI-safe top-1/top-3 at 1.0 while improving the full-seed local baseline top-1/top-3 from 0.682/0.727 to 0.864/0.864.
 - Runtime search now keeps exact-intent ranking by default and exposes an explicit `ranking=browse` / MCP `ranking: "browse"` mode for broad category/deployment discovery with larger result limits.
 
 Acceptance criteria:

@@ -1,6 +1,6 @@
 # Git.Top Ranking Experiments
 
-Generated at: 2026-06-21T02:08:55.551Z
+Generated at: 2026-06-21T02:27:57.014Z
 
 Offline ranking experiments compare candidate search ranking strategies against both the CI-safe eval and the broader local eval. These experiments do not change runtime search behavior.
 
@@ -8,7 +8,7 @@ Offline ranking experiments compare candidate search ranking strategies against 
 
 Strategy | CI Top-1 | CI Top-3 | CI Bad Hits | Local Top-1 | Local Top-3 | Local Bad Hits | Notes
 --- | ---: | ---: | ---: | ---: | ---: | ---: | ---
-`baseline` | 1 | 1 | 0 | 0.727 | 0.727 | 0 | Current runtime search ranking.
+`baseline` | 1 | 1 | 0 | 0.682 | 0.727 | 0 | Current runtime search ranking.
 `scoped_quality` | 0.81 | 1 | 0 | 1 | 1 | 0 | Boost quality and maintenance inside explicit category/deployment scopes.
 `exact_intent_guard` | 0.714 | 1 | 0 | 0.864 | 0.909 | 0 | Boost quality inside scopes while preserving exact project-name and owner intent.
 `broad_probe_quality` | 0.952 | 1 | 0 | 0.864 | 0.864 | 0 | Boost quality only for broad category/deployment queries, leaving specific intent queries on baseline ranking.
@@ -25,7 +25,7 @@ Candidate `browse_mode_quality` improves local ranking without reducing CI top-1
 ### `baseline`
 
 - CI focus: none
-- Local focus: `local-category-agent_framework`, `local-category-llm_eval`, `local-category-rag_framework`, `local-deployment-docker`, `local-deployment-local`, `local-deployment-library_only`
+- Local focus: `local-category-agent_framework`, `local-category-llm_eval`, `local-category-rag_framework`, `local-deployment-docker`, `local-deployment-local`, `local-deployment-library_only`, `local-deployment-serverless`
 
 ### `scoped_quality`
 

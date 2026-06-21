@@ -1,15 +1,15 @@
 # Git.Top Low-Confidence Review
 
-Generated at: 2026-06-21T02:14:21.108Z
+Generated at: 2026-06-21T02:31:31.115Z
 
 This report lists generated Agent Card classifications that need manual review before Git.Top scales further. It focuses on low and medium classification confidence, collection semantics, Cloudflare readiness ambiguity, and incomplete quality signals.
 
 ## Summary
 
-- Projects reviewed: 382
-- Projects needing review: 20
+- Projects reviewed: 442
+- Projects needing review: 21
 - Low-confidence signals: 15
-- Medium-confidence signals: 37
+- Medium-confidence signals: 38
 
 ## Review Count By Category
 
@@ -17,7 +17,7 @@ This report lists generated Agent Card classifications that need manual review b
 | --- | ---: |
 | `agent_framework` | 2 |
 | `coding_agent` | 2 |
-| `llm_eval` | 2 |
+| `llm_eval` | 3 |
 | `ai_app_template` | 9 |
 | `mcp_server` | 5 |
 
@@ -231,6 +231,16 @@ This report lists generated Agent Card classifications that need manual review b
 | `deployment` | medium | Local usage is assumed for open source repositories unless contradicted. |
 | `difficulty` | medium | Repository has under 10k stars, so complexity is treated conservatively. |
 | `cloudflareReady` | low | No Cloudflare deployment signal detected. |
+
+### `run-llama/awesome-rag`
+
+- Category: `llm_eval`
+- Reasons: Repository is a collection and may need curation semantics review.
+- Suggested action: Confirm collection scope, freshness, and whether the category should represent resources rather than runtime code.
+
+| Field | Confidence | Evidence |
+| --- | --- | --- |
+| `difficulty` | medium | No strong beginner or advanced signal found; defaulting to intermediate. |
 
 ### `Shubhamsaboo/awesome-llm-apps`
 

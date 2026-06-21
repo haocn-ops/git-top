@@ -1,6 +1,6 @@
 # Git.Top Seed Live Check
 
-Checked at: 2026-06-21T01:58:01.191Z
+Checked at: 2026-06-21T02:26:56.333Z
 
 This report checks seed repositories against the live GitHub API. It is network-dependent and is not part of the default offline validation gate.
 
@@ -8,88 +8,78 @@ For full-list checks, set `GITHUB_TOKEN` to avoid unauthenticated GitHub API rat
 
 ## Summary
 
-- Offset: 308
-- Limit: 70
-- Checked: 70
-- OK: 70
+- Offset: 378
+- Limit: 60
+- Checked: 60
+- OK: 60
 - Renamed: 0
 - Archived: 0
 - Missing: 0
 - Error: 0
 - Stopped early: no
-- Next offset: 378
+- Next offset: 438
 
 ## Results
 
 Repository | Status | Canonical | Stars | Pushed At | Error
 --- | --- | --- | ---: | --- | ---
-`open-webui/openapi-servers` | ok | `open-webui/openapi-servers` | 988 | 2025-09-25T20:35:01Z |
-`BerriAI/liteLLM-proxy` | ok | `BerriAI/liteLLM-proxy` | 231 | 2024-02-10T22:46:51Z |
-`BerriAI/litellm-skills` | ok | `BerriAI/litellm-skills` | 46 | 2026-05-07T18:10:42Z |
-`Portkey-AI/mcp-tool-filter` | ok | `Portkey-AI/mcp-tool-filter` | 45 | 2025-11-08T14:30:00Z |
-`Portkey-AI/hoot` | ok | `Portkey-AI/hoot` | 20 | 2026-02-11T09:47:42Z |
-`lobehub/chat-plugins-gateway` | ok | `lobehub/chat-plugins-gateway` | 25 | 2023-12-28T13:40:27Z |
-`openai/human-eval` | ok | `openai/human-eval` | 3267 | 2025-01-17T18:22:17Z |
-`huggingface/lighteval` | ok | `huggingface/lighteval` | 2456 | 2026-06-09T07:28:54Z |
-`huggingface/evaluate` | ok | `huggingface/evaluate` | 2455 | 2026-05-26T10:31:53Z |
-`openai/frontier-evals` | ok | `openai/frontier-evals` | 1224 | 2026-04-21T20:53:31Z |
-`sgl-project/genai-bench` | ok | `sgl-project/genai-bench` | 302 | 2026-05-14T16:32:38Z |
-`vercel/next-evals-oss` | ok | `vercel/next-evals-oss` | 272 | 2026-06-18T18:49:28Z |
-`Giskard-AI/awesome-ai-safety` | ok | `Giskard-AI/awesome-ai-safety` | 216 | 2025-04-14T12:42:48Z |
-`openai/model_spec_evals` | ok | `openai/model_spec_evals` | 6 | 2026-03-24T19:47:28Z |
-`qdrant/fastembed` | ok | `qdrant/fastembed` | 3044 | 2026-06-10T17:09:55Z |
-`qdrant/mcp-server-qdrant` | ok | `qdrant/mcp-server-qdrant` | 1439 | 2026-06-19T00:13:54Z |
-`milvus-io/pymilvus` | ok | `milvus-io/pymilvus` | 1392 | 2026-06-18T09:00:19Z |
-`qdrant/qdrant-client` | ok | `qdrant/qdrant-client` | 1313 | 2026-06-10T16:21:46Z |
-`lancedb/vectordb-recipes` | ok | `lancedb/vectordb-recipes` | 962 | 2026-04-24T11:29:16Z |
-`jina-ai/vectordb` | ok | `jina-ai/vectordb` | 651 | 2024-03-04T17:10:06Z |
-`chroma-core/chroma-mcp` | ok | `chroma-core/chroma-mcp` | 568 | 2025-09-17T20:20:13Z |
-`qdrant/qdrant-js` | ok | `qdrant/qdrant-js` | 455 | 2026-06-18T15:06:04Z |
-`qdrant/go-client` | ok | `qdrant/go-client` | 337 | 2026-06-08T13:17:40Z |
-`qdrant/skills` | ok | `qdrant/skills` | 171 | 2026-06-16T14:33:50Z |
-`qdrant/page-search` | ok | `qdrant/page-search` | 153 | 2026-06-19T23:39:07Z |
-`vllm-project/semantic-router` | ok | `vllm-project/semantic-router` | 4480 | 2026-06-21T00:34:53Z |
-`microsoft/prompty` | ok | `microsoft/prompty` | 1220 | 2026-06-20T15:40:04Z |
-`openai/openai-guardrails-python` | ok | `openai/openai-guardrails-python` | 215 | 2026-03-28T10:18:54Z |
-`openai/openai-guardrails-js` | ok | `openai/openai-guardrails-js` | 87 | 2026-03-26T23:50:02Z |
-`guardrails-ai/guardrails-js` | ok | `guardrails-ai/guardrails-js` | 24 | 2026-06-13T00:56:06Z |
-`promptfoo/promptfoo-action` | ok | `promptfoo/promptfoo-action` | 70 | 2026-06-20T08:33:58Z |
-`browser-use/browser-harness` | ok | `browser-use/browser-harness` | 15158 | 2026-06-21T00:22:45Z |
-`apify/crawlee-python` | ok | `apify/crawlee-python` | 9208 | 2026-06-19T16:44:49Z |
-`browser-use/workflow-use` | ok | `browser-use/workflow-use` | 4054 | 2026-06-19T17:40:15Z |
-`browserbase/skills` | ok | `browserbase/skills` | 3586 | 2026-06-18T20:49:03Z |
-`browser-use/macOS-use` | ok | `browser-use/macOS-use` | 1956 | 2025-03-05T19:13:33Z |
-`firecrawl/fireplexity` | ok | `firecrawl/fireplexity` | 1923 | 2025-08-22T11:51:40Z |
-`firecrawl/open-scouts` | ok | `firecrawl/open-scouts` | 1285 | 2026-05-22T10:33:49Z |
-`firecrawl/open-researcher` | ok | `firecrawl/open-researcher` | 667 | 2025-07-02T17:03:54Z |
-`openai/skills` | ok | `openai/skills` | 22602 | 2026-06-17T19:15:40Z |
-`openai/codex-plugin-cc` | ok | `openai/codex-plugin-cc` | 21361 | 2026-06-14T23:36:23Z |
-`e2b-dev/code-interpreter` | ok | `e2b-dev/code-interpreter` | 2347 | 2026-06-20T09:32:50Z |
-`openai/codex-action` | ok | `openai/codex-action` | 1070 | 2026-05-26T04:30:02Z |
-`openai/codex-universal` | ok | `openai/codex-universal` | 962 | 2026-05-02T20:28:32Z |
-`openai/role-specific-plugins` | ok | `openai/role-specific-plugins` | 312 | 2026-06-08T20:17:31Z |
-`e2b-dev/awesome-devins` | ok | `e2b-dev/awesome-devins` | 253 | 2025-02-26T10:06:28Z |
-`comet-ml/opik-openclaw` | ok | `comet-ml/opik-openclaw` | 620 | 2026-06-17T13:29:04Z |
-`langfuse/langfuse-python` | ok | `langfuse/langfuse-python` | 422 | 2026-06-19T13:32:29Z |
-`traceloop/hub` | ok | `traceloop/hub` | 214 | 2026-06-16T06:45:49Z |
-`langfuse/skills` | ok | `langfuse/skills` | 167 | 2026-06-18T16:59:48Z |
-`langfuse/oss-llmops-stack` | ok | `langfuse/oss-llmops-stack` | 139 | 2025-02-15T22:52:18Z |
-`huggingface/cookbook` | ok | `huggingface/cookbook` | 2681 | 2026-05-26T10:32:45Z |
-`run-llama/sec-insights` | ok | `run-llama/sec-insights` | 2602 | 2025-03-12T15:53:29Z |
-`google-gemini/live-api-web-console` | ok | `google-gemini/live-api-web-console` | 2553 | 2026-06-20T14:44:25Z |
-`vercel/ai-elements` | ok | `vercel/ai-elements` | 2130 | 2026-05-27T19:53:54Z |
-`cloudflare/templates` | ok | `cloudflare/templates` | 1995 | 2026-06-20T14:58:23Z |
-`CopilotKit/OpenGenerativeUI` | ok | `CopilotKit/OpenGenerativeUI` | 1412 | 2026-06-10T23:23:43Z |
-`google-gemini/starter-applets` | ok | `google-gemini/starter-applets` | 1345 | 2026-06-13T17:58:38Z |
-`CopilotKit/generative-ui` | ok | `CopilotKit/generative-ui` | 754 | 2026-03-20T19:55:36Z |
-`vercel/workflow` | ok | `vercel/workflow` | 2131 | 2026-06-20T21:31:34Z |
-`n8n-io/n8n-nodes-starter` | ok | `n8n-io/n8n-nodes-starter` | 1107 | 2026-06-15T07:53:18Z |
-`dagster-io/dagster-open-platform` | ok | `dagster-io/dagster-open-platform` | 462 | 2026-06-11T00:09:40Z |
-`PrefectHQ/colin` | ok | `PrefectHQ/colin` | 120 | 2026-04-21T22:26:06Z |
-`run-llama/n8n-llamacloud` | ok | `run-llama/n8n-llamacloud` | 53 | 2026-06-19T15:53:40Z |
-`run-llama/app-creator` | ok | `run-llama/app-creator` | 52 | 2025-02-04T09:35:31Z |
-`PrefectHQ/prefect-mcp-server` | ok | `PrefectHQ/prefect-mcp-server` | 44 | 2026-06-20T02:18:57Z |
-`supermemoryai/claude-supermemory` | ok | `supermemoryai/claude-supermemory` | 2669 | 2026-06-18T09:16:25Z |
-`supermemoryai/opensearch-ai` | ok | `supermemoryai/opensearch-ai` | 1319 | 2025-07-08T07:24:20Z |
-`deepset-ai/haystack-cookbook` | ok | `deepset-ai/haystack-cookbook` | 542 | 2026-06-19T11:59:45Z |
-`run-llama/finetune-embedding` | ok | `run-llama/finetune-embedding` | 526 | 2023-09-11T03:04:03Z |
+`huggingface/transformers` | ok | `huggingface/transformers` | 161755 | 2026-06-19T18:03:02Z |
+`google/gemma.cpp` | ok | `google/gemma.cpp` | 6963 | 2026-06-19T13:38:06Z |
+`huggingface/text-embeddings-inference` | ok | `huggingface/text-embeddings-inference` | 4880 | 2026-06-18T09:43:28Z |
+`vllm-project/vllm-omni` | ok | `vllm-project/vllm-omni` | 5219 | 2026-06-21T01:59:19Z |
+`vllm-project/aibrix` | ok | `vllm-project/aibrix` | 4880 | 2026-06-19T02:37:46Z |
+`vllm-project/production-stack` | ok | `vllm-project/production-stack` | 2417 | 2026-06-19T20:37:24Z |
+`vllm-project/llm-compressor` | ok | `vllm-project/llm-compressor` | 3423 | 2026-06-18T22:34:32Z |
+`sgl-project/mini-sglang` | ok | `sgl-project/mini-sglang` | 4430 | 2026-05-17T12:37:42Z |
+`microsoft/Foundry-Local` | ok | `microsoft/Foundry-Local` | 2377 | 2026-06-20T02:40:02Z |
+`huggingface/optimum` | ok | `huggingface/optimum` | 3420 | 2026-06-19T15:35:12Z |
+`browserbase/stagehand-python` | ok | `browserbase/stagehand-python` | 489 | 2026-06-09T21:01:48Z |
+`browser-use/browser-harness-js` | ok | `browser-use/browser-harness-js` | 464 | 2026-04-20T18:47:32Z |
+`browser-use/cdp-use` | ok | `browser-use/cdp-use` | 298 | 2026-06-11T11:15:24Z |
+`browser-use/browsercode` | ok | `browser-use/browsercode` | 198 | 2026-06-20T00:34:18Z |
+`browser-use/bux` | ok | `browser-use/bux` | 388 | 2026-06-17T16:52:42Z |
+`firecrawl/cli` | ok | `firecrawl/cli` | 473 | 2026-06-19T20:05:58Z |
+`firecrawl/firesearch` | ok | `firecrawl/firesearch` | 486 | 2025-06-02T14:21:33Z |
+`cloudflare/puppeteer` | ok | `cloudflare/puppeteer` | 363 | 2026-06-20T10:00:19Z |
+`apify/fingerprint-suite` | ok | `apify/fingerprint-suite` | 2397 | 2026-05-20T11:13:23Z |
+`jina-ai/serve` | ok | `jina-ai/serve` | 21860 | 2025-03-24T13:59:54Z |
+`vercel/ai-chatbot-svelte` | ok | `vercel/ai-chatbot-svelte` | 436 | 2025-06-06T01:56:43Z |
+`CopilotKit/aimock` | ok | `CopilotKit/aimock` | 631 | 2026-06-18T17:37:55Z |
+`CopilotKit/open-research-ANA` | ok | `CopilotKit/open-research-ANA` | 390 | 2026-06-20T15:48:25Z |
+`CopilotKit/generative-ui-playground` | ok | `CopilotKit/generative-ui-playground` | 122 | 2026-05-26T18:40:16Z |
+`google-gemini/nano-banana-hackathon-kit` | ok | `google-gemini/nano-banana-hackathon-kit` | 1026 | 2025-09-08T18:20:03Z |
+`lobehub/lobe-chat-plugins` | ok | `lobehub/lobe-chat-plugins` | 291 | 2026-04-30T00:30:38Z |
+`HumanSignal/label-studio-ml-backend` | ok | `HumanSignal/label-studio-ml-backend` | 1068 | 2026-06-20T05:39:18Z |
+`huggingface/inference-benchmarker` | ok | `huggingface/inference-benchmarker` | 160 | 2026-06-09T16:56:07Z |
+`openai/monitorability-evals` | ok | `openai/monitorability-evals` | 83 | 2026-06-11T19:34:12Z |
+`GoogleCloudPlatform/evalbench` | ok | `GoogleCloudPlatform/evalbench` | 50 | 2026-06-20T15:40:28Z |
+`microsoft/superbenchmark` | ok | `microsoft/superbenchmark` | 377 | 2026-06-20T22:06:28Z |
+`huggingface/optimum-benchmark` | ok | `huggingface/optimum-benchmark` | 338 | 2026-05-26T10:32:29Z |
+`Giskard-AI/prompt-injections` | ok | `Giskard-AI/prompt-injections` | 33 | 2024-02-23T17:15:26Z |
+`milvus-io/bootcamp` | ok | `milvus-io/bootcamp` | 2436 | 2026-04-20T03:06:07Z |
+`weaviate/recipes` | ok | `weaviate/recipes` | 942 | 2026-06-12T09:31:07Z |
+`milvus-io/milvus-sdk-java` | ok | `milvus-io/milvus-sdk-java` | 491 | 2026-06-18T09:35:49Z |
+`qdrant/rust-client` | ok | `qdrant/rust-client` | 409 | 2026-06-11T10:22:16Z |
+`qdrant/vector-db-benchmark` | ok | `qdrant/vector-db-benchmark` | 367 | 2026-06-19T22:50:08Z |
+`weaviate/weaviate-python-client` | ok | `weaviate/weaviate-python-client` | 227 | 2026-06-19T12:42:05Z |
+`weaviate/typescript-client` | ok | `weaviate/typescript-client` | 100 | 2026-06-19T09:13:21Z |
+`supermemoryai/smfs` | ok | `supermemoryai/smfs` | 451 | 2026-06-12T06:01:45Z |
+`deepset-ai/haystack-tutorials` | ok | `deepset-ai/haystack-tutorials` | 365 | 2026-06-18T11:41:37Z |
+`supermemoryai/memorybench` | ok | `supermemoryai/memorybench` | 285 | 2026-06-10T22:27:25Z |
+`supermemoryai/code-chunk` | ok | `supermemoryai/code-chunk` | 197 | 2026-04-17T02:35:53Z |
+`weaviate/structured-rag` | ok | `weaviate/structured-rag` | 120 | 2026-04-27T13:56:09Z |
+`weaviate/retrieve-dspy` | ok | `weaviate/retrieve-dspy` | 98 | 2026-06-01T10:54:47Z |
+`qdrant/qdrant-rag-eval` | ok | `qdrant/qdrant-rag-eval` | 88 | 2025-04-25T08:26:11Z |
+`run-llama/awesome-rag` | ok | `run-llama/awesome-rag` | 78 | 2024-04-07T02:01:16Z |
+`n8n-io/n8n-hosting` | ok | `n8n-io/n8n-hosting` | 1648 | 2026-06-17T16:28:55Z |
+`dagster-io/skills` | ok | `dagster-io/skills` | 167 | 2026-06-18T19:14:59Z |
+`cloudflare/dynamic-workflows` | ok | `cloudflare/dynamic-workflows` | 38 | 2026-04-30T21:31:04Z |
+`langfuse/langfuse-java` | ok | `langfuse/langfuse-java` | 66 | 2026-06-12T08:05:38Z |
+`SigNoz/signoz-otel-collector` | ok | `SigNoz/signoz-otel-collector` | 81 | 2026-06-20T09:28:41Z |
+`Arize-ai/client_python` | ok | `Arize-ai/client_python` | 58 | 2026-06-11T17:18:10Z |
+`Portkey-AI/portkey-python-sdk` | ok | `Portkey-AI/portkey-python-sdk` | 116 | 2026-06-18T09:56:31Z |
+`Portkey-AI/portkey-node-sdk` | ok | `Portkey-AI/portkey-node-sdk` | 53 | 2026-04-20T07:14:03Z |
+`supermemoryai/opencode-supermemory` | ok | `supermemoryai/opencode-supermemory` | 1347 | 2026-06-20T15:52:43Z |
+`supermemoryai/codex-supermemory` | ok | `supermemoryai/codex-supermemory` | 41 | 2026-06-20T17:25:19Z |
+`firecrawl/opencode-firecrawl` | ok | `firecrawl/opencode-firecrawl` | 78 | 2026-02-10T04:13:23Z |
+`openai/completions-responses-migration-pack` | ok | `openai/completions-responses-migration-pack` | 105 | 2025-09-08T22:07:21Z |

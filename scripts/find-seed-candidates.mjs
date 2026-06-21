@@ -404,8 +404,8 @@ async function writeReport(items) {
         `\`${item.category}\``,
         item.stars,
         item.pushedAt ?? "",
-        String(item.description ?? "").replace(/\|/g, "\\|")
-      ].join(" | ")
+        String(item.description ?? "").replace(/\|/g, "\\|").trim()
+      ].join(" | ").trimEnd()
     )
   ];
   await writeFile(outputPath, `${lines.join("\n")}\n`);

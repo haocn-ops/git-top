@@ -104,7 +104,7 @@ async function writeReport({ checkedAt, options, results, summary, stoppedEarly,
       item.stars ?? "",
       item.pushedAt ?? "",
       errorDetails(item)
-    ].join(" | ")
+    ].join(" | ").trimEnd()
   );
 
   const markdown = [

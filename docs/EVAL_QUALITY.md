@@ -1,6 +1,6 @@
 # Git.Top Eval Quality
 
-Generated at: 2026-06-21T02:14:20.747Z
+Generated at: 2026-06-21T02:31:30.751Z
 
 This report summarizes the CI-safe recommendation and classification baseline. Evaluation knowledge is built from hand-authored seed projects first and generated Agent Card fixtures for the full seed list second.
 
@@ -13,9 +13,9 @@ This report summarizes the CI-safe recommendation and classification baseline. E
 - Deployment accuracy: 1
 - Cloudflare readiness accuracy: 1
 - Unacceptable hit count: 0
-- Generated fixture projects: 384
-- D1 fixture projects: 384
-- Effective generated fixture projects: 378
+- Generated fixture projects: 444
+- D1 fixture projects: 444
+- Effective generated fixture projects: 438
 - Synthetic projects: 0
 
 ## Review Focus
@@ -26,11 +26,11 @@ No review focus items. The current cases all satisfy the tracked thresholds.
 
 Case | Type | Top-1 | Top-3 | Category | Deployment | Cloudflare Ready | Unacceptable Hits | Top Candidates
 --- | --- | --- | --- | --- | --- | --- | ---: | ---
-`search-cloudflare-agent-framework` | search | yes | yes | yes | yes | yes | 0 | `cloudflare/agents`, `cloudflare/mcp-server-cloudflare`, `cloudflare/templates`
+`search-cloudflare-agent-framework` | search | yes | yes | yes | yes | yes | 0 | `cloudflare/agents`, `cloudflare/puppeteer`, `cloudflare/dynamic-workflows`
 `search-mcp-server-examples` | search | yes | yes | yes | yes | yes | 0 | `modelcontextprotocol/servers`, `github/github-mcp-server`, `cloudflare/mcp-server-cloudflare`
 `recommend-rag-framework` | recommend | yes | yes | yes | yes | yes | 0 | `run-llama/llama_index`, `langchain-ai/langchain`, `langflow-ai/langflow`
-`recommend-cloudflare-agent` | recommend | yes | yes | yes | yes | yes | 0 | `cloudflare/agents`, `cloudflare/mcp-server-cloudflare`, `cloudflare/templates`
-`grp-find-cloudflare-agents` | grp | yes | yes | yes | yes | yes | 0 | `cloudflare/agents`, `cloudflare/mcp-server-cloudflare`, `cloudflare/templates`, `example/cloudflare-python-agent`, `example/cloudflare-docker-gateway`
+`recommend-cloudflare-agent` | recommend | yes | yes | yes | yes | yes | 0 | `cloudflare/agents`, `cloudflare/puppeteer`, `cloudflare/dynamic-workflows`
+`grp-find-cloudflare-agents` | grp | yes | yes | yes | yes | yes | 0 | `cloudflare/agents`, `cloudflare/puppeteer`, `cloudflare/dynamic-workflows`, `cloudflare/mcp-server-cloudflare`, `cloudflare/templates`
 `grp-compose-coding-stack` | grp | yes | yes | yes | yes | yes | 0 | `langchain-ai/langchain`, `modelcontextprotocol/servers`, `run-llama/llama_index`, `Portkey-AI/mcp-tool-filter`, `OpenHands/OpenHands`
 `search-local-llm-runtime` | search | yes | yes | yes | yes | yes | 0 | `ollama/ollama`, `ggml-org/llama.cpp`, `nomic-ai/gpt4all`, `oobabooga/textgen`, `ggml-org/whisper.cpp`
 `search-vector-database` | search | yes | yes | yes | yes | yes | 0 | `redis/redis`, `milvus-io/milvus`, `qdrant/qdrant`, `neo4j/neo4j`, `unum-cloud/usearch`
