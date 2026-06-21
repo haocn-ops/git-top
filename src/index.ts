@@ -11,6 +11,11 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
+    const legacyRedirect = legacyConsoleRedirect(url);
+    if (legacyRedirect) {
+      return legacyRedirect;
+    }
+
     if (url.pathname === "/" || url.pathname === "/explorer") {
       return renderExplorer();
     }
@@ -49,6 +54,24 @@ export default {
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(syncGithubProjects(env, { limit: scheduledSyncLimit, trigger: "cron", signalDepth: "lite" }));
   }
+};
+
+function legacyConsoleRedirect(url: URL): Response | null {
+  const target = legacyConsoleRedirects[url.pathname];
+  if (!target) {
+    return null;
+  }
+
+  const redirectUrl = new URL(target, url);
+  return Response.redirect(redirectUrl, 302);
+}
+
+const legacyConsoleRedirects: Record<string, string> = {
+  "/register": "/explorer",
+  "/users": "/explorer",
+  "/tenants": "/explorer",
+  "/settings": "/explorer",
+  "/reports": "/graph"
 };
 
 function graphProjectIdFromPath(pathname: string): string | null {

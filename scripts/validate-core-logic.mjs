@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import { generateAlternatives, generateAlternativesForAll } from "../src/alternatives.ts";
 import { searchProjectList } from "../src/db.ts";
 import { normalizeGrpRequest, runGrpQuery } from "../src/grp.ts";
+import worker from "../src/index.ts";
 import { getProjectDetailData } from "../src/next-data.ts";
 import { calculateMetrics } from "../src/scoring.ts";
 import { seedProjects } from "../src/seed.ts";
 import { defaultSyncLimit, scheduledSyncLimit, selectRepositoryBatch } from "../src/sync.ts";
 
 await testScoring();
+await testLegacyConsoleRedirects();
 await testSyncBatchSelection();
 await testNextProjectDetailLookup();
 await testBrowseRanking();
@@ -15,7 +17,17 @@ await testAlternatives();
 await testGrpNormalization();
 await testGrpQueries();
 
-console.log("Validated core scoring, alternatives, and GRP logic.");
+console.log("Validated core scoring, Worker routing, alternatives, and GRP logic.");
+
+async function testLegacyConsoleRedirects() {
+  const register = await worker.fetch(new Request("https://git.top/register"), {});
+  assert.equal(register.status, 302);
+  assert.equal(register.headers.get("location"), "https://git.top/explorer");
+
+  const reports = await worker.fetch(new Request("https://git.top/reports"), {});
+  assert.equal(reports.status, 302);
+  assert.equal(reports.headers.get("location"), "https://git.top/graph");
+}
 
 async function testScoring() {
   const now = new Date().toISOString();
