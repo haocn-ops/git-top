@@ -120,6 +120,6 @@ Acceptance criteria:
 
 1. Completed: `pnpm test:focused` runs the DB, core, API, and MCP validation suites through Node's formal `node:test` runner while preserving the individual validation commands.
 2. Completed: `pnpm db:integration` runs Wrangler against a real local D1 database and is included in `pnpm release:check`.
-3. Completed in repo: GitHub Actions runs `pnpm smoke:prod` after successful pushes to `main`, so CI checks the deployed Worker after the local release gate passes. GitHub currently reports `Actions has been disabled for this user`; re-enable Actions in GitHub settings for the active workflow to execute.
+3. Completed in repo: GitHub Actions runs `pnpm smoke:prod` after successful pushes to `main`, so CI checks current production health after the local release gate passes. The workflow does not deploy or prove that the pushed commit is live; add a deploy step before this job if commit-bound post-deploy smoke is required. GitHub currently reports `Actions has been disabled for this user`; re-enable Actions in GitHub settings for the active workflow to execute.
 4. Completed: `/register` is removed from primary navigation and redirects to `/projects` until backed by real account persistence.
 5. Completed: `pnpm next:smoke` starts the production Next.js app and checks the home, project list, project detail, graph overview, graph detail, and legacy console redirects without requiring browser binaries.

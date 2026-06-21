@@ -209,7 +209,8 @@ async function testSyncStatusWithMockD1() {
   );
   assert.equal(healthy.status, 200);
   assert.equal(healthy.body.health, "healthy");
-  assert.equal(healthy.body.synced_count, 1);
+  assert.equal(healthy.body.indexed_count, 1);
+  assert.equal(healthy.body.synced_count, 0);
   assert.equal(healthy.body.cursor, 7);
   assert.equal(healthy.body.last_successful_sync_at, "2026-06-20T01:00:00Z");
   assert.equal(healthy.body.last_failed_sync_at, null);

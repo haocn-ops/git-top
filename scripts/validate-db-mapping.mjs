@@ -114,7 +114,7 @@ async function testSyncStatusMapping() {
         })
       ]
     }),
-    ["a/a", "b/b", "c/c", "d/d", "e/e", "f/f"]
+    [mockD1ProjectId, "b/b", "c/c", "d/d", "e/e", "f/f"]
   );
 
   assert.equal(status.cursor, 3);
@@ -126,17 +126,16 @@ async function testSyncStatusMapping() {
   assert.equal(status.lastError?.repository, mockD1ProjectId);
   assert.deepEqual(status.nextBatch, ["d/d", "e/e", "f/f"]);
 
-  const overflowStatus = await getSyncStatus(
-    mockD1Env({
-      knowledge: buildGeneratedKnowledgeFixtures()
-        .slice(0, 3)
-        .map((item) => item.knowledge)
-    }),
-    ["a/a", "b/b"]
-  );
+  const overflowKnowledge = buildGeneratedKnowledgeFixtures()
+    .slice(0, 3)
+    .map((item) => item.knowledge);
+  const overflowStatus = await getSyncStatus(mockD1Env({ knowledge: overflowKnowledge }), [
+    overflowKnowledge[0].project.id,
+    "missing/seed-repo"
+  ]);
   assert.equal(overflowStatus.indexedCount, 3);
-  assert.equal(overflowStatus.syncedCount, 2);
-  assert.equal(overflowStatus.remainingCount, 0);
+  assert.equal(overflowStatus.syncedCount, 1);
+  assert.equal(overflowStatus.remainingCount, 1);
 
   assert.equal(await getSyncedProjectCount(mockD1Env()), 1);
 }

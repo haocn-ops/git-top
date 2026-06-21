@@ -38,7 +38,7 @@ class MockStatement {
         throw new Error("no such column: pm.signal_confidence_json");
       }
       if (this.sql.includes("FROM projects p")) {
-        const rows = this.config.knowledge ? this.config.knowledge.map(projectKnowledgeToRow) : [projectKnowledgeRow(this.config.mode)];
+        const rows = this.rows();
         if (this.config.mode === "missing_optional_columns" && !this.sql.includes("calculated_at")) {
           const row = rows[0];
           delete row.calculated_at;
@@ -66,6 +66,13 @@ class MockStatement {
     if (this.config.mode === "error") {
       throw new Error("mock d1 failure");
     }
+    if (this.sql.includes("FROM projects") && this.sql.includes("lower(id) IN")) {
+      const wanted = new Set(this.bindings.map((binding) => String(binding).toLowerCase()));
+      const count = this.rows().filter((row) => wanted.has(String(row.id).toLowerCase()) || wanted.has(String(row.full_name).toLowerCase())).length;
+      return {
+        count: this.config.mode === "empty" ? 0 : count
+      };
+    }
     if (this.sql.includes("COUNT(*) AS count FROM projects")) {
       return {
         count: this.config.mode === "empty" ? 0 : this.config.knowledge?.length ?? 1
@@ -80,6 +87,10 @@ class MockStatement {
       return this.config.starSnapshot;
     }
     return null;
+  }
+
+  rows() {
+    return this.config.knowledge ? this.config.knowledge.map(projectKnowledgeToRow) : [projectKnowledgeRow(this.config.mode)];
   }
 
   async run() {

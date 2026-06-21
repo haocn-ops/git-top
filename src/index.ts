@@ -16,7 +16,7 @@ export default {
       return legacyRedirect;
     }
 
-    if (url.pathname === "/" || url.pathname === "/explorer") {
+    if (url.pathname === "/" || url.pathname === "/explorer" || url.pathname === "/projects") {
       return renderExplorer();
     }
 
@@ -67,10 +67,10 @@ function legacyConsoleRedirect(url: URL): Response | null {
 }
 
 const legacyConsoleRedirects: Record<string, string> = {
-  "/register": "/explorer",
-  "/users": "/explorer",
-  "/tenants": "/explorer",
-  "/settings": "/explorer",
+  "/register": "/projects",
+  "/users": "/projects",
+  "/tenants": "/projects",
+  "/settings": "/projects",
   "/reports": "/graph"
 };
 

@@ -13,7 +13,7 @@ const origin = `http://127.0.0.1:${port}`;
 await run("pnpm", ["db:prepare-local"]);
 await run("pnpm", ["db:seed"]);
 
-const expectedSeedProjectCount = await countSeedSqlProjects();
+const expectedIndexedProjectCount = await countSeedSqlProjects();
 const totalSeedRepositories = JSON.parse(await readFile(new URL("../data/seed-repositories.json", import.meta.url), "utf8")).length;
 
 const server = spawn(
@@ -77,7 +77,7 @@ async function testHealth(baseUrl) {
   assert.equal(body.db, "available");
   assert.equal(body.metadata.source, "d1");
   assert.equal(body.metadata.reason, "d1_query");
-  assert.equal(body.project_count, expectedSeedProjectCount);
+  assert.equal(body.project_count, expectedIndexedProjectCount);
 }
 
 async function testSearch(baseUrl) {
@@ -104,7 +104,7 @@ async function testQuality(baseUrl) {
   const { status, body } = await getJson(`${baseUrl}/api/quality`);
   assert.equal(status, 200);
   assert.equal(body.metadata.source, "d1");
-  assert.equal(body.project_count, expectedSeedProjectCount);
+  assert.equal(body.project_count, totalSeedRepositories);
   assert.equal(body.coverage.covered_categories, 13);
   assert.deepEqual(body.coverage.missing_categories, []);
 }
@@ -112,9 +112,9 @@ async function testQuality(baseUrl) {
 async function testSyncStatus(baseUrl) {
   const { status, body } = await getJson(`${baseUrl}/api/sync/status`);
   assert.equal(status, 200);
-  assert.equal(body.synced_count, expectedSeedProjectCount);
+  assert.equal(body.synced_count, totalSeedRepositories);
   assert.equal(body.health, "unknown");
-  assert.equal(body.remaining_count, Math.max(0, totalSeedRepositories - expectedSeedProjectCount));
+  assert.equal(body.remaining_count, 0);
 }
 
 async function testGrp(baseUrl) {
@@ -224,5 +224,11 @@ function delay(ms) {
 async function countSeedSqlProjects() {
   const seedSql = await readFile(new URL("../seed.sql", import.meta.url), "utf8");
   const projectInserts = seedSql.matchAll(/INSERT OR REPLACE INTO projects[\s\S]*?\n;/g);
-  return [...projectInserts].reduce((count, match) => count + [...match[0].matchAll(/\('([^']+)'\s*,/g)].length, 0);
+  const ids = new Set();
+  for (const match of projectInserts) {
+    for (const row of match[0].matchAll(/^\('([^']+)'\s*,/gm)) {
+      ids.add(row[1]);
+    }
+  }
+  return ids.size;
 }

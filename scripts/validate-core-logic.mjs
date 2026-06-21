@@ -22,7 +22,10 @@ console.log("Validated core scoring, Worker routing, alternatives, and GRP logic
 async function testLegacyConsoleRedirects() {
   const register = await worker.fetch(new Request("https://git.top/register"), {});
   assert.equal(register.status, 302);
-  assert.equal(register.headers.get("location"), "https://git.top/explorer");
+  assert.equal(register.headers.get("location"), "https://git.top/projects");
+
+  const projects = await worker.fetch(new Request("https://git.top/projects"), {});
+  assert.equal(projects.status, 200);
 
   const reports = await worker.fetch(new Request("https://git.top/reports"), {});
   assert.equal(reports.status, 302);

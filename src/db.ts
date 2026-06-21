@@ -494,10 +494,15 @@ export async function getSyncStatus(env: Env, seedRepositories: string[] = []): 
   lastError: SyncFailure | null;
   recentRuns: SyncRun[];
 }> {
-  const [cursor, recentRuns, indexedCount] = await Promise.all([getSyncCursor(env), listSyncRuns(env, 10), getSyncedProjectCount(env)]);
+  const [cursor, recentRuns, indexedCount, seedSyncedCount] = await Promise.all([
+    getSyncCursor(env),
+    listSyncRuns(env, 10),
+    getSyncedProjectCount(env),
+    getSyncedSeedProjectCount(env, seedRepositories)
+  ]);
   const seedTotal = seedRepositories.length;
   const normalizedCursor = seedTotal > 0 ? cursor % seedTotal : 0;
-  const syncedCount = seedTotal > 0 ? Math.min(indexedCount, seedTotal) : indexedCount;
+  const syncedCount = seedTotal > 0 ? seedSyncedCount : indexedCount;
   const nextLimit = recentRuns[0]?.limit ?? 5;
   const nextBatch = seedRepositories.slice(normalizedCursor, normalizedCursor + nextLimit);
   const lastSuccessfulRun = recentRuns.find((run) => run.syncedCount > 0);
@@ -530,6 +535,43 @@ export async function getSyncedProjectCount(env: Env): Promise<number> {
   } catch {
     return seedProjects.length;
   }
+}
+
+async function getSyncedSeedProjectCount(env: Env, seedRepositories: string[]): Promise<number> {
+  if (seedRepositories.length === 0) {
+    return 0;
+  }
+  if (!env.DB) {
+    return Math.min(seedProjects.length, seedRepositories.length);
+  }
+
+  try {
+    let count = 0;
+    const uniqueRepositories = Array.from(new Set(seedRepositories.map((repo) => repo.trim()).filter(Boolean)));
+    for (const chunk of chunkArray(uniqueRepositories, 40)) {
+      const placeholders = chunk.map(() => "?").join(", ");
+      const row = await env.DB.prepare(
+        `SELECT COUNT(*) AS count
+         FROM projects
+         WHERE lower(id) IN (${placeholders})
+            OR lower(full_name) IN (${placeholders})`
+      )
+        .bind(...chunk.map((repo) => repo.toLowerCase()), ...chunk.map((repo) => repo.toLowerCase()))
+        .first<{ count: number }>();
+      count += row?.count ?? 0;
+    }
+    return Math.min(count, uniqueRepositories.length);
+  } catch {
+    return 0;
+  }
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
 }
 
 export async function getProjectKnowledge(env: Env, id: string): Promise<ProjectKnowledge | null> {
