@@ -2,10 +2,14 @@ import assert from "node:assert/strict";
 import { generateAlternatives, generateAlternativesForAll } from "../src/alternatives.ts";
 import { searchProjectList } from "../src/db.ts";
 import { normalizeGrpRequest, runGrpQuery } from "../src/grp.ts";
+import { getProjectDetailData } from "../src/next-data.ts";
 import { calculateMetrics } from "../src/scoring.ts";
 import { seedProjects } from "../src/seed.ts";
+import { selectRepositoryBatch } from "../src/sync.ts";
 
 await testScoring();
+await testSyncBatchSelection();
+await testNextProjectDetailLookup();
 await testBrowseRanking();
 await testAlternatives();
 await testGrpNormalization();
@@ -65,6 +69,23 @@ async function testScoring() {
   assert.equal(metrics.maintenanceScore, 100);
   assert.equal(metrics.signalConfidence?.stars30dDelta, "snapshot");
   assert.equal(metrics.signalConfidence?.stars30dWindowDays, 31);
+}
+
+async function testSyncBatchSelection() {
+  const repositories = ["a/a", "b/b", "c/c", "d/d", "e/e"];
+  assert.deepEqual(selectRepositoryBatch(repositories, 1, 3), ["b/b", "c/c", "d/d"]);
+  assert.deepEqual(selectRepositoryBatch(repositories, 3, 4), ["d/d", "e/e", "a/a", "b/b"]);
+  assert.deepEqual(selectRepositoryBatch(repositories, 0, 10), repositories);
+  assert.deepEqual(selectRepositoryBatch([], 0, 5), []);
+}
+
+async function testNextProjectDetailLookup() {
+  const detail = await getProjectDetailData("cloudflare-agents");
+  assert.ok(detail, "graph slug should resolve to the matching seed project");
+  assert.equal(detail.view.repo, "cloudflare/agents");
+
+  const missing = await getProjectDetailData("not-a-real-project");
+  assert.equal(missing, null, "missing project detail should not silently fall back to the first project");
 }
 
 async function testBrowseRanking() {

@@ -1,4 +1,5 @@
 import { ArrowUpRight, Network } from "lucide-react";
+import { notFound } from "next/navigation";
 import { getProjectDetailData } from "../../../src/next-data";
 import { seedProjects } from "../../../src/seed";
 
@@ -10,7 +11,11 @@ export function generateStaticParams() {
 
 export default async function ProjectGraphPage({ params }: { params: Promise<{ project: string }> }) {
   const { project: projectSlug } = await params;
-  const { view, alternatives, graph, metadata } = await getProjectDetailData(projectSlug);
+  const detail = await getProjectDetailData(projectSlug);
+  if (!detail) {
+    notFound();
+  }
+  const { view, alternatives, graph, metadata } = detail;
   const ringNodes = graph.nodes.filter((node) => node.id !== view.repo).slice(0, 14);
 
   return (

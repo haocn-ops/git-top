@@ -48,7 +48,7 @@ export async function syncGithubProjects(env: Env, options: SyncOptions = {}): P
   const usesCursor = !options.repositories && options.offset === undefined;
   const offset = allRepositories.length === 0 ? 0 : usesCursor ? (await getSyncCursor(env)) % allRepositories.length : clampOffset(options.offset);
   const limit = clampLimit(options.limit);
-  const repositories = allRepositories.slice(offset, offset + limit);
+  const repositories = selectRepositoryBatch(allRepositories, offset, limit);
   const nextOffset = allRepositories.length === 0 ? 0 : (offset + limit) % allRepositories.length;
   const github = new GithubClient(env);
   const startedAt = new Date();
@@ -157,6 +157,16 @@ function normalizeRepositories(repositories: string[]): string[] {
         .filter((repo) => /^[^/\s]+\/[^/\s]+$/.test(repo))
     )
   );
+}
+
+export function selectRepositoryBatch(repositories: string[], offset: number, limit: number): string[] {
+  if (repositories.length === 0 || limit <= 0) {
+    return [];
+  }
+
+  const normalizedOffset = Math.max(0, offset) % repositories.length;
+  const batchSize = Math.min(limit, repositories.length);
+  return Array.from({ length: batchSize }, (_, index) => repositories[(normalizedOffset + index) % repositories.length]);
 }
 
 function clampLimit(value: number | undefined): number {

@@ -101,4 +101,6 @@ To verify a preview or local Worker instead of production:
 pnpm smoke:prod -- --base-url http://localhost:8787
 ```
 
+The smoke check requires D1-backed responses by default. Add `--allow-seed` only when intentionally verifying seed fallback behavior.
+
 The smoke check covers `/api/health`, `/api/search`, `/api/grp/query`, `/mcp`, and MCP `tools/list`.

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 const options = parseArgs(process.argv.slice(2));
 const baseUrl = normalizeBaseUrl(options.baseUrl ?? process.env.GIT_TOP_SMOKE_BASE_URL ?? "https://git.top");
 const timeoutMs = Number(options.timeoutMs ?? process.env.GIT_TOP_SMOKE_TIMEOUT_MS ?? 10_000);
+const allowSeed = options.allowSeed === true || process.env.GIT_TOP_SMOKE_ALLOW_SEED === "1";
 
 const results = [];
 
@@ -10,7 +11,7 @@ await check("health", async () => {
   const { status, body } = await getJson("/api/health");
   assert.equal(status, 200);
   assert.equal(body.ok, true);
-  assert.ok(["available", "missing", "error"].includes(body.db), "health.db should be a known value");
+  assert.equal(body.db, "available", "production smoke requires an available D1 binding");
   assertMetadata(body.metadata);
   return {
     db: body.db,
@@ -146,7 +147,11 @@ async function requestJson(path, init) {
 
 function assertMetadata(metadata) {
   assert.ok(metadata && typeof metadata === "object", "metadata should be present");
-  assert.ok(["d1", "seed"].includes(metadata.source), "metadata.source should be d1 or seed");
+  if (allowSeed) {
+    assert.ok(["d1", "seed"].includes(metadata.source), "metadata.source should be d1 or seed");
+  } else {
+    assert.equal(metadata.source, "d1", "production smoke requires D1-backed metadata; pass --allow-seed for seed fallback checks");
+  }
   assert.ok(typeof metadata.reason === "string" && metadata.reason.length > 0, "metadata.reason should be present");
   assert.ok(Number.isFinite(metadata.project_count), "metadata.project_count should be numeric");
 }
@@ -165,6 +170,8 @@ function parseArgs(args) {
       index += 1;
     } else if (arg.startsWith("--timeout-ms=")) {
       parsed.timeoutMs = arg.slice("--timeout-ms=".length);
+    } else if (arg === "--allow-seed") {
+      parsed.allowSeed = true;
     } else {
       throw new Error(`Unknown option: ${arg}`);
     }

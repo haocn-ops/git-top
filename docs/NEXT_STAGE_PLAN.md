@@ -261,8 +261,8 @@ Deliverables:
 Initial baseline:
 
 - `pnpm db:integration` seeds local D1, starts a temporary local Worker, and verifies `/api/health`, `/api/search`, `/api/project/:owner/:repo`, `/api/quality`, `/api/sync/status`, `/api/grp/query`, and `/mcp`.
-- `pnpm smoke:prod` verifies a deployed or preview Worker, defaulting to `https://git.top`, and checks `/api/health`, `/api/search`, `/api/grp/query`, `/mcp`, and MCP `tools/list`.
-- `pnpm smoke:prod -- --base-url <origin>` can validate local, preview, or production origins with the same read-only contract checks.
+- `pnpm smoke:prod` verifies a deployed or preview Worker, defaulting to `https://git.top`, requires D1-backed responses by default, and checks `/api/health`, `/api/search`, `/api/grp/query`, `/mcp`, and MCP `tools/list`.
+- `pnpm smoke:prod -- --base-url <origin>` can validate local, preview, or production origins with the same read-only contract checks; `--allow-seed` is reserved for intentional seed fallback checks.
 - `docs/PRODUCTION_RUNBOOK.md` documents pre-deploy gates, deploy command, smoke verification, sync checks, quality checks, and rollback notes.
 
 Acceptance criteria:

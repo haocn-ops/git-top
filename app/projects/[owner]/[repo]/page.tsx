@@ -1,4 +1,5 @@
 import { ArrowUpRight, BookOpen, GitCompare, Network, Rocket, ShieldCheck } from "lucide-react";
+import { notFound } from "next/navigation";
 import { getProjectDetailData } from "../../../../src/next-data";
 import type { ProjectKnowledgeView } from "../../../../src/project-view";
 import { seedProjects } from "../../../../src/seed";
@@ -13,7 +14,11 @@ export function generateStaticParams() {
 export default async function ProjectKnowledgePage({ params }: { params: Promise<{ owner: string; repo: string }> }) {
   const { owner, repo } = await params;
   const id = `${owner}/${repo}`;
-  const { view, alternatives, compare, graph, metadata } = await getProjectDetailData(id);
+  const detail = await getProjectDetailData(id);
+  if (!detail) {
+    notFound();
+  }
+  const { view, alternatives, compare, graph, metadata } = detail;
 
   return (
     <div className="page-stack">

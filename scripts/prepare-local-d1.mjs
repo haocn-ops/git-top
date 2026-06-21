@@ -10,6 +10,16 @@ await ensureColumn("project_metrics", "signal_confidence_json", "TEXT NOT NULL D
 await ensureColumn("agent_cards", "project_kind", "TEXT NOT NULL DEFAULT 'project'");
 await ensureColumn("agent_cards", "collection_json", "TEXT NOT NULL DEFAULT '{}'");
 await ensureColumn("agent_cards", "classification_json", "TEXT NOT NULL DEFAULT '{}'");
+await ensureTable(
+  "star_snapshots",
+  `CREATE TABLE IF NOT EXISTS star_snapshots (
+    project_id TEXT NOT NULL,
+    stars INTEGER NOT NULL,
+    captured_at TEXT NOT NULL,
+    PRIMARY KEY (project_id, captured_at),
+    FOREIGN KEY (project_id) REFERENCES projects(id)
+  );`
+);
 
 console.log(`Prepared local D1 database ${databaseName}.`);
 
@@ -22,6 +32,17 @@ async function ensureColumn(table, column, definition) {
 
   await wranglerD1(["--command", `ALTER TABLE ${table} ADD COLUMN ${column} ${definition};`]);
   console.log(`Added missing local D1 column ${table}.${column}.`);
+}
+
+async function ensureTable(table, statement) {
+  const info = await wranglerD1(["--json", "--command", `SELECT name FROM sqlite_master WHERE type = 'table' AND name = '${table}';`]);
+  const rows = parseD1Results(info.stdout);
+  if (rows.some((row) => row.name === table)) {
+    return;
+  }
+
+  await wranglerD1(["--command", statement]);
+  console.log(`Added missing local D1 table ${table}.`);
 }
 
 async function wranglerD1(args) {

@@ -46,6 +46,12 @@ For a preview or local Worker:
 pnpm smoke:prod -- --base-url http://localhost:8787
 ```
 
+Production smoke requires D1-backed responses. Add `--allow-seed` only when intentionally checking seed fallback behavior:
+
+```sh
+pnpm smoke:prod -- --base-url http://localhost:8787 --allow-seed
+```
+
 The smoke check verifies:
 
 - `/api/health`

@@ -38,13 +38,17 @@ export async function getProjectDetailData(id: string): Promise<{
   compare: ReturnType<typeof compareProjectKnowledge>;
   graph: ReturnType<typeof buildKnowledgeGraph>;
   metadata: NextDataSource;
-}> {
+} | null> {
   const collection = await getProjectCollectionData("agent", 100);
-  const liveDetail = await fetchLiveProjectView(id);
+  const normalizedId = normalizeProjectId(id);
+  const liveDetail = await fetchLiveProjectView(normalizedId);
   const project =
     liveDetail?.knowledge ??
-    collection.projects.find((item) => [item.project.id, item.project.fullName, item.project.name, item.project.fullName.replace("/", "-")].includes(id)) ??
-    collection.projects[0];
+    collection.projects.find((item) => projectAliases(item).includes(normalizedId));
+  if (!project) {
+    return null;
+  }
+
   const view = toProjectKnowledgeView(project);
   const graphProjects = withProject(collection.projects, project);
   const alternativeIds = new Set(project.agentCard.alternatives.map((item) => item.project_id));
@@ -150,6 +154,25 @@ async function fetchLiveProjectView(id: string): Promise<{ view: ProjectKnowledg
   } catch {
     return null;
   }
+}
+
+function normalizeProjectId(value: string): string {
+  if (value.includes("/")) {
+    return value;
+  }
+
+  const exactSlug = seedProjects.find((item) => item.project.fullName.replace("/", "-") === value);
+  return exactSlug?.project.fullName ?? value;
+}
+
+function projectAliases(item: ProjectKnowledge): string[] {
+  return [
+    item.project.id,
+    item.project.fullName,
+    item.project.name,
+    item.project.fullName.replace("/", "-"),
+    item.project.fullName.replace("/", "--")
+  ];
 }
 
 function metadataFromApi(metadata: Record<string, unknown> | undefined, projectCount: number): NextDataSource {
