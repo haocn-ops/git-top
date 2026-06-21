@@ -92,7 +92,15 @@ export const openApiDocument = {
     "/api/quality": {
       get: {
         summary: "Inspect data quality, confidence, coverage, and risk.",
+        parameters: [queryParam("require_d1", "Fail closed unless D1-backed data is available")],
         responses: { "200": { description: "Quality report" } }
+      }
+    },
+    "/api/quality/review": {
+      get: {
+        summary: "Inspect low-confidence classification and collection review queue.",
+        parameters: [queryParam("require_d1", "Fail closed unless D1-backed data is available")],
+        responses: { "200": { description: "Low-confidence classification and collection review queue" } }
       }
     },
     "/api/sync/status": {

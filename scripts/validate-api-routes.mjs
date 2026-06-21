@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { handleApi } from "../src/api.ts";
+import { openApiDocument } from "../src/openapi.ts";
 import { mockD1Env, mockD1ProjectId, syncRunRow } from "./mock-d1.mjs";
 
 const env = {};
@@ -9,6 +10,7 @@ await testSearchAndProjectRoutes();
 await testRecommendationAndCompareRoutes();
 await testGraphAndQualityRoutes();
 await testSchemaRoutes();
+await testOpenApiDocument();
 await testMethodAndBodyValidation();
 await testMockD1Source();
 await testRequireD1Mode();
@@ -137,6 +139,15 @@ async function testSchemaRoutes() {
   assert.deepEqual(projectSchema.body.properties.project_kind.enum, ["project", "collection"]);
   assert.equal(projectSchema.body.properties.collection_metadata.$ref, "#/$defs/collection_metadata");
   assert.equal(projectSchema.body.properties.quality_signal_confidence.type, "object");
+}
+
+async function testOpenApiDocument() {
+  const openapi = await getJson("/api/openapi.json");
+  assert.equal(openapi.status, 200);
+  assert.equal(openapi.body.openapi, "3.1.0");
+  assert.ok(openapi.body.paths["/api/quality"], "OpenAPI should document quality report endpoint");
+  assert.ok(openapi.body.paths["/api/quality/review"], "OpenAPI should document quality review endpoint");
+  assert.deepEqual(openapi.body.paths["/api/quality/review"], openApiDocument.paths["/api/quality/review"]);
 }
 
 async function testMethodAndBodyValidation() {

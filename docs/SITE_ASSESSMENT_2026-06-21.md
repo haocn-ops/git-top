@@ -119,6 +119,12 @@ Completed in the review queue pass:
 - Added `/quality/review` to quality governance, sitemap, and LLM discovery guidance.
 - Added API and production smoke coverage for review queue JSON and page rendering.
 
+Completed in the API contract pass:
+
+- Added `/api/quality/review` to OpenAPI discovery.
+- Documented review queue fields and `require_d1` behavior in `docs/API.md`.
+- Added API validation coverage so `/api/openapi.json` must include the quality and quality review endpoints.
+
 ## Product Direction
 
 The product should keep emphasizing that it is not a leaderboard. Its stronger position is:

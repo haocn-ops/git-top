@@ -199,6 +199,29 @@ Important quality fields:
 
 Collection coverage is reported separately from the release quality score. Use these fields to review resource hubs, awesome lists, cookbooks, and starter collections for scope and freshness without penalizing executable-project quality.
 
+### Quality Review Queue
+
+```sh
+curl http://localhost:8787/api/quality/review
+```
+
+Use this endpoint to inspect the low-confidence classification and collection review backlog behind the public `/quality/review` page.
+
+Important review fields:
+
+- `project_count`: total projects in the active knowledge source.
+- `review_count`: total items currently queued for review.
+- `low_signal_count`: projects with weak classification evidence.
+- `medium_signal_count`: projects with partial but not fully trusted classification evidence.
+- `category_counts`: review backlog grouped by current category.
+- `items[].project_id`
+- `items[].classification_signals`
+- `items[].reasons`
+- `items[].suggested_action`
+- `metadata.source`
+
+Use `?require_d1=true` when an integration must fail closed instead of falling back to the bundled seed data.
+
 ## Schemas
 
 ```sh
