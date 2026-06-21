@@ -75,6 +75,7 @@ export function renderLlmsTxt(): Response {
       "## Core URLs",
       "",
       "- Docs: https://git.top/docs",
+      "- Integrations: https://git.top/integrations",
       "- MCP discovery: https://git.top/mcp",
       "- OpenAPI: https://git.top/openapi.json",
       "- Project schema: https://git.top/api/schema/project.v2",
@@ -94,6 +95,7 @@ export function renderLlmsTxt(): Response {
       "- Check /coverage when the question depends on corpus breadth or category representation.",
       "- Inspect classification evidence and quality_signal_confidence before citing a score.",
       "- Use /mcp for JSON-RPC tools/list and tools/call.",
+      "- Use /integrations for REST, MCP, and GRP production integration paths.",
       "",
       "## Useful Pages",
       "",
@@ -204,6 +206,7 @@ export function renderLlmsFullTxt(): Response {
       "- /robots.txt",
       "- /sitemap.xml",
       "- /.well-known/security.txt",
+      "- /integrations",
       "- /status",
       "- /quality",
       "- /coverage",
@@ -252,6 +255,7 @@ function staticSitemapUrls(now: string): SitemapUrl[] {
   return [
     { path: "/", changefreq: "daily", priority: "1.0", lastmod: now },
     { path: "/docs", changefreq: "weekly", priority: "0.9", lastmod: now },
+    { path: "/integrations", changefreq: "weekly", priority: "0.8", lastmod: now },
     { path: "/status", changefreq: "daily", priority: "0.8", lastmod: now },
     { path: "/quality", changefreq: "daily", priority: "0.8", lastmod: now },
     { path: "/coverage", changefreq: "daily", priority: "0.8", lastmod: now },
@@ -403,6 +407,7 @@ export function renderDocsPage(): Response {
         <p class="lead">Git.Top is an agent-native knowledge layer for GitHub repositories. It turns project metadata, repository signals, deployment hints, alternatives, and quality evidence into structured responses that agents can cite and compare.</p>
         <div class="actions">
           <a class="button primary" href="/api/search?q=cloudflare%20agent&limit=5">Try REST search</a>
+          <a class="button" href="/integrations">Integration paths</a>
           <a class="button" href="/mcp">Inspect MCP tools</a>
           <a class="button" href="/quality">Check quality governance</a>
         </div>
@@ -425,6 +430,7 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
             <a class="pill" href="/api/search">/api/search</a>
             <a class="pill" href="/api/trending">/api/trending</a>
             <a class="pill" href="/status">/status</a>
+            <a class="pill" href="/integrations">/integrations</a>
             <a class="pill" href="/api/quality">/api/quality</a>
             <a class="pill" href="/api/quality/review">/api/quality/review</a>
             <a class="pill" href="/quality">/quality</a>
@@ -494,6 +500,7 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
             <li>Canonical host: <code>https://git.top</code></li>
             <li>Security contact: <code>security@git.top</code></li>
             <li>Machine discovery: <code>/robots.txt</code>, <code>/sitemap.xml</code>, <code>/status</code>, <code>/quality</code>, <code>/coverage</code>, <code>/llms.txt</code>, <code>/llms-full.txt</code>, <code>/.well-known/security.txt</code>, <code>/mcp</code></li>
+            <li>Integration contact path: <code>/integrations</code> summarizes REST, MCP, GRP, production checks, boundaries, and security contact.</li>
           </ul>
         </article>
       </section>

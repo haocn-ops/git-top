@@ -615,6 +615,7 @@ const html = String.raw`<!doctype html>
           <p class="muted">Start from the public docs before integrating an agent runtime or citing a recommendation.</p>
           <div class="link-list">
             <a href="/docs">Developer docs</a>
+            <a href="/integrations">Integration paths</a>
             <a href="/status">Public status</a>
             <a href="/quality">Quality governance</a>
             <a href="/coverage">Corpus coverage</a>
@@ -629,6 +630,7 @@ const html = String.raw`<!doctype html>
           <p class="muted">MCP discovery exposes search, project lookup, alternatives, deployment, quality, comparison, and graph reasoning tools.</p>
           <div class="link-list">
             <a href="/mcp">MCP discovery</a>
+            <a href="/integrations">REST / MCP / GRP</a>
             <a href="/docs#mcp">MCP guidance</a>
             <a href="/api/schema/project.v2">Project schema</a>
           </div>

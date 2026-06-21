@@ -143,6 +143,12 @@ Completed in the public status pass:
 - Linked `/status` from homepage trust links, `/docs`, `/quality`, `/coverage`, LLM discovery, and sitemap.
 - Added local route validation and production smoke coverage for the status page and sitemap entry.
 
+Completed in the integration surface pass:
+
+- Added `/integrations` as a public REST, MCP, and GRP integration path page for agent developers.
+- Added production checklist, integration-fit guidance, explicit product boundaries, and security/contact paths without implying unsupported account or billing features.
+- Linked `/integrations` from homepage trust links, `/docs`, LLM discovery, and sitemap, with local route validation and production smoke coverage.
+
 ## Product Direction
 
 The product should keep emphasizing that it is not a leaderboard. Its stronger position is:

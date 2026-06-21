@@ -15,6 +15,7 @@ await testQualityCollectionCoverage();
 await testLegacyConsoleRedirects();
 await testCoverageRoute();
 await testStatusRoute();
+await testIntegrationsRoute();
 await testSyncBatchSelection();
 await testNextProjectDetailLookup();
 await testBrowseRanking();
@@ -55,6 +56,15 @@ async function testStatusRoute() {
   assert.match(text, /Data source, sync freshness, and runtime health/);
   assert.match(text, /Sync Progress/);
   assert.match(text, /Integration Guidance/);
+}
+
+async function testIntegrationsRoute() {
+  const response = await worker.fetch(new Request("https://git.top/integrations"), {});
+  const text = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(text, /Use Git.Top as project intelligence/);
+  assert.match(text, /Production Checklist/);
+  assert.match(text, /REST, MCP, and GRP/);
 }
 
 async function testScoring() {

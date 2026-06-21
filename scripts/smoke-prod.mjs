@@ -92,6 +92,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.equal(sitemap.status, 200);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms\.txt<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms-full\.txt<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/integrations<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/status<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quality<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/coverage<\/loc>/);
@@ -166,6 +167,22 @@ export async function runSmoke(args = [], env = process.env) {
     return {
       hasHealthJsonLink: text.includes("/api/health"),
       hasSyncJsonLink: text.includes("/api/sync/status")
+    };
+  });
+
+  await check(context, "integrations_page", async () => {
+    const { status, text } = await getText(context, "/integrations");
+    assert.equal(status, 200);
+    assert.match(text, /Use Git\.Top as project intelligence/);
+    assert.match(text, /Production Checklist/);
+    assert.match(text, /REST/);
+    assert.match(text, /MCP/);
+    assert.match(text, /GRP/);
+    assert.match(text, /security@git\.top/);
+
+    return {
+      hasMcpLink: text.includes("/mcp"),
+      hasOpenApiLink: text.includes("/openapi.json")
     };
   });
 
