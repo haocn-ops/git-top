@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  getHealth,
   getKnowledgeMetadata,
   getStarsDeltaSnapshot,
   getSyncStatus,
@@ -13,6 +14,7 @@ await testRowToDomainMapping();
 await testGeneratedFixtureRows();
 await testLegacyOptionalColumnFallback();
 await testFallbackMetadata();
+await testHealthCountSemantics();
 await testSyncStatusMapping();
 await testStarSnapshotDelta();
 
@@ -92,6 +94,24 @@ async function testFallbackMetadata() {
   assert.equal(failed.metadata.source, "seed");
   assert.equal(failed.metadata.reason, "db_error");
   assert.equal(failed.metadata.error, "mock d1 failure");
+}
+
+async function testHealthCountSemantics() {
+  const missing = await getHealth({});
+  assert.equal(missing.projectCount, missing.knowledgeReadyProjectCount);
+  assert.equal(missing.rawProjectCount, 0);
+
+  const d1 = await getHealth(mockD1Env());
+  assert.equal(d1.projectCount, 1);
+  assert.equal(d1.rawProjectCount, 1);
+  assert.equal(d1.knowledgeReadyProjectCount, 1);
+  assert.equal(d1.metadata.projectCount, 1);
+
+  const mismatch = await getHealth(mockD1Env({ rawProjectCount: 2 }));
+  assert.equal(mismatch.projectCount, 1);
+  assert.equal(mismatch.rawProjectCount, 2);
+  assert.equal(mismatch.knowledgeReadyProjectCount, 1);
+  assert.ok(mismatch.metadata.warnings?.[0].includes("missing complete Agent Card or metric knowledge"));
 }
 
 async function testSyncStatusMapping() {

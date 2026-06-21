@@ -29,6 +29,8 @@ const summary = {
   issue_count: report.issue_count,
   error_count: report.error_count,
   warning_count: report.warning_count,
+  risk_level: report.risk_level,
+  risk_reason_count: Array.isArray(report.risk_summary?.reasons) ? report.risk_summary.reasons.length : undefined,
   source: report.metadata?.source,
   reason: report.metadata?.reason
 };

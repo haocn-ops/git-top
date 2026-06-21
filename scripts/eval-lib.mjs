@@ -296,7 +296,7 @@ function matchesGrpConstraints(node, constraints) {
 }
 
 export function buildLocalEvalCases(projects) {
-  return [...categoryCases(projects), ...deploymentCases(projects), ...cloudflareReadinessCases(projects)];
+  return [...categoryCases(projects), ...deploymentCases(projects), ...cloudflareReadinessCases(projects), ...targetedRankingCases()];
 }
 
 function categoryCases(projects) {
@@ -398,6 +398,27 @@ function cloudflareReadinessCases(projects) {
       }
     }
   ].filter((testCase) => testCase.expected.acceptableProjects.length > 0);
+}
+
+function targetedRankingCases() {
+  return [
+    {
+      id: "local-target-github-mcp-broad-query",
+      type: "search",
+      description: "Local ranking probe for GitHub repository automation MCP intent without exact package-name wording.",
+      query: {
+        q: "github automation mcp server repository issues pull requests",
+        category: "mcp_server",
+        limit: 8
+      },
+      expected: {
+        acceptableProjects: ["github/github-mcp-server", "idosal/git-mcp"],
+        categories: ["mcp_server"],
+        deployments: ["local", "cloud"],
+        unacceptableProjects: ["ollama/ollama", "qdrant/qdrant", "Portkey-AI/gateway"]
+      }
+    }
+  ];
 }
 
 function categoryQuery(category) {

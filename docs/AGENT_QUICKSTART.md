@@ -43,8 +43,8 @@ curl "https://git.top/api/search?category=agent_framework&deployment=cloudflare&
 Read these fields before presenting results:
 
 - `projects[].repo` for the GitHub repository.
-- `projects[].projectKind` to distinguish normal projects from resource collections.
-- `projects[].collectionMetadata` when `projectKind` is `collection`.
+- `projects[].project_kind` to distinguish normal projects from resource collections.
+- `projects[].collection_metadata` when `project_kind` is `collection`.
 - `metadata.source` and `metadata.project_count` for data-source confidence.
 
 ## 3. Inspect One Project
@@ -57,9 +57,9 @@ curl https://git.top/api/project/cloudflare/agents
 
 Use:
 
-- `knowledge.agentCard.classification` to explain category, deployment, difficulty, and Cloudflare readiness.
-- `knowledge.qualitySignalConfidence` to avoid overclaiming partial GitHub metrics.
-- `knowledge.agentCard.deployment.cloudflare.workersReady` and related evidence before saying a project is Cloudflare-ready.
+- `knowledge.agent_card.classification` to explain category, deployment, difficulty, and Cloudflare readiness.
+- `quality_signal_confidence` to avoid overclaiming partial GitHub metrics.
+- `knowledge.agent_card.cloudflare_ready` and `knowledge.agent_card.classification.cloudflare_ready.evidence` before saying a project is Cloudflare-ready.
 
 ## 4. Ask for a Recommendation
 
@@ -123,10 +123,10 @@ curl -X POST https://git.top/api/grp/query \
 
 Read:
 
-- `solutionPaths` for plan mode.
-- `recommendedStack` for compose mode.
+- `solution_paths` for plan mode.
+- `recommended_stack` for compose mode.
 - `nodes` for candidate projects.
-- `metadata.dataSource` for D1 or seed provenance.
+- `metadata.data_source` for D1 or seed provenance.
 
 ## Agent Output Pattern
 

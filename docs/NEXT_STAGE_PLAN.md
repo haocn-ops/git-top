@@ -145,7 +145,7 @@ Public V1 completion:
 
 ## Phase 3: Evaluation Set and Recommendation Baseline
 
-Status: complete for public V1; ranking tuning backlog remains.
+Status: complete for public V1; first post-V1 ranking and explanation hardening pass is complete.
 
 Purpose: make ranking and classification quality measurable before optimizing heuristics.
 
@@ -179,8 +179,8 @@ Initial baseline:
 - `pnpm db:seed-sql` generates `seed.sql` from hand-authored seed knowledge plus full-seed generated eval fixtures, so local D1 seed data follows the same Agent Card fixture path.
 - `pnpm db:execute` prepares local D1 for current schema expectations, including optional columns missing from older local databases.
 - `pnpm db:integration` now seeds local D1, starts a temporary local Worker, and validates `/api/health`, `/api/search`, `/api/project/:owner/:repo`, `/api/quality`, and `/api/sync/status` against the real D1-backed HTTP path.
-- The baseline has expanded from 6 to 21 cases and covers search, recommendation, GRP, local LLM runtime, vector databases, prompt tooling, observability, workflow automation, coding agents, browser agents, coding resource hubs, AI app resource collections, MCP observability integrations, open SaaS templates, ambiguous-name repositories that require README/topic evidence, and Cloudflare-readiness false positives.
-- Current eval baseline: evaluated cases 21, generated fixture projects 506, D1 fixture projects 506, effective generated fixture projects 500, synthetic projects 0, top-1 hit rate 1.0, top-3 hit rate 1.0, category accuracy 1.0, deployment accuracy 1.0, Cloudflare readiness accuracy 1.0, unacceptable hit count 0.
+- The baseline has expanded from 6 to 28 cases and covers search, recommendation, GRP, local LLM runtime, vector databases, prompt tooling, observability, workflow automation, coding agents, browser agents, coding resource hubs, AI app resource collections, MCP observability integrations, open SaaS templates, GitHub MCP automation, Cloudflare-hostable MCP servers, local RAG plus observability, ambiguous-name repositories that require README/topic evidence, and Cloudflare-readiness false positives.
+- Current eval baseline: evaluated cases 28, generated fixture projects 506, D1 fixture projects 506, effective generated fixture projects 500, synthetic projects 0, top-1 hit rate 1.0, top-3 hit rate 1.0, category accuracy 1.0, deployment accuracy 1.0, Cloudflare readiness accuracy 1.0, unacceptable hit count 0.
 - Seed category hints are shared by coverage and evaluation scripts so category drift is easier to catch while the seed list grows.
 
 Next evaluation target:
@@ -192,14 +192,15 @@ Next evaluation target:
 - Cloudflare-readiness regression now tracks a dedicated readiness accuracy metric and covers false positives where Cloudflare Workers is mentioned but Python, filesystem, Docker daemon, or Postgres blockers prevent direct Workers readiness.
 - Cloudflare readiness evidence now separates positive signals (`Cloudflare signal: ...`) from blockers (`Runtime blocker: ...`) and regression validation requires both sides for Cloudflare-mentioned projects.
 - `pnpm quality:review` now writes `docs/LOW_CONFIDENCE_REVIEW.md` from generated Agent Card fixtures and keeps the default validation loop aware of low-confidence classification, collection semantics, and weak evidence review items.
-- Current low-confidence review baseline: 504 projects reviewed, 24 projects needing review, 19 low-confidence signals, 42 medium-confidence signals.
+- Current low-confidence review baseline: 504 projects reviewed, 24 projects needing review, 19 low-confidence signals, 46 medium-confidence signals.
 - `pnpm eval:quality` remains the CI-safe regression gate, while `pnpm eval:local` now runs broader generated category and deployment probes across the fixture-backed project set and writes `docs/EVAL_LOCAL.md`.
-- Current local eval baseline: evaluated cases 22, generated fixture projects 506, D1 fixture projects 506, effective generated fixture projects 500, synthetic projects 0, top-1 hit rate 0.682, top-3 hit rate 0.727, category accuracy 1.0, deployment accuracy 1.0, Cloudflare readiness accuracy 1.0, unacceptable hit count 0.
+- Current local eval baseline: evaluated cases 23, generated fixture projects 506, D1 fixture projects 506, effective generated fixture projects 500, synthetic projects 0, top-1 hit rate 0.739, top-3 hit rate 0.783, category accuracy 1.0, deployment accuracy 1.0, Cloudflare readiness accuracy 1.0, unacceptable hit count 0.
 - The first local tuning targets are ranking order, not classification correctness: category probes for `agent_framework` and `rag_framework`, plus deployment probes for `local`, `docker`, and `serverless`.
 - Eval reports now include a `Review Focus` section that lists top-1/top-3 misses, expected candidates, observed candidates, and tuning hints. This keeps ranking experiments grounded before changing global scoring weights.
 - `pnpm eval:ranking` now compares offline ranking strategies against both CI-safe and local eval cases and writes `docs/RANKING_EXPERIMENTS.md`, so scoring experiments can be rejected before touching runtime search.
-- Current ranking experiment result: `browse_mode_quality` preserves CI-safe top-1/top-3 at 1.0 while improving the full-seed local baseline top-1/top-3 from 0.682/0.727 to 0.864/0.864.
-- Runtime search now keeps exact-intent ranking by default and exposes an explicit `ranking=browse` / MCP `ranking: "browse"` mode for broad category/deployment discovery with larger result limits.
+- Current ranking experiment result: `intent_aware_browse` preserves CI-safe top-1/top-3 at 1.0 while improving the full-seed local baseline top-1/top-3 from 0.739/0.783 to 0.913/0.913.
+- Runtime search now keeps exact-intent ranking by default, exposes an explicit `ranking=browse` / MCP `ranking: "browse"` mode for broad category/deployment discovery with larger result limits, and protects owner/name/topic intent such as GitHub MCP queries from being buried by generic high-quality candidates.
+- `pnpm eval:explanations` now checks agent-facing explanation surfaces: source metadata, classification evidence, quality signal confidence, recommendation reasons/tradeoffs, quality risk summaries, health count semantics, and GRP reasoning metadata.
 
 Acceptance criteria:
 
@@ -210,7 +211,7 @@ Public V1 completion:
 
 - CI-safe eval is fixed and passing.
 - Local eval exposes known ranking misses without blocking deployment.
-- Ranking experiments are documented before runtime scoring changes.
+- Ranking experiments are documented before runtime scoring changes, and focused core validation now protects the GitHub MCP specific-intent ranking behavior.
 
 ## Phase 4: Classification and Deployment Quality
 

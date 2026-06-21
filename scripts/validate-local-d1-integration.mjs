@@ -78,6 +78,8 @@ async function testHealth(baseUrl) {
   assert.equal(body.metadata.source, "d1");
   assert.equal(body.metadata.reason, "d1_query");
   assert.equal(body.project_count, expectedIndexedProjectCount);
+  assert.equal(body.raw_project_count, expectedIndexedProjectCount);
+  assert.equal(body.knowledge_ready_project_count, expectedIndexedProjectCount);
 }
 
 async function testSearch(baseUrl) {

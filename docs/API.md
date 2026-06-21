@@ -24,8 +24,8 @@ Important fields:
 
 - `source`: `d1` or `seed`
 - `reason`: why that source was used
-- `projectCount`: number of projects in the loaded knowledge set
-- `generatedAt`: response metadata timestamp
+- `project_count`: number of projects in the loaded knowledge set
+- `generated_at`: response metadata timestamp
 - `warnings`: present when seed fallback or another caution applies
 
 Agents should surface or account for this metadata when making recommendations.
@@ -38,7 +38,15 @@ Production agents should require `metadata.source` to be `d1` for high-confidenc
 curl http://localhost:8787/api/health
 ```
 
-Production health includes D1 availability, project count, sync cursor, sync health, sync freshness, and the timestamp of the latest successful sync.
+Production health includes D1 availability, project counts, sync cursor, sync health, sync freshness, and the timestamp of the latest successful sync.
+
+Project count fields:
+
+- `project_count`: knowledge-ready projects with complete project, Agent Card, and metric rows. This is the count used by search, quality, and MCP tools.
+- `raw_project_count`: physical rows in the `projects` table.
+- `knowledge_ready_project_count`: explicit alias for the knowledge-ready count.
+
+If `raw_project_count` is higher than `knowledge_ready_project_count`, `metadata.warnings` explains how many rows are not yet usable as complete project knowledge.
 
 Use this before relying on live data. If D1 is unavailable or empty, Git.Top may return seed-backed knowledge with warnings.
 
@@ -140,6 +148,9 @@ Use this endpoint to inspect data quality before treating recommendations as hig
 
 Important quality fields:
 
+- `score`: backward-compatible release-gate score based on errors and warnings.
+- `risk_level`: `low`, `medium`, or `high` data-quality risk based on confidence, collection review load, and stale data.
+- `risk_summary`: machine-readable reasons and rates behind `risk_level`.
 - `coverage.covered_categories`
 - `coverage.missing_categories`
 - `coverage.low_confidence_classification_rate`

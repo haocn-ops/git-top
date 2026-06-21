@@ -16,6 +16,7 @@ await testLegacyConsoleRedirects();
 await testSyncBatchSelection();
 await testNextProjectDetailLookup();
 await testBrowseRanking();
+await testSpecificIntentRanking();
 await testAlternatives();
 await testGrpNormalization();
 await testGrpQueries();
@@ -204,6 +205,32 @@ async function testBrowseRanking() {
 
   const browseResults = searchProjectList(projects, { ...filters, ranking: "browse" });
   assert.equal(browseResults[0].project.id, highQualityBroad.project.id, "browse ranking should boost stronger broad-scope candidates");
+}
+
+async function testSpecificIntentRanking() {
+  const githubMcp = makeSearchFixture("github/github-mcp-server", {
+    description: "MCP server for GitHub repository issues and pull request automation.",
+    topics: ["github", "mcp", "automation"],
+    stars: 500,
+    gitScore: 20,
+    maintenanceScore: 20
+  });
+  const broadAutomation = makeSearchFixture("mock/mcp-automation-suite", {
+    description: "High quality MCP automation server for repository issues and pull requests.",
+    topics: ["mcp", "automation"],
+    stars: 250000,
+    gitScore: 100,
+    maintenanceScore: 100
+  });
+  const projects = [githubMcp, broadAutomation];
+  const filters = {
+    q: "github automation mcp server repository issues pull requests",
+    limit: 8,
+    ranking: "browse"
+  };
+
+  const results = searchProjectList(projects, filters);
+  assert.equal(results[0].project.id, githubMcp.project.id, "specific owner/topic intent should outrank generic high-quality browse candidates");
 }
 
 async function testAlternatives() {

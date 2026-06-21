@@ -133,9 +133,9 @@ Reported fields:
 Latest reviewed local eval:
 
 - Command: `pnpm eval:local`
-- Evaluated cases: `22`
-- Top-1 hit rate: `0.727`
-- Top-3 hit rate: `0.773`
+- Evaluated cases: `23`
+- Top-1 hit rate: `0.739`
+- Top-3 hit rate: `0.783`
 - Category accuracy: `1`
 - Deployment accuracy: `1`
 - Cloudflare readiness accuracy: `1`
@@ -144,14 +144,16 @@ Latest reviewed local eval:
 Accepted review-focus observations:
 
 - `local-category-agent_framework` and `local-category-rag_framework` miss canonical top candidates on broad category probes, but all returned projects are in the requested category and no unacceptable projects appear.
-- `local-deployment-docker`, `local-deployment-local`, and `local-deployment-library_only` favor exact deployment/runtime keyword matches over older canonical broad projects; this is acceptable for browse review until a category-specific canonical-prior model is added.
+- `local-deployment-docker`, `local-deployment-local`, and `local-deployment-library_only` favor exact deployment/runtime keyword matches over older canonical broad projects; this is acceptable for local review until a category-specific canonical-prior model is added.
 - `local-deployment-serverless` misses top-1 but hits top-3 and keeps deployment/category constraints intact.
+- `local-target-github-mcp-broad-query` protects GitHub MCP repository-automation intent from broad quality boosts.
 
 Decision:
 
 - Do not tune global ranking weights solely to satisfy broad local probes.
 - Keep `pnpm eval:quality` as the strict CI gate.
 - Use `pnpm eval:local` as a review queue for future category-specific ranking priors.
+- Use `pnpm eval:ranking` before runtime scoring changes; the current best candidate is `intent_aware_browse`, preserving CI top-1/top-3 at `1.0` while improving local top-1/top-3 to `0.913`.
 
 ## Production Audit
 

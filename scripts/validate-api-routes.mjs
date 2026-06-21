@@ -22,6 +22,8 @@ async function testSeedMetadata() {
   assert.equal(health.status, 200);
   assert.equal(health.body.ok, true);
   assert.equal(health.body.db, "missing");
+  assert.equal(health.body.raw_project_count, 0);
+  assert.equal(health.body.knowledge_ready_project_count, health.body.project_count);
   assert.equal(health.body.sync_health, "unknown");
   assert.equal(health.body.sync_freshness, "unknown");
   assert.equal(health.body.last_successful_sync_at, null);
@@ -89,6 +91,10 @@ async function testGraphAndQualityRoutes() {
   const quality = await getJson("/api/quality");
   assert.equal(quality.status, 200);
   assert.ok(typeof quality.body.score === "number");
+  assert.ok(["low", "medium", "high"].includes(quality.body.risk_level));
+  assert.equal(quality.body.risk_summary.level, quality.body.risk_level);
+  assert.ok(Array.isArray(quality.body.risk_summary.reasons));
+  assert.ok(typeof quality.body.risk_summary.low_confidence_classification_rate === "number");
   assert.ok(typeof quality.body.coverage.covered_categories === "number");
   assert.ok(Array.isArray(quality.body.coverage.missing_categories));
   assert.ok(typeof quality.body.coverage.collection_count === "number");
@@ -104,11 +110,21 @@ async function testSchemaRoutes() {
   const agentCardSchema = await getJson("/api/schema/agent-card.v1");
   assert.equal(agentCardSchema.status, 200);
   assert.equal(agentCardSchema.body.$id, "https://git.top/schemas/agent-card.v1.json");
+  assert.deepEqual(agentCardSchema.body.properties.project_kind.enum, ["project", "collection"]);
+  assert.equal(agentCardSchema.body.properties.collection_metadata.$ref, "#/$defs/collection_metadata");
   assert.equal(agentCardSchema.body.properties.classification.type, "object");
+
+  const projectKnowledgeSchema = await getJson("/api/schema/project-knowledge.v1");
+  assert.equal(projectKnowledgeSchema.status, 200);
+  assert.equal(projectKnowledgeSchema.body.$id, "https://git.top/schemas/project-knowledge.v1.json");
+  assert.ok(projectKnowledgeSchema.body.required.includes("agent_card"));
+  assert.equal(projectKnowledgeSchema.body.properties.agent_card.$id, "https://git.top/schemas/agent-card.v1.json");
 
   const projectSchema = await getJson("/api/schema/project.v2");
   assert.equal(projectSchema.status, 200);
   assert.equal(projectSchema.body.$id, "https://git.top/schemas/project.v2.json");
+  assert.deepEqual(projectSchema.body.properties.project_kind.enum, ["project", "collection"]);
+  assert.equal(projectSchema.body.properties.collection_metadata.$ref, "#/$defs/collection_metadata");
   assert.equal(projectSchema.body.properties.quality_signal_confidence.type, "object");
 }
 
@@ -164,6 +180,9 @@ async function testMockD1Source() {
   const health = await request("/api/health", {}, d1Env);
   assert.equal(health.status, 200);
   assert.equal(health.body.db, "available");
+  assert.equal(health.body.raw_project_count, 1);
+  assert.equal(health.body.knowledge_ready_project_count, 1);
+  assert.equal(health.body.project_count, 1);
   assert.equal(health.body.sync_health, "unknown");
   assert.equal(health.body.sync_freshness, "unknown");
   assertMetadata(health.body.metadata, "d1_query", "d1");

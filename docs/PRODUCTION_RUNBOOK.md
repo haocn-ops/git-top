@@ -97,6 +97,8 @@ The smoke check verifies:
 - `/mcp`
 - MCP `tools/list`
 
+For `/api/health`, production smoke requires `db: "available"` unless `--allow-seed` is explicit. It also checks that `project_count` matches `knowledge_ready_project_count`, that raw and knowledge-ready counts are numeric, and that raw rows are not lower than knowledge-ready rows when D1 is available.
+
 ## Sync Check
 
 Inspect production sync status:
@@ -153,6 +155,9 @@ curl https://git.top/api/quality
 Review:
 
 - `metadata.source`
+- `score`
+- `risk_level`
+- `risk_summary.reasons`
 - `coverage.covered_categories`
 - `coverage.missing_categories`
 - `coverage.low_confidence_classification_rate`

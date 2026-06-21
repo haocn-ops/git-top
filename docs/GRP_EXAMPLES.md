@@ -98,11 +98,11 @@ Use this when the output should be a stack with roles such as runtime, protocol,
 Agents should read:
 
 - `intent` for the normalized user goal.
-- `subGoals` for the decomposed task.
+- `sub_goals` for the decomposed task.
 - `nodes` for candidate projects and capability nodes.
 - `edges` for graph relationships and compatibility.
-- `solutionPaths` for plan mode.
-- `recommendedStack` for compose mode.
+- `solution_paths` for plan mode.
+- `recommended_stack` for compose mode.
 - `alternatives` for fallback choices.
 - `metadata` for version, generation time, candidate count, and depth.
 
@@ -115,4 +115,4 @@ A useful GRP answer should include:
 - The selected mode and normalized intent.
 - The first recommended path or stack.
 - Alternatives when the first path has deployment or maturity caveats.
-- `metadata.dataSource.source` so the caller can tell whether the result came from D1 or seed fallback.
+- `metadata.data_source.source` so the caller can tell whether the result came from D1 or seed fallback.

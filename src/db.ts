@@ -201,6 +201,8 @@ export async function getHealth(env: Env): Promise<{
   ok: boolean;
   db: "available" | "missing" | "error";
   projectCount: number;
+  rawProjectCount?: number;
+  knowledgeReadyProjectCount?: number;
   syncCursor?: number;
   syncHealth?: "healthy" | "degraded" | "unknown";
   syncFreshness?: "fresh" | "stale" | "unknown";
@@ -213,6 +215,8 @@ export async function getHealth(env: Env): Promise<{
       ok: true,
       db: "missing",
       projectCount: seedProjects.length,
+      rawProjectCount: 0,
+      knowledgeReadyProjectCount: seedProjects.length,
       syncCursor: 0,
       syncHealth: "unknown",
       syncFreshness: "unknown",
@@ -223,28 +227,37 @@ export async function getHealth(env: Env): Promise<{
   }
 
   try {
-    const [countRow, cursor, recentRuns] = await Promise.all([
+    const [rawCountRow, knowledgeReadyCount, cursor, recentRuns] = await Promise.all([
       env.DB.prepare("SELECT COUNT(*) AS count FROM projects").first<{ count: number }>(),
+      getKnowledgeReadyProjectCount(env),
       getSyncCursor(env),
       listSyncRuns(env, 10)
     ]);
+    const rawProjectCount = rawCountRow?.count ?? 0;
+    const warnings =
+      rawProjectCount > knowledgeReadyCount
+        ? [`${rawProjectCount - knowledgeReadyCount} project row(s) are missing complete Agent Card or metric knowledge.`]
+        : undefined;
     const freshness = syncFreshness(recentRuns);
     return {
       ok: true,
       db: "available",
-      projectCount: countRow?.count ?? 0,
+      projectCount: knowledgeReadyCount,
+      rawProjectCount,
+      knowledgeReadyProjectCount: knowledgeReadyCount,
       syncCursor: cursor,
       syncHealth: syncHealth(recentRuns),
       syncFreshness: freshness.status,
       lastSuccessfulSyncAt: freshness.lastSuccessfulSyncAt,
       hoursSinceSuccessfulSync: freshness.hoursSinceSuccessfulSync,
       metadata:
-        (countRow?.count ?? 0) > 0
+        knowledgeReadyCount > 0
           ? {
               source: "d1",
               reason: "d1_query",
-              projectCount: countRow?.count ?? 0,
-              generatedAt: new Date().toISOString()
+              projectCount: knowledgeReadyCount,
+              generatedAt: new Date().toISOString(),
+              ...(warnings ? { warnings } : {})
             }
           : seedMetadata("db_empty")
     };
@@ -253,6 +266,8 @@ export async function getHealth(env: Env): Promise<{
       ok: false,
       db: "error",
       projectCount: seedProjects.length,
+      rawProjectCount: 0,
+      knowledgeReadyProjectCount: seedProjects.length,
       syncCursor: 0,
       syncHealth: "unknown",
       syncFreshness: "unknown",
@@ -261,6 +276,16 @@ export async function getHealth(env: Env): Promise<{
       metadata: seedMetadata("db_error", error)
     };
   }
+}
+
+async function getKnowledgeReadyProjectCount(env: Env): Promise<number> {
+  const row = await env.DB!.prepare(
+    `SELECT COUNT(*) AS count
+     FROM projects p
+     JOIN agent_cards ac ON ac.project_id = p.id
+     JOIN project_metrics pm ON pm.project_id = p.id`
+  ).first<{ count: number }>();
+  return row?.count ?? 0;
 }
 
 async function queryProjectKnowledgeRows(env: Env): Promise<D1Result<Record<string, unknown>>> {
@@ -1113,7 +1138,13 @@ function queryMatchScore(query: string, words: string[], haystack: string, item:
   const topicHits = words.filter((word) => item.project.topics.some((topic) => normalize(topic).includes(word))).length;
   const categoryHits = words.filter((word) => normalize(item.agentCard.category).includes(word)).length;
 
-  return hits * 120 + deploymentHits * 80 + topicHits * 60 + categoryHits * 60 + collectionIntentBoost(words, item) + item.metrics.gitScore;
+  return hits * 120 + deploymentHits * 80 + topicHits * 60 + categoryHits * 60 + specificIntentBoost(words, item) + collectionIntentBoost(words, item) + item.metrics.gitScore;
+}
+
+function specificIntentBoost(words: string[], item: ProjectKnowledge): number {
+  const identityText = normalize([item.project.owner, item.project.name, item.project.fullName, item.project.topics.join(" ")].join(" "));
+  const specificHits = words.filter((word) => !specificIntentStopWords.has(word) && identityText.includes(word)).length;
+  return specificHits * 480;
 }
 
 function collectionIntentBoost(words: string[], item: ProjectKnowledge): number {
@@ -1152,7 +1183,7 @@ function browseModeQueryScore(query: string, words: string[], haystack: string, 
   const topicHits = words.filter((word) => item.project.topics.some((topic) => normalize(topic).includes(word))).length;
   const categoryHits = words.filter((word) => normalize(item.agentCard.category).includes(word)).length;
 
-  return hits * 70 + deploymentHits * 70 + topicHits * 45 + categoryHits * 65 + collectionIntentBoost(words, item) + qualityScore;
+  return hits * 70 + deploymentHits * 70 + topicHits * 45 + categoryHits * 65 + specificIntentBoost(words, item) + collectionIntentBoost(words, item) + qualityScore;
 }
 
 function isBrowseRankingQuery(filters: ProjectFilters, words: string[], limit: number): boolean {
@@ -1234,6 +1265,22 @@ const broadProbeWords = new Set([
   "web",
   "workflow",
   "workers"
+]);
+
+const specificIntentStopWords = new Set([
+  ...broadProbeWords,
+  "api",
+  "code",
+  "docs",
+  "example",
+  "examples",
+  "issue",
+  "issues",
+  "pull",
+  "request",
+  "requests",
+  "repository",
+  "repos"
 ]);
 
 function sharedCount(left: string[], right: string[]): number {

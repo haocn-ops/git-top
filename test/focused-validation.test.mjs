@@ -4,7 +4,9 @@ const validationSuites = [
   ["DB mapping and metadata", "../scripts/validate-db-mapping.mjs"],
   ["Core logic and Worker routing", "../scripts/validate-core-logic.mjs"],
   ["API routes", "../scripts/validate-api-routes.mjs"],
-  ["MCP tools", "../scripts/validate-mcp-tools.mjs"]
+  ["MCP tools", "../scripts/validate-mcp-tools.mjs"],
+  ["Quality check CLI", "../scripts/validate-quality-check.mjs"],
+  ["Production smoke assertions", "../scripts/validate-smoke-prod.mjs"]
 ];
 
 for (const [name, modulePath] of validationSuites) {

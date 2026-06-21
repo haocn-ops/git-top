@@ -18,6 +18,7 @@ class MockStatement {
     this.config = {
       mode: "rows",
       cursor: 0,
+      rawProjectCount: null,
       starSnapshot: null,
       syncRuns: [],
       knowledge: null,
@@ -66,6 +67,11 @@ class MockStatement {
     if (this.config.mode === "error") {
       throw new Error("mock d1 failure");
     }
+    if (this.sql.includes("COUNT(*) AS count") && this.sql.includes("JOIN agent_cards") && this.sql.includes("JOIN project_metrics")) {
+      return {
+        count: this.config.mode === "empty" ? 0 : this.rows().length
+      };
+    }
     if (this.sql.includes("FROM projects") && this.sql.includes("lower(id) IN")) {
       const wanted = new Set(this.bindings.map((binding) => String(binding).toLowerCase()));
       const count = this.rows().filter((row) => wanted.has(String(row.id).toLowerCase()) || wanted.has(String(row.full_name).toLowerCase())).length;
@@ -75,7 +81,7 @@ class MockStatement {
     }
     if (this.sql.includes("COUNT(*) AS count FROM projects")) {
       return {
-        count: this.config.mode === "empty" ? 0 : this.config.knowledge?.length ?? 1
+        count: this.config.mode === "empty" ? 0 : this.config.rawProjectCount ?? this.config.knowledge?.length ?? 1
       };
     }
     if (this.sql.includes("FROM sync_state")) {

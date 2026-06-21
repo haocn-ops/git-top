@@ -1,14 +1,14 @@
 # Git.Top Local Eval
 
-Generated at: 2026-06-21T02:42:02.536Z
+Generated at: 2026-06-21T09:50:35.068Z
 
 This local-only report expands the CI-safe eval with generated category and deployment probes across the full fixture-backed project set. It is intended for ranking review before heuristic changes, not as a strict CI gate.
 
 ## Summary
 
-- Evaluated cases: 22
-- Top-1 hit rate: 0.727
-- Top-3 hit rate: 0.773
+- Evaluated cases: 23
+- Top-1 hit rate: 0.739
+- Top-3 hit rate: 0.783
 - Category accuracy: 1
 - Deployment accuracy: 1
 - Cloudflare readiness accuracy: 1
@@ -45,7 +45,7 @@ This local-only report expands the CI-safe eval with generated category and depl
 
 - Issue: top-1 miss, top-3 miss
 - Expected: `langchain-ai/langchain`, `modelcontextprotocol/servers`, `run-llama/llama_index`, `Significant-Gravitas/AutoGPT`, `ollama/ollama`, `langgenius/dify`, `n8n-io/n8n`, `Shubhamsaboo/awesome-llm-apps`
-- Observed: `SigNoz/Awesome-OpenTelemetry`, `mudler/LocalAI`, `openai/openai-cookbook`, `continuedev/continue`, `openfaas/faas`, `openai/skills`, `openai/codex-plugin-cc`, `openai/codex-action`
+- Observed: `github/awesome-copilot`, `vllm-project/vllm-omni`, `vllm-project/aibrix`, `vllm-project/production-stack`, `vllm-project/llm-compressor`, `sgl-project/mini-sglang`, `ray-project/ray`, `sgl-project/sglang`
 - Tuning hint: Review broad deployment ranking separately from exact runtime mentions; likely needs deployment-specific quality priors and blocker-aware ordering.
 
 ### `local-deployment-library_only`
@@ -76,16 +76,17 @@ Case | Type | Top-1 | Top-3 | Category | Deployment | Cloudflare Ready | Unaccep
 `local-category-llm_gateway` | search | yes | yes | yes | yes | yes | 0 | `Kong/kong`, `Portkey-AI/gateway`, `open-webui/pipelines`, `BerriAI/liteLLM-proxy`, `danny-avila/LibreChat`
 `local-category-local_llm_runtime` | search | yes | yes | yes | yes | yes | 0 | `oobabooga/textgen`, `exo-explore/exo`, `mozilla-ai/llamafile`, `mlc-ai/mlc-llm`, `sgl-project/sglang`
 `local-category-mcp_server` | search | yes | yes | yes | yes | yes | 0 | `github/github-mcp-server`, `cloudflare/mcp-server-cloudflare`, `PrefectHQ/fastmcp`, `awslabs/mcp`, `supabase/mcp`
-`local-category-prompt_tooling` | search | yes | yes | yes | yes | yes | 0 | `guardrails-ai/guardrails`, `567-labs/instructor`, `openai/openai-structured-outputs-samples`, `microsoft/TypeChat`, `BoundaryML/baml`
+`local-category-prompt_tooling` | search | yes | yes | yes | yes | yes | 0 | `567-labs/instructor`, `openai/openai-structured-outputs-samples`, `microsoft/TypeChat`, `BoundaryML/baml`, `eth-sri/lmql`
 `local-category-rag_framework` | search | no | no | yes | yes | yes | 0 | `stanford-oval/storm`, `llmware-ai/llmware`, `neuml/txtai`, `getzep/graphiti`, `microsoft/kernel-memory`
 `local-category-vector_database` | search | yes | yes | yes | yes | yes | 0 | `redis/redis`, `milvus-io/milvus`, `qdrant/qdrant`, `chroma-core/chroma`, `weaviate/weaviate`
 `local-category-workflow_automation` | search | yes | yes | yes | yes | yes | 0 | `n8n-io/n8n`, `apache/airflow`, `PrefectHQ/prefect`, `activepieces/activepieces`, `kestra-io/kestra`
 `local-deployment-cloudflare` | search | yes | yes | yes | yes | yes | 0 | `cloudflare/agents`, `example/cloudflare-python-agent`, `cloudflare/puppeteer`, `cloudflare/dynamic-workflows`, `cloudflare/templates`
 `local-deployment-docker` | search | no | no | yes | yes | yes | 0 | `huggingface/transformers`, `google/gemma.cpp`, `huggingface/text-embeddings-inference`, `vllm-project/vllm-omni`, `vllm-project/aibrix`
-`local-deployment-local` | search | no | no | yes | yes | yes | 0 | `SigNoz/Awesome-OpenTelemetry`, `mudler/LocalAI`, `openai/openai-cookbook`, `continuedev/continue`, `openfaas/faas`
+`local-deployment-local` | search | no | no | yes | yes | yes | 0 | `github/awesome-copilot`, `vllm-project/vllm-omni`, `vllm-project/aibrix`, `vllm-project/production-stack`, `vllm-project/llm-compressor`
 `local-deployment-library_only` | search | no | no | yes | yes | yes | 0 | `openai/skills`, `openai/codex-plugin-cc`, `e2b-dev/code-interpreter`, `openai/codex-action`, `openai/codex-universal`
 `local-deployment-serverless` | search | no | yes | yes | yes | yes | 0 | `vercel/workflow`, `cloudflare/dynamic-workflows`, `example/cloudflare-docker-gateway`, `openfaas/faas`, `vercel/ai-sdk-rag-starter`
 `local-deployment-vercel` | search | yes | yes | yes | yes | yes | 0 | `vercel/ai-sdk-rag-starter`, `vercel/workflow`, `vercel/ai-elements`, `vercel/ai-chatbot-svelte`, `lancedb/lancedb-vercel-chatbot`
 `local-deployment-kubernetes` | search | yes | yes | yes | yes | yes | 0 | `vllm-project/vllm`, `kserve/kserve`, `llm-d/llm-d`, `milvus-io/milvus`, `qdrant/qdrant`
 `local-cloudflare-ready` | search | yes | yes | yes | yes | yes | 0 | `cloudflare/agents`, `cloudflare/puppeteer`, `cloudflare/dynamic-workflows`, `cloudflare/templates`, `cloudflare/ai-utils`
 `local-cloudflare-mentioned-not-ready` | search | yes | yes | yes | yes | yes | 0 | `example/cloudflare-python-agent`, `example/cloudflare-docker-gateway`
+`local-target-github-mcp-broad-query` | search | yes | yes | yes | yes | yes | 0 | `github/github-mcp-server`, `PrefectHQ/prefect-mcp-server`, `wonderwhy-er/DesktopCommanderMCP`, `browserbase/mcp-server-browserbase`, `microsoft/playwright-mcp`

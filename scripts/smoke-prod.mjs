@@ -1,121 +1,142 @@
 import assert from "node:assert/strict";
+import { fileURLToPath } from "node:url";
 
-const options = parseArgs(process.argv.slice(2));
-const baseUrl = normalizeBaseUrl(options.baseUrl ?? process.env.GIT_TOP_SMOKE_BASE_URL ?? "https://git.top");
-const timeoutMs = Number(options.timeoutMs ?? process.env.GIT_TOP_SMOKE_TIMEOUT_MS ?? 10_000);
-const allowSeed = options.allowSeed === true || process.env.GIT_TOP_SMOKE_ALLOW_SEED === "1";
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  console.log(JSON.stringify(await runSmoke(process.argv.slice(2), process.env), null, 2));
+}
 
-const results = [];
+export async function runSmoke(args = [], env = process.env) {
+  const options = parseArgs(args);
+  const baseUrl = normalizeBaseUrl(options.baseUrl ?? env.GIT_TOP_SMOKE_BASE_URL ?? "https://git.top");
+  const timeoutMs = Number(options.timeoutMs ?? env.GIT_TOP_SMOKE_TIMEOUT_MS ?? 10_000);
+  const allowSeed = options.allowSeed === true || env.GIT_TOP_SMOKE_ALLOW_SEED === "1";
+  const context = {
+    allowSeed,
+    baseUrl,
+    results: [],
+    timeoutMs
+  };
 
-await check("health", async () => {
-  const { status, body } = await getJson("/api/health");
-  assert.equal(status, 200);
-  assert.equal(body.ok, true);
-  assert.equal(body.db, "available", "production smoke requires an available D1 binding");
-  assertMetadata(body.metadata);
+  await check(context, "health", async () => {
+    const { status, body } = await getJson(context, "/api/health");
+    assert.equal(status, 200);
+    return validateHealthResponse(body, { allowSeed });
+  });
+
+  await check(context, "search", async () => {
+    const { status, body } = await getJson(context, "/api/search?q=cloudflare%20agent&limit=3");
+    assert.equal(status, 200);
+    assertMetadata(body.metadata, { allowSeed });
+    assert.ok(Array.isArray(body.projects), "search projects should be an array");
+    assert.ok(body.projects.length > 0, "search should return at least one project");
+    assert.ok(body.projects.length <= 3, "search should honor limit");
+    assert.ok(body.projects.some((project) => typeof project.repo === "string"), "search results should include repo ids");
+    return {
+      source: body.metadata.source,
+      reason: body.metadata.reason,
+      candidates: body.projects.map((project) => project.repo)
+    };
+  });
+
+  await check(context, "grp_query", async () => {
+    const { status, body } = await postJson(context, "/api/grp/query", {
+      goal: "build a Cloudflare-ready coding agent stack",
+      mode: "plan",
+      constraints: {
+        deploy: ["cloudflare"],
+        agent_ready: true
+      }
+    });
+    assert.equal(status, 200);
+    assert.equal(body.metadata.version, "grp.v1");
+    assertMetadata(body.metadata.data_source, { allowSeed });
+    assert.ok(Array.isArray(body.nodes), "GRP nodes should be an array");
+    assert.ok(body.nodes.length > 0, "GRP should return at least one node");
+    return {
+      mode: body.mode,
+      resultType: body.result_type,
+      candidates: body.nodes.slice(0, 5).map((node) => node.repo ?? node.id)
+    };
+  });
+
+  await check(context, "mcp_discovery", async () => {
+    const { status, body } = await getJson(context, "/mcp");
+    assert.equal(status, 200);
+    assert.equal(body.name, "git-top");
+    assert.ok(Array.isArray(body.tools), "MCP discovery should include tools");
+    assert.ok(body.tools.some((tool) => tool.name === "search_projects"), "MCP discovery should include search_projects");
+    assert.ok(body.tools.some((tool) => tool.name === "git_top_grp_query"), "MCP discovery should include git_top_grp_query");
+    return {
+      tools: body.tools.length
+    };
+  });
+
+  await check(context, "mcp_tools_list", async () => {
+    const { status, body } = await postJson(context, "/mcp", {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/list",
+      params: {}
+    });
+    assert.equal(status, 200);
+    assert.equal(body.jsonrpc, "2.0");
+    assert.ok(Array.isArray(body.result.tools), "MCP tools/list should include tools");
+    assert.ok(body.result.tools.some((tool) => tool.name === "search_projects"), "MCP tools/list should include search_projects");
+    return {
+      tools: body.result.tools.length
+    };
+  });
+
+  return {
+    baseUrl,
+    ok: true,
+    checked: context.results
+  };
+}
+
+export function validateHealthResponse(body, { allowSeed = false } = {}) {
+  if (allowSeed) {
+    assert.ok(["available", "missing", "error"].includes(body.db), "health.db should describe D1 state");
+  } else {
+    assert.equal(body.ok, true, "production smoke requires a healthy D1-backed health response");
+    assert.equal(body.db, "available", "production smoke requires an available D1 binding");
+  }
+  assert.ok(Number.isFinite(body.raw_project_count), "health.raw_project_count should be numeric");
+  assert.ok(Number.isFinite(body.knowledge_ready_project_count), "health.knowledge_ready_project_count should be numeric");
+  assert.equal(body.project_count, body.knowledge_ready_project_count, "health.project_count should match knowledge-ready project count");
+  if (body.db === "available") {
+    assert.ok(body.raw_project_count >= body.knowledge_ready_project_count, "raw project count should not be lower than knowledge-ready count");
+  }
+  assertMetadata(body.metadata, { allowSeed });
   return {
     db: body.db,
     source: body.metadata.source,
     reason: body.metadata.reason,
     projectCount: body.project_count,
+    rawProjectCount: body.raw_project_count,
+    knowledgeReadyProjectCount: body.knowledge_ready_project_count,
     syncHealth: body.sync_health,
     syncFreshness: body.sync_freshness,
     lastSuccessfulSyncAt: body.last_successful_sync_at
   };
-});
+}
 
-await check("search", async () => {
-  const { status, body } = await getJson("/api/search?q=cloudflare%20agent&limit=3");
-  assert.equal(status, 200);
-  assertMetadata(body.metadata);
-  assert.ok(Array.isArray(body.projects), "search projects should be an array");
-  assert.ok(body.projects.length > 0, "search should return at least one project");
-  assert.ok(body.projects.length <= 3, "search should honor limit");
-  assert.ok(body.projects.some((project) => typeof project.repo === "string"), "search results should include repo ids");
-  return {
-    source: body.metadata.source,
-    reason: body.metadata.reason,
-    candidates: body.projects.map((project) => project.repo)
-  };
-});
-
-await check("grp_query", async () => {
-  const { status, body } = await postJson("/api/grp/query", {
-    goal: "build a Cloudflare-ready coding agent stack",
-    mode: "plan",
-    constraints: {
-      deploy: ["cloudflare"],
-      agent_ready: true
-    }
-  });
-  assert.equal(status, 200);
-  assert.equal(body.metadata.version, "grp.v1");
-  assertMetadata(body.metadata.data_source);
-  assert.ok(Array.isArray(body.nodes), "GRP nodes should be an array");
-  assert.ok(body.nodes.length > 0, "GRP should return at least one node");
-  return {
-    mode: body.mode,
-    resultType: body.result_type,
-    candidates: body.nodes.slice(0, 5).map((node) => node.repo ?? node.id)
-  };
-});
-
-await check("mcp_discovery", async () => {
-  const { status, body } = await getJson("/mcp");
-  assert.equal(status, 200);
-  assert.equal(body.name, "git-top");
-  assert.ok(Array.isArray(body.tools), "MCP discovery should include tools");
-  assert.ok(body.tools.some((tool) => tool.name === "search_projects"), "MCP discovery should include search_projects");
-  assert.ok(body.tools.some((tool) => tool.name === "git_top_grp_query"), "MCP discovery should include git_top_grp_query");
-  return {
-    tools: body.tools.length
-  };
-});
-
-await check("mcp_tools_list", async () => {
-  const { status, body } = await postJson("/mcp", {
-    jsonrpc: "2.0",
-    id: 1,
-    method: "tools/list",
-    params: {}
-  });
-  assert.equal(status, 200);
-  assert.equal(body.jsonrpc, "2.0");
-  assert.ok(Array.isArray(body.result.tools), "MCP tools/list should include tools");
-  assert.ok(body.result.tools.some((tool) => tool.name === "search_projects"), "MCP tools/list should include search_projects");
-  return {
-    tools: body.result.tools.length
-  };
-});
-
-console.log(
-  JSON.stringify(
-    {
-      baseUrl,
-      ok: true,
-      checked: results
-    },
-    null,
-    2
-  )
-);
-
-async function check(name, fn) {
+async function check(context, name, fn) {
   try {
     const details = await fn();
-    results.push({ name, ok: true, ...details });
+    context.results.push({ name, ok: true, ...details });
   } catch (error) {
     error.message = `${name} smoke check failed: ${error.message}`;
     throw error;
   }
 }
 
-async function getJson(path) {
-  return requestJson(path, { method: "GET" });
+async function getJson(context, path) {
+  return requestJson(context, path, { method: "GET" });
 }
 
-async function postJson(path, body) {
-  return requestJson(path, {
+async function postJson(context, path, body) {
+  return requestJson(context, path, {
     method: "POST",
     headers: {
       "content-type": "application/json"
@@ -124,11 +145,11 @@ async function postJson(path, body) {
   });
 }
 
-async function requestJson(path, init) {
+async function requestJson(context, path, init) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const timeout = setTimeout(() => controller.abort(), context.timeoutMs);
   try {
-    const response = await fetch(`${baseUrl}${path}`, {
+    const response = await fetch(`${context.baseUrl}${path}`, {
       ...init,
       signal: controller.signal
     });
@@ -148,7 +169,7 @@ async function requestJson(path, init) {
   }
 }
 
-function assertMetadata(metadata) {
+export function assertMetadata(metadata, { allowSeed = false } = {}) {
   assert.ok(metadata && typeof metadata === "object", "metadata should be present");
   if (allowSeed) {
     assert.ok(["d1", "seed"].includes(metadata.source), "metadata.source should be d1 or seed");

@@ -95,7 +95,7 @@ Agents should:
 - Prefer `metadata.source === "d1"` when making high-confidence recommendations.
 - Treat seed fallback as useful for demos and development, but mention the fallback when presenting results.
 - Inspect `classification` evidence before asserting category, difficulty, or Cloudflare readiness.
-- Inspect `qualitySignalConfidence` before treating growth, commit, release, or contributor counts as complete.
+- Inspect `quality_signal_confidence` before treating growth, commit, release, or contributor counts as complete.
 - Prefer `git_top_grp_query` for goal-level planning and `search_projects` for direct retrieval.
 - Use `ranking: "browse"` for broad scoped discovery, and omit it when the user names a specific project, owner, technology, or package.
 

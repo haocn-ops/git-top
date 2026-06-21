@@ -61,6 +61,21 @@ const broadProbeWords = new Set([
   "workflow",
   "workers"
 ]);
+const specificIntentStopWords = new Set([
+  ...broadProbeWords,
+  "api",
+  "code",
+  "docs",
+  "example",
+  "examples",
+  "issue",
+  "issues",
+  "pull",
+  "request",
+  "requests",
+  "repository",
+  "repos"
+]);
 const reportPath = new URL("../docs/RANKING_EXPERIMENTS.md", import.meta.url);
 const evalCases = JSON.parse(await readFile(new URL("../data/eval-cases.json", import.meta.url), "utf8"));
 const { evaluationProjects } = await buildEvaluationContext();
@@ -101,6 +116,11 @@ const experiments = [
     id: "browse_mode_blocker_aware",
     description: "Boost browse-style queries and demote non-ready Cloudflare/serverless blocker examples.",
     search: (projects, filters) => experimentalSearch(projects, filters, { browseModeQuality: true, blockerAware: true })
+  },
+  {
+    id: "intent_aware_browse",
+    description: "Boost browse-style queries while preserving specific owner/name/topic intent.",
+    search: (projects, filters) => experimentalSearch(projects, filters, { browseModeQuality: true, specificIntent: true })
   }
 ];
 
@@ -172,7 +192,8 @@ function experimentalSearch(projects, filters, strategy) {
         broadProbeQuality: strategy.broadProbeQuality,
         browseModeQuality: strategy.browseModeQuality,
         blockerAware: strategy.blockerAware,
-        exactIntentGuard: strategy.exactIntentGuard
+        exactIntentGuard: strategy.exactIntentGuard,
+        specificIntent: strategy.specificIntent
       });
       return score > 0 ? { item, score } : null;
     })
@@ -199,16 +220,23 @@ function experimentalScore(query, words, haystack, item, strategy) {
   const deploymentHits = words.filter((word) => item.agentCard.deployment.some((deployment) => normalize(deployment).includes(word))).length;
   const topicHits = words.filter((word) => item.project.topics.some((topic) => normalize(topic).includes(word))).length;
   const categoryHits = words.filter((word) => normalize(item.agentCard.category).includes(word)).length;
+  const specificIntentBoost = strategy.specificIntent ? specificIntentScore(words, item) : 0;
   const exactNameHits = strategy.exactIntentGuard
     ? words.filter((word) => !genericIntentWords.has(word) && normalize(`${item.project.owner} ${item.project.name} ${item.project.fullName}`).includes(word))
         .length
     : 0;
 
   if (useQuality) {
-    return hits * 70 + deploymentHits * 70 + topicHits * 45 + categoryHits * 65 + exactNameHits * 420 + qualityScore + blockerAdjustment(item, strategy);
+    return hits * 70 + deploymentHits * 70 + topicHits * 45 + categoryHits * 65 + exactNameHits * 420 + specificIntentBoost + qualityScore + blockerAdjustment(item, strategy);
   }
 
-  return hits * 120 + deploymentHits * 80 + topicHits * 60 + categoryHits * 60 + item.metrics.gitScore;
+  return hits * 120 + deploymentHits * 80 + topicHits * 60 + categoryHits * 60 + specificIntentBoost + item.metrics.gitScore;
+}
+
+function specificIntentScore(words, item) {
+  const identityText = normalize([item.project.owner, item.project.name, item.project.fullName, item.project.topics.join(" ")].join(" "));
+  const hits = words.filter((word) => !specificIntentStopWords.has(word) && identityText.includes(word)).length;
+  return hits * 480;
 }
 
 function isBroadProbe(filters, words) {
@@ -273,6 +301,12 @@ function rankingMarkdown(rows) {
     "",
     conclusion(rows),
     "",
+    "## Targeted Probes",
+    "",
+    "- `local-target-github-mcp-broad-query` tracks a realistic GitHub automation MCP query that does not include an exact package name.",
+    "- Treat this probe as a guardrail against broad quality boosts that bury repository-specific intent.",
+    "- A candidate ranking strategy should keep `github/github-mcp-server` or `idosal/git-mcp` in the top three before promotion.",
+    "",
     "## Review Focus",
     "",
     ...rows.flatMap((row) => [
@@ -289,7 +323,14 @@ function conclusion(rows) {
   const baseline = rows.find((row) => row.id === "baseline");
   const winner = rows
     .filter((row) => row.id !== "baseline")
-    .find((row) => row.quality.top1_hit_rate >= baseline.quality.top1_hit_rate && row.local.top3_hit_rate > baseline.local.top3_hit_rate);
+    .filter((row) => row.quality.top1_hit_rate >= baseline.quality.top1_hit_rate && row.local.top3_hit_rate > baseline.local.top3_hit_rate)
+    .sort((left, right) => {
+      const top3Delta = right.local.top3_hit_rate - left.local.top3_hit_rate;
+      if (top3Delta !== 0) {
+        return top3Delta;
+      }
+      return right.local.top1_hit_rate - left.local.top1_hit_rate;
+    })[0];
 
   if (winner) {
     return `Candidate \`${winner.id}\` improves local ranking without reducing CI top-1. Review the focus lists before promoting it to runtime search.`;

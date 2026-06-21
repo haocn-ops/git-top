@@ -1,12 +1,12 @@
 # Git.Top Eval Quality
 
-Generated at: 2026-06-21T09:01:57.341Z
+Generated at: 2026-06-21T10:26:06.127Z
 
 This report summarizes the CI-safe recommendation and classification baseline. Evaluation knowledge is built from hand-authored seed projects first and generated Agent Card fixtures for the full seed list second.
 
 ## Summary
 
-- Evaluated cases: 24
+- Evaluated cases: 28
 - Top-1 hit rate: 1
 - Top-3 hit rate: 1
 - Category accuracy: 1
@@ -45,8 +45,12 @@ Case | Type | Top-1 | Top-3 | Category | Deployment | Cloudflare Ready | Unaccep
 `search-mcp-observability-integration` | search | yes | yes | yes | yes | yes | 0 | `comet-ml/opik-mcp`, `modelcontextprotocol/servers`, `github/github-mcp-server`, `cloudflare/mcp-server-cloudflare`, `qdrant/mcp-server-qdrant`
 `search-mcp-resource-collection` | search | yes | yes | yes | yes | yes | 0 | `punkpeye/awesome-mcp-servers`, `wong2/awesome-mcp-servers`, `modelcontextprotocol/servers`, `modelcontextprotocol/typescript-sdk`, `awslabs/mcp`
 `search-open-saas-template` | search | yes | yes | yes | yes | yes | 0 | `wasp-lang/open-saas`, `openai/openai-chatkit-starter-app`, `openai/openai-responses-starter-app`, `open-webui/open-webui`, `openai/openai-cookbook`
-`search-ambiguous-memory-framework` | search | yes | yes | yes | yes | yes | 0 | `mem0ai/mem0`, `run-llama/llama_index`, `supermemoryai/supermemory`, `getzep/zep`, `supermemoryai/claude-supermemory`
+`search-ambiguous-memory-framework` | search | yes | yes | yes | yes | yes | 0 | `mem0ai/mem0`, `supermemoryai/supermemory`, `getzep/zep`, `supermemoryai/claude-supermemory`, `supermemoryai/opensearch-ai`
 `search-ambiguous-structured-output` | search | yes | yes | yes | yes | yes | 0 | `dottxt-ai/outlines`, `guidance-ai/guidance`, `eth-sri/lmql`, `microsoft/aici`, `567-labs/instructor`
 `search-ambiguous-observability-tool` | search | yes | yes | yes | yes | yes | 0 | `pydantic/logfire`, `SigNoz/signoz`, `jaegertracing/jaeger`, `langfuse/langfuse`, `comet-ml/opik`
 `search-cloudflare-mentioned-not-ready` | search | yes | yes | yes | yes | yes | 0 | `example/cloudflare-python-agent`, `example/cloudflare-docker-gateway`
-`search-browser-research-agent` | search | yes | yes | yes | yes | yes | 0 | `firecrawl/open-researcher`, `firecrawl/open-scouts`, `firecrawl/firesearch`, `openai/openai-cua-sample-app`, `firecrawl/firecrawl`
+`search-browser-research-agent` | search | yes | yes | yes | yes | yes | 0 | `firecrawl/open-researcher`, `firecrawl/firesearch`, `firecrawl/open-scouts`, `openai/openai-cua-sample-app`, `firecrawl/firecrawl`
+`search-lightweight-cloudflare-workers-agent` | search | yes | yes | yes | yes | yes | 0 | `cloudflare/agents`
+`search-github-mcp-automation` | search | yes | yes | yes | yes | yes | 0 | `github/github-mcp-server`, `idosal/git-mcp`, `cloudflare/mcp-server-cloudflare`, `qdrant/mcp-server-qdrant`, `PrefectHQ/prefect-mcp-server`
+`search-cloudflare-mcp-workers` | search | yes | yes | yes | yes | yes | 0 | `cloudflare/mcp-server-cloudflare`
+`recommend-local-rag-with-observability` | recommend | yes | yes | yes | yes | yes | 0 | `langchain-ai/langchain`, `SigNoz/signoz`, `run-llama/llama_index`, `deepset-ai/haystack`, `jaegertracing/jaeger`

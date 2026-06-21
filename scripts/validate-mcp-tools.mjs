@@ -26,6 +26,12 @@ async function testDiscovery() {
   const searchTool = getDiscovery.body.tools.find((tool) => tool.name === "search_projects");
   assert.match(searchTool.description, /project_kind/);
   assert.match(searchTool.description, /collection_metadata/);
+  assert.deepEqual(searchTool.input_schema.properties.ranking.enum, ["browse"]);
+  assert.match(searchTool.input_schema.properties.ranking.description, /browse ranking/);
+
+  const cardTool = getDiscovery.body.tools.find((tool) => tool.name === "get_project_card");
+  assert.match(cardTool.description, /project_kind/);
+  assert.match(cardTool.description, /collection_metadata/);
 }
 
 async function testToolCalls() {

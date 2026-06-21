@@ -11,6 +11,8 @@ export interface QualityIssue {
 
 export interface QualityReport {
   score: number;
+  riskLevel: QualityRiskLevel;
+  riskSummary: QualityRiskSummary;
   projectCount: number;
   issueCount: number;
   errorCount: number;
@@ -18,6 +20,17 @@ export interface QualityReport {
   categoryDistribution: Record<Category, number>;
   coverage: QualityCoverage;
   issues: QualityIssue[];
+}
+
+export type QualityRiskLevel = "low" | "medium" | "high";
+
+export interface QualityRiskSummary {
+  level: QualityRiskLevel;
+  reasons: string[];
+  lowConfidenceClassificationRate: number;
+  collectionReviewRate: number;
+  staleProjectRate: number;
+  staleCollectionRate: number;
 }
 
 export interface LowConfidenceReviewItem {
@@ -87,16 +100,20 @@ export function buildQualityReport(projects: ProjectKnowledge[]): QualityReport 
   const errorCount = issues.filter((issue) => issue.severity === "error").length;
   const warningCount = issues.filter((issue) => issue.severity === "warning").length;
   const distribution = categoryDistribution(projects);
+  const coverage = buildCoverage(projects, distribution);
+  const riskSummary = buildRiskSummary(coverage, projects.length);
   const penalty = errorCount * 10 + warningCount * 4;
 
   return {
     score: Math.max(0, Math.min(100, 100 - penalty)),
+    riskLevel: riskSummary.level,
+    riskSummary,
     projectCount: projects.length,
     issueCount: issues.length,
     errorCount,
     warningCount,
     categoryDistribution: distribution,
-    coverage: buildCoverage(projects, distribution),
+    coverage,
     issues
   };
 }
@@ -351,6 +368,51 @@ function buildCoverage(projects: ProjectKnowledge[], distribution: Record<Catego
     collectionFreshnessCounts,
     staleCollectionCount,
     collectionReviewCount
+  };
+}
+
+function buildRiskSummary(coverage: QualityCoverage, projectCount: number): QualityRiskSummary {
+  const collectionReviewRate = rate(coverage.collectionReviewCount, projectCount);
+  const staleCollectionRate = rate(coverage.staleCollectionCount, Math.max(coverage.collectionCount, 1));
+  const reasons: string[] = [];
+  let riskScore = 0;
+
+  if (coverage.lowConfidenceClassificationRate >= 0.25) {
+    riskScore += 2;
+    reasons.push("At least 25% of projects include low-confidence classification signals.");
+  } else if (coverage.lowConfidenceClassificationRate >= 0.1) {
+    riskScore += 1;
+    reasons.push("At least 10% of projects include low-confidence classification signals.");
+  }
+
+  if (collectionReviewRate >= 0.15) {
+    riskScore += 2;
+    reasons.push("At least 15% of indexed projects are collections that need review.");
+  } else if (collectionReviewRate >= 0.05) {
+    riskScore += 1;
+    reasons.push("At least 5% of indexed projects are collections that need review.");
+  }
+
+  if (coverage.staleProjectRate >= 0.1) {
+    riskScore += 2;
+    reasons.push("At least 10% of projects have stale sync data.");
+  } else if (coverage.staleProjectRate > 0) {
+    riskScore += 1;
+    reasons.push("Some projects have stale sync data.");
+  }
+
+  if (staleCollectionRate >= 0.25) {
+    riskScore += 1;
+    reasons.push("At least 25% of collections are marked stale.");
+  }
+
+  return {
+    level: riskScore >= 3 ? "high" : riskScore >= 1 ? "medium" : "low",
+    reasons: reasons.length > 0 ? reasons : ["No major quality risk thresholds are currently exceeded."],
+    lowConfidenceClassificationRate: coverage.lowConfidenceClassificationRate,
+    collectionReviewRate,
+    staleProjectRate: coverage.staleProjectRate,
+    staleCollectionRate
   };
 }
 

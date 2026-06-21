@@ -39,6 +39,7 @@ pnpm core:validate
 pnpm api:validate
 pnpm mcp:validate
 pnpm eval:quality
+pnpm eval:explanations
 pnpm eval:local
 pnpm eval:ranking
 pnpm smoke:prod
@@ -51,7 +52,7 @@ pnpm dev
 
 `/api/health` reports D1 availability and the current project count. Run `pnpm db:execute` and `pnpm db:seed` before local API checks when the D1 state is empty. `pnpm db:execute` prepares the local D1 schema and backfills optional columns that may be missing from older local databases. `seed.sql` is generated from hand-authored seed knowledge and generated eval fixtures; run `pnpm db:seed-sql` after changing those fixtures. `pnpm db:integration` seeds local D1, starts a temporary local Worker, and validates the D1-backed HTTP API path.
 
-`pnpm eval:quality` is the CI-safe recommendation and classification regression gate. `pnpm eval:local` runs broader generated category and deployment probes across the fixture-backed project set and writes [docs/EVAL_LOCAL.md](./docs/EVAL_LOCAL.md); use it before tuning ranking heuristics, but keep it out of the default validation path. `pnpm eval:ranking` compares offline ranking strategies in [docs/RANKING_EXPERIMENTS.md](./docs/RANKING_EXPERIMENTS.md). Runtime search keeps exact-intent ranking by default; broad scoped discovery can opt into `ranking=browse`.
+`pnpm eval:quality` is the CI-safe recommendation and classification regression gate. `pnpm eval:explanations` checks that agent-facing responses include source metadata, classification evidence, quality signal confidence, recommendation reasons/tradeoffs, health count semantics, and GRP reasoning. `pnpm eval:local` runs broader generated category and deployment probes across the fixture-backed project set and writes [docs/EVAL_LOCAL.md](./docs/EVAL_LOCAL.md); use it before tuning ranking heuristics, but keep it out of the default validation path. `pnpm eval:ranking` compares offline ranking strategies in [docs/RANKING_EXPERIMENTS.md](./docs/RANKING_EXPERIMENTS.md). Runtime search keeps exact-intent ranking by default; broad scoped discovery can opt into `ranking=browse`.
 
 `pnpm seed:candidates` discovers seed expansion candidates from live GitHub organization metadata and writes [docs/SEED_CANDIDATES.md](./docs/SEED_CANDIDATES.md). Treat it as a review queue, not an automatic append step; candidates still need live-check and category review before entering `data/seed-repositories.json`.
 

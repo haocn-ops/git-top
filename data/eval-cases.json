@@ -394,5 +394,75 @@
       "deployments": ["local"],
       "unacceptableProjects": ["mem0ai/mem0", "Portkey-AI/gateway", "pydantic/logfire"]
     }
+  },
+  {
+    "id": "search-lightweight-cloudflare-workers-agent",
+    "type": "search",
+    "description": "Find a lightweight agent framework that can run on Cloudflare Workers.",
+    "query": {
+      "q": "lightweight agent framework for Cloudflare Workers",
+      "category": "agent_framework",
+      "deployment": "cloudflare",
+      "cloudflareReady": true,
+      "limit": 5
+    },
+    "expected": {
+      "acceptableProjects": ["cloudflare/agents"],
+      "categories": ["agent_framework"],
+      "deployments": ["cloudflare"],
+      "cloudflareReady": true,
+      "unacceptableProjects": ["langchain-ai/langchain", "run-llama/llama_index", "example/cloudflare-python-agent"]
+    }
+  },
+  {
+    "id": "search-github-mcp-automation",
+    "type": "search",
+    "description": "Find MCP servers for GitHub repository, issue, and pull request automation.",
+    "query": {
+      "q": "github github-mcp-server repository issues pull requests",
+      "category": "mcp_server",
+      "limit": 5
+    },
+    "expected": {
+      "acceptableProjects": ["github/github-mcp-server", "idosal/git-mcp"],
+      "categories": ["mcp_server"],
+      "deployments": ["local", "cloud"],
+      "unacceptableProjects": ["ollama/ollama", "qdrant/qdrant", "Portkey-AI/gateway"]
+    }
+  },
+  {
+    "id": "search-cloudflare-mcp-workers",
+    "type": "search",
+    "description": "Find Cloudflare-hostable MCP server tooling for Workers-based integrations.",
+    "query": {
+      "q": "cloudflare mcp server workers",
+      "category": "mcp_server",
+      "deployment": "cloudflare",
+      "cloudflareReady": true,
+      "limit": 5
+    },
+    "expected": {
+      "acceptableProjects": ["cloudflare/mcp-server-cloudflare"],
+      "categories": ["mcp_server"],
+      "deployments": ["cloudflare"],
+      "cloudflareReady": true,
+      "unacceptableProjects": ["modelcontextprotocol/servers", "github/github-mcp-server", "qdrant/mcp-server-qdrant"]
+    }
+  },
+  {
+    "id": "recommend-local-rag-with-observability",
+    "type": "recommend",
+    "description": "Recommend projects for a local RAG stack that also needs observability and tracing.",
+    "query": {
+      "useCase": "local RAG stack with observability tracing",
+      "deployment": "local",
+      "limit": 5
+    },
+    "expected": {
+      "acceptableProjects": ["langchain-ai/langchain", "run-llama/llama_index", "deepset-ai/haystack", "SigNoz/signoz", "jaegertracing/jaeger"],
+      "categories": ["agent_framework", "rag_framework", "ai_observability"],
+      "deployments": ["local"],
+      "unacceptableProjects": ["cloudflare/agents", "Portkey-AI/gateway", "ollama/ollama"]
+    }
   }
 ]
