@@ -48,6 +48,13 @@ interface PagedCount {
   complete: boolean;
 }
 
+export interface GithubSignalOptions {
+  maxCommitPages?: number;
+  maxReleasePages?: number;
+  maxContributorPages?: number;
+  includeIssueFirstResponse?: boolean;
+}
+
 export class GithubClient {
   private readonly env: Env;
 
@@ -59,15 +66,19 @@ export class GithubClient {
     return this.request<GithubRepository>(`/repos/${fullName}`);
   }
 
-  async getSignals(repo: GithubRepository): Promise<GithubRepoSignals> {
+  async getSignals(repo: GithubRepository, options: GithubSignalOptions = {}): Promise<GithubRepoSignals> {
+    const commitPages = options.maxCommitPages ?? maxCommitPages;
+    const releasePages = options.maxReleasePages ?? maxReleasePages;
+    const contributorPages = options.maxContributorPages ?? maxContributorPages;
+    const includeIssueFirstResponse = options.includeIssueFirstResponse ?? true;
     const [readmeText, files, commits30d, releases180d, contributors90d, issueFirstResponseMedianHours] =
       await Promise.all([
         this.getReadmeText(repo.full_name),
         this.getRootFiles(repo.full_name),
-        this.countCommits(repo.full_name, 30),
-        this.countReleases(repo.full_name, 180),
-        this.countContributors(repo.full_name),
-        this.getIssueFirstResponseMedianHours(repo.full_name)
+        this.countCommits(repo.full_name, 30, commitPages),
+        this.countReleases(repo.full_name, 180, releasePages),
+        this.countContributors(repo.full_name, contributorPages),
+        includeIssueFirstResponse ? this.getIssueFirstResponseMedianHours(repo.full_name) : Promise.resolve(null)
       ]);
 
     return {
@@ -106,39 +117,39 @@ export class GithubClient {
     }
   }
 
-  private async countCommits(fullName: string, days: number): Promise<PagedCount> {
+  private async countCommits(fullName: string, days: number, pages: number): Promise<PagedCount> {
     try {
       const since = daysAgo(days);
       return this.countPaged<GithubCommit>(
         `/repos/${fullName}/commits?since=${encodeURIComponent(since)}&per_page=100`,
-        maxCommitPages
+        pages
       );
     } catch {
       return unknownPagedCount();
     }
   }
 
-  private async countReleases(fullName: string, days: number): Promise<PagedCount> {
+  private async countReleases(fullName: string, days: number, pages: number): Promise<PagedCount> {
     try {
       const cutoff = Date.parse(daysAgo(days));
       let count = 0;
-      const pages = await this.forEachPage<GithubRelease>(`/repos/${fullName}/releases?per_page=100`, maxReleasePages, (releases) => {
+      const result = await this.forEachPage<GithubRelease>(`/repos/${fullName}/releases?per_page=100`, pages, (releases) => {
         const recent = releases.filter((release) => release.published_at && Date.parse(release.published_at) >= cutoff);
         count += recent.length;
         return recent.length === releases.length;
       });
       return {
         count,
-        complete: pages.complete
+        complete: result.complete
       };
     } catch {
       return unknownPagedCount();
     }
   }
 
-  private async countContributors(fullName: string): Promise<PagedCount> {
+  private async countContributors(fullName: string, pages: number): Promise<PagedCount> {
     try {
-      return this.countPaged<GithubContributor>(`/repos/${fullName}/contributors?per_page=100`, maxContributorPages);
+      return this.countPaged<GithubContributor>(`/repos/${fullName}/contributors?per_page=100`, pages);
     } catch {
       return unknownPagedCount();
     }

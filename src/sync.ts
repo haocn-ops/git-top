@@ -15,12 +15,21 @@ import type { Env, GithubRepository, Project, ProjectKnowledge, SyncFailure, Syn
 import { validateProjectKnowledge, ValidationError } from "./validation";
 
 export const defaultSyncLimit = 1;
+export const scheduledSyncLimit = 5;
+
+const lightweightSignalOptions = {
+  maxCommitPages: 1,
+  maxReleasePages: 1,
+  maxContributorPages: 1,
+  includeIssueFirstResponse: false
+} as const;
 
 export interface SyncOptions {
   repositories?: string[];
   limit?: number;
   offset?: number;
   trigger?: SyncTrigger;
+  signalDepth?: "full" | "lite";
 }
 
 export interface SyncResult {
@@ -53,6 +62,7 @@ export async function syncGithubProjects(env: Env, options: SyncOptions = {}): P
   const repositories = selectRepositoryBatch(allRepositories, offset, limit);
   const nextOffset = allRepositories.length === 0 ? 0 : (offset + limit) % allRepositories.length;
   const github = new GithubClient(env);
+  const signalOptions = options.signalDepth === "lite" ? lightweightSignalOptions : undefined;
   const startedAt = new Date();
   const result: SyncResult = {
     synced: [],
@@ -66,7 +76,7 @@ export async function syncGithubProjects(env: Env, options: SyncOptions = {}): P
   for (const repository of repositories) {
     try {
       const repo = await github.getRepository(repository);
-      const signals = await github.getSignals(repo);
+      const signals = await github.getSignals(repo, signalOptions);
       const now = new Date().toISOString();
       const stars30dSnapshot = await getStarsDeltaSnapshot(env, repo.full_name, repo.stargazers_count, now);
       const signalConfidence = {
