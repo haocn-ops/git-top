@@ -4643,7 +4643,7 @@ function filesForDeployment(deployment) {
 }
 
 function descriptionFor(repository, category) {
-  return `${repository} is indexed as ${category.replaceAll("_", " ")} for Git.Top generated evaluation fixtures.`;
+  return `${repository} is indexed as ${category.replaceAll("_", " ")} for Git.Top generated knowledge fixtures.`;
 }
 
 function languageFor(repository) {

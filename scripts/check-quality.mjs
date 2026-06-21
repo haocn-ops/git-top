@@ -1,11 +1,20 @@
-const target = process.argv[2] ?? "https://git-top.izhenghaocn.workers.dev/api/quality";
-const minScore = Number(process.env.MIN_QUALITY_SCORE ?? 60);
+const options = parseArgs(process.argv.slice(2));
+const baseUrl = normalizeBaseUrl(options.baseUrl ?? process.env.GIT_TOP_QUALITY_BASE_URL ?? "https://git.top");
+const target = options.target ?? `${baseUrl}/api/quality`;
+const minScore = Number(options.minScore ?? process.env.MIN_QUALITY_SCORE ?? 90);
+const allowSeed = options.allowSeed === true || process.env.GIT_TOP_QUALITY_ALLOW_SEED === "1";
 
-const response = await fetch(target, {
-  headers: {
-    accept: "application/json"
-  }
-});
+let response;
+try {
+  response = await fetch(target, {
+    headers: {
+      accept: "application/json"
+    }
+  });
+} catch (error) {
+  console.error(`Quality endpoint request failed for ${target}: ${formatError(error)}`);
+  process.exit(1);
+}
 
 if (!response.ok) {
   console.error(`Quality endpoint failed with HTTP ${response.status}`);
@@ -14,11 +23,14 @@ if (!response.ok) {
 
 const report = await response.json();
 const summary = {
+  target,
   score: report.score,
   project_count: report.project_count,
   issue_count: report.issue_count,
   error_count: report.error_count,
-  warning_count: report.warning_count
+  warning_count: report.warning_count,
+  source: report.metadata?.source,
+  reason: report.metadata?.reason
 };
 
 console.log(JSON.stringify(summary, null, 2));
@@ -35,7 +47,62 @@ if (report.error_count > 0) {
   process.exit(1);
 }
 
+if (!report.metadata || typeof report.metadata !== "object") {
+  console.error("Quality check failed: metadata is missing.");
+  process.exit(1);
+}
+
+if (allowSeed) {
+  if (!["d1", "seed"].includes(report.metadata.source)) {
+    console.error(`Quality check failed: unexpected metadata source ${report.metadata.source}.`);
+    process.exit(1);
+  }
+} else if (report.metadata.source !== "d1") {
+  console.error("Quality check failed: expected D1-backed metadata; pass --allow-seed for intentional seed fallback checks.");
+  process.exit(1);
+}
+
 if (report.score < minScore) {
   console.error(`Quality check failed: score ${report.score} < ${minScore}.`);
   process.exit(1);
+}
+
+function parseArgs(args) {
+  const parsed = {};
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--") {
+      continue;
+    } else if (arg === "--base-url") {
+      parsed.baseUrl = args[index + 1];
+      index += 1;
+    } else if (arg.startsWith("--base-url=")) {
+      parsed.baseUrl = arg.slice("--base-url=".length);
+    } else if (arg === "--target") {
+      parsed.target = args[index + 1];
+      index += 1;
+    } else if (arg.startsWith("--target=")) {
+      parsed.target = arg.slice("--target=".length);
+    } else if (arg === "--min-score") {
+      parsed.minScore = args[index + 1];
+      index += 1;
+    } else if (arg.startsWith("--min-score=")) {
+      parsed.minScore = arg.slice("--min-score=".length);
+    } else if (arg === "--allow-seed") {
+      parsed.allowSeed = true;
+    } else if (!arg.startsWith("--") && !parsed.target) {
+      parsed.target = arg;
+    } else {
+      throw new Error(`Unknown option: ${arg}`);
+    }
+  }
+  return parsed;
+}
+
+function normalizeBaseUrl(value) {
+  return String(value).replace(/\/+$/g, "");
+}
+
+function formatError(error) {
+  return error instanceof Error ? error.message : String(error);
 }

@@ -58,6 +58,8 @@ const categories: Category[] = [
   "other"
 ];
 const classificationFields = ["category", "deployment", "difficulty", "cloudflareReady"] as const;
+const collectionScopes = ["awesome_list", "cookbook", "starter_collection", "integration_collection", "resource_hub"] as const;
+const collectionFreshnessValues = ["active", "stale", "unknown"] as const;
 
 export interface QualityCoverage {
   categoryCoverage: Record<Category, number>;
@@ -71,14 +73,21 @@ export interface QualityCoverage {
   cloudflareReadyCount: number;
   averageGitScore: number;
   averageMaintenanceScore: number;
+  collectionCount: number;
+  collectionRate: number;
+  collectionScopeCounts: Record<(typeof collectionScopes)[number], number>;
+  collectionFreshnessCounts: Record<(typeof collectionFreshnessValues)[number], number>;
+  staleCollectionCount: number;
+  collectionReviewCount: number;
 }
 
 export function buildQualityReport(projects: ProjectKnowledge[]): QualityReport {
-  const issues = projects.flatMap(checkProject);
+  const projectIndex = new Map(projects.map((project) => [project.project.id.toLowerCase(), project]));
+  const issues = projects.flatMap((project) => checkProject(project, projectIndex));
   const errorCount = issues.filter((issue) => issue.severity === "error").length;
   const warningCount = issues.filter((issue) => issue.severity === "warning").length;
   const distribution = categoryDistribution(projects);
-  const penalty = errorCount * 10 + warningCount * 4 + issues.filter((issue) => issue.severity === "info").length;
+  const penalty = errorCount * 10 + warningCount * 4;
 
   return {
     score: Math.max(0, Math.min(100, 100 - penalty)),
@@ -195,7 +204,7 @@ function suggestedReviewAction(
   return "Inspect README, topics, and repository files; add an eval case if the classification is important.";
 }
 
-function checkProject(item: ProjectKnowledge): QualityIssue[] {
+function checkProject(item: ProjectKnowledge, projectIndex: Map<string, ProjectKnowledge>): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const projectId = item.project.id;
   const text = normalize(
@@ -213,7 +222,7 @@ function checkProject(item: ProjectKnowledge): QualityIssue[] {
     issues.push(issue(projectId, "warning", "category_other", "Project is categorized as other."));
   }
 
-  if (!categoryLooksPlausible(item.agentCard.category, text)) {
+  if (!hasReviewedCategoryEvidence(item) && !categoryLooksPlausible(item.agentCard.category, text)) {
     issues.push(
       issue(projectId, "warning", "category_low_confidence", `Category ${item.agentCard.category} has weak metadata support.`)
     );
@@ -252,9 +261,10 @@ function checkProject(item: ProjectKnowledge): QualityIssue[] {
   }
 
   if (item.project.stars > 10000 && item.agentCard.alternatives.length > 0) {
-    const hasSameCategoryAlternative = item.agentCard.alternatives.some((alternative) =>
-      alternative.reason.toLowerCase().includes(item.agentCard.category.replace(/_/g, " "))
-    );
+    const hasSameCategoryAlternative = item.agentCard.alternatives.some((alternative) => {
+      const alternativeProject = projectIndex.get(alternative.project_id.toLowerCase());
+      return alternativeProject?.agentCard.category === item.agentCard.category;
+    });
 
     if (!hasSameCategoryAlternative) {
       issues.push(issue(projectId, "info", "weak_alternatives", "Popular project alternatives are not same-category matches."));
@@ -286,6 +296,14 @@ function categoryLooksPlausible(category: Category, text: string): boolean {
   return categoryHints.length === 0 || hasAny(text, categoryHints);
 }
 
+function hasReviewedCategoryEvidence(item: ProjectKnowledge): boolean {
+  const evidence = item.agentCard.classification?.category?.evidence ?? [];
+  return evidence.some((entry) => {
+    const normalized = normalize(entry);
+    return normalized.includes("manual quality burn-down override") || normalized.includes("curated category override");
+  });
+}
+
 function categoryDistribution(projects: ProjectKnowledge[]): Record<Category, number> {
   const counts = Object.fromEntries(categories.map((category) => [category, 0])) as Record<Category, number>;
   for (const item of projects) {
@@ -301,6 +319,19 @@ function buildCoverage(projects: ProjectKnowledge[], distribution: Record<Catego
   ).length;
   const staleProjectCount = projects.filter((item) => Date.now() - Date.parse(item.project.syncedAt) > 7 * 24 * 60 * 60 * 1000).length;
   const cloudflareReadyCount = projects.filter((item) => item.agentCard.cloudflareReady).length;
+  const collections = projects.filter((item) => item.agentCard.projectKind === "collection");
+  const collectionScopeCounts = Object.fromEntries(collectionScopes.map((scope) => [scope, 0])) as QualityCoverage["collectionScopeCounts"];
+  const collectionFreshnessCounts = Object.fromEntries(collectionFreshnessValues.map((freshness) => [freshness, 0])) as QualityCoverage["collectionFreshnessCounts"];
+  for (const item of collections) {
+    const metadata = item.agentCard.collectionMetadata;
+    if (metadata?.scope && metadata.scope in collectionScopeCounts) {
+      collectionScopeCounts[metadata.scope] += 1;
+    }
+    const freshness = metadata?.freshness ?? "unknown";
+    collectionFreshnessCounts[freshness] += 1;
+  }
+  const staleCollectionCount = collections.filter((item) => item.agentCard.collectionMetadata?.freshness === "stale").length;
+  const collectionReviewCount = collections.filter(needsCollectionReview).length;
 
   return {
     categoryCoverage: distribution,
@@ -313,8 +344,19 @@ function buildCoverage(projects: ProjectKnowledge[], distribution: Record<Catego
     staleProjectRate: rate(staleProjectCount, projects.length),
     cloudflareReadyCount,
     averageGitScore: average(projects.map((item) => item.metrics.gitScore)),
-    averageMaintenanceScore: average(projects.map((item) => item.metrics.maintenanceScore))
+    averageMaintenanceScore: average(projects.map((item) => item.metrics.maintenanceScore)),
+    collectionCount: collections.length,
+    collectionRate: rate(collections.length, projects.length),
+    collectionScopeCounts,
+    collectionFreshnessCounts,
+    staleCollectionCount,
+    collectionReviewCount
   };
+}
+
+function needsCollectionReview(item: ProjectKnowledge): boolean {
+  const metadata = item.agentCard.collectionMetadata;
+  return !metadata || !metadata.curated || metadata.estimatedItems === null || metadata.freshness !== "active";
 }
 
 function average(values: number[]): number {

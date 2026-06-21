@@ -22,6 +22,10 @@ async function testSeedMetadata() {
   assert.equal(health.status, 200);
   assert.equal(health.body.ok, true);
   assert.equal(health.body.db, "missing");
+  assert.equal(health.body.sync_health, "unknown");
+  assert.equal(health.body.sync_freshness, "unknown");
+  assert.equal(health.body.last_successful_sync_at, null);
+  assert.equal(health.body.hours_since_successful_sync, null);
   assertMetadata(health.body.metadata, "db_missing");
 
   const trending = await getJson("/api/trending?limit=2");
@@ -87,6 +91,12 @@ async function testGraphAndQualityRoutes() {
   assert.ok(typeof quality.body.score === "number");
   assert.ok(typeof quality.body.coverage.covered_categories === "number");
   assert.ok(Array.isArray(quality.body.coverage.missing_categories));
+  assert.ok(typeof quality.body.coverage.collection_count === "number");
+  assert.ok(typeof quality.body.coverage.collection_rate === "number");
+  assert.ok(typeof quality.body.coverage.collection_scope_counts.awesome_list === "number");
+  assert.ok(typeof quality.body.coverage.collection_freshness_counts.active === "number");
+  assert.ok(typeof quality.body.coverage.stale_collection_count === "number");
+  assert.ok(typeof quality.body.coverage.collection_review_count === "number");
   assertMetadata(quality.body.metadata, "db_missing");
 }
 
@@ -154,6 +164,8 @@ async function testMockD1Source() {
   const health = await request("/api/health", {}, d1Env);
   assert.equal(health.status, 200);
   assert.equal(health.body.db, "available");
+  assert.equal(health.body.sync_health, "unknown");
+  assert.equal(health.body.sync_freshness, "unknown");
   assertMetadata(health.body.metadata, "d1_query", "d1");
 
   const search = await request("/api/search?q=mock&limit=5", {}, d1Env);
@@ -192,6 +204,7 @@ async function testD1FallbackReasons() {
 }
 
 async function testSyncStatusWithMockD1() {
+  const now = new Date().toISOString();
   const healthy = await request(
     "/api/sync/status",
     {},
@@ -202,17 +215,21 @@ async function testSyncStatusWithMockD1() {
           id: "healthy_sync",
           synced_count: 2,
           failed_count: 0,
-          finished_at: "2026-06-20T01:00:00Z"
+          finished_at: now
         })
       ]
     })
   );
   assert.equal(healthy.status, 200);
   assert.equal(healthy.body.health, "healthy");
+  assert.equal(healthy.body.freshness, "fresh");
   assert.equal(healthy.body.indexed_count, 1);
   assert.equal(healthy.body.synced_count, 0);
   assert.equal(healthy.body.cursor, 7);
-  assert.equal(healthy.body.last_successful_sync_at, "2026-06-20T01:00:00Z");
+  assert.equal(healthy.body.cycle_complete, false);
+  assert.equal(healthy.body.next_batch_wraps, false);
+  assert.equal(healthy.body.last_successful_sync_at, now);
+  assert.equal(typeof healthy.body.hours_since_successful_sync, "number");
   assert.equal(healthy.body.last_failed_sync_at, null);
   assert.equal(healthy.body.next_batch.length, 5);
 
@@ -233,10 +250,33 @@ async function testSyncStatusWithMockD1() {
   );
   assert.equal(degraded.status, 200);
   assert.equal(degraded.body.health, "degraded");
+  assert.equal(degraded.body.freshness, "unknown");
   assert.equal(degraded.body.last_successful_sync_at, null);
+  assert.equal(degraded.body.hours_since_successful_sync, null);
   assert.equal(degraded.body.last_failed_sync_at, "2026-06-20T02:00:00Z");
   assert.equal(degraded.body.last_error.repository, mockD1ProjectId);
   assert.equal(degraded.body.last_error.error, "rate limited");
+
+  const wrapping = await request(
+    "/api/sync/status",
+    {},
+    mockD1Env({
+      cursor: 498,
+      syncRuns: [
+        syncRunRow({
+          id: "wrapping_sync",
+          synced_count: 1,
+          failed_count: 0,
+          limit_value: 5,
+          finished_at: now
+        })
+      ]
+    })
+  );
+  assert.equal(wrapping.status, 200);
+  assert.equal(wrapping.body.cursor, 498);
+  assert.equal(wrapping.body.next_batch_wraps, true);
+  assert.equal(wrapping.body.next_batch.length, 5);
 }
 
 async function testClassificationOverridesWithMockD1() {

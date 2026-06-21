@@ -13,17 +13,16 @@ https://git.top
 Run the full local gate:
 
 ```sh
-pnpm validate
-pnpm db:integration
+pnpm release:check -- --skip-prod-smoke
 ```
 
-Or run the combined public V1 release gate before and after a deployment:
+Run the combined public V1 release gate after deployment:
 
 ```sh
 pnpm release:check
 ```
 
-For a pre-deploy check where production is intentionally not available yet:
+`pnpm release:check` includes local validation, local D1 integration, production quality, and production smoke. For a pre-deploy check where production is intentionally not available yet:
 
 ```sh
 pnpm release:check -- --skip-prod-smoke
@@ -52,6 +51,14 @@ Run the read-only production smoke check:
 pnpm smoke:prod
 ```
 
+Run the production quality gate:
+
+```sh
+pnpm quality:check
+```
+
+The quality gate defaults to `https://git.top/api/quality`, requires D1-backed metadata, and fails when the score is below `MIN_QUALITY_SCORE` or `--min-score` (default `90`). Error and warning issues reduce the score; info issues remain visible as review guidance without reducing the release score.
+
 The current V1 release policy is manual deploy with scripted gates. Do not enable CI-driven production deploys until D1 migration order, production secrets, and rollback ownership are explicit in the CI workflow.
 
 GitHub Actions runs the local public V1 release gate with production smoke disabled:
@@ -60,19 +67,27 @@ GitHub Actions runs the local public V1 release gate with production smoke disab
 pnpm release:check -- --skip-prod-smoke
 ```
 
-This catches validation and local D1 integration regressions on PRs without requiring production credentials.
+This catches validation and local D1 integration regressions on PRs without depending on production state.
 
 For a preview or local Worker:
+
+```sh
+pnpm release:check -- --base-url http://localhost:8787
+```
+
+This runs local validation, local D1 integration, preview quality, and preview smoke against the same origin. Use the lighter smoke command only when the local gate has already passed and you only need a read-only origin check:
 
 ```sh
 pnpm smoke:prod -- --base-url http://localhost:8787
 ```
 
-Production smoke requires D1-backed responses. Add `--allow-seed` only when intentionally checking seed fallback behavior:
+Production and preview checks require D1-backed responses by default. Add `--allow-seed` only when intentionally checking seed fallback behavior:
 
 ```sh
-pnpm smoke:prod -- --base-url http://localhost:8787 --allow-seed
+pnpm release:check -- --base-url http://localhost:8787 --allow-seed
 ```
+
+GitHub Actions also supports a manual preview check: run the `Validate` workflow with `smoke_base_url` set to the preview Worker origin. Set `allow_seed` only for intentional fallback previews.
 
 The smoke check verifies:
 
@@ -94,6 +109,10 @@ Healthy production should show:
 
 - `synced_count` moving toward the seed repository count.
 - `health` as `healthy` after a successful sync run.
+- `freshness` as `fresh` when a successful sync completed within the last 24 hours.
+- `hours_since_successful_sync` low enough for the current operating window.
+- `cycle_complete` true after the seed list has been fully covered at least once.
+- `next_batch_wraps` true only when the next sync batch crosses the end of the seed list and wraps back to the beginning.
 - `last_failed_sync_at` empty or older than the latest successful run.
 - `last_error` empty unless the most recent sync failed.
 

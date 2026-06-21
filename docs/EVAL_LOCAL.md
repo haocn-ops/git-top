@@ -7,8 +7,8 @@ This local-only report expands the CI-safe eval with generated category and depl
 ## Summary
 
 - Evaluated cases: 22
-- Top-1 hit rate: 0.682
-- Top-3 hit rate: 0.727
+- Top-1 hit rate: 0.727
+- Top-3 hit rate: 0.773
 - Category accuracy: 1
 - Deployment accuracy: 1
 - Cloudflare readiness accuracy: 1
@@ -25,13 +25,6 @@ This local-only report expands the CI-safe eval with generated category and depl
 - Issue: top-1 miss, top-3 miss
 - Expected: `langchain-ai/langchain`, `cloudflare/agents`, `Significant-Gravitas/AutoGPT`, `FoundationAgents/MetaGPT`, `microsoft/autogen`, `CrewAIInc/crewAI`, `microsoft/semantic-kernel`, `openai/swarm`
 - Observed: `huggingface/smolagents`, `langchain-ai/langgraph`, `openai/openai-agents-python`, `langchain-ai/langchainjs`, `mastra-ai/mastra`, `humanlayer/humanlayer`, `langroid/langroid`, `microsoft/semantic-kernel`
-- Tuning hint: Review broad category ranking separately from exact keyword search; likely needs scoped category ranking or category-specific canonical-project priors.
-
-### `local-category-llm_eval`
-
-- Issue: top-1 miss, top-3 miss
-- Expected: `lm-sys/FastChat`, `HumanSignal/label-studio`, `openai/evals`, `bentoml/rag-tutorials`, `deepset-ai/haystack-cookbook`, `deepset-ai/haystack-demos`, `deepset-ai/haystack-rag-app`, `deepset-ai/haystack-tutorials`
-- Observed: `confident-ai/deepeval`, `braintrustdata/autoevals`, `Giskard-AI/giskard-oss`, `lm-sys/FastChat`, `HumanSignal/label-studio`, `openai/evals`, `EleutherAI/lm-evaluation-harness`, `huggingface/inference-benchmarker`
 - Tuning hint: Review broad category ranking separately from exact keyword search; likely needs scoped category ranking or category-specific canonical-project priors.
 
 ### `local-category-rag_framework`
@@ -79,8 +72,8 @@ Case | Type | Top-1 | Top-3 | Category | Deployment | Cloudflare Ready | Unaccep
 `local-category-ai_observability` | search | yes | yes | yes | yes | yes | 0 | `SigNoz/signoz`, `jaegertracing/jaeger`, `langfuse/langfuse`, `comet-ml/opik`, `Arize-ai/phoenix`
 `local-category-browser_agent` | search | yes | yes | yes | yes | yes | 0 | `firecrawl/firecrawl`, `browser-use/web-ui`, `lightpanda-io/browser`, `nanobrowser/nanobrowser`, `browserbase/stagehand`
 `local-category-coding_agent` | search | yes | yes | yes | yes | yes | 0 | `OpenHands/OpenHands`, `cline/cline`, `openai/codex`, `aider-ai/aider`, `TabbyML/tabby`
-`local-category-llm_eval` | search | no | no | yes | yes | yes | 0 | `confident-ai/deepeval`, `braintrustdata/autoevals`, `Giskard-AI/giskard-oss`, `lm-sys/FastChat`, `HumanSignal/label-studio`
-`local-category-llm_gateway` | search | yes | yes | yes | yes | yes | 0 | `Kong/kong`, `Portkey-AI/gateway`, `open-webui/pipelines`, `danny-avila/LibreChat`, `songquanpeng/one-api`
+`local-category-llm_eval` | search | yes | yes | yes | yes | yes | 0 | `confident-ai/deepeval`, `braintrustdata/autoevals`, `Giskard-AI/giskard-oss`, `lm-sys/FastChat`, `HumanSignal/label-studio`
+`local-category-llm_gateway` | search | yes | yes | yes | yes | yes | 0 | `Kong/kong`, `Portkey-AI/gateway`, `open-webui/pipelines`, `BerriAI/liteLLM-proxy`, `danny-avila/LibreChat`
 `local-category-local_llm_runtime` | search | yes | yes | yes | yes | yes | 0 | `oobabooga/textgen`, `exo-explore/exo`, `mozilla-ai/llamafile`, `mlc-ai/mlc-llm`, `sgl-project/sglang`
 `local-category-mcp_server` | search | yes | yes | yes | yes | yes | 0 | `github/github-mcp-server`, `cloudflare/mcp-server-cloudflare`, `PrefectHQ/fastmcp`, `awslabs/mcp`, `supabase/mcp`
 `local-category-prompt_tooling` | search | yes | yes | yes | yes | yes | 0 | `guardrails-ai/guardrails`, `567-labs/instructor`, `openai/openai-structured-outputs-samples`, `microsoft/TypeChat`, `BoundaryML/baml`

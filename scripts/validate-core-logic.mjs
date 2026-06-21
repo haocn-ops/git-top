@@ -4,11 +4,14 @@ import { searchProjectList } from "../src/db.ts";
 import { normalizeGrpRequest, runGrpQuery } from "../src/grp.ts";
 import worker from "../src/index.ts";
 import { getProjectDetailData } from "../src/next-data.ts";
+import { buildQualityReport } from "../src/quality.ts";
 import { calculateMetrics } from "../src/scoring.ts";
 import { seedProjects } from "../src/seed.ts";
 import { defaultSyncLimit, scheduledSyncLimit, selectRepositoryBatch } from "../src/sync.ts";
 
 await testScoring();
+await testQualityInfoIssuesDoNotLowerScore();
+await testQualityCollectionCoverage();
 await testLegacyConsoleRedirects();
 await testSyncBatchSelection();
 await testNextProjectDetailLookup();
@@ -84,6 +87,74 @@ async function testScoring() {
   assert.equal(metrics.maintenanceScore, 100);
   assert.equal(metrics.signalConfidence?.stars30dDelta, "snapshot");
   assert.equal(metrics.signalConfidence?.stars30dWindowDays, 31);
+}
+
+async function testQualityInfoIssuesDoNotLowerScore() {
+  const infoOnlyProject = makeSearchFixture("mock/info-only-quality", {
+    description: "A well described agent framework with several practical production use cases.",
+    topics: ["agent", "framework", "tool-calling"],
+    stars: 500,
+    gitScore: 50,
+    maintenanceScore: 90,
+    useCases: ["build agent workflows", "orchestrate tools"]
+  });
+
+  const report = buildQualityReport([infoOnlyProject]);
+  assert.equal(report.errorCount, 0);
+  assert.equal(report.warningCount, 0);
+  assert.ok(report.issues.some((issue) => issue.severity === "info" && issue.code === "score_skew"));
+  assert.equal(report.score, 100, "info-only quality observations should not lower the release score");
+}
+
+async function testQualityCollectionCoverage() {
+  const activeCollection = makeSearchFixture("mock/awesome-agents", {
+    projectKind: "collection",
+    collectionMetadata: {
+      scope: "awesome_list",
+      curated: true,
+      estimatedItems: 100,
+      freshness: "active"
+    },
+    description: "A curated awesome list of production agent framework resources.",
+    topics: ["awesome", "agents", "framework"],
+    stars: 2000,
+    gitScore: 85,
+    maintenanceScore: 75,
+    useCases: ["find agent resources", "compare framework examples"]
+  });
+  const staleCollection = makeSearchFixture("mock/rag-cookbook", {
+    projectKind: "collection",
+    collectionMetadata: {
+      scope: "cookbook",
+      curated: true,
+      estimatedItems: null,
+      freshness: "stale"
+    },
+    description: "A cookbook collection for retrieval augmented generation examples.",
+    topics: ["cookbook", "rag", "retrieval"],
+    stars: 1200,
+    gitScore: 70,
+    maintenanceScore: 60,
+    useCases: ["find RAG examples", "review cookbook patterns"]
+  });
+  const project = makeSearchFixture("mock/runtime-project", {
+    description: "A production agent framework runtime.",
+    topics: ["agent", "runtime"],
+    stars: 800,
+    gitScore: 80,
+    maintenanceScore: 80,
+    useCases: ["run agent workflows", "deploy runtime components"]
+  });
+
+  const report = buildQualityReport([activeCollection, staleCollection, project]);
+  assert.equal(report.coverage.collectionCount, 2);
+  assert.equal(report.coverage.collectionRate, 0.667);
+  assert.equal(report.coverage.collectionScopeCounts.awesome_list, 1);
+  assert.equal(report.coverage.collectionScopeCounts.cookbook, 1);
+  assert.equal(report.coverage.collectionFreshnessCounts.active, 1);
+  assert.equal(report.coverage.collectionFreshnessCounts.stale, 1);
+  assert.equal(report.coverage.staleCollectionCount, 1);
+  assert.equal(report.coverage.collectionReviewCount, 1);
 }
 
 async function testSyncBatchSelection() {
@@ -233,7 +304,8 @@ function makeSearchFixture(id, overrides) {
     },
     agentCard: {
       projectId: id,
-      projectKind: "project",
+      projectKind: overrides.projectKind ?? "project",
+      ...(overrides.collectionMetadata ? { collectionMetadata: overrides.collectionMetadata } : {}),
       category: "agent_framework",
       difficulty: "intermediate",
       deployment: ["cloudflare"],

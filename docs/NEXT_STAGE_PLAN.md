@@ -309,9 +309,14 @@ Initial baseline:
 - `pnpm smoke:prod` verifies a deployed or preview Worker, defaulting to `https://git.top`, requires D1-backed responses by default, and checks `/api/health`, `/api/search`, `/api/grp/query`, `/mcp`, and MCP `tools/list`.
 - `pnpm smoke:prod -- --base-url <origin>` can validate local, preview, or production origins with the same read-only contract checks; `--allow-seed` is reserved for intentional seed fallback checks.
 - `docs/PRODUCTION_RUNBOOK.md` documents pre-deploy gates, deploy command, smoke verification, sync checks, quality checks, and rollback notes.
-- `pnpm release:check` combines local validation, local D1 integration, and production smoke into the public V1 release gate.
+- `pnpm release:check` combines local validation, local D1 integration, production quality, and production smoke into the public V1 release gate.
+- `pnpm release:check -- --base-url <origin>` runs the same gate against a preview or local Worker origin by forwarding the origin to both quality and smoke checks.
+- `docs/QUALITY_HARDENING_PLAN.md` tracks the quality gate alignment, production quality burn-down, evaluation hardening, and operations rhythm.
+- `/api/health` now exposes `sync_health`, `sync_freshness`, `last_successful_sync_at`, and `hours_since_successful_sync`.
+- `/api/sync/status` now exposes freshness, hours since successful sync, cycle completion, and next-batch wraparound fields.
 - The V1 deployment policy is manual deploy with scripted gates until D1 migration order, secrets, and rollback ownership are explicit in CI.
-- GitHub Actions runs `pnpm release:check -- --skip-prod-smoke` so PRs exercise the public V1 gate without production credentials.
+- GitHub Actions runs `pnpm release:check -- --skip-prod-smoke` so PRs exercise the local public V1 gate without depending on production state.
+- GitHub Actions can be run manually with `smoke_base_url` to validate a Worker preview after the local gate.
 
 Acceptance criteria:
 
@@ -321,9 +326,9 @@ Acceptance criteria:
 Public V1 completion:
 
 - The latest production deployment passed `pnpm smoke:prod` with D1-backed responses.
-- `/api/sync/status` exposes cursor progress, run history, last error fields, and sync health.
+- `/api/sync/status` exposes cursor progress, run history, last error fields, sync health, freshness, cycle completion, and next-batch wraparound state.
 - Manual release gates are documented and executable.
-- CI now runs the non-production release gate on PRs and pushes.
+- CI now runs the non-production release gate on PRs and pushes, and supports manual preview-origin checks.
 
 ## Suggested Milestones
 

@@ -50,6 +50,11 @@ interface AgentCardRow {
   classification_json?: string;
   schema_version: "v1";
   generated_at: string;
+  override_category?: AgentCard["category"] | null;
+  override_difficulty?: AgentCard["difficulty"] | null;
+  override_deployment_json?: string | null;
+  override_cloudflare_ready?: number | null;
+  override_classification_json?: string | null;
 }
 
 interface MetricsRow {
@@ -197,6 +202,10 @@ export async function getHealth(env: Env): Promise<{
   db: "available" | "missing" | "error";
   projectCount: number;
   syncCursor?: number;
+  syncHealth?: "healthy" | "degraded" | "unknown";
+  syncFreshness?: "fresh" | "stale" | "unknown";
+  lastSuccessfulSyncAt?: string | null;
+  hoursSinceSuccessfulSync?: number | null;
   metadata: KnowledgeMetadata;
 }> {
   if (!env.DB) {
@@ -205,20 +214,30 @@ export async function getHealth(env: Env): Promise<{
       db: "missing",
       projectCount: seedProjects.length,
       syncCursor: 0,
+      syncHealth: "unknown",
+      syncFreshness: "unknown",
+      lastSuccessfulSyncAt: null,
+      hoursSinceSuccessfulSync: null,
       metadata: seedMetadata("db_missing")
     };
   }
 
   try {
-    const [countRow, cursor] = await Promise.all([
+    const [countRow, cursor, recentRuns] = await Promise.all([
       env.DB.prepare("SELECT COUNT(*) AS count FROM projects").first<{ count: number }>(),
-      getSyncCursor(env)
+      getSyncCursor(env),
+      listSyncRuns(env, 10)
     ]);
+    const freshness = syncFreshness(recentRuns);
     return {
       ok: true,
       db: "available",
       projectCount: countRow?.count ?? 0,
       syncCursor: cursor,
+      syncHealth: syncHealth(recentRuns),
+      syncFreshness: freshness.status,
+      lastSuccessfulSyncAt: freshness.lastSuccessfulSyncAt,
+      hoursSinceSuccessfulSync: freshness.hoursSinceSuccessfulSync,
       metadata:
         (countRow?.count ?? 0) > 0
           ? {
@@ -235,6 +254,10 @@ export async function getHealth(env: Env): Promise<{
       db: "error",
       projectCount: seedProjects.length,
       syncCursor: 0,
+      syncHealth: "unknown",
+      syncFreshness: "unknown",
+      lastSuccessfulSyncAt: null,
+      hoursSinceSuccessfulSync: null,
       metadata: seedMetadata("db_error", error)
     };
   }
@@ -271,9 +294,21 @@ async function queryProjectKnowledgeRows(env: Env): Promise<D1Result<Record<stri
     JOIN project_metrics pm ON pm.project_id = p.id
     ORDER BY pm.git_score DESC, p.stars DESC
     LIMIT 500`;
+  const overrideSelect = `,
+        co.category AS override_category,
+        co.difficulty AS override_difficulty,
+        co.deployment_json AS override_deployment_json,
+        co.cloudflare_ready AS override_cloudflare_ready,
+        co.classification_json AS override_classification_json`;
+  const overrideJoin = `FROM projects p
+    JOIN agent_cards ac ON ac.project_id = p.id
+    JOIN project_metrics pm ON pm.project_id = p.id
+    LEFT JOIN classification_overrides co ON co.project_id = p.id
+    ORDER BY pm.git_score DESC, p.stars DESC
+    LIMIT 500`;
 
   try {
-    return await env.DB!.prepare(`${baseSelect}, pm.signal_confidence_json, pm.calculated_at ${baseJoin}`).all<Record<string, unknown>>();
+    return await env.DB!.prepare(`${baseSelect}${overrideSelect}, pm.signal_confidence_json, pm.calculated_at ${overrideJoin}`).all<Record<string, unknown>>();
   } catch (error) {
     if (!isMissingOptionalColumn(error)) {
       throw error;
@@ -487,9 +522,13 @@ export async function getSyncStatus(env: Env, seedRepositories: string[] = []): 
   indexedCount: number;
   remainingCount: number;
   cycleProgress: number;
+  cycleComplete: boolean;
+  nextBatchWraps: boolean;
   nextBatch: string[];
   health: "healthy" | "degraded" | "unknown";
+  freshness: "fresh" | "stale" | "unknown";
   lastSuccessfulSyncAt: string | null;
+  hoursSinceSuccessfulSync: number | null;
   lastFailedSyncAt: string | null;
   lastError: SyncFailure | null;
   recentRuns: SyncRun[];
@@ -503,10 +542,14 @@ export async function getSyncStatus(env: Env, seedRepositories: string[] = []): 
   const seedTotal = seedRepositories.length;
   const normalizedCursor = seedTotal > 0 ? cursor % seedTotal : 0;
   const syncedCount = seedTotal > 0 ? seedSyncedCount : indexedCount;
-  const nextLimit = recentRuns[0]?.limit ?? 5;
-  const nextBatch = seedRepositories.slice(normalizedCursor, normalizedCursor + nextLimit);
+  const nextLimit = seedTotal > 0 ? Math.min(recentRuns[0]?.limit ?? 5, seedTotal) : 0;
+  const nextBatchWraps = seedTotal > 0 && normalizedCursor + nextLimit > seedTotal;
+  const nextBatch = nextBatchWraps
+    ? [...seedRepositories.slice(normalizedCursor), ...seedRepositories.slice(0, (normalizedCursor + nextLimit) % seedTotal)]
+    : seedRepositories.slice(normalizedCursor, normalizedCursor + nextLimit);
   const lastSuccessfulRun = recentRuns.find((run) => run.syncedCount > 0);
   const lastFailedRun = recentRuns.find((run) => run.failedCount > 0);
+  const freshness = syncFreshness(recentRuns);
 
   return {
     cursor: normalizedCursor,
@@ -515,9 +558,13 @@ export async function getSyncStatus(env: Env, seedRepositories: string[] = []): 
     indexedCount,
     remainingCount: Math.max(0, seedTotal - syncedCount),
     cycleProgress: seedTotal > 0 ? Math.round((normalizedCursor / seedTotal) * 100) : 0,
+    cycleComplete: seedTotal > 0 && syncedCount >= seedTotal,
+    nextBatchWraps,
     nextBatch,
     health: syncHealth(recentRuns),
+    freshness: freshness.status,
     lastSuccessfulSyncAt: lastSuccessfulRun?.finishedAt ?? null,
+    hoursSinceSuccessfulSync: freshness.hoursSinceSuccessfulSync,
     lastFailedSyncAt: lastFailedRun?.finishedAt ?? null,
     lastError: lastFailedRun?.failed[0] ?? null,
     recentRuns
@@ -633,6 +680,8 @@ export function searchProjectList(projects: ProjectKnowledge[], filters: Project
           item.project.language,
           item.project.topics.join(" "),
           item.agentCard.category,
+          item.agentCard.projectKind,
+          item.agentCard.collectionMetadata?.scope,
           item.agentCard.useCases.join(" "),
           item.agentCard.summaryForAgent
         ].join(" ")
@@ -873,21 +922,40 @@ function rowToProject(row: ProjectRow): Project {
 }
 
 function rowToAgentCard(row: AgentCardRow): AgentCard {
+  const baseClassification = parseJson<AgentCard["classification"]>(row.classification_json ?? "{}", {});
+  const overrideClassification = row.override_classification_json
+    ? parseJson<AgentCard["classification"]>(row.override_classification_json, {})
+    : {};
+
   return {
     projectId: row.ac_project_id,
     projectKind: row.project_kind ?? "project",
     collectionMetadata: parseCollectionMetadata(row.collection_json),
-    category: row.category,
-    difficulty: row.difficulty,
-    deployment: parseJson<AgentCard["deployment"]>(row.deployment_json, []),
-    cloudflareReady: row.cloudflare_ready === 1,
+    category: row.override_category ?? row.category,
+    difficulty: row.override_difficulty ?? row.difficulty,
+    deployment: row.override_deployment_json
+      ? parseJson<AgentCard["deployment"]>(row.override_deployment_json, [])
+      : parseJson<AgentCard["deployment"]>(row.deployment_json, []),
+    cloudflareReady: row.override_cloudflare_ready === null || row.override_cloudflare_ready === undefined
+      ? row.cloudflare_ready === 1
+      : row.override_cloudflare_ready === 1,
     useCases: parseJson<string[]>(row.use_cases_json, []),
     notGoodFor: parseJson<string[]>(row.not_good_for_json, []),
     alternatives: parseJson<AgentCard["alternatives"]>(row.alternatives_json, []),
     summaryForAgent: row.summary_for_agent,
-    classification: parseJson<AgentCard["classification"]>(row.classification_json ?? "{}", {}),
+    classification: mergeClassification(baseClassification, overrideClassification),
     schemaVersion: row.schema_version,
     generatedAt: row.generated_at
+  };
+}
+
+function mergeClassification(
+  base: AgentCard["classification"],
+  override: AgentCard["classification"]
+): AgentCard["classification"] {
+  return {
+    ...(base ?? {}),
+    ...(override ?? {})
   };
 }
 
@@ -966,6 +1034,28 @@ function syncHealth(runs: SyncRun[]): "healthy" | "degraded" | "unknown" {
   return "degraded";
 }
 
+function syncFreshness(runs: SyncRun[]): {
+  status: "fresh" | "stale" | "unknown";
+  lastSuccessfulSyncAt: string | null;
+  hoursSinceSuccessfulSync: number | null;
+} {
+  const lastSuccessfulRun = runs.find((run) => run.syncedCount > 0);
+  if (!lastSuccessfulRun) {
+    return {
+      status: "unknown",
+      lastSuccessfulSyncAt: null,
+      hoursSinceSuccessfulSync: null
+    };
+  }
+
+  const hoursSinceSuccessfulSync = hoursBetween(lastSuccessfulRun.finishedAt, new Date().toISOString());
+  return {
+    status: hoursSinceSuccessfulSync <= 24 ? "fresh" : "stale",
+    lastSuccessfulSyncAt: lastSuccessfulRun.finishedAt,
+    hoursSinceSuccessfulSync
+  };
+}
+
 function daysBefore(isoDate: string, days: number): string {
   return new Date(Date.parse(isoDate) - days * 24 * 60 * 60 * 1000).toISOString();
 }
@@ -977,6 +1067,15 @@ function daysBetween(startIso: string, endIso: string): number {
     return 0;
   }
   return Math.max(0, Math.floor((end - start) / 1000 / 60 / 60 / 24));
+}
+
+function hoursBetween(startIso: string, endIso: string): number {
+  const start = Date.parse(startIso);
+  const end = Date.parse(endIso);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) {
+    return 0;
+  }
+  return Math.max(0, Math.floor((end - start) / 1000 / 60 / 60));
 }
 
 function readinessBoost(item: ProjectKnowledge, query: RecommendationQuery): number {
@@ -1014,7 +1113,28 @@ function queryMatchScore(query: string, words: string[], haystack: string, item:
   const topicHits = words.filter((word) => item.project.topics.some((topic) => normalize(topic).includes(word))).length;
   const categoryHits = words.filter((word) => normalize(item.agentCard.category).includes(word)).length;
 
-  return hits * 120 + deploymentHits * 80 + topicHits * 60 + categoryHits * 60 + item.metrics.gitScore;
+  return hits * 120 + deploymentHits * 80 + topicHits * 60 + categoryHits * 60 + collectionIntentBoost(words, item) + item.metrics.gitScore;
+}
+
+function collectionIntentBoost(words: string[], item: ProjectKnowledge): number {
+  if (item.agentCard.projectKind !== "collection") {
+    return 0;
+  }
+
+  const collectionIntentWords = ["awesome", "collection", "collections", "cookbook", "cookbooks", "examples", "resources"];
+  const hasCollectionIntent = words.some((word) => collectionIntentWords.includes(word));
+  if (!hasCollectionIntent) {
+    return 0;
+  }
+
+  const scope = item.agentCard.collectionMetadata?.scope;
+  if (scope === "awesome_list") {
+    return 180;
+  }
+  if (scope === "cookbook" || scope === "resource_hub") {
+    return 140;
+  }
+  return 100;
 }
 
 function browseModeQueryScore(query: string, words: string[], haystack: string, item: ProjectKnowledge): number {
@@ -1032,7 +1152,7 @@ function browseModeQueryScore(query: string, words: string[], haystack: string, 
   const topicHits = words.filter((word) => item.project.topics.some((topic) => normalize(topic).includes(word))).length;
   const categoryHits = words.filter((word) => normalize(item.agentCard.category).includes(word)).length;
 
-  return hits * 70 + deploymentHits * 70 + topicHits * 45 + categoryHits * 65 + qualityScore;
+  return hits * 70 + deploymentHits * 70 + topicHits * 45 + categoryHits * 65 + collectionIntentBoost(words, item) + qualityScore;
 }
 
 function isBrowseRankingQuery(filters: ProjectFilters, words: string[], limit: number): boolean {
@@ -1204,7 +1324,8 @@ function isMissingOptionalColumn(error: unknown): boolean {
     (error.message.includes("signal_confidence_json") ||
       error.message.includes("classification_json") ||
       error.message.includes("project_kind") ||
-      error.message.includes("collection_json"))
+      error.message.includes("collection_json") ||
+      error.message.includes("classification_overrides"))
   );
 }
 

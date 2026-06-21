@@ -10,6 +10,26 @@ import {
 } from "./eval-fixtures.mjs";
 
 const seedRepositories = JSON.parse(await readFile(new URL("../data/seed-repositories.json", import.meta.url), "utf8"));
+const qualityBurnDownProjects = new Map([
+  ["apache/answer", "ai_app_template"],
+  ["mlc-ai/mlc-llm", "local_llm_runtime"],
+  ["milvus-io/milvus-sdk-java", "vector_database"],
+  ["builderio/gpt-crawler", "ai_app_template"],
+  ["signoz/signoz-otel-collector", "ai_observability"],
+  ["huggingface/optimum", "local_llm_runtime"],
+  ["sweepai/sweep", "coding_agent"],
+  ["lmstudio-ai/lms", "local_llm_runtime"],
+  ["openai/openai-openapi", "llm_gateway"],
+  ["n8n-io/task-runner-launcher", "workflow_automation"],
+  ["qdrant/rust-client", "vector_database"],
+  ["firecrawl/fireplexity", "browser_agent"],
+  ["dagster-io/dagster-open-platform", "workflow_automation"],
+  ["supermemoryai/opensearch-ai", "rag_framework"],
+  ["firecrawl/open-researcher", "browser_agent"],
+  ["qdrant/page-search", "vector_database"],
+  ["weaviate/retrieve-dspy", "rag_framework"],
+  ["flowiseai/flowisepy", "workflow_automation"]
+]);
 
 for (const project of seedProjects) {
   validateProjectKnowledge(project);
@@ -45,6 +65,10 @@ for (const fixture of generatedKnowledgeFixtures) {
 const generatedKnowledge = buildGeneratedKnowledgeFixturesForSeed(seedRepositories, generatedKnowledgeNow);
 for (const { knowledge } of generatedKnowledge) {
   validateProjectKnowledge(knowledge);
+  const expectedCategory = qualityBurnDownProjects.get(knowledge.project.id.toLowerCase());
+  if (expectedCategory) {
+    assertEqual(knowledge.agentCard.category, expectedCategory, `${knowledge.project.id} quality burn-down category`);
+  }
 }
 
 console.log(`Validated ${seedProjects.length} seed projects and ${generatedKnowledge.length} generated knowledge fixtures.`);

@@ -38,6 +38,8 @@ Production agents should require `metadata.source` to be `d1` for high-confidenc
 curl http://localhost:8787/api/health
 ```
 
+Production health includes D1 availability, project count, sync cursor, sync health, sync freshness, and the timestamp of the latest successful sync.
+
 Use this before relying on live data. If D1 is unavailable or empty, Git.Top may return seed-backed knowledge with warnings.
 
 ## Search
@@ -142,7 +144,14 @@ Important quality fields:
 - `coverage.missing_categories`
 - `coverage.low_confidence_classification_rate`
 - `coverage.stale_project_rate`
+- `coverage.collection_count`
+- `coverage.collection_scope_counts`
+- `coverage.collection_freshness_counts`
+- `coverage.stale_collection_count`
+- `coverage.collection_review_count`
 - `metadata.source`
+
+Collection coverage is reported separately from the release quality score. Use these fields to review resource hubs, awesome lists, cookbooks, and starter collections for scope and freshness without penalizing executable-project quality.
 
 ## Schemas
 
@@ -230,3 +239,13 @@ curl http://localhost:8787/api/sync/status
 ```
 
 Use this to inspect cursor progress, recent sync runs, last error, and sync health.
+
+Important sync status fields:
+
+- `health`: latest run health, based on success or failure.
+- `freshness`: `fresh` when a successful sync completed within the last 24 hours, `stale` after that, or `unknown` when no successful run is recorded.
+- `hours_since_successful_sync`
+- `cycle_complete`
+- `next_batch_wraps`
+- `last_failed_sync_at`
+- `last_error`

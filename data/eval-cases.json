@@ -115,7 +115,7 @@
       "limit": 5
     },
     "expected": {
-      "acceptableProjects": ["ollama/ollama", "ggml-org/llama.cpp", "vllm-project/vllm", "lmstudio-ai/lms", "xorbitsai/inference", "oobabooga/textgen", "EricLBuehler/mistral.rs", "bentoml/OpenLLM", "mozilla-ai/llamafile", "openvinotoolkit/openvino.genai", "abetlen/llama-cpp-python", "LMCache/LMCache", "kserve/kserve", "llm-d/llm-d", "ollama/ollama-python", "ollama/ollama-js", "bentoml/BentoML", "ray-project/ray", "mlc-ai/web-llm", "openfaas/faas"],
+      "acceptableProjects": ["ollama/ollama", "ggml-org/llama.cpp", "vllm-project/vllm", "lmstudio-ai/lms", "xorbitsai/inference", "oobabooga/textgen", "EricLBuehler/mistral.rs", "bentoml/OpenLLM", "mozilla-ai/llamafile", "openvinotoolkit/openvino.genai", "abetlen/llama-cpp-python", "LMCache/LMCache", "kserve/kserve", "llm-d/llm-d", "ollama/ollama-python", "ollama/ollama-js", "bentoml/BentoML", "ray-project/ray", "mlc-ai/web-llm", "openfaas/faas", "huggingface/text-embeddings-inference"],
       "categories": ["local_llm_runtime"],
       "deployments": ["local"],
       "unacceptableProjects": ["cloudflare/agents"]
@@ -250,6 +250,22 @@
     }
   },
   {
+    "id": "search-rag-resource-collection",
+    "type": "search",
+    "description": "Find curated RAG resource collections without drifting to runnable RAG frameworks only.",
+    "query": {
+      "q": "awesome rag resources examples collection",
+      "category": "rag_framework",
+      "limit": 5
+    },
+    "expected": {
+      "acceptableProjects": ["run-llama/awesome-rag", "bentoml/rag-tutorials", "weaviate/recipes"],
+      "categories": ["rag_framework"],
+      "deployments": ["local"],
+      "unacceptableProjects": ["qdrant/qdrant", "Portkey-AI/gateway", "dottxt-ai/outlines"]
+    }
+  },
+  {
     "id": "search-mcp-observability-integration",
     "type": "search",
     "description": "Find MCP integrations for observability tools.",
@@ -263,6 +279,22 @@
       "categories": ["mcp_server"],
       "deployments": ["local"],
       "unacceptableProjects": ["ollama/ollama", "qdrant/qdrant"]
+    }
+  },
+  {
+    "id": "search-mcp-resource-collection",
+    "type": "search",
+    "description": "Find curated MCP server lists when the user asks for awesome resources.",
+    "query": {
+      "q": "awesome mcp servers resources collection",
+      "category": "mcp_server",
+      "limit": 5
+    },
+    "expected": {
+      "acceptableProjects": ["punkpeye/awesome-mcp-servers", "wong2/awesome-mcp-servers", "modelcontextprotocol/servers"],
+      "categories": ["mcp_server"],
+      "deployments": ["local"],
+      "unacceptableProjects": ["Portkey-AI/gateway", "ollama/ollama", "qdrant/qdrant"]
     }
   },
   {
@@ -345,6 +377,22 @@
       "deployments": ["cloudflare"],
       "cloudflareReady": false,
       "unacceptableProjects": ["cloudflare/agents", "cloudflare/mcp-server-cloudflare"]
+    }
+  },
+  {
+    "id": "search-browser-research-agent",
+    "type": "search",
+    "description": "Find browser-based research agents without drifting to RAG memory, gateways, or observability tools.",
+    "query": {
+      "q": "open researcher browser web research agent",
+      "category": "browser_agent",
+      "limit": 5
+    },
+    "expected": {
+      "acceptableProjects": ["firecrawl/open-researcher", "firecrawl/open-scouts", "firecrawl/firesearch", "firecrawl/firecrawl"],
+      "categories": ["browser_agent"],
+      "deployments": ["local"],
+      "unacceptableProjects": ["mem0ai/mem0", "Portkey-AI/gateway", "pydantic/logfire"]
     }
   }
 ]

@@ -18,6 +18,7 @@ Git.Top turns unstructured GitHub repository data into structured project knowle
 - [Eval quality report](./docs/EVAL_QUALITY.md)
 - [Local eval report](./docs/EVAL_LOCAL.md)
 - [Ranking experiments](./docs/RANKING_EXPERIMENTS.md)
+- [Quality hardening plan](./docs/QUALITY_HARDENING_PLAN.md)
 
 ## Development
 
@@ -56,7 +57,9 @@ pnpm dev
 
 `pnpm smoke:prod` validates the deployed Worker at `https://git.top` and requires D1-backed responses. Use `pnpm smoke:prod -- --base-url http://localhost:8787` for a local or preview Worker, or add `--allow-seed` only when intentionally checking seed fallback behavior.
 
-`pnpm release:check` runs the public V1 release gate: local validation, local D1 integration, and production smoke. Use `pnpm release:check -- --skip-prod-smoke` only when validating a build before the production deployment exists.
+`pnpm quality:check` validates the production `/api/quality` endpoint at `https://git.top` by default, requires D1-backed metadata, and uses a default minimum score of `90`. Use `--base-url`, `--target`, `--min-score`, or `--allow-seed` for preview and fallback checks.
+
+`pnpm release:check` runs the public V1 release gate: local validation, local D1 integration, production quality, and production smoke. Use `pnpm release:check -- --skip-prod-smoke` only when validating a build before the production deployment exists; it skips production-only checks. Use `pnpm release:check -- --base-url <origin>` to run the same gate against a Worker preview or local origin.
 
 When updating an existing D1 database, apply SQL files in [migrations](./migrations) before deploying code that reads the new columns.
 

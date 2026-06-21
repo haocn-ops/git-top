@@ -17,7 +17,10 @@ await check("health", async () => {
     db: body.db,
     source: body.metadata.source,
     reason: body.metadata.reason,
-    projectCount: body.project_count
+    projectCount: body.project_count,
+    syncHealth: body.sync_health,
+    syncFreshness: body.sync_freshness,
+    lastSuccessfulSyncAt: body.last_successful_sync_at
   };
 });
 
@@ -160,7 +163,9 @@ function parseArgs(args) {
   const parsed = {};
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
-    if (arg === "--base-url") {
+    if (arg === "--") {
+      continue;
+    } else if (arg === "--base-url") {
       parsed.baseUrl = args[index + 1];
       index += 1;
     } else if (arg.startsWith("--base-url=")) {

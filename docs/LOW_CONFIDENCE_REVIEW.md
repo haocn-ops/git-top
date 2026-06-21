@@ -1,6 +1,6 @@
 # Git.Top Low-Confidence Review
 
-Generated at: 2026-06-21T02:43:21.043Z
+Generated at: 2026-06-21T09:01:57.706Z
 
 This report lists generated Agent Card classifications that need manual review before Git.Top scales further. It focuses on low and medium classification confidence, collection semantics, Cloudflare readiness ambiguity, and incomplete quality signals.
 
@@ -9,7 +9,7 @@ This report lists generated Agent Card classifications that need manual review b
 - Projects reviewed: 504
 - Projects needing review: 24
 - Low-confidence signals: 19
-- Medium-confidence signals: 42
+- Medium-confidence signals: 46
 
 ## Review Count By Category
 
@@ -17,11 +17,13 @@ This report lists generated Agent Card classifications that need manual review b
 | --- | ---: |
 | `agent_framework` | 2 |
 | `coding_agent` | 2 |
+| `rag_framework` | 2 |
 | `vector_database` | 1 |
-| `llm_eval` | 4 |
+| `llm_eval` | 1 |
 | `prompt_tooling` | 1 |
 | `ai_app_template` | 9 |
 | `mcp_server` | 5 |
+| `ai_observability` | 1 |
 
 ## Review Items
 
@@ -85,12 +87,13 @@ This report lists generated Agent Card classifications that need manual review b
 
 ### `deepset-ai/haystack-cookbook`
 
-- Category: `llm_eval`
+- Category: `rag_framework`
 - Reasons: Repository is a collection and may need curation semantics review.
 - Suggested action: Confirm collection scope, freshness, and whether the category should represent resources rather than runtime code.
 
 | Field | Confidence | Evidence |
 | --- | --- | --- |
+| `category` | medium | Matched "rag" in metadata. |
 | `difficulty` | medium | No strong beginner or advanced signal found; defaulting to intermediate. |
 
 ### `e2b-dev/awesome-ai-agents`
@@ -125,6 +128,7 @@ This report lists generated Agent Card classifications that need manual review b
 
 | Field | Confidence | Evidence |
 | --- | --- | --- |
+| `category` | medium | Matched "eval" in metadata. |
 | `difficulty` | medium | Repository has under 10k stars, so complexity is treated conservatively. |
 | `cloudflareReady` | low | No Cloudflare deployment signal detected. |
 
@@ -248,12 +252,13 @@ This report lists generated Agent Card classifications that need manual review b
 
 ### `run-llama/awesome-rag`
 
-- Category: `llm_eval`
+- Category: `rag_framework`
 - Reasons: Repository is a collection and may need curation semantics review.
 - Suggested action: Confirm collection scope, freshness, and whether the category should represent resources rather than runtime code.
 
 | Field | Confidence | Evidence |
 | --- | --- | --- |
+| `category` | medium | Matched "rag" in metadata. |
 | `difficulty` | medium | No strong beginner or advanced signal found; defaulting to intermediate. |
 
 ### `Shubhamsaboo/awesome-llm-apps`
@@ -269,12 +274,13 @@ This report lists generated Agent Card classifications that need manual review b
 
 ### `SigNoz/Awesome-OpenTelemetry`
 
-- Category: `llm_eval`
+- Category: `ai_observability`
 - Reasons: Repository is a collection and may need curation semantics review.
 - Suggested action: Confirm collection scope, freshness, and whether the category should represent resources rather than runtime code.
 
 | Field | Confidence | Evidence |
 | --- | --- | --- |
+| `category` | medium | Matched "observability" in metadata. |
 | `difficulty` | medium | Repository has under 10k stars, so complexity is treated conservatively. |
 | `cloudflareReady` | low | No Cloudflare deployment signal detected. |
 

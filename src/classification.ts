@@ -1,3 +1,4 @@
+import { curatedCategoryEvidence, inferCuratedCategory } from "./category-hints";
 import type { AgentCard, Category, Deployment, Difficulty, GithubRepoSignals, GithubRepository } from "./types";
 
 export interface ClassificationResult {
@@ -11,7 +12,7 @@ export interface ClassificationResult {
 export function classifyRepository(repo: GithubRepository, signals: GithubRepoSignals): ClassificationResult {
   const metadataCorpus = normalize([repo.full_name, repo.description, repo.language, ...(repo.topics ?? [])].join(" "));
   const corpus = normalize([metadataCorpus, signals.readmeText, signals.files.join(" ")].join(" "));
-  const category = detectCategory(corpus, metadataCorpus);
+  const category = inferCuratedCategory(repo.full_name) ?? detectCategory(corpus, metadataCorpus);
   const deployment = detectDeployment(corpus, signals.files);
   const cloudflareReady = deployment.includes("cloudflare") && !hasRuntimeBlockers(corpus);
   const difficulty = detectDifficulty(repo, signals, deployment);
@@ -36,7 +37,7 @@ function buildClassification(
   difficulty: Difficulty,
   cloudflareReady: boolean
 ): NonNullable<AgentCard["classification"]> {
-  const categoryEvidence = evidenceForCategory(category, corpus, metadataCorpus);
+  const categoryEvidence = evidenceForCategory(category, corpus, metadataCorpus, repo.full_name);
   const deploymentEvidence = evidenceForDeployment(deployment, corpus, signals.files);
   const difficultyEvidence = evidenceForDifficulty(repo, signals, deployment, difficulty);
   const cloudflareEvidence = evidenceForCloudflareReady(corpus, deployment, cloudflareReady);
@@ -195,7 +196,7 @@ function detectDifficulty(repo: GithubRepository, signals: GithubRepoSignals, de
   return "intermediate";
 }
 
-function evidenceForCategory(category: Category, corpus: string, metadataCorpus: string): string[] {
+function evidenceForCategory(category: Category, corpus: string, metadataCorpus: string, projectId: string): string[] {
   const hints: Record<Category, string[]> = {
     agent_framework: ["agent framework", "agents framework", "agent", "agents", "tool calling"],
     coding_agent: ["coding agent", "code assistant", "developer assistant", "ide", "openhands", "cline", "aider"],
@@ -212,6 +213,11 @@ function evidenceForCategory(category: Category, corpus: string, metadataCorpus:
     ai_observability: ["observability", "trace", "tracing", "monitoring"],
     other: []
   };
+  const overrideEvidence = curatedCategoryEvidence(projectId, category);
+  if (overrideEvidence.length > 0) {
+    return overrideEvidence;
+  }
+
   const evidence = collectEvidence(metadataCorpus, hints[category], "metadata");
   return evidence.length > 0 ? evidence : collectEvidence(corpus, hints[category], "repository content");
 }

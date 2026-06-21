@@ -5,6 +5,17 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      smoke_base_url:
+        description: "Optional Worker preview or local tunnel origin to validate after the local gate."
+        required: false
+        type: string
+      allow_seed:
+        description: "Allow seed-backed metadata for an intentional fallback preview check."
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   validate:
@@ -54,3 +65,33 @@ jobs:
 
       - name: Production smoke
         run: pnpm smoke:prod
+
+  preview-smoke:
+    if: github.event_name == 'workflow_dispatch' && inputs.smoke_base_url != ''
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 25
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.23.0
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Preview release gate
+        run: |
+          args=(--base-url "${{ inputs.smoke_base_url }}")
+          if [ "${{ inputs.allow_seed }}" = "true" ]; then
+            args+=(--allow-seed)
+          fi
+          pnpm release:check -- "${args[@]}"

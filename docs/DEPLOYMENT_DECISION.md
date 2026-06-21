@@ -85,8 +85,13 @@ Prototype console pages in the Next.js app, such as users, tenants, settings, an
 Before deploy:
 
 ```sh
-pnpm validate
-pnpm quality:check
+pnpm release:check -- --skip-prod-smoke
+```
+
+After deploy, run the full release gate. It includes production quality and production smoke checks:
+
+```sh
+pnpm release:check
 ```
 
 After deploy, verify at minimum:
@@ -98,9 +103,9 @@ pnpm smoke:prod
 To verify a preview or local Worker instead of production:
 
 ```sh
-pnpm smoke:prod -- --base-url http://localhost:8787
+pnpm release:check -- --base-url http://localhost:8787
 ```
 
-The smoke check requires D1-backed responses by default. Add `--allow-seed` only when intentionally verifying seed fallback behavior.
+This runs the local gate and then checks quality and smoke against the provided origin. Use `pnpm smoke:prod -- --base-url <origin>` only when the local gate has already passed and you only need a read-only origin check. Both commands require D1-backed responses by default; add `--allow-seed` only when intentionally verifying seed fallback behavior.
 
 The smoke check covers `/api/health`, `/api/search`, `/api/grp/query`, `/mcp`, and MCP `tools/list`.

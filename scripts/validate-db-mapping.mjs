@@ -122,9 +122,11 @@ async function testSyncStatusMapping() {
   assert.equal(status.syncedCount, 1);
   assert.equal(status.indexedCount, 1);
   assert.equal(status.lastSuccessfulSyncAt, "2026-06-20T01:00:00Z");
+  assert.equal(typeof status.hoursSinceSuccessfulSync, "number");
   assert.equal(status.lastFailedSyncAt, "2026-06-20T02:00:00Z");
   assert.equal(status.lastError?.repository, mockD1ProjectId);
-  assert.deepEqual(status.nextBatch, ["d/d", "e/e", "f/f"]);
+  assert.equal(status.nextBatchWraps, true);
+  assert.deepEqual(status.nextBatch, ["d/d", "e/e", "f/f", mockD1ProjectId, "b/b"]);
 
   const overflowKnowledge = buildGeneratedKnowledgeFixtures()
     .slice(0, 3)
@@ -136,6 +138,8 @@ async function testSyncStatusMapping() {
   assert.equal(overflowStatus.indexedCount, 3);
   assert.equal(overflowStatus.syncedCount, 1);
   assert.equal(overflowStatus.remainingCount, 1);
+  assert.equal(overflowStatus.nextBatchWraps, false);
+  assert.deepEqual(overflowStatus.nextBatch, [overflowKnowledge[0].project.id, "missing/seed-repo"]);
 
   assert.equal(await getSyncedProjectCount(mockD1Env()), 1);
 }
