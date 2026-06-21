@@ -1,12 +1,13 @@
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { listProjectKnowledgeWithMeta } from "../src/db.ts";
 import { buildLowConfidenceReviewReport } from "../src/quality.ts";
 import { seedProjects } from "../src/seed.ts";
-import { buildGeneratedKnowledgeFixtures } from "./eval-fixtures.mjs";
+import { buildGeneratedKnowledgeFixturesForSeed } from "./eval-fixtures.mjs";
 import { mockD1Env } from "./mock-d1.mjs";
 
 const outputPath = new URL("../docs/LOW_CONFIDENCE_REVIEW.md", import.meta.url);
-const generatedProjects = buildGeneratedKnowledgeFixtures().map((item) => item.knowledge);
+const seedRepositories = JSON.parse(await readFile(new URL("../data/seed-repositories.json", import.meta.url), "utf8"));
+const generatedProjects = buildGeneratedKnowledgeFixturesForSeed(seedRepositories).map((item) => item.knowledge);
 const d1Projects = (await listProjectKnowledgeWithMeta(mockD1Env({ knowledge: generatedProjects }))).projects;
 const projects = mergeKnowledge([...d1Projects, ...seedProjects]);
 const report = buildLowConfidenceReviewReport(projects);

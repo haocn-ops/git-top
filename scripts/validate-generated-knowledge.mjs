@@ -1,8 +1,15 @@
+import { readFile } from "node:fs/promises";
 import { generateAgentCard } from "../src/cards.ts";
 import { classifyRepository } from "../src/classification.ts";
 import { seedProjects } from "../src/seed.ts";
 import { validateProjectKnowledge } from "../src/validation.ts";
-import { buildGeneratedKnowledgeFixtures, generatedKnowledgeFixtures, generatedKnowledgeNow } from "./eval-fixtures.mjs";
+import {
+  buildGeneratedKnowledgeFixturesForSeed,
+  generatedKnowledgeFixtures,
+  generatedKnowledgeNow
+} from "./eval-fixtures.mjs";
+
+const seedRepositories = JSON.parse(await readFile(new URL("../data/seed-repositories.json", import.meta.url), "utf8"));
 
 for (const project of seedProjects) {
   validateProjectKnowledge(project);
@@ -35,11 +42,12 @@ for (const fixture of generatedKnowledgeFixtures) {
 
 }
 
-for (const { knowledge } of buildGeneratedKnowledgeFixtures(generatedKnowledgeNow)) {
+const generatedKnowledge = buildGeneratedKnowledgeFixturesForSeed(seedRepositories, generatedKnowledgeNow);
+for (const { knowledge } of generatedKnowledge) {
   validateProjectKnowledge(knowledge);
 }
 
-console.log(`Validated ${seedProjects.length} seed projects and ${generatedKnowledgeFixtures.length} generated knowledge fixtures.`);
+console.log(`Validated ${seedProjects.length} seed projects and ${generatedKnowledge.length} generated knowledge fixtures.`);
 
 function assertClassificationEvidence(subject, label) {
   for (const key of ["category", "deployment", "difficulty", "cloudflareReady"]) {

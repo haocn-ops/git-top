@@ -2,13 +2,13 @@ import { readFile, writeFile } from "node:fs/promises";
 import { listProjectKnowledgeWithMeta, recommendProjectList, searchProjectList } from "../src/db.ts";
 import { normalizeGrpRequest, runGrpQuery } from "../src/grp.ts";
 import { seedProjects } from "../src/seed.ts";
-import { buildGeneratedKnowledgeFixtures } from "./eval-fixtures.mjs";
+import { buildGeneratedKnowledgeFixturesForSeed } from "./eval-fixtures.mjs";
 import { mockD1Env } from "./mock-d1.mjs";
 import { inferSeedCategory } from "./seed-category-hints.mjs";
 
 export async function buildEvaluationContext() {
   const seedRepositories = JSON.parse(await readFile(new URL("../data/seed-repositories.json", import.meta.url), "utf8"));
-  const generatedEvaluationProjects = buildGeneratedKnowledgeFixtures().map((item) => item.knowledge);
+  const generatedEvaluationProjects = buildGeneratedKnowledgeFixturesForSeed(seedRepositories).map((item) => item.knowledge);
   const d1FixtureProjects = (await listProjectKnowledgeWithMeta(mockD1Env({ knowledge: generatedEvaluationProjects }))).projects;
   const evaluationProjects = buildEvaluationProjects(seedRepositories, [...d1FixtureProjects, ...seedProjects]);
   const generatedFixtureIds = new Set(generatedEvaluationProjects.map((item) => item.project.id.toLowerCase()));

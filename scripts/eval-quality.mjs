@@ -25,7 +25,7 @@ await writeEvalReport(report, {
   outputPath: reportPath,
   title: "Git.Top Eval Quality",
   description:
-    "This report summarizes the CI-safe recommendation and classification baseline. Evaluation knowledge is built from hand-authored seed projects first, generated Agent Card fixtures second, and synthetic seed metadata last."
+    "This report summarizes the CI-safe recommendation and classification baseline. Evaluation knowledge is built from hand-authored seed projects first and generated Agent Card fixtures for the full seed list second."
 });
 
 console.log(JSON.stringify(report, null, 2));

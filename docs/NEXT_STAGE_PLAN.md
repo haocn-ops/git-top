@@ -112,7 +112,7 @@ Next expansion target:
 
 - Grow from 378 toward 500 repositories.
 - Add live sync verification for renamed, archived, or unavailable repositories.
-- Sync the larger seed set into local D1 fixtures or integration data so evaluation can move from synthetic seed metadata to generated Agent Cards.
+- Keep the larger seed set synced into local D1 fixtures and integration data so evaluation stays on generated Agent Cards instead of synthetic seed metadata.
 
 Live verification:
 
@@ -175,12 +175,12 @@ Initial baseline:
 - `scripts/eval-quality.mjs` reports top-1 hit rate, top-3 hit rate, category accuracy, deployment accuracy, Cloudflare readiness accuracy, and unacceptable hits.
 - `scripts/eval-quality.mjs` now builds lightweight evaluation knowledge from the full live-verified seed list, while preserving hand-authored seed knowledge overrides.
 - `pnpm eval:quality` writes `docs/EVAL_QUALITY.md` so quality drift is reviewable outside terminal logs.
-- `scripts/eval-fixtures.mjs` provides reusable generated Agent Card fixtures across all 13 V1 categories, and `pnpm eval:quality` now reads those fixtures through mocked D1 row mapping before merging them with hand-authored seed knowledge and synthetic seed metadata.
-- `pnpm db:seed-sql` generates `seed.sql` from hand-authored seed knowledge plus generated eval fixtures, so local D1 seed data follows the same Agent Card fixture path.
+- `scripts/eval-fixtures.mjs` provides reusable generated Agent Card fixtures across all 13 V1 categories, auto-fills generated fixtures for every seed repository, and `pnpm eval:quality` now reads those fixtures through mocked D1 row mapping before merging them with hand-authored seed knowledge.
+- `pnpm db:seed-sql` generates `seed.sql` from hand-authored seed knowledge plus full-seed generated eval fixtures, so local D1 seed data follows the same Agent Card fixture path.
 - `pnpm db:execute` prepares local D1 for current schema expectations, including optional columns missing from older local databases.
 - `pnpm db:integration` now seeds local D1, starts a temporary local Worker, and validates `/api/health`, `/api/search`, `/api/project/:owner/:repo`, `/api/quality`, and `/api/sync/status` against the real D1-backed HTTP path.
 - The baseline has expanded from 6 to 21 cases and covers search, recommendation, GRP, local LLM runtime, vector databases, prompt tooling, observability, workflow automation, coding agents, browser agents, coding resource hubs, AI app resource collections, MCP observability integrations, open SaaS templates, ambiguous-name repositories that require README/topic evidence, and Cloudflare-readiness false positives.
-- Current eval baseline: evaluated cases 21, generated fixture projects 313, D1 fixture projects 313, effective generated fixture projects 308, local D1 seed projects 312, synthetic projects 0, top-1 hit rate 1.0, top-3 hit rate 1.0, category accuracy 1.0, deployment accuracy 1.0, Cloudflare readiness accuracy 1.0, unacceptable hit count 0.
+- Current eval baseline: evaluated cases 21, generated fixture projects 384, D1 fixture projects 384, effective generated fixture projects 378, local D1 seed projects 382, synthetic projects 0, top-1 hit rate 1.0, top-3 hit rate 1.0, category accuracy 1.0, deployment accuracy 1.0, Cloudflare readiness accuracy 1.0, unacceptable hit count 0.
 - Seed category hints are shared by coverage and evaluation scripts so category drift is easier to catch while the seed list grows.
 
 Next evaluation target:
@@ -192,13 +192,13 @@ Next evaluation target:
 - Cloudflare-readiness regression now tracks a dedicated readiness accuracy metric and covers false positives where Cloudflare Workers is mentioned but Python, filesystem, Docker daemon, or Postgres blockers prevent direct Workers readiness.
 - Cloudflare readiness evidence now separates positive signals (`Cloudflare signal: ...`) from blockers (`Runtime blocker: ...`) and regression validation requires both sides for Cloudflare-mentioned projects.
 - `pnpm quality:review` now writes `docs/LOW_CONFIDENCE_REVIEW.md` from generated Agent Card fixtures and keeps the default validation loop aware of low-confidence classification, collection semantics, and weak evidence review items.
-- Current low-confidence review baseline: 312 projects reviewed, 14 projects needing review, 8 low-confidence signals, 29 medium-confidence signals.
+- Current low-confidence review baseline: 382 projects reviewed, 20 projects needing review, 15 low-confidence signals, 37 medium-confidence signals.
 - `pnpm eval:quality` remains the CI-safe regression gate, while `pnpm eval:local` now runs broader generated category and deployment probes across the fixture-backed project set and writes `docs/EVAL_LOCAL.md`.
-- Current local eval baseline: evaluated cases 22, generated fixture projects 313, D1 fixture projects 313, effective generated fixture projects 308, synthetic projects 0, top-1 hit rate 0.773, top-3 hit rate 0.864, category accuracy 1.0, deployment accuracy 1.0, Cloudflare readiness accuracy 1.0, unacceptable hit count 0.
+- Current local eval baseline: evaluated cases 22, generated fixture projects 384, D1 fixture projects 384, effective generated fixture projects 378, synthetic projects 0, top-1 hit rate 0.727, top-3 hit rate 0.727, category accuracy 1.0, deployment accuracy 1.0, Cloudflare readiness accuracy 1.0, unacceptable hit count 0.
 - The first local tuning targets are ranking order, not classification correctness: category probes for `agent_framework` and `rag_framework`, plus deployment probes for `local`, `docker`, and `serverless`.
 - Eval reports now include a `Review Focus` section that lists top-1/top-3 misses, expected candidates, observed candidates, and tuning hints. This keeps ranking experiments grounded before changing global scoring weights.
 - `pnpm eval:ranking` now compares offline ranking strategies against both CI-safe and local eval cases and writes `docs/RANKING_EXPERIMENTS.md`, so scoring experiments can be rejected before touching runtime search.
-- Current ranking experiment result: `browse_mode_quality` preserves CI-safe top-1/top-3 at 1.0 while improving local top-1 from 0.773 to 0.909 and local top-3 from 0.864 to 0.909.
+- Current ranking experiment result: `browse_mode_quality` preserves CI-safe top-1/top-3 at 1.0 while improving the full-seed local baseline top-1/top-3 from 0.727 to 0.864.
 - Runtime search now keeps exact-intent ranking by default and exposes an explicit `ranking=browse` / MCP `ranking: "browse"` mode for broad category/deployment discovery with larger result limits.
 
 Acceptance criteria:

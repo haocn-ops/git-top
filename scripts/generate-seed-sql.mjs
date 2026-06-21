@@ -1,9 +1,10 @@
-import { writeFile } from "node:fs/promises";
-import { buildGeneratedKnowledgeFixtures } from "./eval-fixtures.mjs";
+import { readFile, writeFile } from "node:fs/promises";
+import { buildGeneratedKnowledgeFixturesForSeed } from "./eval-fixtures.mjs";
 import { seedProjects } from "../src/seed.ts";
 
 const outputPath = new URL("../seed.sql", import.meta.url);
-const generated = buildGeneratedKnowledgeFixtures().map((item) => item.knowledge);
+const seedRepositories = JSON.parse(await readFile(new URL("../data/seed-repositories.json", import.meta.url), "utf8"));
+const generated = buildGeneratedKnowledgeFixturesForSeed(seedRepositories).map((item) => item.knowledge);
 const projects = mergeKnowledge([...generated, ...seedProjects]);
 const insertBatchSize = 25;
 
