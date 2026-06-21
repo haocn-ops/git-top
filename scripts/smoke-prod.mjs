@@ -92,6 +92,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.equal(sitemap.status, 200);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms\.txt<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms-full\.txt<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quality<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/projects\/cloudflare\/agents<\/loc>/);
 
     const llms = await getText(context, "/llms.txt");
@@ -124,6 +125,20 @@ export async function runSmoke(args = [], env = process.env) {
       type: jsonLd["@type"],
       repo: jsonLd.name,
       properties: jsonLd.additionalProperty.length
+    };
+  });
+
+  await check(context, "quality_page", async () => {
+    const { status, text } = await getText(context, "/quality");
+    assert.equal(status, 200);
+    assert.match(text, /Quality Governance/);
+    assert.match(text, /Risk Summary/);
+    assert.match(text, /Category coverage/);
+    assert.match(text, /Low-confidence classifications/);
+    assert.match(text, /Open quality JSON/);
+
+    return {
+      hasQualityJsonLink: text.includes("/api/quality")
     };
   });
 

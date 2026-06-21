@@ -7,6 +7,7 @@ import { renderCollectionLandingPage, renderCompareLandingPage, renderTopicLandi
 import { handleMcp } from "./mcp";
 import { openApiDocument } from "./openapi";
 import { renderProjectPage } from "./project-page";
+import { renderQualityPage } from "./quality-page";
 import {
   canonicalHostRedirect,
   renderDocsPage,
@@ -66,6 +67,10 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
 
   if (url.pathname === "/docs" || url.pathname === "/api-docs") {
     return renderDocsPage();
+  }
+
+  if (url.pathname === "/quality") {
+    return renderQualityPage(env);
   }
 
   if (url.pathname === "/openapi.json") {
@@ -188,7 +193,7 @@ function projectIdFromPath(pathname: string): string | null {
 
   const slug = decodeURIComponent(shortMatch[1]);
   if (
-    ["api", "mcp", "graph", "explorer", "docs", "api-docs", "categories", "deployments", "compare", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "favicon.ico"].includes(
+    ["api", "mcp", "graph", "explorer", "docs", "api-docs", "quality", "categories", "deployments", "compare", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "favicon.ico"].includes(
       slug
     )
   ) {

@@ -80,6 +80,7 @@ export function renderLlmsTxt(): Response {
       "- Project schema: https://git.top/api/schema/project.v2",
       "- Health: https://git.top/api/health",
       "- Quality: https://git.top/api/quality",
+      "- Quality governance: https://git.top/quality",
       "- Search: https://git.top/api/search?q=cloudflare%20agent&limit=5",
       "",
       "## Agent Guidance",
@@ -195,6 +196,7 @@ export function renderLlmsFullTxt(): Response {
       "- /robots.txt",
       "- /sitemap.xml",
       "- /.well-known/security.txt",
+      "- /quality",
       "- /llms.txt",
       "- /llms-full.txt",
       "- /openapi.json",
@@ -239,6 +241,7 @@ function staticSitemapUrls(now: string): SitemapUrl[] {
   return [
     { path: "/", changefreq: "daily", priority: "1.0", lastmod: now },
     { path: "/docs", changefreq: "weekly", priority: "0.9", lastmod: now },
+    { path: "/quality", changefreq: "daily", priority: "0.8", lastmod: now },
     { path: "/projects", changefreq: "daily", priority: "0.9", lastmod: now },
     { path: "/graph", changefreq: "weekly", priority: "0.8", lastmod: now },
     { path: "/categories/agent_framework", changefreq: "weekly", priority: "0.8", lastmod: now },
@@ -387,7 +390,7 @@ export function renderDocsPage(): Response {
         <div class="actions">
           <a class="button primary" href="/api/search?q=cloudflare%20agent&limit=5">Try REST search</a>
           <a class="button" href="/mcp">Inspect MCP tools</a>
-          <a class="button" href="/api/quality">Check quality report</a>
+          <a class="button" href="/quality">Check quality governance</a>
         </div>
       </header>
 
@@ -408,6 +411,7 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
             <a class="pill" href="/api/search">/api/search</a>
             <a class="pill" href="/api/trending">/api/trending</a>
             <a class="pill" href="/api/quality">/api/quality</a>
+            <a class="pill" href="/quality">/quality</a>
             <a class="pill" href="/api/schema/project.v2">/api/schema/project.v2</a>
             <a class="pill" href="/llms.txt">/llms.txt</a>
             <a class="pill" href="/llms-full.txt">/llms-full.txt</a>
@@ -457,7 +461,7 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
           <ul>
             <li>Canonical host: <code>https://git.top</code></li>
             <li>Security contact: <code>security@git.top</code></li>
-            <li>Machine discovery: <code>/robots.txt</code>, <code>/sitemap.xml</code>, <code>/llms.txt</code>, <code>/llms-full.txt</code>, <code>/.well-known/security.txt</code>, <code>/mcp</code></li>
+            <li>Machine discovery: <code>/robots.txt</code>, <code>/sitemap.xml</code>, <code>/quality</code>, <code>/llms.txt</code>, <code>/llms-full.txt</code>, <code>/.well-known/security.txt</code>, <code>/mcp</code></li>
           </ul>
         </article>
       </section>

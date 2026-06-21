@@ -106,6 +106,12 @@ Completed in the project detail enrichment pass:
 - Clarified Cloudflare readiness wording so missing readiness evidence is not presented as incompatibility.
 - Added production smoke coverage for project-page canonical links, JSON-LD parsing, and trust/SEO sections.
 
+Completed in the quality governance pass:
+
+- Added `/quality` as a public quality governance dashboard for release score, risk level, source metadata, category coverage, low-confidence classifications, collection review load, stale data, and top issues.
+- Added `/quality` to sitemap, docs, homepage trust links, and LLM discovery guidance.
+- Added production smoke coverage for the quality governance page and sitemap entry.
+
 ## Product Direction
 
 The product should keep emphasizing that it is not a leaderboard. Its stronger position is:
