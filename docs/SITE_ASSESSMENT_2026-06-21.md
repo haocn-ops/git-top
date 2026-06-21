@@ -86,6 +86,12 @@ Completed in the shareability pass:
 - Added `/badge/:owner/:repo.svg` for lightweight Agent Score badges.
 - Added OpenGraph/Twitter image metadata to public pages.
 
+Completed in the agent discovery pass:
+
+- Added `/llms.txt` as a compact agent-facing site map and usage guide.
+- Added `/llms-full.txt` as a fuller agent integration guide covering positioning, REST endpoints, MCP, scoring, trust fields, and topic pages.
+- Added both LLM discovery files to `/sitemap.xml` and the public docs page.
+
 ## Product Direction
 
 The product should keep emphasizing that it is not a leaderboard. Its stronger position is:

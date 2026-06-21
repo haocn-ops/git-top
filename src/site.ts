@@ -62,6 +62,157 @@ export function renderSecurityTxt(): Response {
   );
 }
 
+export function renderLlmsTxt(): Response {
+  return text(
+    [
+      "# Git.Top",
+      "",
+      "Git.Top is an agent-native GitHub project knowledge layer for open-source project discovery, comparison, deployment fit, alternatives, quality signals, and MCP access.",
+      "",
+      "## Core URLs",
+      "",
+      "- Docs: https://git.top/docs",
+      "- MCP discovery: https://git.top/mcp",
+      "- OpenAPI: https://git.top/openapi.json",
+      "- Project schema: https://git.top/api/schema/project.v2",
+      "- Health: https://git.top/api/health",
+      "- Quality: https://git.top/api/quality",
+      "- Search: https://git.top/api/search?q=cloudflare%20agent&limit=5",
+      "",
+      "## Agent Guidance",
+      "",
+      "- Check metadata.source before making high-confidence recommendations.",
+      "- Prefer metadata.source=d1 for production answers.",
+      "- Inspect classification evidence and quality_signal_confidence before citing a score.",
+      "- Use /mcp for JSON-RPC tools/list and tools/call.",
+      "",
+      "## Useful Pages",
+      "",
+      "- Best MCP Servers: https://git.top/topics/best-mcp-servers",
+      "- Best AI Agent Frameworks: https://git.top/topics/best-ai-agent-frameworks",
+      "- Cloudflare-ready AI Projects: https://git.top/topics/cloudflare-ready-ai-projects",
+      "- LangChain Alternatives: https://git.top/topics/langchain-alternatives",
+      "- Open Source Quality Score API: https://git.top/topics/open-source-quality-score-api",
+      "",
+      "Full agent documentation: https://git.top/llms-full.txt",
+      ""
+    ].join("\n"),
+    "text/plain; charset=utf-8"
+  );
+}
+
+export function renderLlmsFullTxt(): Response {
+  return text(
+    [
+      "# Git.Top Full Agent Guide",
+      "",
+      "Git.Top turns GitHub repository metadata, generated Agent Cards, quality metrics, deployment signals, alternatives, and graph relationships into structured knowledge for AI agents.",
+      "",
+      "## Positioning",
+      "",
+      "Git.Top is not a GitHub leaderboard. It is a project intelligence layer for agents choosing open-source projects based on fit, deployability, alternatives, maintenance, evidence, and data confidence.",
+      "",
+      "## Base URLs",
+      "",
+      "- Production: https://git.top",
+      "- Local Worker: http://localhost:8787",
+      "",
+      "## Recommended Agent Flow",
+      "",
+      "1. GET /api/health and verify db=available and metadata.source=d1 for high-confidence production recommendations.",
+      "2. Search with /api/search or MCP search_projects.",
+      "3. Fetch candidate details with /api/project/:owner/:repo or MCP get_project.",
+      "4. Fetch alternatives with /api/alternatives/:owner/:repo or MCP get_alternatives.",
+      "5. Compare final candidates with /api/compare or MCP compare_projects.",
+      "6. Cite metadata, classification evidence, quality_signal_confidence, and freshness fields.",
+      "",
+      "## REST Endpoints",
+      "",
+      "- GET /api/health",
+      "- GET /api/search?q=cloudflare%20agent&limit=5",
+      "- GET /api/search?category=agent_framework&ranking=browse&limit=12",
+      "- GET /api/search?deployment=cloudflare&cloudflare_ready=true&ranking=browse&limit=12",
+      "- GET /api/project/cloudflare/agents",
+      "- GET /api/trending?limit=10",
+      "- GET /api/recommend?use_case=build%20a%20browser%20automation%20agent&deployment=docker&limit=5",
+      "- GET /api/compare?repos=cloudflare/agents,langchain-ai/langchain&deployment=cloudflare",
+      "- GET /api/alternatives/langchain-ai/langchain",
+      "- GET /api/graph?repo=cloudflare/agents&limit=24",
+      "- GET /api/quality",
+      "- GET /api/sync/status",
+      "- GET /api/schema/project.v2",
+      "- GET /api/openapi.json",
+      "- POST /api/grp/query",
+      "",
+      "## MCP",
+      "",
+      "Endpoint: https://git.top/mcp",
+      "",
+      "GET /mcp returns docs, schema, health, quality, quickstart hints, example JSON-RPC payloads, and tool schemas.",
+      "",
+      "Tools include:",
+      "",
+      "- search_projects",
+      "- get_project",
+      "- get_alternatives",
+      "- get_deployment",
+      "- get_quality_score",
+      "- recommend_project",
+      "- find_alternatives",
+      "- get_project_card",
+      "- get_project_graph",
+      "- compare_projects",
+      "- git_top_grp_query",
+      "",
+      "Example tools/list:",
+      "",
+      'curl -X POST https://git.top/mcp -H "content-type: application/json" -d \'{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}\'',
+      "",
+      "Example search:",
+      "",
+      'curl -X POST https://git.top/mcp -H "content-type: application/json" -d \'{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search_projects","arguments":{"query":"cloudflare agent framework","limit":5}}}\'',
+      "",
+      "## Scoring",
+      "",
+      "quality_score weights repository activity: 40% 30-day star movement, 20% commits, 15% releases, 15% contributors, 10% issue response.",
+      "",
+      "agent_score weights agent usefulness: 22% documentation, 24% maintenance, 20% deployment, 18% popularity, 16% community.",
+      "",
+      "## Trust Fields",
+      "",
+      "- metadata.source: d1 or seed",
+      "- metadata.generated_at",
+      "- project.synced_at",
+      "- metrics.calculated_at",
+      "- classification.category/deployment/difficulty/cloudflare_ready confidence and evidence",
+      "- quality_signal_confidence for stars, commits, releases, contributors",
+      "",
+      "## Public Discovery",
+      "",
+      "- /robots.txt",
+      "- /sitemap.xml",
+      "- /.well-known/security.txt",
+      "- /llms.txt",
+      "- /llms-full.txt",
+      "- /openapi.json",
+      "- /og.svg",
+      "- /badge/:owner/:repo.svg",
+      "",
+      "## Topic Pages",
+      "",
+      "- /topics/best-mcp-servers",
+      "- /topics/best-ai-agent-frameworks",
+      "- /topics/cloudflare-ready-ai-projects",
+      "- /topics/langchain-alternatives",
+      "- /topics/open-source-rag-frameworks",
+      "- /topics/github-project-alternatives-api",
+      "- /topics/open-source-quality-score-api",
+      ""
+    ].join("\n"),
+    "text/plain; charset=utf-8"
+  );
+}
+
 export function renderSitemapXml(): Response {
   const urls = [
     ["/", "daily", "1.0"],
@@ -96,6 +247,8 @@ export function renderSitemapXml(): Response {
     ["/api/openapi.json", "weekly", "0.7"],
     ["/openapi.json", "weekly", "0.7"],
     ["/mcp", "weekly", "0.7"],
+    ["/llms.txt", "weekly", "0.8"],
+    ["/llms-full.txt", "weekly", "0.8"],
     ["/robots.txt", "monthly", "0.4"],
     ["/.well-known/security.txt", "monthly", "0.4"]
   ];
@@ -196,6 +349,8 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
             <a class="pill" href="/api/trending">/api/trending</a>
             <a class="pill" href="/api/quality">/api/quality</a>
             <a class="pill" href="/api/schema/project.v2">/api/schema/project.v2</a>
+            <a class="pill" href="/llms.txt">/llms.txt</a>
+            <a class="pill" href="/llms-full.txt">/llms-full.txt</a>
             <a class="pill" href="/sitemap.xml">/sitemap.xml</a>
           </div>
         </aside>
@@ -242,7 +397,7 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
           <ul>
             <li>Canonical host: <code>https://git.top</code></li>
             <li>Security contact: <code>security@git.top</code></li>
-            <li>Machine discovery: <code>/robots.txt</code>, <code>/sitemap.xml</code>, <code>/.well-known/security.txt</code>, <code>/mcp</code></li>
+            <li>Machine discovery: <code>/robots.txt</code>, <code>/sitemap.xml</code>, <code>/llms.txt</code>, <code>/llms-full.txt</code>, <code>/.well-known/security.txt</code>, <code>/mcp</code></li>
           </ul>
         </article>
       </section>
