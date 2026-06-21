@@ -1,6 +1,6 @@
 # Git.Top Local Eval
 
-Generated at: 2026-06-21T02:27:56.601Z
+Generated at: 2026-06-21T02:42:02.536Z
 
 This local-only report expands the CI-safe eval with generated category and deployment probes across the full fixture-backed project set. It is intended for ranking review before heuristic changes, not as a strict CI gate.
 
@@ -13,9 +13,9 @@ This local-only report expands the CI-safe eval with generated category and depl
 - Deployment accuracy: 1
 - Cloudflare readiness accuracy: 1
 - Unacceptable hit count: 0
-- Generated fixture projects: 444
-- D1 fixture projects: 444
-- Effective generated fixture projects: 438
+- Generated fixture projects: 506
+- D1 fixture projects: 506
+- Effective generated fixture projects: 500
 - Synthetic projects: 0
 
 ## Review Focus
@@ -30,7 +30,7 @@ This local-only report expands the CI-safe eval with generated category and depl
 ### `local-category-llm_eval`
 
 - Issue: top-1 miss, top-3 miss
-- Expected: `lm-sys/FastChat`, `HumanSignal/label-studio`, `openai/evals`, `deepset-ai/haystack-cookbook`, `deepset-ai/haystack-tutorials`, `google/gemma.cpp`, `huggingface/optimum`, `huggingface/text-embeddings-inference`
+- Expected: `lm-sys/FastChat`, `HumanSignal/label-studio`, `openai/evals`, `bentoml/rag-tutorials`, `deepset-ai/haystack-cookbook`, `deepset-ai/haystack-demos`, `deepset-ai/haystack-rag-app`, `deepset-ai/haystack-tutorials`
 - Observed: `confident-ai/deepeval`, `braintrustdata/autoevals`, `Giskard-AI/giskard-oss`, `lm-sys/FastChat`, `HumanSignal/label-studio`, `openai/evals`, `EleutherAI/lm-evaluation-harness`, `huggingface/inference-benchmarker`
 - Tuning hint: Review broad category ranking separately from exact keyword search; likely needs scoped category ranking or category-specific canonical-project priors.
 
@@ -52,7 +52,7 @@ This local-only report expands the CI-safe eval with generated category and depl
 
 - Issue: top-1 miss, top-3 miss
 - Expected: `langchain-ai/langchain`, `modelcontextprotocol/servers`, `run-llama/llama_index`, `Significant-Gravitas/AutoGPT`, `ollama/ollama`, `langgenius/dify`, `n8n-io/n8n`, `Shubhamsaboo/awesome-llm-apps`
-- Observed: `mudler/LocalAI`, `openai/openai-cookbook`, `continuedev/continue`, `openfaas/faas`, `openai/skills`, `openai/codex-plugin-cc`, `openai/codex-action`, `openai/codex-universal`
+- Observed: `SigNoz/Awesome-OpenTelemetry`, `mudler/LocalAI`, `openai/openai-cookbook`, `continuedev/continue`, `openfaas/faas`, `openai/skills`, `openai/codex-plugin-cc`, `openai/codex-action`
 - Tuning hint: Review broad deployment ranking separately from exact runtime mentions; likely needs deployment-specific quality priors and blocker-aware ordering.
 
 ### `local-deployment-library_only`
@@ -65,8 +65,8 @@ This local-only report expands the CI-safe eval with generated category and depl
 ### `local-deployment-serverless`
 
 - Issue: top-1 miss
-- Expected: `cloudflare/agents`, `mckaywrigley/chatbot-ui`, `openfaas/faas`, `vercel/ai`, `vercel/ai-chatbot`, `cloudflare/puppeteer`, `cloudflare/dynamic-workflows`, `vercel/chatbot`
-- Observed: `vercel/workflow`, `cloudflare/dynamic-workflows`, `example/cloudflare-docker-gateway`, `openfaas/faas`, `cloudflare/puppeteer`, `run-llama/sec-insights`, `google-gemini/live-api-web-console`, `vercel/ai-elements`
+- Expected: `cloudflare/agents`, `mckaywrigley/chatbot-ui`, `openfaas/faas`, `vercel/ai`, `vercel/ai-chatbot`, `vercel/ai-sdk-rag-starter`, `cloudflare/puppeteer`, `cloudflare/dynamic-workflows`
+- Observed: `vercel/workflow`, `cloudflare/dynamic-workflows`, `example/cloudflare-docker-gateway`, `openfaas/faas`, `vercel/ai-sdk-rag-starter`, `cloudflare/puppeteer`, `run-llama/sec-insights`, `google-gemini/live-api-web-console`
 - Tuning hint: Review broad deployment ranking separately from exact runtime mentions; likely needs deployment-specific quality priors and blocker-aware ordering.
 
 
@@ -75,7 +75,7 @@ This local-only report expands the CI-safe eval with generated category and depl
 Case | Type | Top-1 | Top-3 | Category | Deployment | Cloudflare Ready | Unacceptable Hits | Top Candidates
 --- | --- | --- | --- | --- | --- | --- | ---: | ---
 `local-category-agent_framework` | search | no | no | yes | yes | yes | 0 | `huggingface/smolagents`, `langchain-ai/langgraph`, `openai/openai-agents-python`, `langchain-ai/langchainjs`, `mastra-ai/mastra`
-`local-category-ai_app_template` | search | yes | yes | yes | yes | yes | 0 | `Shubhamsaboo/awesome-llm-apps`, `stackblitz/bolt.new`, `google-gemini/starter-applets`, `microsoft/generative-ai-for-beginners`, `open-webui/open-webui`
+`local-category-ai_app_template` | search | yes | yes | yes | yes | yes | 0 | `Shubhamsaboo/awesome-llm-apps`, `stackblitz/bolt.new`, `google-gemini/starter-applets`, `openai/openai-chatkit-starter-app`, `openai/openai-responses-starter-app`
 `local-category-ai_observability` | search | yes | yes | yes | yes | yes | 0 | `SigNoz/signoz`, `jaegertracing/jaeger`, `langfuse/langfuse`, `comet-ml/opik`, `Arize-ai/phoenix`
 `local-category-browser_agent` | search | yes | yes | yes | yes | yes | 0 | `firecrawl/firecrawl`, `browser-use/web-ui`, `lightpanda-io/browser`, `nanobrowser/nanobrowser`, `browserbase/stagehand`
 `local-category-coding_agent` | search | yes | yes | yes | yes | yes | 0 | `OpenHands/OpenHands`, `cline/cline`, `openai/codex`, `aider-ai/aider`, `TabbyML/tabby`
@@ -83,16 +83,16 @@ Case | Type | Top-1 | Top-3 | Category | Deployment | Cloudflare Ready | Unaccep
 `local-category-llm_gateway` | search | yes | yes | yes | yes | yes | 0 | `Kong/kong`, `Portkey-AI/gateway`, `open-webui/pipelines`, `danny-avila/LibreChat`, `songquanpeng/one-api`
 `local-category-local_llm_runtime` | search | yes | yes | yes | yes | yes | 0 | `oobabooga/textgen`, `exo-explore/exo`, `mozilla-ai/llamafile`, `mlc-ai/mlc-llm`, `sgl-project/sglang`
 `local-category-mcp_server` | search | yes | yes | yes | yes | yes | 0 | `github/github-mcp-server`, `cloudflare/mcp-server-cloudflare`, `PrefectHQ/fastmcp`, `awslabs/mcp`, `supabase/mcp`
-`local-category-prompt_tooling` | search | yes | yes | yes | yes | yes | 0 | `guardrails-ai/guardrails`, `567-labs/instructor`, `microsoft/TypeChat`, `BoundaryML/baml`, `eth-sri/lmql`
+`local-category-prompt_tooling` | search | yes | yes | yes | yes | yes | 0 | `guardrails-ai/guardrails`, `567-labs/instructor`, `openai/openai-structured-outputs-samples`, `microsoft/TypeChat`, `BoundaryML/baml`
 `local-category-rag_framework` | search | no | no | yes | yes | yes | 0 | `stanford-oval/storm`, `llmware-ai/llmware`, `neuml/txtai`, `getzep/graphiti`, `microsoft/kernel-memory`
 `local-category-vector_database` | search | yes | yes | yes | yes | yes | 0 | `redis/redis`, `milvus-io/milvus`, `qdrant/qdrant`, `chroma-core/chroma`, `weaviate/weaviate`
 `local-category-workflow_automation` | search | yes | yes | yes | yes | yes | 0 | `n8n-io/n8n`, `apache/airflow`, `PrefectHQ/prefect`, `activepieces/activepieces`, `kestra-io/kestra`
 `local-deployment-cloudflare` | search | yes | yes | yes | yes | yes | 0 | `cloudflare/agents`, `example/cloudflare-python-agent`, `cloudflare/puppeteer`, `cloudflare/dynamic-workflows`, `cloudflare/templates`
 `local-deployment-docker` | search | no | no | yes | yes | yes | 0 | `huggingface/transformers`, `google/gemma.cpp`, `huggingface/text-embeddings-inference`, `vllm-project/vllm-omni`, `vllm-project/aibrix`
-`local-deployment-local` | search | no | no | yes | yes | yes | 0 | `mudler/LocalAI`, `openai/openai-cookbook`, `continuedev/continue`, `openfaas/faas`, `openai/skills`
+`local-deployment-local` | search | no | no | yes | yes | yes | 0 | `SigNoz/Awesome-OpenTelemetry`, `mudler/LocalAI`, `openai/openai-cookbook`, `continuedev/continue`, `openfaas/faas`
 `local-deployment-library_only` | search | no | no | yes | yes | yes | 0 | `openai/skills`, `openai/codex-plugin-cc`, `e2b-dev/code-interpreter`, `openai/codex-action`, `openai/codex-universal`
-`local-deployment-serverless` | search | no | yes | yes | yes | yes | 0 | `vercel/workflow`, `cloudflare/dynamic-workflows`, `example/cloudflare-docker-gateway`, `openfaas/faas`, `cloudflare/puppeteer`
-`local-deployment-vercel` | search | yes | yes | yes | yes | yes | 0 | `vercel/workflow`, `vercel/ai-elements`, `vercel/ai-chatbot-svelte`, `vercel/next-evals-oss`, `mckaywrigley/chatbot-ui`
+`local-deployment-serverless` | search | no | yes | yes | yes | yes | 0 | `vercel/workflow`, `cloudflare/dynamic-workflows`, `example/cloudflare-docker-gateway`, `openfaas/faas`, `vercel/ai-sdk-rag-starter`
+`local-deployment-vercel` | search | yes | yes | yes | yes | yes | 0 | `vercel/ai-sdk-rag-starter`, `vercel/workflow`, `vercel/ai-elements`, `vercel/ai-chatbot-svelte`, `lancedb/lancedb-vercel-chatbot`
 `local-deployment-kubernetes` | search | yes | yes | yes | yes | yes | 0 | `vllm-project/vllm`, `kserve/kserve`, `llm-d/llm-d`, `milvus-io/milvus`, `qdrant/qdrant`
-`local-cloudflare-ready` | search | yes | yes | yes | yes | yes | 0 | `cloudflare/agents`, `cloudflare/puppeteer`, `cloudflare/dynamic-workflows`, `cloudflare/templates`, `cloudflare/mcp-server-cloudflare`
+`local-cloudflare-ready` | search | yes | yes | yes | yes | yes | 0 | `cloudflare/agents`, `cloudflare/puppeteer`, `cloudflare/dynamic-workflows`, `cloudflare/templates`, `cloudflare/ai-utils`
 `local-cloudflare-mentioned-not-ready` | search | yes | yes | yes | yes | yes | 0 | `example/cloudflare-python-agent`, `example/cloudflare-docker-gateway`

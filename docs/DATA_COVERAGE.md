@@ -1,12 +1,12 @@
 # Git.Top Data Coverage
 
-Generated at: 2026-06-21T02:31:28.059Z
+Generated at: 2026-06-21T02:43:17.897Z
 
 This report summarizes the curated seed repository list. It is a heuristic coverage report, not a replacement for live GitHub sync or generated Agent Card classification.
 
 ## Summary
 
-- Seed repositories: 438
+- Seed repositories: 500
 - Heuristically covered categories: 13/13
 - Missing categories: none
 - Uncategorized repositories: 0
@@ -15,19 +15,19 @@ This report summarizes the curated seed repository list. It is a heuristic cover
 
 | Category | Repository Count |
 | --- | ---: |
-| `agent_framework` | 49 |
-| `coding_agent` | 32 |
-| `browser_agent` | 38 |
-| `rag_framework` | 42 |
-| `vector_database` | 37 |
-| `llm_gateway` | 17 |
-| `llm_eval` | 28 |
-| `prompt_tooling` | 25 |
-| `workflow_automation` | 24 |
-| `local_llm_runtime` | 40 |
-| `ai_app_template` | 43 |
-| `mcp_server` | 32 |
-| `ai_observability` | 31 |
+| `agent_framework` | 50 |
+| `coding_agent` | 37 |
+| `browser_agent` | 40 |
+| `rag_framework` | 51 |
+| `vector_database` | 42 |
+| `llm_gateway` | 23 |
+| `llm_eval` | 33 |
+| `prompt_tooling` | 30 |
+| `workflow_automation` | 30 |
+| `local_llm_runtime` | 44 |
+| `ai_app_template` | 51 |
+| `mcp_server` | 33 |
+| `ai_observability` | 36 |
 
 ## Uncategorized Repositories
 
@@ -35,7 +35,7 @@ None.
 
 ## Next Expansion Targets
 
-- Grow the seed list toward 500 repositories.
+- Treat further seed growth as post-V1 curation rather than default expansion.
 - Keep every V1 category represented.
 - Add eval cases when adding meaningfully new categories or project types.
 - Use live sync failures to remove archived, renamed, or unavailable repositories.

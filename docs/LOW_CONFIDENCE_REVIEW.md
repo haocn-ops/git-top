@@ -1,15 +1,15 @@
 # Git.Top Low-Confidence Review
 
-Generated at: 2026-06-21T02:31:31.115Z
+Generated at: 2026-06-21T02:43:21.043Z
 
 This report lists generated Agent Card classifications that need manual review before Git.Top scales further. It focuses on low and medium classification confidence, collection semantics, Cloudflare readiness ambiguity, and incomplete quality signals.
 
 ## Summary
 
-- Projects reviewed: 442
-- Projects needing review: 21
-- Low-confidence signals: 15
-- Medium-confidence signals: 38
+- Projects reviewed: 504
+- Projects needing review: 24
+- Low-confidence signals: 19
+- Medium-confidence signals: 42
 
 ## Review Count By Category
 
@@ -17,11 +17,25 @@ This report lists generated Agent Card classifications that need manual review b
 | --- | ---: |
 | `agent_framework` | 2 |
 | `coding_agent` | 2 |
-| `llm_eval` | 3 |
+| `vector_database` | 1 |
+| `llm_eval` | 4 |
+| `prompt_tooling` | 1 |
 | `ai_app_template` | 9 |
 | `mcp_server` | 5 |
 
 ## Review Items
+
+### `BerriAI/litellm-guardrails`
+
+- Category: `prompt_tooling`
+- Reasons: Contains low-confidence classification evidence. Quality metrics include estimated or unknown signals.
+- Suggested action: Re-sync from GitHub with complete signal collection before relying on score movement.
+
+| Field | Confidence | Evidence |
+| --- | --- | --- |
+| `category` | low |  |
+| `difficulty` | medium | No strong beginner or advanced signal found; defaulting to intermediate. |
+| `cloudflareReady` | low | No Cloudflare deployment signal detected. |
 
 ### `chroma-core/chroma-mcp`
 
@@ -252,6 +266,29 @@ This report lists generated Agent Card classifications that need manual review b
 | --- | --- | --- |
 | `deployment` | medium | Local usage is assumed for open source repositories unless contradicted. |
 | `difficulty` | medium | No strong beginner or advanced signal found; defaulting to intermediate. |
+
+### `SigNoz/Awesome-OpenTelemetry`
+
+- Category: `llm_eval`
+- Reasons: Repository is a collection and may need curation semantics review.
+- Suggested action: Confirm collection scope, freshness, and whether the category should represent resources rather than runtime code.
+
+| Field | Confidence | Evidence |
+| --- | --- | --- |
+| `difficulty` | medium | Repository has under 10k stars, so complexity is treated conservatively. |
+| `cloudflareReady` | low | No Cloudflare deployment signal detected. |
+
+### `weaviate/awesome-weaviate`
+
+- Category: `vector_database`
+- Reasons: Repository is a collection and may need curation semantics review.
+- Suggested action: Confirm collection scope, freshness, and whether the category should represent resources rather than runtime code.
+
+| Field | Confidence | Evidence |
+| --- | --- | --- |
+| `category` | medium | Matched "vector database" in metadata. |
+| `difficulty` | medium | No strong beginner or advanced signal found; defaulting to intermediate. |
+| `cloudflareReady` | low | No Cloudflare deployment signal detected. |
 
 ### `wong2/awesome-mcp-servers`
 

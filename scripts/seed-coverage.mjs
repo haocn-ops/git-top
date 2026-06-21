@@ -21,7 +21,11 @@ const missingCategories = Object.entries(categoryCounts)
   .filter(([, count]) => count === 0)
   .map(([category]) => category);
 const nextExpansionTarget =
-  repositories.length >= 300 ? "Grow the seed list toward 500 repositories." : "Grow the seed list to at least 300 repositories.";
+  repositories.length >= 500
+    ? "Treat further seed growth as post-V1 curation rather than default expansion."
+    : repositories.length >= 300
+      ? "Grow the seed list toward 500 repositories."
+      : "Grow the seed list to at least 300 repositories.";
 const generatedAt = new Date().toISOString();
 const markdown = [
   "# Git.Top Data Coverage",
