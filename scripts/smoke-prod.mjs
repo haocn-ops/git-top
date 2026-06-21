@@ -103,6 +103,30 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
+  await check(context, "project_page_seo", async () => {
+    const { status, text } = await getText(context, "/projects/cloudflare/agents");
+    assert.equal(status, 200);
+    assert.match(text, /<link rel="canonical" href="https:\/\/git\.top\/projects\/cloudflare\/agents"/);
+    assert.match(text, /<script type="application\/ld\+json">/);
+    assert.match(text, /Project \/ implementation|Collection \/ resource hub/);
+    assert.match(text, /Cloudflare Readiness/);
+    assert.match(text, /Project JSON/);
+    assert.match(text, /GitHub/);
+
+    const jsonLdMatch = text.match(/<script type="application\/ld\+json">([^<]+)<\/script>/);
+    assert.ok(jsonLdMatch, "project page should include JSON-LD");
+    const jsonLd = JSON.parse(jsonLdMatch[1]);
+    assert.equal(jsonLd["@type"], "SoftwareSourceCode");
+    assert.equal(jsonLd.name, "cloudflare/agents");
+    assert.equal(jsonLd.codeRepository, "https://github.com/cloudflare/agents");
+
+    return {
+      type: jsonLd["@type"],
+      repo: jsonLd.name,
+      properties: jsonLd.additionalProperty.length
+    };
+  });
+
   return {
     baseUrl,
     ok: true,

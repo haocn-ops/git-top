@@ -98,6 +98,14 @@ Completed in the project indexing pass:
 - Preserved static docs, topic, category, deployment, API, MCP, LLM, and security discovery URLs in the sitemap.
 - Added production smoke coverage for machine discovery URLs and project detail sitemap entries.
 
+Completed in the project detail enrichment pass:
+
+- Added project-page JSON-LD using `SoftwareSourceCode` structured data.
+- Added project type, difficulty, language, license, GitHub, homepage, and project JSON links to public project pages.
+- Added collection/resource-hub guidance and collection metadata when available.
+- Clarified Cloudflare readiness wording so missing readiness evidence is not presented as incompatibility.
+- Added production smoke coverage for project-page canonical links, JSON-LD parsing, and trust/SEO sections.
+
 ## Product Direction
 
 The product should keep emphasizing that it is not a leaderboard. Its stronger position is:

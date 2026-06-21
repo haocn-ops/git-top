@@ -70,6 +70,7 @@ function renderHtml({
     <meta property="og:image" content="https://git.top/og.svg?title=${escapeAttr(encodeURIComponent(view.repo))}&amp;subtitle=${escapeAttr(encodeURIComponent(view.description))}" />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:image" content="https://git.top/og.svg?title=${escapeAttr(encodeURIComponent(view.repo))}&amp;subtitle=${escapeAttr(encodeURIComponent(view.description))}" />
+    <script type="application/ld+json">${jsonLd(view, syncedAt, metricsAt, graphNodes, graphEdges)}</script>
     <style>
       :root { color-scheme: light; --bg:#f6f8fb; --surface:#fff; --ink:#182026; --muted:#66737c; --line:#dce3e8; --teal:#0f766e; --green:#147d4f; --amber:#a15c07; --shadow:0 16px 40px rgba(17,24,39,.08); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
       * { box-sizing: border-box; }
@@ -101,6 +102,10 @@ function renderHtml({
       .metric strong { font-size:28px; line-height:1; }
       .tag-list { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
       .tag-list span { border:1px solid var(--line); border-radius:999px; background:#f8fafb; color:#40505a; font-size:12px; font-weight:900; padding:6px 9px; }
+      .facts { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:14px; }
+      .fact { border:1px solid var(--line); border-radius:8px; background:#fbfdfd; padding:10px; }
+      .fact span { display:block; color:var(--muted); font-size:12px; font-weight:900; text-transform:uppercase; }
+      .fact strong { display:block; margin-top:4px; overflow-wrap:anywhere; }
       .list { display:grid; gap:10px; margin-top:12px; }
       .list div { display:grid; gap:4px; border-top:1px solid var(--line); padding-top:10px; }
       .list div:first-child { border-top:0; padding-top:0; }
@@ -113,7 +118,7 @@ function renderHtml({
       .evidence-list div { border-top:1px solid var(--line); padding-top:9px; }
       .evidence-list div:first-child { border-top:0; padding-top:0; }
       .evidence-list span { color:var(--muted); }
-      @media (max-width:900px) { .score-grid,.section-grid,.three-grid { grid-template-columns:1fr; } }
+      @media (max-width:900px) { .score-grid,.section-grid,.three-grid,.facts { grid-template-columns:1fr; } }
       @media (max-width:900px) { .trust-grid { grid-template-columns:1fr; } }
     </style>
   </head>
@@ -129,6 +134,18 @@ function renderHtml({
         <h1>${escapeHtml(view.repo)}</h1>
         <p class="lead">${escapeHtml(view.overview)}</p>
         <div class="tag-list">${view.category.concat(view.tags.slice(0, 8)).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}</div>
+        <div class="facts">
+          ${fact("Type", projectKindLabel(view))}
+          ${fact("Difficulty", view.difficulty)}
+          ${fact("Language", view.language ?? "Unknown")}
+          ${fact("License", view.license ?? "Unknown")}
+        </div>
+        <div class="tag-list">
+          <a class="button primary" href="${escapeAttr(view.githubUrl)}">GitHub</a>
+          ${view.homepageUrl ? `<a class="button" href="${escapeAttr(view.homepageUrl)}">Homepage</a>` : ""}
+          <a class="button" href="/api/project/${escapeAttr(view.repo)}">Project JSON</a>
+          <a class="button" href="/graph/${escapeAttr(view.repo)}">Graph</a>
+        </div>
       </header>
 
       <section class="score-grid">
@@ -166,6 +183,25 @@ function renderHtml({
           <h2>Agent Score badge</h2>
           <p class="muted">Embed a lightweight SVG badge for this repository.</p>
           <div class="tag-list"><a class="button" href="/badge/${escapeAttr(view.repo)}.svg">Open Badge</a></div>
+        </article>
+      </section>
+
+      <section class="three-grid">
+        <article class="panel">
+          <p class="eyebrow">Project Type</p>
+          <h2>${escapeHtml(projectKindLabel(view))}</h2>
+          <p class="muted">${escapeHtml(projectKindDescription(view))}</p>
+          ${collectionDetails(view)}
+        </article>
+        <article class="panel">
+          <p class="eyebrow">Cloudflare Readiness</p>
+          <h2>${escapeHtml(cloudflareReadinessLabel(view))}</h2>
+          <p class="muted">${escapeHtml(cloudflareReadinessDescription(view))}</p>
+        </article>
+        <article class="panel">
+          <p class="eyebrow">Selection Guidance</p>
+          <h2>Use the evidence before choosing</h2>
+          <p class="muted">Treat this page as a shortlist input. Confirm source metadata, classification confidence, deployment evidence, and current repository activity before making a production recommendation.</p>
         </article>
       </section>
 
@@ -211,8 +247,82 @@ function metric(label: string, value: string | number): string {
   return `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></div>`;
 }
 
+function fact(label: string, value: string): string {
+  return `<div class="fact"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+}
+
 function panel(eyebrow: string, title: string, items: string[]): string {
   return `<article class="panel"><p class="eyebrow">${escapeHtml(eyebrow)}</p><h2>${escapeHtml(title)}</h2><div class="tag-list">${items.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div></article>`;
+}
+
+function projectKindLabel(view: ReturnType<typeof toProjectKnowledgeView>): string {
+  return view.projectKind === "collection" ? "Collection / resource hub" : "Project / implementation";
+}
+
+function projectKindDescription(view: ReturnType<typeof toProjectKnowledgeView>): string {
+  if (view.projectKind !== "collection") {
+    return "This repository is treated as an implementation project. Compare its deployment fit, maintenance, and alternatives before adopting it.";
+  }
+  return "This repository is treated as a collection, cookbook, awesome list, or resource hub. Use it for discovery and examples before treating linked projects as production dependencies.";
+}
+
+function collectionDetails(view: ReturnType<typeof toProjectKnowledgeView>): string {
+  if (!view.collectionMetadata) {
+    return "";
+  }
+  const rows = [
+    ["Scope", label(view.collectionMetadata.scope)],
+    ["Curated", view.collectionMetadata.curated ? "Yes" : "No"],
+    ["Estimated items", view.collectionMetadata.estimatedItems === null ? "Unknown" : String(view.collectionMetadata.estimatedItems)],
+    ["Freshness", label(view.collectionMetadata.freshness)]
+  ];
+  return `<div class="evidence-list">${rows.map(([name, value]) => `<div><strong>${escapeHtml(name)}</strong><span>${escapeHtml(value)}</span></div>`).join("")}</div>`;
+}
+
+function cloudflareReadinessLabel(view: ReturnType<typeof toProjectKnowledgeView>): string {
+  return view.cloudflareReady ? "Cloudflare evidence found" : "No Cloudflare-ready signal";
+}
+
+function cloudflareReadinessDescription(view: ReturnType<typeof toProjectKnowledgeView>): string {
+  const evidence = view.classification?.cloudflareReady?.evidence?.[0];
+  if (view.cloudflareReady) {
+    return evidence
+      ? `Git.Top found Cloudflare deployment evidence: ${evidence}`
+      : "Git.Top found Cloudflare deployment signals. Inspect the JSON classification evidence before relying on it for production.";
+  }
+  return evidence
+    ? `Git.Top did not classify this as Cloudflare-ready. Evidence: ${evidence}`
+    : "Git.Top did not find enough Cloudflare or Workers deployment evidence. This does not prove incompatibility; it means no positive readiness signal was recorded.";
+}
+
+function jsonLd(
+  view: ReturnType<typeof toProjectKnowledgeView>,
+  syncedAt: string,
+  metricsAt: string,
+  graphNodes: number,
+  graphEdges: number
+): string {
+  return scriptSafeJson({
+    "@context": "https://schema.org",
+    "@type": "SoftwareSourceCode",
+    name: view.repo,
+    codeRepository: view.githubUrl,
+    url: `https://git.top/projects/${view.repo}`,
+    description: view.description,
+    programmingLanguage: view.language ?? undefined,
+    license: view.license ?? undefined,
+    keywords: [...view.category, ...view.tags, ...view.deployments].slice(0, 20),
+    dateModified: syncedAt,
+    additionalProperty: [
+      { "@type": "PropertyValue", name: "Git.Top project type", value: projectKindLabel(view) },
+      { "@type": "PropertyValue", name: "Git.Top difficulty", value: view.difficulty },
+      { "@type": "PropertyValue", name: "Git.Top agent score", value: view.agentScore },
+      { "@type": "PropertyValue", name: "Git.Top quality score", value: view.qualityScore },
+      { "@type": "PropertyValue", name: "Git.Top metrics calculated at", value: metricsAt },
+      { "@type": "PropertyValue", name: "Git.Top Cloudflare readiness", value: cloudflareReadinessLabel(view) },
+      { "@type": "PropertyValue", name: "Git.Top graph size", value: `${graphNodes} nodes / ${graphEdges} edges` }
+    ]
+  });
 }
 
 function confidenceRows(view: ReturnType<typeof toProjectKnowledgeView>): string {
@@ -253,6 +363,14 @@ function yes(value: boolean): string {
 
 function formatNumber(value: number): string {
   return value.toLocaleString();
+}
+
+function label(value: string): string {
+  return value.replaceAll("_", " ").replaceAll("-", " ").replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function scriptSafeJson(value: unknown): string {
+  return JSON.stringify(value).replaceAll("<", "\\u003c").replaceAll(">", "\\u003e").replaceAll("&", "\\u0026");
 }
 
 function escapeAttr(value: string): string {

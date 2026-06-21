@@ -3,6 +3,10 @@ import type { ProjectKnowledge } from "./types";
 export interface ProjectKnowledgeView {
   repo: string;
   name: string;
+  githubUrl: string;
+  homepageUrl: string | null;
+  language: string | null;
+  license: string | null;
   projectKind: NonNullable<ProjectKnowledge["agentCard"]["projectKind"]>;
   collectionMetadata?: ProjectKnowledge["agentCard"]["collectionMetadata"];
   category: string[];
@@ -12,6 +16,8 @@ export interface ProjectKnowledgeView {
   alternatives: Array<{ repo: string; reason: string }>;
   dependencies: string[];
   deployments: string[];
+  difficulty: string;
+  cloudflareReady: boolean;
   useCases: string[];
   classification?: ProjectKnowledge["agentCard"]["classification"];
   qualitySignals: {
@@ -46,6 +52,10 @@ export function toProjectKnowledgeView(item: ProjectKnowledge): ProjectKnowledge
   return {
     repo: item.project.fullName,
     name: item.project.name,
+    githubUrl: item.project.githubUrl,
+    homepageUrl: item.project.homepageUrl,
+    language: item.project.language,
+    license: item.project.license,
     projectKind: item.agentCard.projectKind ?? "project",
     collectionMetadata: item.agentCard.collectionMetadata,
     category: [item.agentCard.category],
@@ -58,6 +68,8 @@ export function toProjectKnowledgeView(item: ProjectKnowledge): ProjectKnowledge
     })),
     dependencies: inferDependencies(item),
     deployments: item.agentCard.deployment,
+    difficulty: item.agentCard.difficulty,
+    cloudflareReady: item.agentCard.cloudflareReady,
     useCases: item.agentCard.useCases,
     classification: withDefaultClassification(item.agentCard.classification),
     qualitySignals: {
