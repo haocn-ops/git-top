@@ -14,6 +14,7 @@ await testQualityInfoIssuesDoNotLowerScore();
 await testQualityCollectionCoverage();
 await testLegacyConsoleRedirects();
 await testCoverageRoute();
+await testStatusRoute();
 await testSyncBatchSelection();
 await testNextProjectDetailLookup();
 await testBrowseRanking();
@@ -45,6 +46,15 @@ async function testCoverageRoute() {
   assert.match(text, /Project corpus, taxonomy, and trust boundaries/);
   assert.match(text, /Category Distribution/);
   assert.match(text, /Use Boundaries/);
+}
+
+async function testStatusRoute() {
+  const response = await worker.fetch(new Request("https://git.top/status"), {});
+  const text = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(text, /Data source, sync freshness, and runtime health/);
+  assert.match(text, /Sync Progress/);
+  assert.match(text, /Integration Guidance/);
 }
 
 async function testScoring() {

@@ -98,7 +98,7 @@ function renderHtml(
           <a class="button" href="/coverage">Corpus coverage</a>
           <a class="button" href="/quality/review">Review queue</a>
           <a class="button" href="/docs#scoring">Scoring methodology</a>
-          <a class="button" href="/api/sync/status">Sync status</a>
+          <a class="button" href="/status">Sync status</a>
         </div>
       </header>
 

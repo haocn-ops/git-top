@@ -79,6 +79,7 @@ export function renderLlmsTxt(): Response {
       "- OpenAPI: https://git.top/openapi.json",
       "- Project schema: https://git.top/api/schema/project.v2",
       "- Health: https://git.top/api/health",
+      "- Public status: https://git.top/status",
       "- Quality: https://git.top/api/quality",
       "- Quality governance: https://git.top/quality",
       "- Corpus coverage: https://git.top/coverage",
@@ -89,6 +90,7 @@ export function renderLlmsTxt(): Response {
       "",
       "- Check metadata.source before making high-confidence recommendations.",
       "- Prefer metadata.source=d1 for production answers.",
+      "- Check /status for D1 availability, sync health, and freshness before production use.",
       "- Check /coverage when the question depends on corpus breadth or category representation.",
       "- Inspect classification evidence and quality_signal_confidence before citing a score.",
       "- Use /mcp for JSON-RPC tools/list and tools/call.",
@@ -202,6 +204,7 @@ export function renderLlmsFullTxt(): Response {
       "- /robots.txt",
       "- /sitemap.xml",
       "- /.well-known/security.txt",
+      "- /status",
       "- /quality",
       "- /coverage",
       "- /quality/review",
@@ -249,6 +252,7 @@ function staticSitemapUrls(now: string): SitemapUrl[] {
   return [
     { path: "/", changefreq: "daily", priority: "1.0", lastmod: now },
     { path: "/docs", changefreq: "weekly", priority: "0.9", lastmod: now },
+    { path: "/status", changefreq: "daily", priority: "0.8", lastmod: now },
     { path: "/quality", changefreq: "daily", priority: "0.8", lastmod: now },
     { path: "/coverage", changefreq: "daily", priority: "0.8", lastmod: now },
     { path: "/quality/review", changefreq: "daily", priority: "0.7", lastmod: now },
@@ -420,6 +424,7 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
             <a class="pill" href="/api/health">/api/health</a>
             <a class="pill" href="/api/search">/api/search</a>
             <a class="pill" href="/api/trending">/api/trending</a>
+            <a class="pill" href="/status">/status</a>
             <a class="pill" href="/api/quality">/api/quality</a>
             <a class="pill" href="/api/quality/review">/api/quality/review</a>
             <a class="pill" href="/quality">/quality</a>
@@ -457,6 +462,7 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
           <ul>
             <li><code>metadata.source: d1</code> means live indexed data; <code>seed</code> means fallback.</li>
             <li>Project records include <code>project.synced_at</code> and metric records include <code>metrics.calculated_at</code>.</li>
+            <li><code>/status</code> renders D1 availability, sync freshness, cursor progress, and recent sync runs for operators and agents.</li>
             <li><code>/api/sync/status</code> reports freshness, sync health, cursor progress, and recent failures.</li>
           </ul>
         </article>
@@ -487,7 +493,7 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
           <ul>
             <li>Canonical host: <code>https://git.top</code></li>
             <li>Security contact: <code>security@git.top</code></li>
-            <li>Machine discovery: <code>/robots.txt</code>, <code>/sitemap.xml</code>, <code>/quality</code>, <code>/llms.txt</code>, <code>/llms-full.txt</code>, <code>/.well-known/security.txt</code>, <code>/mcp</code></li>
+            <li>Machine discovery: <code>/robots.txt</code>, <code>/sitemap.xml</code>, <code>/status</code>, <code>/quality</code>, <code>/coverage</code>, <code>/llms.txt</code>, <code>/llms-full.txt</code>, <code>/.well-known/security.txt</code>, <code>/mcp</code></li>
           </ul>
         </article>
       </section>

@@ -615,6 +615,7 @@ const html = String.raw`<!doctype html>
           <p class="muted">Start from the public docs before integrating an agent runtime or citing a recommendation.</p>
           <div class="link-list">
             <a href="/docs">Developer docs</a>
+            <a href="/status">Public status</a>
             <a href="/quality">Quality governance</a>
             <a href="/coverage">Corpus coverage</a>
             <a href="/api/quality">Quality JSON</a>

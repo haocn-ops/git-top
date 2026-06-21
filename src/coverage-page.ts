@@ -84,7 +84,7 @@ function renderHtml(
     <div class="page">
       <nav class="nav">
         <a class="brand" href="/"><span class="brand-mark">G</span><span>Git.Top</span></a>
-        <div class="nav-links"><a href="/docs">Docs</a><a href="/quality">Quality</a><a href="/quality/review">Review</a><a href="/mcp">MCP</a></div>
+        <div class="nav-links"><a href="/docs">Docs</a><a href="/status">Status</a><a href="/quality">Quality</a><a href="/quality/review">Review</a><a href="/mcp">MCP</a></div>
       </nav>
 
       <header class="hero">

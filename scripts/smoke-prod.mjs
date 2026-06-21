@@ -92,6 +92,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.equal(sitemap.status, 200);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms\.txt<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms-full\.txt<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/status<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quality<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/coverage<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quality\/review<\/loc>/);
@@ -150,6 +151,21 @@ export async function runSmoke(args = [], env = process.env) {
 
     return {
       hasQualityJsonLink: text.includes("/api/quality")
+    };
+  });
+
+  await check(context, "status_page", async () => {
+    const { status, text } = await getText(context, "/status");
+    assert.equal(status, 200);
+    assert.match(text, /Data source, sync freshness, and runtime health/);
+    assert.match(text, /Sync Progress/);
+    assert.match(text, /Freshness/);
+    assert.match(text, /Recent Runs/);
+    assert.match(text, /Integration Guidance/);
+
+    return {
+      hasHealthJsonLink: text.includes("/api/health"),
+      hasSyncJsonLink: text.includes("/api/sync/status")
     };
   });
 

@@ -137,6 +137,12 @@ Completed in the corpus coverage pass:
 - Linked `/coverage` from the homepage trust section, `/quality`, `/docs`, LLM discovery, and sitemap.
 - Added production smoke coverage for the public coverage page and sitemap entry.
 
+Completed in the public status pass:
+
+- Added `/status` as a public data-source and sync freshness page backed by existing health and sync status read paths.
+- Linked `/status` from homepage trust links, `/docs`, `/quality`, `/coverage`, LLM discovery, and sitemap.
+- Added local route validation and production smoke coverage for the status page and sitemap entry.
+
 ## Product Direction
 
 The product should keep emphasizing that it is not a leaderboard. Its stronger position is:
