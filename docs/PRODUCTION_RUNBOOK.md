@@ -117,6 +117,12 @@ curl -X POST https://git.top/api/admin/sync \
   -d '{"limit":5,"signal_depth":"lite"}'
 ```
 
+Run repeated catch-up rounds from the repo:
+
+```sh
+SYNC_SECRET=... pnpm sync:prod:catchup --rounds 10 --limit 5
+```
+
 Use larger manual limits only after checking recent `/api/sync/status` runs. If production is `degraded` with a subrequest-limit error, run `limit:1` or `signal_depth:"lite"` until a successful run makes `health` return to `healthy`.
 
 ## Data Quality Check

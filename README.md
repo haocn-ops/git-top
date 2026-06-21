@@ -86,6 +86,12 @@ curl -X POST http://localhost:8787/api/admin/sync \
 
 Use `{"limit":5,"signal_depth":"lite"}` for catch-up syncs that should stay under Worker subrequest limits.
 
+Run repeated production catch-up rounds:
+
+```sh
+SYNC_SECRET=... pnpm sync:prod:catchup --rounds 10 --limit 5
+```
+
 Omit `offset` to use the stored seed cursor. Cron syncs use this cursor and advance through the seed list in small batches.
 
 ## API
