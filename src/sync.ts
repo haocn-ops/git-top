@@ -1,5 +1,5 @@
 import { generateAgentCard } from "./cards";
-import { generateAlternativesForAll } from "./alternatives";
+import { generateAlternatives } from "./alternatives";
 import {
   getSyncCursor,
   getStarsDeltaSnapshot,
@@ -90,8 +90,15 @@ export async function syncGithubProjects(env: Env, options: SyncOptions = {}): P
     }
   }
 
-  const alternatives = generateAlternativesForAll(await listProjectKnowledge(env));
-  result.alternativesUpdated = await updateProjectAlternatives(env, alternatives.updates);
+  const projects = await listProjectKnowledge(env);
+  const syncedIds = new Set(result.synced.map((repository) => repository.toLowerCase()));
+  const alternativeUpdates = projects
+    .filter((project) => syncedIds.has(project.project.id.toLowerCase()))
+    .map((project) => ({
+      projectId: project.project.id,
+      alternatives: generateAlternatives(project, projects, 5)
+    }));
+  result.alternativesUpdated = await updateProjectAlternatives(env, alternativeUpdates);
 
   if (usesCursor) {
     await setSyncCursor(env, nextOffset);
