@@ -13,6 +13,7 @@ import { defaultSeedRepositories } from "./github";
 import { buildKnowledgeGraph, compareProjectKnowledge } from "./graph";
 import { normalizeGrpRequest, runGrpQuery } from "./grp";
 import { errorJson, json, parseBool, parseLimit, rawJson } from "./http";
+import { openApiDocument } from "./openapi";
 import { toProjectKnowledgeView } from "./project-view";
 import { buildQualityReport } from "./quality";
 import { agentCardJsonSchema, projectKnowledgeJsonSchema, projectV2JsonSchema } from "./schema";
@@ -242,6 +243,10 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
 
   if (path === "/api/schema/project.v2") {
     return rawJson(projectV2JsonSchema);
+  }
+
+  if (path === "/api/openapi.json") {
+    return rawJson(openApiDocument);
   }
 
   if (path === "/api/search") {

@@ -264,7 +264,46 @@ const tools = [
 
 export async function handleMcp(request: Request, env: Env): Promise<Response> {
   if (request.method === "GET") {
-    return json({ name: "git-top", tools });
+    return json({
+      name: "git-top",
+      title: "Git.Top GitHub Knowledge Layer for AI Agents",
+      description:
+        "Agent-native open source project intelligence with search, project lookup, alternatives, deployment signals, quality scores, and graph reasoning.",
+      protocolVersion: "2025-06-18",
+      endpoint: "/mcp",
+      docsUrl: "https://git.top/docs",
+      openapiUrl: "https://git.top/api/schema/project.v2",
+      healthUrl: "https://git.top/api/health",
+      qualityUrl: "https://git.top/api/quality",
+      quickstart: [
+        "GET /api/health and verify metadata.source is d1 for production recommendations.",
+        "Call tools/list to inspect available MCP tools.",
+        "Call search_projects with query, category, deployment, and limit.",
+        "Call get_project or compare_projects before presenting a final recommendation.",
+        "Cite metadata, classification evidence, and quality_signal_confidence in high-confidence answers."
+      ],
+      examples: {
+        toolsList: {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/list",
+          params: {}
+        },
+        searchProjects: {
+          jsonrpc: "2.0",
+          id: 2,
+          method: "tools/call",
+          params: {
+            name: "search_projects",
+            arguments: {
+              query: "cloudflare agent framework",
+              limit: 5
+            }
+          }
+        }
+      },
+      tools
+    });
   }
 
   if (request.method !== "POST") {

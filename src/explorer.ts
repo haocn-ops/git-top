@@ -23,6 +23,14 @@ const html = String.raw`<!doctype html>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Git.Top | GitHub Knowledge Layer for AI Agents</title>
     <meta name="description" content="Agent-friendly open source project knowledge, semantic search, alternatives, deployment signals, and quality scores." />
+    <link rel="canonical" href="https://git.top/" />
+    <meta property="og:title" content="Git.Top | GitHub Knowledge Layer for AI Agents" />
+    <meta property="og:description" content="Agent-friendly open source project knowledge, semantic search, alternatives, deployment signals, and quality scores." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://git.top/" />
+    <meta property="og:image" content="https://git.top/og.svg" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:image" content="https://git.top/og.svg" />
     <style>
       :root {
         color-scheme: light;
@@ -305,13 +313,15 @@ const html = String.raw`<!doctype html>
       }
 
       .project-card-grid,
-      .agent-grid {
+      .agent-grid,
+      .trust-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 12px;
       }
 
-      .agent-grid {
+      .agent-grid,
+      .trust-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
         margin-top: 22px;
       }
@@ -378,6 +388,52 @@ const html = String.raw`<!doctype html>
         margin-top: 22px;
       }
 
+      .doc-panel {
+        margin-top: 22px;
+      }
+
+      .link-list {
+        display: grid;
+        gap: 9px;
+      }
+
+      .link-list a,
+      .link-list span {
+        display: inline-flex;
+        align-items: center;
+        min-height: 32px;
+        border-top: 1px solid var(--line);
+        color: #40505a;
+        font-weight: 800;
+        padding-top: 9px;
+      }
+
+      .link-list a:first-child,
+      .link-list span:first-child {
+        border-top: 0;
+        padding-top: 0;
+      }
+
+      .guide-strip {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 22px;
+      }
+
+      .guide-strip a {
+        display: grid;
+        align-content: center;
+        min-height: 72px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+        color: #33525a;
+        font-weight: 900;
+        padding: 11px;
+      }
+
       .search-form input {
         flex: 1 1 320px;
         min-height: 40px;
@@ -435,7 +491,9 @@ const html = String.raw`<!doctype html>
         }
 
         .project-card-grid,
-        .agent-grid {
+        .agent-grid,
+        .trust-grid,
+        .guide-strip {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }
@@ -456,7 +514,9 @@ const html = String.raw`<!doctype html>
 
         .knowledge-grid,
         .project-card-grid,
-        .agent-grid {
+        .agent-grid,
+        .trust-grid,
+        .guide-strip {
           grid-template-columns: 1fr;
         }
       }
@@ -471,6 +531,7 @@ const html = String.raw`<!doctype html>
         </a>
         <div class="nav-links">
           <a href="/graph">Graph</a>
+          <a href="/docs">Docs</a>
           <a href="/api/search?q=cloudflare%20agent%20framework">Agent API</a>
           <a href="/mcp">MCP</a>
           <a href="/api/schema/project.v2">Schema</a>
@@ -485,6 +546,7 @@ const html = String.raw`<!doctype html>
           <div class="actions">
             <a class="button primary" href="#projects">Explore Projects</a>
             <a class="button secondary" href="/graph">Knowledge Graph</a>
+            <a class="button secondary" href="/docs">Docs</a>
             <a class="button secondary" href="/api/search?q=cloudflare%20agent%20framework">Agent API</a>
           </div>
         </div>
@@ -513,6 +575,16 @@ const html = String.raw`<!doctype html>
         <a class="category-chip" href="/api/search?q=LLM%20Applications">LLM Applications</a>
       </section>
 
+      <section class="guide-strip" aria-label="Git.Top guides">
+        <a href="/topics/best-mcp-servers">Best MCP Servers</a>
+        <a href="/topics/best-ai-agent-frameworks">Best AI Agent Frameworks</a>
+        <a href="/topics/cloudflare-ready-ai-projects">Cloudflare-ready AI Projects</a>
+        <a href="/topics/langchain-alternatives">LangChain Alternatives</a>
+        <a href="/topics/open-source-rag-frameworks">Open Source RAG Frameworks</a>
+        <a href="/topics/github-project-alternatives-api">Project Alternatives API</a>
+        <a href="/topics/open-source-quality-score-api">Quality Score API</a>
+      </section>
+
       <section id="projects">
         <div class="section-heading">
           <div>
@@ -533,6 +605,42 @@ const html = String.raw`<!doctype html>
           <input id="query" value="cloudflare agent framework" aria-label="Search query" />
           <button class="button primary" type="submit">Search</button>
         </form>
+      </section>
+
+      <section class="trust-grid" aria-label="Developer trust signals">
+        <article class="panel">
+          <div class="feature-icon">DOC</div>
+          <p class="eyebrow">Docs</p>
+          <h2>API, MCP, scoring, and data freshness</h2>
+          <p class="muted">Start from the public docs before integrating an agent runtime or citing a recommendation.</p>
+          <div class="link-list">
+            <a href="/docs">Developer docs</a>
+            <a href="/api/quality">Quality report</a>
+            <a href="/api/sync/status">Sync status</a>
+          </div>
+        </article>
+        <article class="panel">
+          <div class="feature-icon">MCP</div>
+          <p class="eyebrow">Install Path</p>
+          <h2>Use Git.Top as an agent project intelligence tool</h2>
+          <p class="muted">MCP discovery exposes search, project lookup, alternatives, deployment, quality, comparison, and graph reasoning tools.</p>
+          <div class="link-list">
+            <a href="/mcp">MCP discovery</a>
+            <a href="/docs#mcp">MCP guidance</a>
+            <a href="/api/schema/project.v2">Project schema</a>
+          </div>
+        </article>
+        <article class="panel">
+          <div class="feature-icon">QA</div>
+          <p class="eyebrow">Trust Model</p>
+          <h2>Scores include evidence and confidence</h2>
+          <p class="muted">Quality score and agent score are separate. Responses include source metadata, classification evidence, and signal confidence.</p>
+          <div class="link-list">
+            <a href="/docs#scoring">Scoring methodology</a>
+            <a href="/docs#freshness">Data freshness</a>
+            <a href="/.well-known/security.txt">Security contact</a>
+          </div>
+        </article>
       </section>
 
       <section class="agent-grid">

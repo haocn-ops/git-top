@@ -40,6 +40,30 @@ For fail-closed production reads, add `require_d1=true` to knowledge endpoints. 
 curl "http://localhost:8787/api/search?q=cloudflare%20agent%20framework&require_d1=true"
 ```
 
+## Scoring Methodology
+
+Git.Top exposes two separate scores because project popularity and agent usefulness are related but not identical.
+
+`quality_score` is the repository activity score. It is calculated from:
+
+- 40% 30-day star movement
+- 20% 30-day commits
+- 15% 180-day releases
+- 15% 90-day contributors
+- 10% issue first-response speed
+
+`agent_score` is the agent-readiness score. It is calculated from:
+
+- 22% documentation strength
+- 24% maintenance score
+- 20% deployment fit
+- 18% popularity
+- 16% community activity
+
+Agents should inspect `quality_signal_confidence` before treating score inputs as complete. Star movement may be snapshot-backed or estimated; commit, release, and contributor counts may be complete, partial, or unknown depending on GitHub API collection depth.
+
+Project records include `project.synced_at`, and metric records include `metrics.calculated_at`. Use these fields with endpoint `metadata.generated_at` and `/api/sync/status` when freshness matters.
+
 ## Health
 
 ```sh

@@ -2,7 +2,7 @@ import { compareProjectKnowledge, buildKnowledgeGraph } from "./graph";
 import { listProjectKnowledgeWithMeta } from "./knowledge-source";
 import { findAlternativesFromList, getProjectKnowledgeFromList } from "./project-search";
 import { toProjectKnowledgeView } from "./project-view";
-import type { Env } from "./types";
+import type { ClassificationSignal, Env } from "./types";
 
 export async function renderProjectPage(env: Env, id: string): Promise<Response | null> {
   const projects = (await listProjectKnowledgeWithMeta(env)).projects;
@@ -19,12 +19,23 @@ export async function renderProjectPage(env: Env, id: string): Promise<Response 
   });
   const graph = buildKnowledgeGraph([project, ...alternativeProjects], project.project.id, 18);
 
-  return new Response(renderHtml({ view, alternatives, compare, graphNodes: graph.nodes.length, graphEdges: graph.edges.length }), {
+  return new Response(
+    renderHtml({
+      view,
+      alternatives,
+      compare,
+      graphNodes: graph.nodes.length,
+      graphEdges: graph.edges.length,
+      syncedAt: project.project.syncedAt,
+      metricsAt: project.metrics.calculatedAt
+    }),
+    {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "public, max-age=180"
     }
-  });
+    }
+  );
 }
 
 function renderHtml({
@@ -32,13 +43,17 @@ function renderHtml({
   alternatives,
   compare,
   graphNodes,
-  graphEdges
+  graphEdges,
+  syncedAt,
+  metricsAt
 }: {
   view: ReturnType<typeof toProjectKnowledgeView>;
   alternatives: Array<ReturnType<typeof toProjectKnowledgeView>>;
   compare: ReturnType<typeof compareProjectKnowledge>;
   graphNodes: number;
   graphEdges: number;
+  syncedAt: string;
+  metricsAt: string;
 }): string {
   return String.raw`<!doctype html>
 <html lang="en">
@@ -47,6 +62,14 @@ function renderHtml({
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${escapeHtml(view.name)} | Git.Top Project Knowledge</title>
     <meta name="description" content="${escapeAttr(view.description)}" />
+    <link rel="canonical" href="https://git.top/projects/${escapeAttr(view.repo)}" />
+    <meta property="og:title" content="${escapeAttr(`${view.repo} | Git.Top Project Knowledge`)}" />
+    <meta property="og:description" content="${escapeAttr(view.description)}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://git.top/projects/${escapeAttr(view.repo)}" />
+    <meta property="og:image" content="https://git.top/og.svg?title=${escapeAttr(encodeURIComponent(view.repo))}&amp;subtitle=${escapeAttr(encodeURIComponent(view.description))}" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:image" content="https://git.top/og.svg?title=${escapeAttr(encodeURIComponent(view.repo))}&amp;subtitle=${escapeAttr(encodeURIComponent(view.description))}" />
     <style>
       :root { color-scheme: light; --bg:#f6f8fb; --surface:#fff; --ink:#182026; --muted:#66737c; --line:#dce3e8; --teal:#0f766e; --green:#147d4f; --amber:#a15c07; --shadow:0 16px 40px rgba(17,24,39,.08); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
       * { box-sizing: border-box; }
@@ -85,7 +108,13 @@ function renderHtml({
       .compare-row { display:grid; grid-template-columns:minmax(240px,1.4fr) 90px 80px 80px 110px 110px; align-items:center; gap:12px; border-top:1px solid var(--line); padding:12px 0; }
       .compare-head { border-top:0; color:var(--muted); font-size:12px; font-weight:900; text-transform:uppercase; }
       .table-wrap { overflow-x:auto; }
+      .trust-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-top:14px; }
+      .evidence-list { display:grid; gap:9px; margin-top:12px; }
+      .evidence-list div { border-top:1px solid var(--line); padding-top:9px; }
+      .evidence-list div:first-child { border-top:0; padding-top:0; }
+      .evidence-list span { color:var(--muted); }
       @media (max-width:900px) { .score-grid,.section-grid,.three-grid { grid-template-columns:1fr; } }
+      @media (max-width:900px) { .trust-grid { grid-template-columns:1fr; } }
     </style>
   </head>
   <body>
@@ -110,6 +139,36 @@ function renderHtml({
         ${metric("Quality", `${view.qualityScore}/100`)}
       </section>
 
+      <section class="trust-grid">
+        <article class="panel">
+          <p class="eyebrow">Freshness</p>
+          <h2>Repository and metrics timestamps</h2>
+          <div class="evidence-list">
+            <div><strong>Repository synced</strong><span>${escapeHtml(syncedAt)}</span></div>
+            <div><strong>Metrics calculated</strong><span>${escapeHtml(metricsAt)}</span></div>
+          </div>
+        </article>
+        <article class="panel">
+          <p class="eyebrow">Scoring</p>
+          <h2>Quality and agent score are separate</h2>
+          <p class="muted">Quality score weights star movement, commits, releases, contributors, and issue response. Agent score weights documentation, maintenance, deployment, popularity, and community.</p>
+          <div class="tag-list"><a class="button" href="/docs#scoring">Methodology</a></div>
+        </article>
+        <article class="panel">
+          <p class="eyebrow">Confidence</p>
+          <h2>Signal confidence</h2>
+          <div class="evidence-list">
+            ${confidenceRows(view)}
+          </div>
+        </article>
+        <article class="panel">
+          <p class="eyebrow">Badge</p>
+          <h2>Agent Score badge</h2>
+          <p class="muted">Embed a lightweight SVG badge for this repository.</p>
+          <div class="tag-list"><a class="button" href="/badge/${escapeAttr(view.repo)}.svg">Open Badge</a></div>
+        </article>
+      </section>
+
       <section class="section-grid">
         <article class="panel">
           <div class="panel-heading"><div><p class="eyebrow">Alternatives</p><h2>Comparable projects</h2></div><a class="button" href="/api/alternatives/${escapeAttr(view.repo)}">JSON</a></div>
@@ -127,6 +186,13 @@ function renderHtml({
         ${panel("Deploy", "Supported deployment paths", view.deployments)}
         ${panel("Compatible With", "Inferred dependencies and protocols", view.dependencies.length ? view.dependencies : ["LLM provider"])}
         ${panel("Use Cases", "Where agents should consider it", view.useCases)}
+      </section>
+
+      <section class="panel" style="margin-top:14px">
+        <div class="panel-heading"><div><p class="eyebrow">Classification Evidence</p><h2>Why Git.Top categorized this project</h2></div><a class="button" href="/api/project/${escapeAttr(view.repo)}">Full JSON</a></div>
+        <div class="evidence-list">
+          ${classificationRows(view)}
+        </div>
       </section>
 
       <section class="panel table-wrap" style="margin-top:14px">
@@ -148,6 +214,38 @@ function metric(label: string, value: string | number): string {
 function panel(eyebrow: string, title: string, items: string[]): string {
   return `<article class="panel"><p class="eyebrow">${escapeHtml(eyebrow)}</p><h2>${escapeHtml(title)}</h2><div class="tag-list">${items.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div></article>`;
 }
+
+function confidenceRows(view: ReturnType<typeof toProjectKnowledgeView>): string {
+  const confidence = view.qualitySignalConfidence ?? {};
+  return [
+    ["Stars 30d", confidence.stars30dDelta ?? "unknown"],
+    ["Commits 30d", confidence.commits30d ?? "unknown"],
+    ["Releases 180d", confidence.releases180d ?? "unknown"],
+    ["Contributors 90d", confidence.contributors90d ?? "unknown"]
+  ]
+    .map(([label, value]) => `<div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(String(value))}</span></div>`)
+    .join("");
+}
+
+function classificationRows(view: ReturnType<typeof toProjectKnowledgeView>): string {
+  const classification = view.classification;
+  if (!classification) {
+    return `<div><strong>No classification evidence</strong><span>Inspect the JSON API for generated project data.</span></div>`;
+  }
+  const rows: Array<[string, ClassificationSignal | undefined]> = [
+    ["Category", classification.category],
+    ["Deployment", classification.deployment],
+    ["Difficulty", classification.difficulty],
+    ["Cloudflare Ready", classification.cloudflareReady]
+  ];
+  return rows
+    .map(([label, signal]) => {
+      const evidence = signal?.evidence?.slice(0, 2).join(" ") || "No evidence recorded.";
+      return `<div><strong>${escapeHtml(label)}: ${escapeHtml(signal?.confidence ?? "unknown")}</strong><span>${escapeHtml(evidence)}</span></div>`;
+    })
+    .join("");
+}
+
 
 function yes(value: boolean): string {
   return value ? "Yes" : "No";

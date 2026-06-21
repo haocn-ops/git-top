@@ -3,7 +3,8 @@ main = "src/index.ts"
 compatibility_date = "2026-06-16"
 workers_dev = true
 routes = [
-  { pattern = "git.top", custom_domain = true }
+  { pattern = "git.top", custom_domain = true },
+  { pattern = "www.git.top", custom_domain = true }
 ]
 
 [[d1_databases]]

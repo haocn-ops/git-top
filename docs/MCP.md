@@ -24,6 +24,8 @@ Git.Top supports a simple GET discovery response:
 curl http://localhost:8787/mcp
 ```
 
+The GET response includes the MCP endpoint, docs URL, project schema URL, health URL, quality URL, quickstart hints, example JSON-RPC payloads, and the tool list. Agents should use it as the discovery entry point before guessing routes.
+
 JSON-RPC tool listing:
 
 ```sh
