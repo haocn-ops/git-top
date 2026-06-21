@@ -119,7 +119,7 @@ Acceptance criteria:
 ## Optional Backlog
 
 1. Replace the Node strip-types validation scripts with a formal test runner if the project grows.
-2. Add Wrangler-based integration tests against a real local D1 database.
-3. Completed: GitHub Actions runs `pnpm smoke:prod` after successful pushes to `main`, so CI checks the deployed Worker after the local release gate passes.
+2. Completed: `pnpm db:integration` runs Wrangler against a real local D1 database and is included in `pnpm release:check`.
+3. Completed in repo: GitHub Actions runs `pnpm smoke:prod` after successful pushes to `main`, so CI checks the deployed Worker after the local release gate passes. GitHub currently reports `Actions has been disabled for this user`; re-enable Actions in GitHub settings for the active workflow to execute.
 4. Completed: `/register` is removed from primary navigation and redirects to `/projects` until backed by real account persistence.
 5. Add visual regression or Playwright coverage for the Next.js project and graph pages.
