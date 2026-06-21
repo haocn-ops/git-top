@@ -1,12 +1,12 @@
 # Git.Top Data Coverage
 
-Generated at: 2026-06-21T01:50:24.971Z
+Generated at: 2026-06-21T02:00:27.873Z
 
 This report summarizes the curated seed repository list. It is a heuristic coverage report, not a replacement for live GitHub sync or generated Agent Card classification.
 
 ## Summary
 
-- Seed repositories: 308
+- Seed repositories: 378
 - Heuristically covered categories: 13/13
 - Missing categories: none
 - Uncategorized repositories: 0
@@ -16,18 +16,18 @@ This report summarizes the curated seed repository list. It is a heuristic cover
 | Category | Repository Count |
 | --- | ---: |
 | `agent_framework` | 49 |
-| `coding_agent` | 21 |
-| `browser_agent` | 21 |
-| `rag_framework` | 30 |
-| `vector_database` | 19 |
-| `llm_gateway` | 9 |
-| `llm_eval` | 13 |
-| `prompt_tooling` | 19 |
-| `workflow_automation` | 14 |
+| `coding_agent` | 28 |
+| `browser_agent` | 29 |
+| `rag_framework` | 34 |
+| `vector_database` | 30 |
+| `llm_gateway` | 15 |
+| `llm_eval` | 21 |
+| `prompt_tooling` | 25 |
+| `workflow_automation` | 21 |
 | `local_llm_runtime` | 30 |
-| `ai_app_template` | 28 |
+| `ai_app_template` | 36 |
 | `mcp_server` | 32 |
-| `ai_observability` | 23 |
+| `ai_observability` | 28 |
 
 ## Uncategorized Repositories
 

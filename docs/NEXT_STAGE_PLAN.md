@@ -31,7 +31,7 @@ Completion notes:
 
 - Production deployment is live at `https://git.top`.
 - Production D1 smoke verification passes with `metadata.source: "d1"`.
-- The seed baseline has 308 live-verified repositories across all 13 V1 categories.
+- The seed baseline has 378 repositories across all 13 V1 categories, including 70 live-checked repositories added after the 308-repository public V1 baseline.
 - CI-safe evaluation, local evaluation, ranking experiments, low-confidence review, local D1 integration, and production smoke checks are available.
 - `pnpm release:check` is the repeatable public V1 release gate.
 
@@ -106,11 +106,11 @@ Initial baseline:
 - `/api/quality` now includes a `coverage` object with category coverage, missing categories, low-confidence classification rate, stale project rate, Cloudflare-ready count, and average scores.
 - The seed list has reached 120 repositories and covers all 13 V1 categories.
 - `pnpm validate` now includes `seed:coverage` and `eval:quality` so coverage and recommendation regressions are part of the default gate.
-- After live verification cleanup and the next expansion batches, the current seed baseline is 308 repositories, all live, unarchived, canonical, and covering all 13 V1 categories.
+- After live verification cleanup and the first curated expansion batch, the current seed baseline is 378 repositories and covers all 13 V1 categories.
 
 Next expansion target:
 
-- Grow from 308 toward 500 repositories.
+- Grow from 378 toward 500 repositories.
 - Add live sync verification for renamed, archived, or unavailable repositories.
 - Sync the larger seed set into local D1 fixtures or integration data so evaluation can move from synthetic seed metadata to generated Agent Cards.
 
@@ -133,8 +133,8 @@ Acceptance criteria:
 Public V1 completion:
 
 - `pnpm seed:validate` now enforces the 300-repository public V1 minimum.
-- The current seed list has 308 repositories.
-- The latest full authenticated live check passed with 308/308 repositories OK.
+- The current seed list has 378 repositories.
+- The latest authenticated expansion live check passed with 70/70 newly added repositories OK.
 - Expansion toward 500 remains a quality-controlled growth task rather than a V1 blocker.
 - `pnpm seed:candidates` now generates a live GitHub-backed candidate review queue in `docs/SEED_CANDIDATES.md` so future expansion can be curated instead of guessed.
 
