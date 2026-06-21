@@ -92,6 +92,12 @@ Completed in the agent discovery pass:
 - Added `/llms-full.txt` as a fuller agent integration guide covering positioning, REST endpoints, MCP, scoring, trust fields, and topic pages.
 - Added both LLM discovery files to `/sitemap.xml` and the public docs page.
 
+Completed in the project indexing pass:
+
+- Expanded `/sitemap.xml` from a curated static list to include all currently loaded project detail pages from the knowledge source.
+- Preserved static docs, topic, category, deployment, API, MCP, LLM, and security discovery URLs in the sitemap.
+- Added production smoke coverage for machine discovery URLs and project detail sitemap entries.
+
 ## Product Direction
 
 The product should keep emphasizing that it is not a leaderboard. Its stronger position is:

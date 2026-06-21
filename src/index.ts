@@ -49,7 +49,7 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
   }
 
   if (url.pathname === "/sitemap.xml") {
-    return renderSitemapXml();
+    return renderSitemapXml(env);
   }
 
   if (url.pathname === "/.well-known/security.txt") {

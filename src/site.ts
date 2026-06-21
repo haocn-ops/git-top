@@ -1,3 +1,6 @@
+import { listProjectKnowledgeWithMeta } from "./knowledge-source";
+import type { Env, ProjectKnowledge } from "./types";
+
 const siteOrigin = "https://git.top";
 
 export function canonicalHostRedirect(request: Request, url: URL): Response | null {
@@ -213,53 +216,110 @@ export function renderLlmsFullTxt(): Response {
   );
 }
 
-export function renderSitemapXml(): Response {
-  const urls = [
-    ["/", "daily", "1.0"],
-    ["/docs", "weekly", "0.9"],
-    ["/projects", "daily", "0.9"],
-    ["/graph", "weekly", "0.8"],
-    ["/categories/agent_framework", "weekly", "0.8"],
-    ["/categories/mcp_server", "weekly", "0.8"],
-    ["/categories/rag_framework", "weekly", "0.8"],
-    ["/categories/coding_agent", "weekly", "0.8"],
-    ["/deployments/cloudflare", "weekly", "0.8"],
-    ["/deployments/docker", "weekly", "0.8"],
-    ["/deployments/local", "weekly", "0.8"],
-    ["/compare/cloudflare-agents...langchain-ai-langchain", "weekly", "0.7"],
-    ["/topics/best-mcp-servers", "weekly", "0.9"],
-    ["/topics/best-ai-agent-frameworks", "weekly", "0.9"],
-    ["/topics/cloudflare-ready-ai-projects", "weekly", "0.9"],
-    ["/topics/langchain-alternatives", "weekly", "0.9"],
-    ["/topics/open-source-rag-frameworks", "weekly", "0.9"],
-    ["/topics/github-project-alternatives-api", "weekly", "0.9"],
-    ["/topics/open-source-quality-score-api", "weekly", "0.9"],
-    ["/og.svg", "monthly", "0.6"],
-    ["/projects/cloudflare/agents", "weekly", "0.8"],
-    ["/projects/modelcontextprotocol/servers", "weekly", "0.8"],
-    ["/projects/langchain-ai/langchain", "weekly", "0.8"],
-    ["/projects/run-llama/llama_index", "weekly", "0.8"],
-    ["/api/health", "daily", "0.6"],
-    ["/api/search", "daily", "0.7"],
-    ["/api/trending", "daily", "0.7"],
-    ["/api/quality", "daily", "0.7"],
-    ["/api/schema/project.v2", "weekly", "0.7"],
-    ["/api/openapi.json", "weekly", "0.7"],
-    ["/openapi.json", "weekly", "0.7"],
-    ["/mcp", "weekly", "0.7"],
-    ["/llms.txt", "weekly", "0.8"],
-    ["/llms-full.txt", "weekly", "0.8"],
-    ["/robots.txt", "monthly", "0.4"],
-    ["/.well-known/security.txt", "monthly", "0.4"]
-  ];
+interface SitemapUrl {
+  path: string;
+  changefreq: string;
+  priority: string;
+  lastmod?: string;
+}
+
+export async function renderSitemapXml(env: Env): Promise<Response> {
   const now = new Date().toISOString();
+  const urls = mergeSitemapUrls([...staticSitemapUrls(now), ...(await projectSitemapUrls(env))]);
   const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls
     .map(
-      ([path, changefreq, priority]) =>
-        `  <url><loc>${siteOrigin}${path}</loc><lastmod>${now}</lastmod><changefreq>${changefreq}</changefreq><priority>${priority}</priority></url>`
+      ({ path, changefreq, priority, lastmod }) =>
+        `  <url><loc>${escapeXml(`${siteOrigin}${path}`)}</loc><lastmod>${escapeXml(lastmod ?? now)}</lastmod><changefreq>${escapeXml(changefreq)}</changefreq><priority>${escapeXml(priority)}</priority></url>`
     )
     .join("\n")}\n</urlset>\n`;
   return text(body, "application/xml; charset=utf-8");
+}
+
+function staticSitemapUrls(now: string): SitemapUrl[] {
+  return [
+    { path: "/", changefreq: "daily", priority: "1.0", lastmod: now },
+    { path: "/docs", changefreq: "weekly", priority: "0.9", lastmod: now },
+    { path: "/projects", changefreq: "daily", priority: "0.9", lastmod: now },
+    { path: "/graph", changefreq: "weekly", priority: "0.8", lastmod: now },
+    { path: "/categories/agent_framework", changefreq: "weekly", priority: "0.8", lastmod: now },
+    { path: "/categories/mcp_server", changefreq: "weekly", priority: "0.8", lastmod: now },
+    { path: "/categories/rag_framework", changefreq: "weekly", priority: "0.8", lastmod: now },
+    { path: "/categories/coding_agent", changefreq: "weekly", priority: "0.8", lastmod: now },
+    { path: "/deployments/cloudflare", changefreq: "weekly", priority: "0.8", lastmod: now },
+    { path: "/deployments/docker", changefreq: "weekly", priority: "0.8", lastmod: now },
+    { path: "/deployments/local", changefreq: "weekly", priority: "0.8", lastmod: now },
+    { path: "/compare/cloudflare-agents...langchain-ai-langchain", changefreq: "weekly", priority: "0.7", lastmod: now },
+    { path: "/topics/best-mcp-servers", changefreq: "weekly", priority: "0.9", lastmod: now },
+    { path: "/topics/best-ai-agent-frameworks", changefreq: "weekly", priority: "0.9", lastmod: now },
+    { path: "/topics/cloudflare-ready-ai-projects", changefreq: "weekly", priority: "0.9", lastmod: now },
+    { path: "/topics/langchain-alternatives", changefreq: "weekly", priority: "0.9", lastmod: now },
+    { path: "/topics/open-source-rag-frameworks", changefreq: "weekly", priority: "0.9", lastmod: now },
+    { path: "/topics/github-project-alternatives-api", changefreq: "weekly", priority: "0.9", lastmod: now },
+    { path: "/topics/open-source-quality-score-api", changefreq: "weekly", priority: "0.9", lastmod: now },
+    { path: "/og.svg", changefreq: "monthly", priority: "0.6", lastmod: now },
+    { path: "/api/health", changefreq: "daily", priority: "0.6", lastmod: now },
+    { path: "/api/search", changefreq: "daily", priority: "0.7", lastmod: now },
+    { path: "/api/trending", changefreq: "daily", priority: "0.7", lastmod: now },
+    { path: "/api/quality", changefreq: "daily", priority: "0.7", lastmod: now },
+    { path: "/api/schema/project.v2", changefreq: "weekly", priority: "0.7", lastmod: now },
+    { path: "/api/openapi.json", changefreq: "weekly", priority: "0.7", lastmod: now },
+    { path: "/openapi.json", changefreq: "weekly", priority: "0.7", lastmod: now },
+    { path: "/mcp", changefreq: "weekly", priority: "0.7", lastmod: now },
+    { path: "/llms.txt", changefreq: "weekly", priority: "0.8", lastmod: now },
+    { path: "/llms-full.txt", changefreq: "weekly", priority: "0.8", lastmod: now },
+    { path: "/robots.txt", changefreq: "monthly", priority: "0.4", lastmod: now },
+    { path: "/.well-known/security.txt", changefreq: "monthly", priority: "0.4", lastmod: now }
+  ];
+}
+
+async function projectSitemapUrls(env: Env): Promise<SitemapUrl[]> {
+  const knowledge = await listProjectKnowledgeWithMeta(env);
+  return knowledge.projects.map((item) => ({
+    path: projectPath(item),
+    changefreq: "weekly",
+    priority: projectPriority(item),
+    lastmod: projectLastModified(item)
+  }));
+}
+
+function mergeSitemapUrls(urls: SitemapUrl[]): SitemapUrl[] {
+  return Array.from(new Map(urls.map((url) => [url.path, url])).values());
+}
+
+function projectPath(item: ProjectKnowledge): string {
+  return `/projects/${encodeURIComponent(item.project.owner)}/${encodeURIComponent(item.project.name)}`;
+}
+
+function projectPriority(item: ProjectKnowledge): string {
+  if (item.agentCard.projectKind === "collection") {
+    return "0.7";
+  }
+  if (item.metrics.gitScore >= 80 || item.metrics.maintenanceScore >= 80) {
+    return "0.85";
+  }
+  return "0.8";
+}
+
+function projectLastModified(item: ProjectKnowledge): string {
+  const candidate = item.project.pushedAt ?? item.project.updatedAt ?? item.project.syncedAt;
+  return validIsoDate(candidate) ?? new Date().toISOString();
+}
+
+function validIsoDate(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : null;
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
 }
 
 export function renderDocsPage(): Response {

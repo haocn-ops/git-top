@@ -87,6 +87,22 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
+  await check(context, "machine_discovery", async () => {
+    const sitemap = await getText(context, "/sitemap.xml");
+    assert.equal(sitemap.status, 200);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms\.txt<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms-full\.txt<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/projects\/cloudflare\/agents<\/loc>/);
+
+    const llms = await getText(context, "/llms.txt");
+    assert.equal(llms.status, 200);
+    assert.match(llms.text, /Git\.Top is an agent-native GitHub project knowledge layer/);
+
+    return {
+      sitemapProjectUrls: Array.from(sitemap.text.matchAll(/<loc>https:\/\/git\.top\/projects\//g)).length
+    };
+  });
+
   return {
     baseUrl,
     ok: true,
@@ -135,6 +151,10 @@ async function getJson(context, path) {
   return requestJson(context, path, { method: "GET" });
 }
 
+async function getText(context, path) {
+  return requestText(context, path, { method: "GET" });
+}
+
 async function postJson(context, path, body) {
   return requestJson(context, path, {
     method: "POST",
@@ -143,6 +163,23 @@ async function postJson(context, path, body) {
     },
     body: JSON.stringify(body)
   });
+}
+
+async function requestText(context, path, init) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), context.timeoutMs);
+  try {
+    const response = await fetch(`${context.baseUrl}${path}`, {
+      ...init,
+      signal: controller.signal
+    });
+    return {
+      status: response.status,
+      text: await response.text()
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function requestJson(context, path, init) {
