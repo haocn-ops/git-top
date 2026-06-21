@@ -108,7 +108,16 @@ curl -X POST https://git.top/api/admin/sync \
   -d '{"limit":1}'
 ```
 
-Use larger manual limits only after checking recent `/api/sync/status` runs. Manual sync performs full signal collection unless code is changed to request lightweight signals. If production is `degraded` with a subrequest-limit error, run `limit:1` until a successful run makes `health` return to `healthy`.
+Use lightweight signal collection for catch-up syncs:
+
+```sh
+curl -X POST https://git.top/api/admin/sync \
+  -H "authorization: Bearer $SYNC_SECRET" \
+  -H "content-type: application/json" \
+  -d '{"limit":5,"signal_depth":"lite"}'
+```
+
+Use larger manual limits only after checking recent `/api/sync/status` runs. If production is `degraded` with a subrequest-limit error, run `limit:1` or `signal_depth:"lite"` until a successful run makes `health` return to `healthy`.
 
 ## Data Quality Check
 

@@ -84,6 +84,8 @@ curl -X POST http://localhost:8787/api/admin/sync \
   -d '{"limit": 5, "offset": 0}'
 ```
 
+Use `{"limit":5,"signal_depth":"lite"}` for catch-up syncs that should stay under Worker subrequest limits.
+
 Omit `offset` to use the stored seed cursor. Cron syncs use this cursor and advance through the seed list in small batches.
 
 ## API

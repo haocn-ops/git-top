@@ -123,6 +123,26 @@ async function testMethodAndBodyValidation() {
   assert.equal(adminSync.status, 401);
   assert.equal(adminSync.body.error.code, "unauthorized");
 
+  const authorizedAdminSync = await request(
+    "/api/admin/sync",
+    {
+      method: "POST",
+      headers: {
+        authorization: "Bearer test-secret",
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        repositories: [],
+        limit: 5,
+        signal_depth: "lite"
+      })
+    },
+    { ...mockD1Env(), SYNC_SECRET: "test-secret" }
+  );
+  assert.equal(authorizedAdminSync.status, 200);
+  assert.deepEqual(authorizedAdminSync.body.synced, []);
+  assert.deepEqual(authorizedAdminSync.body.failed, []);
+
   const adminOverrides = await request("/api/admin/classification-overrides");
   assert.equal(adminOverrides.status, 401);
   assert.equal(adminOverrides.body.error.code, "unauthorized");

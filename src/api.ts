@@ -35,18 +35,20 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       return errorJson(401, "unauthorized", "Missing or invalid admin authorization.");
     }
 
-    let body: { repositories?: string[]; limit?: number; offset?: number } = {};
+    let body: { repositories?: string[]; limit?: number; offset?: number; signalDepth?: string; signal_depth?: string } = {};
     try {
-      body = (await request.json()) as { repositories?: string[]; limit?: number; offset?: number };
+      body = (await request.json()) as { repositories?: string[]; limit?: number; offset?: number; signalDepth?: string; signal_depth?: string };
     } catch {
       body = {};
     }
+    const signalDepth = parseSignalDepth(body.signalDepth ?? body.signal_depth);
 
     const result = await syncGithubProjects(env, {
       repositories: Array.isArray(body.repositories) ? body.repositories : undefined,
       limit: typeof body.limit === "number" ? body.limit : undefined,
       offset: typeof body.offset === "number" ? body.offset : undefined,
-      trigger: "admin"
+      trigger: "admin",
+      signalDepth
     });
 
     return json(result, {
@@ -357,6 +359,10 @@ function isAuthorizedAdmin(request: Request, env: Env): boolean {
   const auth = request.headers.get("authorization") ?? "";
   const expected = `Bearer ${env.SYNC_SECRET}`;
   return auth === expected;
+}
+
+function parseSignalDepth(value: unknown): "full" | "lite" | undefined {
+  return value === "full" || value === "lite" ? value : undefined;
 }
 
 type ClassificationOverrideParseResult =

@@ -175,6 +175,15 @@ curl -X POST http://localhost:8787/api/admin/sync \
   -d '{"limit":5,"offset":0}'
 ```
 
+Use lightweight signal collection for catch-up syncs that need to stay under Worker subrequest limits:
+
+```sh
+curl -X POST http://localhost:8787/api/admin/sync \
+  -H "authorization: Bearer $SYNC_SECRET" \
+  -H "content-type: application/json" \
+  -d '{"limit":5,"signal_depth":"lite"}'
+```
+
 Sync a specific set:
 
 ```sh
