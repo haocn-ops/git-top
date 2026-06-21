@@ -17,12 +17,24 @@ pnpm validate
 pnpm db:integration
 ```
 
+Or run the combined public V1 release gate before and after a deployment:
+
+```sh
+pnpm release:check
+```
+
+For a pre-deploy check where production is intentionally not available yet:
+
+```sh
+pnpm release:check -- --skip-prod-smoke
+```
+
 When schema columns changed, apply migrations in `migrations/` to the target D1 database before deploying code that reads those columns.
 
 ## Deploy
 
 ```sh
-pnpm deploy
+pnpm run deploy
 ```
 
 Required production secrets:
@@ -39,6 +51,8 @@ Run the read-only production smoke check:
 ```sh
 pnpm smoke:prod
 ```
+
+The current V1 release policy is manual deploy with scripted gates. Do not enable CI-driven production deploys until D1 migration order, production secrets, and rollback ownership are explicit in the CI workflow.
 
 For a preview or local Worker:
 

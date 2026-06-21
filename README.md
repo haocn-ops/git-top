@@ -11,6 +11,7 @@ Git.Top turns unstructured GitHub repository data into structured project knowle
 - [REST API guide](./docs/API.md)
 - [MCP guide](./docs/MCP.md)
 - [GRP examples](./docs/GRP_EXAMPLES.md)
+- [Agent quickstart](./docs/AGENT_QUICKSTART.md)
 - [Production runbook](./docs/PRODUCTION_RUNBOOK.md)
 - [Data coverage report](./docs/DATA_COVERAGE.md)
 - [Seed live check report](./docs/SEED_LIVE_CHECK.md)
@@ -39,6 +40,7 @@ pnpm eval:quality
 pnpm eval:local
 pnpm eval:ranking
 pnpm smoke:prod
+pnpm release:check
 pnpm check
 pnpm validate
 pnpm quality:check
@@ -50,6 +52,8 @@ pnpm dev
 `pnpm eval:quality` is the CI-safe recommendation and classification regression gate. `pnpm eval:local` runs broader generated category and deployment probes across the fixture-backed project set and writes [docs/EVAL_LOCAL.md](./docs/EVAL_LOCAL.md); use it before tuning ranking heuristics, but keep it out of the default validation path. `pnpm eval:ranking` compares offline ranking strategies in [docs/RANKING_EXPERIMENTS.md](./docs/RANKING_EXPERIMENTS.md). Runtime search keeps exact-intent ranking by default; broad scoped discovery can opt into `ranking=browse`.
 
 `pnpm smoke:prod` validates the deployed Worker at `https://git.top` and requires D1-backed responses. Use `pnpm smoke:prod -- --base-url http://localhost:8787` for a local or preview Worker, or add `--allow-seed` only when intentionally checking seed fallback behavior.
+
+`pnpm release:check` runs the public V1 release gate: local validation, local D1 integration, and production smoke. Use `pnpm release:check -- --skip-prod-smoke` only when validating a build before the production deployment exists.
 
 When updating an existing D1 database, apply SQL files in [migrations](./migrations) before deploying code that reads the new columns.
 

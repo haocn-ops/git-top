@@ -8,6 +8,14 @@ Endpoint:
 POST /api/grp/query
 ```
 
+Production endpoint:
+
+```txt
+https://git.top/api/grp/query
+```
+
+For REST and MCP examples around the same workflow, see [Agent Quickstart](./AGENT_QUICKSTART.md).
+
 Modes:
 
 - `plan`: produce solution paths and a recommended stack.
@@ -99,3 +107,12 @@ Agents should read:
 - `metadata` for version, generation time, candidate count, and depth.
 
 When presenting a recommendation, cite the relevant `explanation`, `tradeoffs`, metadata source, and confidence evidence from the project knowledge where available.
+
+## Minimal Response Shape
+
+A useful GRP answer should include:
+
+- The selected mode and normalized intent.
+- The first recommended path or stack.
+- Alternatives when the first path has deployment or maturity caveats.
+- `metadata.dataSource.source` so the caller can tell whether the result came from D1 or seed fallback.

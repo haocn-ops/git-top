@@ -14,6 +14,8 @@ Production base URL:
 https://git.top
 ```
 
+For a task-oriented walkthrough, start with [Agent Quickstart](./AGENT_QUICKSTART.md).
+
 ## Response Metadata
 
 Most knowledge endpoints include `metadata`.
@@ -27,6 +29,8 @@ Important fields:
 - `warnings`: present when seed fallback or another caution applies
 
 Agents should surface or account for this metadata when making recommendations.
+
+Production agents should require `metadata.source` to be `d1` for high-confidence recommendations. If an endpoint returns `seed`, present the result as fallback-backed.
 
 ## Health
 
@@ -131,6 +135,14 @@ curl http://localhost:8787/api/quality
 ```
 
 Use this endpoint to inspect data quality before treating recommendations as high-confidence.
+
+Important quality fields:
+
+- `coverage.covered_categories`
+- `coverage.missing_categories`
+- `coverage.low_confidence_classification_rate`
+- `coverage.stale_project_rate`
+- `metadata.source`
 
 ## Schemas
 

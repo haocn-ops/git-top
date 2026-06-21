@@ -14,6 +14,8 @@ Production endpoint:
 https://git.top/mcp
 ```
 
+For the fastest agent integration path, start with [Agent Quickstart](./AGENT_QUICKSTART.md).
+
 ## List Tools
 
 Git.Top supports a simple GET discovery response:
@@ -96,3 +98,5 @@ Agents should:
 - Inspect `qualitySignalConfidence` before treating growth, commit, release, or contributor counts as complete.
 - Prefer `git_top_grp_query` for goal-level planning and `search_projects` for direct retrieval.
 - Use `ranking: "browse"` for broad scoped discovery, and omit it when the user names a specific project, owner, technology, or package.
+
+When a tool returns text content, parse it as JSON and inspect `metadata` before presenting conclusions. High-confidence production answers should be backed by `metadata.source: "d1"`.
