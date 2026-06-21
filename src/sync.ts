@@ -1,14 +1,8 @@
 import { generateAgentCard } from "./cards";
 import { generateAlternatives } from "./alternatives";
-import {
-  getSyncCursor,
-  getStarsDeltaSnapshot,
-  insertSyncRun,
-  listProjectKnowledge,
-  setSyncCursor,
-  updateProjectAlternatives,
-  upsertProjectKnowledge
-} from "./db";
+import { getSyncCursor, getStarsDeltaSnapshot, insertSyncRun, setSyncCursor } from "./db-sync-store";
+import { updateProjectAlternatives, upsertProjectKnowledge } from "./db-write-store";
+import { listProjectKnowledgeWithMeta } from "./knowledge-source";
 import { defaultSeedRepositories, GithubClient } from "./github";
 import { calculateMetrics } from "./scoring";
 import type { Env, GithubRepository, Project, ProjectKnowledge, SyncFailure, SyncTrigger } from "./types";
@@ -102,7 +96,7 @@ export async function syncGithubProjects(env: Env, options: SyncOptions = {}): P
     }
   }
 
-  const projects = await listProjectKnowledge(env);
+  const projects = (await listProjectKnowledgeWithMeta(env)).projects;
   const syncedIds = new Set(result.synced.map((repository) => repository.toLowerCase()));
   const alternativeUpdates = projects
     .filter((project) => syncedIds.has(project.project.id.toLowerCase()))

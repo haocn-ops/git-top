@@ -11,7 +11,7 @@ Git.Top V1 uses the Cloudflare Worker as the authoritative public runtime.
 - Scheduled sync: Cloudflare Cron trigger in `wrangler.toml`
 - Database: Cloudflare D1 binding named `DB`
 
-The Next.js app remains part of the repository as a richer UI and static preview layer. It can render with bundled seed data or read the live Worker API when `NEXT_PUBLIC_GIT_TOP_API_BASE` is set.
+The Next.js app remains part of the repository as a richer UI and static preview layer. It can render with bundled seed data or read the live Worker API when `NEXT_PUBLIC_GIT_TOP_API_BASE` is set. It is not the production source of truth for V1 routing, data loading, API behavior, MCP behavior, or sync behavior.
 
 ## Why This Shape
 
@@ -78,7 +78,7 @@ Primary routes:
 - `/api/*`
 - `/mcp`
 
-Prototype console pages in the Next.js app, such as users, tenants, settings, and reports, are not part of the primary V1 navigation until backed by real persistence.
+Prototype console pages in the Next.js app, such as users, tenants, settings, and reports, are redirected or kept out of primary navigation until backed by real persistence.
 
 ## Verification
 

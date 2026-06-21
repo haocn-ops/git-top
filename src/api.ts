@@ -1,16 +1,13 @@
 import {
   findAlternativesFromList,
   getProjectKnowledgeFromList,
-  getHealth,
-  listClassificationOverrides,
-  getSyncStatus,
   getTrendingFromList,
-  listProjectKnowledgeWithMeta,
   recommendProjectList,
-  searchProjectList,
-  upsertClassificationOverride,
-  updateProjectAlternatives
-} from "./db";
+  searchProjectList
+} from "./project-search";
+import { getHealth } from "./health";
+import { getSyncStatus } from "./db-sync-store";
+import { listClassificationOverrides, updateProjectAlternatives, upsertClassificationOverride } from "./db-write-store";
 import { generateAlternativesForAll } from "./alternatives";
 import { defaultSeedRepositories } from "./github";
 import { buildKnowledgeGraph, compareProjectKnowledge } from "./graph";
@@ -19,8 +16,10 @@ import { errorJson, json, parseBool, parseLimit, rawJson } from "./http";
 import { toProjectKnowledgeView } from "./project-view";
 import { buildQualityReport } from "./quality";
 import { agentCardJsonSchema, projectKnowledgeJsonSchema, projectV2JsonSchema } from "./schema";
+import { getKnowledgeForSourcePolicy } from "./source-policy";
 import { syncGithubProjects } from "./sync";
 import type { AgentCard, Category, Deployment, Difficulty, Env } from "./types";
+import type { ProjectKnowledgeResult } from "./knowledge-source";
 
 export async function handleApi(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -67,7 +66,11 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       return errorJson(401, "unauthorized", "Missing or invalid admin authorization.");
     }
 
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledgePolicy = await getKnowledgeForSourcePolicy(env);
+    if (!knowledgePolicy.ok) {
+      return sourcePolicyError(knowledgePolicy.failure);
+    }
+    const knowledge = knowledgePolicy.knowledge;
     const result = generateAlternativesForAll(knowledge.projects);
     const updated = await updateProjectAlternatives(env, result.updates);
 
@@ -159,7 +162,10 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       return errorJson(400, "invalid_grp_request", parsed.message);
     }
 
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledge = await requireKnowledgeSource(request, env);
+    if (knowledge instanceof Response) {
+      return knowledge;
+    }
     const result = runGrpQuery(knowledge.projects, parsed.request);
     return json(
       {
@@ -198,7 +204,10 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
   }
 
   if (path === "/api/quality") {
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledge = await requireKnowledgeSource(request, env);
+    if (knowledge instanceof Response) {
+      return knowledge;
+    }
     return json({ ...buildQualityReport(knowledge.projects), metadata: knowledge.metadata }, {
       headers: {
         "cache-control": "no-store"
@@ -207,7 +216,10 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
   }
 
   if (path === "/api/graph") {
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledge = await requireKnowledgeSource(request, env);
+    if (knowledge instanceof Response) {
+      return knowledge;
+    }
     return json(
       {
         ...buildKnowledgeGraph(
@@ -233,7 +245,10 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
   }
 
   if (path === "/api/search") {
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledge = await requireKnowledgeSource(request, env);
+    if (knowledge instanceof Response) {
+      return knowledge;
+    }
     const results = searchProjectList(knowledge.projects, {
       q: url.searchParams.get("q") ?? undefined,
       category: url.searchParams.get("category") ?? undefined,
@@ -254,7 +269,10 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
   }
 
   if (path === "/api/trending") {
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledge = await requireKnowledgeSource(request, env);
+    if (knowledge instanceof Response) {
+      return knowledge;
+    }
     const results = getTrendingFromList(knowledge.projects, {
       category: url.searchParams.get("category") ?? undefined,
       limit: parseLimit(url.searchParams.get("limit"))
@@ -264,7 +282,10 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
   }
 
   if (path === "/api/recommend") {
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledge = await requireKnowledgeSource(request, env);
+    if (knowledge instanceof Response) {
+      return knowledge;
+    }
     const recommendations = recommendProjectList(knowledge.projects, {
       useCase: url.searchParams.get("use_case") ?? undefined,
       deployment: url.searchParams.get("deployment") ?? undefined,
@@ -286,7 +307,10 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       .split(",")
       .map((value) => value.trim())
       .filter(Boolean);
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledge = await requireKnowledgeSource(request, env);
+    if (knowledge instanceof Response) {
+      return knowledge;
+    }
     const projects =
       ids.length > 0
         ? knowledge.projects.filter((item) => ids.includes(item.project.id) || ids.includes(item.project.fullName))
@@ -299,7 +323,10 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
 
   const categoryMatch = path.match(/^\/api\/category\/([^/]+)$/);
   if (categoryMatch) {
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledge = await requireKnowledgeSource(request, env);
+    if (knowledge instanceof Response) {
+      return knowledge;
+    }
     const projects = searchProjectList(knowledge.projects, {
       category: decodeURIComponent(categoryMatch[1]),
       limit: parseLimit(url.searchParams.get("limit"))
@@ -310,7 +337,10 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
   const projectMatch = path.match(/^\/api\/project\/([^/]+)\/([^/]+)$/);
   if (projectMatch) {
     const id = `${decodeURIComponent(projectMatch[1])}/${decodeURIComponent(projectMatch[2])}`;
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledge = await requireKnowledgeSource(request, env);
+    if (knowledge instanceof Response) {
+      return knowledge;
+    }
     const project = getProjectKnowledgeFromList(knowledge.projects, id);
     if (!project) {
       return errorJson(404, "project_not_found", `Project ${id} was not found.`);
@@ -321,7 +351,10 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
   const shortProjectMatch = path.match(/^\/api\/project\/([^/]+)$/);
   if (shortProjectMatch) {
     const id = decodeURIComponent(shortProjectMatch[1]);
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledge = await requireKnowledgeSource(request, env);
+    if (knowledge instanceof Response) {
+      return knowledge;
+    }
     const project = getProjectKnowledgeFromList(knowledge.projects, id);
     if (!project) {
       return errorJson(404, "project_not_found", `Project ${id} was not found.`);
@@ -332,14 +365,20 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
   const alternativesMatch = path.match(/^\/api\/alternatives\/([^/]+)\/([^/]+)$/);
   if (alternativesMatch) {
     const id = `${decodeURIComponent(alternativesMatch[1])}/${decodeURIComponent(alternativesMatch[2])}`;
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledge = await requireKnowledgeSource(request, env);
+    if (knowledge instanceof Response) {
+      return knowledge;
+    }
     const alternatives = findAlternativesFromList(knowledge.projects, id, parseLimit(url.searchParams.get("limit")));
     return json({ alternatives: alternatives.map(toProjectKnowledgeView), metadata: knowledge.metadata });
   }
 
   const shortAlternativesMatch = path.match(/^\/api\/alternatives\/([^/]+)$/);
   if (shortAlternativesMatch) {
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledge = await requireKnowledgeSource(request, env);
+    if (knowledge instanceof Response) {
+      return knowledge;
+    }
     const alternatives = findAlternativesFromList(
       knowledge.projects,
       decodeURIComponent(shortAlternativesMatch[1]),
@@ -349,6 +388,38 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
   }
 
   return errorJson(404, "not_found", "Unknown API endpoint.");
+}
+
+async function requireKnowledgeSource(request: Request, env: Env): Promise<ProjectKnowledgeResult | Response> {
+  const policy = await getKnowledgeForSourcePolicy(env, { requireD1: requiresD1(request) });
+  if (policy.ok) {
+    return policy.knowledge;
+  }
+
+  return sourcePolicyError(policy.failure);
+}
+
+function sourcePolicyError(failure: { code: string; message: string; metadata: ProjectKnowledgeResult["metadata"] }): Response {
+  return json(
+    {
+      error: {
+        code: failure.code,
+        message: failure.message,
+        metadata: failure.metadata
+      }
+    },
+    {
+      status: 503,
+      headers: {
+        "cache-control": "no-store"
+      }
+    }
+  );
+}
+
+function requiresD1(request: Request): boolean {
+  const url = new URL(request.url);
+  return parseBool(url.searchParams.get("require_d1")) === true;
 }
 
 function isAuthorizedAdmin(request: Request, env: Env): boolean {

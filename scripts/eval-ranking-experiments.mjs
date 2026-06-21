@@ -6,7 +6,7 @@ import {
   runEvalCasesWithSearch,
   summarizeEvalResults
 } from "./eval-lib.mjs";
-import { searchProjectList } from "../src/db.ts";
+import { searchProjectList } from "../src/project-search.ts";
 
 const genericIntentWords = new Set(["agent", "app", "apps", "cloud", "framework", "install", "library", "local", "open", "project", "server", "source", "tool", "tools"]);
 const broadProbeWords = new Set([

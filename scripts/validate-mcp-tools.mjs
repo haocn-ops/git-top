@@ -9,6 +9,7 @@ await testToolCalls();
 await testGrpToolValidation();
 await testRpcErrors();
 await testMockD1ToolSource();
+await testRequireD1ToolMode();
 await testD1FallbackToolReasons();
 
 console.log("Validated MCP tool behavior with seed and mocked D1 data sources.");
@@ -28,10 +29,12 @@ async function testDiscovery() {
   assert.match(searchTool.description, /collection_metadata/);
   assert.deepEqual(searchTool.input_schema.properties.ranking.enum, ["browse"]);
   assert.match(searchTool.input_schema.properties.ranking.description, /browse ranking/);
+  assert.equal(searchTool.input_schema.properties.require_d1.type, "boolean");
 
   const cardTool = getDiscovery.body.tools.find((tool) => tool.name === "get_project_card");
   assert.match(cardTool.description, /project_kind/);
   assert.match(cardTool.description, /collection_metadata/);
+  assert.equal(cardTool.input_schema.properties.require_d1.type, "boolean");
 }
 
 async function testToolCalls() {
@@ -173,6 +176,26 @@ async function testMockD1ToolSource() {
   assert.equal(collectionCard.result.agent_card.project_kind, "collection");
   assert.equal(collectionCard.result.agent_card.collection_metadata.scope, "awesome_list");
   assertMetadata(collectionCard.result.metadata, "d1_query", "d1");
+}
+
+async function testRequireD1ToolMode() {
+  const strictFallback = await callTool("search_projects", { query: "cloudflare", require_d1: true });
+  assert.equal(strictFallback.status, 400);
+  assert.equal(strictFallback.body.error.code, -32003);
+  assert.match(strictFallback.body.error.message, /D1-backed knowledge is required/);
+
+  const strictD1 = await callTool("search_projects", { query: "mock", require_d1: true }, mockD1Env());
+  assert.equal(strictD1.status, 200);
+  assert.equal(strictD1.result.projects.length, 1);
+  assertMetadata(strictD1.result.metadata, "d1_query", "d1");
+
+  const strictEmpty = await callTool("search_projects", { query: "cloudflare", require_d1: true }, mockD1Env("empty"));
+  assert.equal(strictEmpty.status, 400);
+  assert.equal(strictEmpty.body.error.code, -32003);
+
+  const strictError = await callTool("search_projects", { query: "cloudflare", require_d1: true }, mockD1Env("error"));
+  assert.equal(strictError.status, 400);
+  assert.equal(strictError.body.error.code, -32003);
 }
 
 async function testD1FallbackToolReasons() {

@@ -1,18 +1,19 @@
-import { findAlternatives, getProjectKnowledge, listProjectKnowledge } from "./db";
 import { buildKnowledgeGraph } from "./graph";
+import { listProjectKnowledgeWithMeta } from "./knowledge-source";
+import { findAlternativesFromList, getProjectKnowledgeFromList } from "./project-search";
 import { toProjectKnowledgeView } from "./project-view";
 import type { Env } from "./types";
 
 export async function renderProjectGraphPage(env: Env, id: string): Promise<Response | null> {
-  const project = await getProjectKnowledge(env, id);
+  const all = (await listProjectKnowledgeWithMeta(env)).projects;
+  const project = getProjectKnowledgeFromList(all, id);
   if (!project) {
     return null;
   }
 
-  const all = await listProjectKnowledge(env);
   const graph = buildKnowledgeGraph(all, project.project.id, 28);
   const view = toProjectKnowledgeView(project);
-  const alternatives = (await findAlternatives(env, project.project.id, 6)).map(toProjectKnowledgeView);
+  const alternatives = findAlternativesFromList(all, project.project.id, 6).map(toProjectKnowledgeView);
 
   return new Response(renderGraphHtml({ view, alternatives, graph }), {
     headers: {

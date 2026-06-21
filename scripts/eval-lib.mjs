@@ -1,5 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { listProjectKnowledgeWithMeta, recommendProjectList, searchProjectList } from "../src/db.ts";
+import { listProjectKnowledgeWithMeta } from "../src/knowledge-source.ts";
+import { recommendProjectList, searchProjectList } from "../src/project-search.ts";
 import { normalizeGrpRequest, runGrpQuery } from "../src/grp.ts";
 import { seedProjects } from "../src/seed.ts";
 import { buildGeneratedKnowledgeFixturesForSeed } from "./eval-fixtures.mjs";
@@ -247,6 +248,7 @@ function normalizeSearchQuery(query) {
     difficulty: stringValue(query.difficulty),
     language: stringValue(query.language),
     cloudflareReady: boolValue(query.cloudflareReady),
+    ranking: stringValue(query.ranking),
     limit: numberValue(query.limit)
   };
 }
@@ -313,6 +315,7 @@ function categoryCases(projects) {
         query: {
           q: categoryQuery(category),
           category,
+          ranking: "browse",
           limit: 8
         },
         expected: {
@@ -343,6 +346,7 @@ function deploymentCases(projects) {
       query: {
         q: deploymentQuery(deployment),
         deployment,
+        ranking: "browse",
         limit: 8
       },
       expected: {
@@ -371,6 +375,7 @@ function cloudflareReadinessCases(projects) {
         q: "cloudflare workers durable objects ready deploy",
         deployment: "cloudflare",
         cloudflareReady: true,
+        ranking: "browse",
         limit: 8
       },
       expected: {
@@ -388,6 +393,7 @@ function cloudflareReadinessCases(projects) {
         q: "cloudflare workers blockers python docker postgres",
         deployment: "cloudflare",
         cloudflareReady: false,
+        ranking: "browse",
         limit: 8
       },
       expected: {

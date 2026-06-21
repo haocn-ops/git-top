@@ -1,14 +1,15 @@
 import {
   findAlternativesFromList,
   getProjectKnowledgeFromList,
-  listProjectKnowledgeWithMeta,
   recommendProjectList,
   searchProjectList
-} from "./db";
+} from "./project-search";
+import type { ProjectKnowledgeResult } from "./knowledge-source";
 import { buildKnowledgeGraph, compareProjectKnowledge } from "./graph";
 import { normalizeGrpRequest, runGrpQuery } from "./grp";
 import { errorJson, json, stringifyApiJson } from "./http";
 import { toProjectKnowledgeView } from "./project-view";
+import { getKnowledgeForSourcePolicy } from "./source-policy";
 import type { Env, ProjectKnowledge } from "./types";
 
 interface RpcRequest {
@@ -44,7 +45,11 @@ const tools = [
           enum: ["browse"],
           description: "Optional browse ranking for broad category/deployment discovery with larger limits. Defaults to exact-intent search ranking."
         },
-        limit: { type: "number" }
+        limit: { type: "number" },
+        require_d1: {
+          type: "boolean",
+          description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
+        }
       }
     }
   },
@@ -55,7 +60,11 @@ const tools = [
     inputSchema: {
       type: "object",
       properties: {
-        project_id: { type: "string" }
+        project_id: { type: "string" },
+        require_d1: {
+          type: "boolean",
+          description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
+        }
       },
       required: ["project_id"]
     }
@@ -67,7 +76,11 @@ const tools = [
       type: "object",
       properties: {
         project_id: { type: "string" },
-        limit: { type: "number" }
+        limit: { type: "number" },
+        require_d1: {
+          type: "boolean",
+          description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
+        }
       },
       required: ["project_id"]
     }
@@ -78,7 +91,11 @@ const tools = [
     inputSchema: {
       type: "object",
       properties: {
-        project_id: { type: "string" }
+        project_id: { type: "string" },
+        require_d1: {
+          type: "boolean",
+          description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
+        }
       },
       required: ["project_id"]
     }
@@ -89,7 +106,11 @@ const tools = [
     inputSchema: {
       type: "object",
       properties: {
-        project_id: { type: "string" }
+        project_id: { type: "string" },
+        require_d1: {
+          type: "boolean",
+          description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
+        }
       },
       required: ["project_id"]
     }
@@ -110,7 +131,11 @@ const tools = [
             cloudflare_ready: { type: "boolean" }
           }
         },
-        limit: { type: "number" }
+        limit: { type: "number" },
+        require_d1: {
+          type: "boolean",
+          description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
+        }
       },
       required: ["use_case"]
     }
@@ -123,7 +148,11 @@ const tools = [
       properties: {
         project_id: { type: "string" },
         reason: { type: "string" },
-        limit: { type: "number" }
+        limit: { type: "number" },
+        require_d1: {
+          type: "boolean",
+          description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
+        }
       },
       required: ["project_id"]
     }
@@ -135,7 +164,11 @@ const tools = [
     inputSchema: {
       type: "object",
       properties: {
-        project_id: { type: "string" }
+        project_id: { type: "string" },
+        require_d1: {
+          type: "boolean",
+          description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
+        }
       },
       required: ["project_id"]
     }
@@ -147,7 +180,11 @@ const tools = [
       type: "object",
       properties: {
         project_id: { type: "string" },
-        limit: { type: "number" }
+        limit: { type: "number" },
+        require_d1: {
+          type: "boolean",
+          description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
+        }
       }
     }
   },
@@ -165,7 +202,11 @@ const tools = [
           type: "array",
           items: { type: "string" }
         },
-        deployment: { type: "string" }
+        deployment: { type: "string" },
+        require_d1: {
+          type: "boolean",
+          description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
+        }
       },
       required: ["project_ids"]
     }
@@ -210,6 +251,10 @@ const tools = [
               items: { type: "string" }
             }
           }
+        },
+        require_d1: {
+          type: "boolean",
+          description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
         }
       },
       required: ["goal"]
@@ -259,7 +304,10 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
 
 async function callTool(name: string, args: Record<string, unknown>, env: Env): Promise<unknown> {
   if (name === "search_projects") {
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledge = await requireKnowledgeSource(env, args);
+    if (isToolErrorResult(knowledge)) {
+      return knowledge;
+    }
     const projects = searchProjectList(knowledge.projects, {
       q: stringArg(args.query),
       category: stringArg(args.category),
@@ -278,7 +326,10 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
   }
 
   if (name === "get_project") {
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledge = await requireKnowledgeSource(env, args);
+    if (isToolErrorResult(knowledge)) {
+      return knowledge;
+    }
     const project = getProjectKnowledgeFromList(knowledge.projects, stringArg(args.project_id) ?? "");
     return {
       project: project ? toProjectKnowledgeView(project) : null,
@@ -288,7 +339,10 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
 
   if (name === "recommend_project") {
     const constraints = objectArg(args.constraints);
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledge = await requireKnowledgeSource(env, args);
+    if (isToolErrorResult(knowledge)) {
+      return knowledge;
+    }
     return {
       recommendations: recommendProjectList(knowledge.projects, {
         useCase: stringArg(args.use_case),
@@ -303,7 +357,10 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
   }
 
   if (name === "find_alternatives" || name === "get_alternatives") {
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledge = await requireKnowledgeSource(env, args);
+    if (isToolErrorResult(knowledge)) {
+      return knowledge;
+    }
     return {
       alternatives: findAlternativesFromList(knowledge.projects, stringArg(args.project_id) ?? "", numberArg(args.limit)).map(
         toProjectKnowledgeView
@@ -313,7 +370,10 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
   }
 
   if (name === "get_project_card") {
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledge = await requireKnowledgeSource(env, args);
+    if (isToolErrorResult(knowledge)) {
+      return knowledge;
+    }
     const project = getProjectKnowledgeFromList(knowledge.projects, stringArg(args.project_id) ?? "");
     return {
       project_id: stringArg(args.project_id),
@@ -324,7 +384,10 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
   }
 
   if (name === "get_deployment") {
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledge = await requireKnowledgeSource(env, args);
+    if (isToolErrorResult(knowledge)) {
+      return knowledge;
+    }
     const project = getProjectKnowledgeFromList(knowledge.projects, stringArg(args.project_id) ?? "");
     return {
       project_id: stringArg(args.project_id),
@@ -335,7 +398,10 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
   }
 
   if (name === "get_quality_score") {
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledge = await requireKnowledgeSource(env, args);
+    if (isToolErrorResult(knowledge)) {
+      return knowledge;
+    }
     const project = getProjectKnowledgeFromList(knowledge.projects, stringArg(args.project_id) ?? "");
     const view = project ? toProjectKnowledgeView(project) : null;
     return {
@@ -348,7 +414,10 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
   }
 
   if (name === "get_project_graph") {
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledge = await requireKnowledgeSource(env, args);
+    if (isToolErrorResult(knowledge)) {
+      return knowledge;
+    }
     return {
       graph: buildKnowledgeGraph(knowledge.projects, stringArg(args.project_id), numberArg(args.limit) ?? 24),
       metadata: knowledge.metadata
@@ -357,7 +426,10 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
 
   if (name === "compare_projects") {
     const ids = arrayArg(args.project_ids);
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledge = await requireKnowledgeSource(env, args);
+    if (isToolErrorResult(knowledge)) {
+      return knowledge;
+    }
     const foundProjects = ids
       .map((id) => getProjectKnowledgeFromList(knowledge.projects, String(id)))
       .filter(isProjectKnowledge);
@@ -377,7 +449,10 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
         }
       };
     }
-    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const knowledge = await requireKnowledgeSource(env, args);
+    if (isToolErrorResult(knowledge)) {
+      return knowledge;
+    }
     const result = runGrpQuery(knowledge.projects, parsed.request);
     return {
       ...result,
@@ -392,6 +467,20 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
     toolError: {
       code: -32601,
       message: `Unknown tool: ${name}`
+    }
+  };
+}
+
+async function requireKnowledgeSource(env: Env, args: Record<string, unknown>): Promise<ProjectKnowledgeResult | ToolErrorResult> {
+  const policy = await getKnowledgeForSourcePolicy(env, { requireD1: boolArg(args.require_d1) === true });
+  if (policy.ok) {
+    return policy.knowledge;
+  }
+
+  return {
+    toolError: {
+      code: -32003,
+      message: policy.failure.message
     }
   };
 }

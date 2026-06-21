@@ -26,11 +26,19 @@ Important fields:
 - `reason`: why that source was used
 - `project_count`: number of projects in the loaded knowledge set
 - `generated_at`: response metadata timestamp
+- `loaded_project_limit`: maximum D1 knowledge rows loaded into the in-memory ranking set, present for D1-backed knowledge responses
+- `truncated`: whether D1-backed knowledge reached that load limit and may omit additional indexed rows
 - `warnings`: present when seed fallback or another caution applies
 
 Agents should surface or account for this metadata when making recommendations.
 
 Production agents should require `metadata.source` to be `d1` for high-confidence recommendations. If an endpoint returns `seed`, present the result as fallback-backed.
+
+For fail-closed production reads, add `require_d1=true` to knowledge endpoints. When D1 is missing, empty, or failing, Git.Top returns `503` with error code `d1_required` instead of seed-backed results:
+
+```sh
+curl "http://localhost:8787/api/search?q=cloudflare%20agent%20framework&require_d1=true"
+```
 
 ## Health
 
@@ -47,6 +55,8 @@ Project count fields:
 - `knowledge_ready_project_count`: explicit alias for the knowledge-ready count.
 
 If `raw_project_count` is higher than `knowledge_ready_project_count`, `metadata.warnings` explains how many rows are not yet usable as complete project knowledge.
+
+If D1-backed `metadata.truncated` is `true`, the endpoint used a bounded in-memory ranking set and may not include every indexed project. Treat this as a scaling warning and inspect `metadata.loaded_project_limit`.
 
 Use this before relying on live data. If D1 is unavailable or empty, Git.Top may return seed-backed knowledge with warnings.
 
@@ -65,6 +75,7 @@ Supported filters:
 - `language`
 - `cloudflare_ready`
 - `ranking`: optional. Use `browse` for broad category/deployment discovery with larger result limits. Omit it for default exact-intent search ranking.
+- `require_d1`: optional boolean. Use `true` when seed fallback must fail closed.
 - `limit`
 
 Example:

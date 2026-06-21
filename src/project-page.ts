@@ -1,16 +1,18 @@
-import { findAlternatives, getProjectKnowledge } from "./db";
 import { compareProjectKnowledge, buildKnowledgeGraph } from "./graph";
+import { listProjectKnowledgeWithMeta } from "./knowledge-source";
+import { findAlternativesFromList, getProjectKnowledgeFromList } from "./project-search";
 import { toProjectKnowledgeView } from "./project-view";
 import type { Env } from "./types";
 
 export async function renderProjectPage(env: Env, id: string): Promise<Response | null> {
-  const project = await getProjectKnowledge(env, id);
+  const projects = (await listProjectKnowledgeWithMeta(env)).projects;
+  const project = getProjectKnowledgeFromList(projects, id);
   if (!project) {
     return null;
   }
 
   const view = toProjectKnowledgeView(project);
-  const alternativeProjects = await findAlternatives(env, project.project.id, 5);
+  const alternativeProjects = findAlternativesFromList(projects, project.project.id, 5);
   const alternatives = alternativeProjects.map(toProjectKnowledgeView);
   const compare = compareProjectKnowledge([project, ...alternativeProjects.slice(0, 3)], {
     deployment: view.deployments.includes("cloudflare") ? "cloudflare" : undefined

@@ -106,7 +106,7 @@ async function testQuality(baseUrl) {
   const { status, body } = await getJson(`${baseUrl}/api/quality`);
   assert.equal(status, 200);
   assert.equal(body.metadata.source, "d1");
-  assert.equal(body.project_count, totalSeedRepositories);
+  assert.equal(body.project_count, expectedIndexedProjectCount);
   assert.equal(body.coverage.covered_categories, 13);
   assert.deepEqual(body.coverage.missing_categories, []);
 }

@@ -1,6 +1,6 @@
 # Git.Top Ranking Experiments
 
-Generated at: 2026-06-21T09:53:05.375Z
+Generated at: 2026-06-21T11:54:09.269Z
 
 Offline ranking experiments compare candidate search ranking strategies against both the CI-safe eval and the broader local eval. These experiments do not change runtime search behavior.
 
@@ -8,7 +8,7 @@ Offline ranking experiments compare candidate search ranking strategies against 
 
 Strategy | CI Top-1 | CI Top-3 | CI Bad Hits | Local Top-1 | Local Top-3 | Local Bad Hits | Notes
 --- | ---: | ---: | ---: | ---: | ---: | ---: | ---
-`baseline` | 1 | 1 | 0 | 0.739 | 0.783 | 0 | Current runtime search ranking.
+`baseline` | 1 | 1 | 0 | 1 | 1 | 0 | Current runtime search ranking.
 `scoped_quality` | 0.786 | 0.964 | 0 | 0.957 | 1 | 0 | Boost quality and maintenance inside explicit category/deployment scopes.
 `exact_intent_guard` | 0.714 | 0.893 | 0 | 0.826 | 0.957 | 0 | Boost quality inside scopes while preserving exact project-name and owner intent.
 `broad_probe_quality` | 0.964 | 1 | 0 | 0.87 | 0.87 | 0 | Boost quality only for broad category/deployment queries, leaving specific intent queries on baseline ranking.
@@ -19,7 +19,7 @@ Strategy | CI Top-1 | CI Top-3 | CI Bad Hits | Local Top-1 | Local Top-3 | Local
 
 ## Conclusion
 
-Candidate `intent_aware_browse` improves local ranking without reducing CI top-1. Review the focus lists before promoting it to runtime search.
+No candidate strategy currently improves the local ranking baseline without reducing CI-safe top-1 quality. Keep these strategies offline until a narrower scoped-ranking approach preserves exact query intent.
 
 ## Targeted Probes
 
@@ -32,7 +32,7 @@ Candidate `intent_aware_browse` improves local ranking without reducing CI top-1
 ### `baseline`
 
 - CI focus: none
-- Local focus: `local-category-agent_framework`, `local-category-rag_framework`, `local-deployment-docker`, `local-deployment-local`, `local-deployment-library_only`, `local-deployment-serverless`
+- Local focus: none
 
 ### `scoped_quality`
 

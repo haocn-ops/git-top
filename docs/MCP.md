@@ -48,6 +48,14 @@ curl -X POST http://localhost:8787/mcp \
   -d '{"jsonrpc":"2.0","id":21,"method":"tools/call","params":{"name":"search_projects","arguments":{"query":"agent framework","category":"agent_framework","deployment":"cloudflare","ranking":"browse","limit":10}}}'
 ```
 
+Use `require_d1: true` when an agent must fail closed instead of accepting seed fallback:
+
+```sh
+curl -X POST http://localhost:8787/mcp \
+  -H "content-type: application/json" \
+  -d '{"jsonrpc":"2.0","id":22,"method":"tools/call","params":{"name":"search_projects","arguments":{"query":"cloudflare agent framework","require_d1":true,"limit":5}}}'
+```
+
 ## Get Project
 
 ```sh
@@ -93,6 +101,7 @@ curl -X POST http://localhost:8787/mcp \
 Agents should:
 
 - Prefer `metadata.source === "d1"` when making high-confidence recommendations.
+- Use `require_d1: true` for production answers that should fail closed rather than fall back to seed data.
 - Treat seed fallback as useful for demos and development, but mention the fallback when presenting results.
 - Inspect `classification` evidence before asserting category, difficulty, or Cloudflare readiness.
 - Inspect `quality_signal_confidence` before treating growth, commit, release, or contributor counts as complete.

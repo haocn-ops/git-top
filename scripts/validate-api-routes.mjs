@@ -11,6 +11,7 @@ await testGraphAndQualityRoutes();
 await testSchemaRoutes();
 await testMethodAndBodyValidation();
 await testMockD1Source();
+await testRequireD1Mode();
 await testD1FallbackReasons();
 await testSyncStatusWithMockD1();
 await testClassificationOverridesWithMockD1();
@@ -207,6 +208,31 @@ async function testMockD1Source() {
   assert.equal(project.body.knowledge.agent_card.project_kind, "project");
   assert.equal(project.body.quality_signal_confidence.stars_30d_delta, "snapshot");
   assertMetadata(project.body.metadata, "d1_query", "d1");
+}
+
+async function testRequireD1Mode() {
+  const strictFallback = await getJson("/api/search?q=cloudflare&require_d1=true");
+  assert.equal(strictFallback.status, 503);
+  assert.equal(strictFallback.body.error.code, "d1_required");
+  assert.equal(strictFallback.body.error.metadata.source, "seed");
+  assert.equal(strictFallback.body.error.metadata.reason, "db_missing");
+
+  const strictProjectFallback = await getJson("/api/project/cloudflare/agents?require_d1=true");
+  assert.equal(strictProjectFallback.status, 503);
+  assert.equal(strictProjectFallback.body.error.code, "d1_required");
+
+  const strictD1 = await request("/api/search?q=mock&require_d1=true", {}, mockD1Env());
+  assert.equal(strictD1.status, 200);
+  assert.equal(strictD1.body.projects.length, 1);
+  assertMetadata(strictD1.body.metadata, "d1_query", "d1");
+
+  const strictEmpty = await request("/api/search?q=cloudflare&require_d1=true", {}, mockD1Env("empty"));
+  assert.equal(strictEmpty.status, 503);
+  assert.equal(strictEmpty.body.error.metadata.reason, "db_empty");
+
+  const strictError = await request("/api/search?q=cloudflare&require_d1=true", {}, mockD1Env("error"));
+  assert.equal(strictError.status, 503);
+  assert.equal(strictError.body.error.metadata.reason, "db_error");
 }
 
 async function testD1FallbackReasons() {

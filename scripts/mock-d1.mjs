@@ -39,10 +39,12 @@ class MockStatement {
         throw new Error("no such column: pm.signal_confidence_json");
       }
       if (this.sql.includes("FROM projects p")) {
-        const rows = this.rows();
+        const rows = this.pageRows(this.rows());
         if (this.config.mode === "missing_optional_columns" && !this.sql.includes("calculated_at")) {
           const row = rows[0];
-          delete row.calculated_at;
+          if (row) {
+            delete row.calculated_at;
+          }
         }
         return {
           results: this.config.mode === "empty" ? [] : rows
@@ -97,6 +99,15 @@ class MockStatement {
 
   rows() {
     return this.config.knowledge ? this.config.knowledge.map(projectKnowledgeToRow) : [projectKnowledgeRow(this.config.mode)];
+  }
+
+  pageRows(rows) {
+    if (!this.sql.includes("LIMIT ? OFFSET ?")) {
+      return rows;
+    }
+    const limit = Number(this.bindings[this.bindings.length - 2] ?? rows.length);
+    const offset = Number(this.bindings[this.bindings.length - 1] ?? 0);
+    return rows.slice(offset, offset + limit);
   }
 
   async run() {

@@ -1,5 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { listProjectKnowledgeWithMeta } from "../src/db.ts";
+import { listProjectKnowledgeWithMeta } from "../src/knowledge-source.ts";
 import { buildLowConfidenceReviewReport } from "../src/quality.ts";
 import { seedProjects } from "../src/seed.ts";
 import { buildGeneratedKnowledgeFixturesForSeed } from "./eval-fixtures.mjs";

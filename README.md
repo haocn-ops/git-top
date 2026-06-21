@@ -19,6 +19,7 @@ Git.Top turns unstructured GitHub repository data into structured project knowle
 - [Local eval report](./docs/EVAL_LOCAL.md)
 - [Ranking experiments](./docs/RANKING_EXPERIMENTS.md)
 - [Quality hardening plan](./docs/QUALITY_HARDENING_PLAN.md)
+- [Post-V1 improvement plan](./docs/POST_V1_IMPROVEMENT_PLAN.md)
 
 ## Development
 

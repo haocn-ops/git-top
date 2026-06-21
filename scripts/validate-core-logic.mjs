@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { generateAlternatives, generateAlternativesForAll } from "../src/alternatives.ts";
-import { searchProjectList } from "../src/db.ts";
+import { searchProjectList } from "../src/project-search.ts";
 import { normalizeGrpRequest, runGrpQuery } from "../src/grp.ts";
 import worker from "../src/index.ts";
 import { getProjectDetailData } from "../src/next-data.ts";
@@ -16,6 +16,7 @@ await testLegacyConsoleRedirects();
 await testSyncBatchSelection();
 await testNextProjectDetailLookup();
 await testBrowseRanking();
+await testBrowseRankingBroadVocabulary();
 await testSpecificIntentRanking();
 await testAlternatives();
 await testGrpNormalization();
@@ -207,6 +208,61 @@ async function testBrowseRanking() {
   assert.equal(browseResults[0].project.id, highQualityBroad.project.id, "browse ranking should boost stronger broad-scope candidates");
 }
 
+async function testBrowseRankingBroadVocabulary() {
+  const canonicalRag = makeSearchFixture("mock/canonical-rag", {
+    category: "rag_framework",
+    deployment: ["local", "library_only"],
+    description: "Data framework for LLM applications with retrieval and indexing support.",
+    topics: ["rag", "retrieval"],
+    stars: 100000,
+    gitScore: 95,
+    maintenanceScore: 90
+  });
+  const exactButLowerQualityRag = makeSearchFixture("mock/exact-rag", {
+    category: "rag_framework",
+    deployment: ["local"],
+    description: "RAG retrieval indexing framework.",
+    topics: ["rag", "retrieval", "indexing"],
+    stars: 100,
+    gitScore: 10,
+    maintenanceScore: 10
+  });
+  const localPlatform = makeSearchFixture("mock/local-platform", {
+    category: "agent_framework",
+    deployment: ["local", "docker"],
+    description: "Production framework that can be installed locally.",
+    topics: ["agent", "framework"],
+    stars: 100000,
+    gitScore: 95,
+    maintenanceScore: 90
+  });
+  const lowQualityLocalTopic = makeSearchFixture("mock/local-topic", {
+    category: "local_llm_runtime",
+    deployment: ["local"],
+    description: "Small local open source project.",
+    topics: ["local", "project"],
+    stars: 100,
+    gitScore: 10,
+    maintenanceScore: 10
+  });
+
+  const ragResults = searchProjectList([exactButLowerQualityRag, canonicalRag], {
+    q: "rag retrieval indexing framework",
+    category: "rag_framework",
+    ranking: "browse",
+    limit: 8
+  });
+  assert.equal(ragResults[0].project.id, canonicalRag.project.id, "browse category probes should treat indexing as broad vocabulary");
+
+  const localResults = searchProjectList([lowQualityLocalTopic, localPlatform], {
+    q: "local install open source project",
+    deployment: "local",
+    ranking: "browse",
+    limit: 8
+  });
+  assert.equal(localResults[0].project.id, localPlatform.project.id, "browse deployment probes should treat open-source project wording as broad vocabulary");
+}
+
 async function testSpecificIntentRanking() {
   const githubMcp = makeSearchFixture("github/github-mcp-server", {
     description: "MCP server for GitHub repository issues and pull request automation.",
@@ -333,9 +389,9 @@ function makeSearchFixture(id, overrides) {
       projectId: id,
       projectKind: overrides.projectKind ?? "project",
       ...(overrides.collectionMetadata ? { collectionMetadata: overrides.collectionMetadata } : {}),
-      category: "agent_framework",
+      category: overrides.category ?? "agent_framework",
       difficulty: "intermediate",
-      deployment: ["cloudflare"],
+      deployment: overrides.deployment ?? ["cloudflare"],
       cloudflareReady: true,
       useCases: overrides.useCases ?? ["build agent runtimes"],
       notGoodFor: [],

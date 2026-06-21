@@ -1,17 +1,13 @@
 import assert from "node:assert/strict";
-import {
-  getHealth,
-  getKnowledgeMetadata,
-  getStarsDeltaSnapshot,
-  getSyncStatus,
-  getSyncedProjectCount,
-  listProjectKnowledgeWithMeta
-} from "../src/db.ts";
+import { getStarsDeltaSnapshot, getSyncStatus, getSyncedProjectCount } from "../src/db-sync-store.ts";
+import { getHealth } from "../src/health.ts";
+import { listProjectKnowledgeWithMeta } from "../src/knowledge-source.ts";
 import { buildGeneratedKnowledgeFixtures } from "./eval-fixtures.mjs";
 import { mockD1Env, mockD1ProjectId, syncRunRow } from "./mock-d1.mjs";
 
 await testRowToDomainMapping();
 await testGeneratedFixtureRows();
+await testPaginatedKnowledgeRows();
 await testLegacyOptionalColumnFallback();
 await testFallbackMetadata();
 await testHealthCountSemantics();
@@ -39,7 +35,7 @@ async function testRowToDomainMapping() {
   assert.equal(knowledge.metrics.signalConfidence?.stars30dDelta, "snapshot");
   assert.equal(knowledge.metrics.signalConfidence?.stars30dWindowDays, 30);
 
-  const metadata = await getKnowledgeMetadata(mockD1Env());
+  const metadata = (await listProjectKnowledgeWithMeta(mockD1Env())).metadata;
   assert.equal(metadata.source, "d1");
   assert.equal(metadata.reason, "d1_query");
 }
@@ -64,6 +60,47 @@ async function testGeneratedFixtureRows() {
   assert.equal(awesomeApps.agentCard.projectKind, "collection");
   assert.equal(awesomeApps.agentCard.collectionMetadata?.scope, "awesome_list");
   assert.equal(awesomeApps.agentCard.collectionMetadata?.freshness, "active");
+}
+
+async function testPaginatedKnowledgeRows() {
+  const base = buildGeneratedKnowledgeFixtures().map((item) => item.knowledge);
+  const paged = Array.from({ length: 505 }, (_, index) => cloneKnowledge(base[index % base.length], `mock/paged-${index}`));
+  const result = await listProjectKnowledgeWithMeta(mockD1Env({ knowledge: paged }));
+  assert.equal(result.metadata.source, "d1");
+  assert.equal(result.metadata.projectCount, 505);
+  assert.equal(result.metadata.loadedProjectLimit, 2000);
+  assert.equal(result.metadata.truncated, false);
+  assert.equal(result.projects.length, 505);
+
+  const overflow = Array.from({ length: 2001 }, (_, index) => cloneKnowledge(base[index % base.length], `mock/overflow-${index}`));
+  const overflowResult = await listProjectKnowledgeWithMeta(mockD1Env({ knowledge: overflow }));
+  assert.equal(overflowResult.metadata.projectCount, 2000);
+  assert.equal(overflowResult.metadata.loadedProjectLimit, 2000);
+  assert.equal(overflowResult.metadata.truncated, true);
+  assert.ok(overflowResult.metadata.warnings?.[0].includes("project load limit"));
+  assert.equal(overflowResult.projects.length, 2000);
+}
+
+function cloneKnowledge(template, id) {
+  const [owner, name] = id.split("/");
+  return {
+    project: {
+      ...template.project,
+      id,
+      owner,
+      name,
+      fullName: id,
+      githubUrl: `https://github.com/${id}`
+    },
+    agentCard: {
+      ...template.agentCard,
+      projectId: id
+    },
+    metrics: {
+      ...template.metrics,
+      projectId: id
+    }
+  };
 }
 
 async function testLegacyOptionalColumnFallback() {
