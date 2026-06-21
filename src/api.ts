@@ -1,12 +1,12 @@
 import {
-  findAlternatives,
-  getProjectKnowledge,
+  findAlternativesFromList,
+  getProjectKnowledgeFromList,
   getHealth,
   getSyncStatus,
-  getTrending,
-  listProjectKnowledge,
-  recommendProjects,
-  searchProjects,
+  getTrendingFromList,
+  listProjectKnowledgeWithMeta,
+  recommendProjectList,
+  searchProjectList,
   updateProjectAlternatives
 } from "./db";
 import { generateAlternativesForAll } from "./alternatives";
@@ -63,13 +63,15 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       return errorJson(401, "unauthorized", "Missing or invalid admin authorization.");
     }
 
-    const result = generateAlternativesForAll(await listProjectKnowledge(env));
+    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const result = generateAlternativesForAll(knowledge.projects);
     const updated = await updateProjectAlternatives(env, result.updates);
 
     return json(
       {
         updated,
-        updates: result.updates
+        updates: result.updates,
+        metadata: knowledge.metadata
       },
       {
         headers: {
@@ -96,11 +98,22 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       return errorJson(400, "invalid_grp_request", parsed.message);
     }
 
-    return json(runGrpQuery(await listProjectKnowledge(env), parsed.request), {
-      headers: {
-        "cache-control": "no-store"
+    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const result = runGrpQuery(knowledge.projects, parsed.request);
+    return json(
+      {
+        ...result,
+        metadata: {
+          ...result.metadata,
+          dataSource: knowledge.metadata
+        }
+      },
+      {
+        headers: {
+          "cache-control": "no-store"
+        }
       }
-    });
+    );
   }
 
   if (request.method !== "GET") {
@@ -124,7 +137,8 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
   }
 
   if (path === "/api/quality") {
-    return json(buildQualityReport(await listProjectKnowledge(env)), {
+    const knowledge = await listProjectKnowledgeWithMeta(env);
+    return json({ ...buildQualityReport(knowledge.projects), metadata: knowledge.metadata }, {
       headers: {
         "cache-control": "no-store"
       }
@@ -132,12 +146,16 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
   }
 
   if (path === "/api/graph") {
+    const knowledge = await listProjectKnowledgeWithMeta(env);
     return json(
-      buildKnowledgeGraph(
-        await listProjectKnowledge(env),
-        url.searchParams.get("repo") ?? undefined,
-        parseLimit(url.searchParams.get("limit")) ?? 24
-      )
+      {
+        ...buildKnowledgeGraph(
+          knowledge.projects,
+          url.searchParams.get("repo") ?? undefined,
+          parseLimit(url.searchParams.get("limit")) ?? 24
+        ),
+        metadata: knowledge.metadata
+      }
     );
   }
 
@@ -154,33 +172,39 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
   }
 
   if (path === "/api/search") {
-    const results = await searchProjects(env, {
+    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const results = searchProjectList(knowledge.projects, {
       q: url.searchParams.get("q") ?? undefined,
       category: url.searchParams.get("category") ?? undefined,
       deployment: url.searchParams.get("deployment") ?? undefined,
       difficulty: url.searchParams.get("difficulty") ?? undefined,
       cloudflareReady: parseBool(url.searchParams.get("cloudflare_ready")),
       language: url.searchParams.get("language") ?? undefined,
+      ranking: url.searchParams.get("ranking") ?? undefined,
       limit: parseLimit(url.searchParams.get("limit"))
     });
 
     return json({
       query: Object.fromEntries(url.searchParams.entries()),
-      projects: results.map(toProjectKnowledgeView)
+      projects: results.map(toProjectKnowledgeView),
+      knowledge: results,
+      metadata: knowledge.metadata
     });
   }
 
   if (path === "/api/trending") {
-    const results = await getTrending(env, {
+    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const results = getTrendingFromList(knowledge.projects, {
       category: url.searchParams.get("category") ?? undefined,
       limit: parseLimit(url.searchParams.get("limit"))
     });
 
-    return json({ projects: results.map(toProjectKnowledgeView) });
+    return json({ projects: results.map(toProjectKnowledgeView), knowledge: results, metadata: knowledge.metadata });
   }
 
   if (path === "/api/recommend") {
-    const recommendations = await recommendProjects(env, {
+    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const recommendations = recommendProjectList(knowledge.projects, {
       useCase: url.searchParams.get("use_case") ?? undefined,
       deployment: url.searchParams.get("deployment") ?? undefined,
       difficulty: url.searchParams.get("difficulty") ?? undefined,
@@ -191,7 +215,8 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
 
     return json({
       query: Object.fromEntries(url.searchParams.entries()),
-      recommendations
+      recommendations,
+      metadata: knowledge.metadata
     });
   }
 
@@ -200,50 +225,66 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       .split(",")
       .map((value) => value.trim())
       .filter(Boolean);
-    const all = await listProjectKnowledge(env);
-    const projects = ids.length > 0 ? all.filter((item) => ids.includes(item.project.id) || ids.includes(item.project.fullName)) : all.slice(0, 3);
-    return json(compareProjectKnowledge(projects, { deployment: url.searchParams.get("deployment") ?? undefined }));
+    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const projects =
+      ids.length > 0
+        ? knowledge.projects.filter((item) => ids.includes(item.project.id) || ids.includes(item.project.fullName))
+        : knowledge.projects.slice(0, 3);
+    return json({
+      ...compareProjectKnowledge(projects, { deployment: url.searchParams.get("deployment") ?? undefined }),
+      metadata: knowledge.metadata
+    });
   }
 
   const categoryMatch = path.match(/^\/api\/category\/([^/]+)$/);
   if (categoryMatch) {
-    const projects = await searchProjects(env, {
+    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const projects = searchProjectList(knowledge.projects, {
       category: decodeURIComponent(categoryMatch[1]),
       limit: parseLimit(url.searchParams.get("limit"))
     });
-    return json({ projects });
+    return json({ projects, metadata: knowledge.metadata });
   }
 
   const projectMatch = path.match(/^\/api\/project\/([^/]+)\/([^/]+)$/);
   if (projectMatch) {
     const id = `${decodeURIComponent(projectMatch[1])}/${decodeURIComponent(projectMatch[2])}`;
-    const project = await getProjectKnowledge(env, id);
+    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const project = getProjectKnowledgeFromList(knowledge.projects, id);
     if (!project) {
       return errorJson(404, "project_not_found", `Project ${id} was not found.`);
     }
-    return json(toProjectKnowledgeView(project));
+    return json({ ...toProjectKnowledgeView(project), knowledge: project, metadata: knowledge.metadata });
   }
 
   const shortProjectMatch = path.match(/^\/api\/project\/([^/]+)$/);
   if (shortProjectMatch) {
-    const project = await getProjectKnowledge(env, decodeURIComponent(shortProjectMatch[1]));
+    const id = decodeURIComponent(shortProjectMatch[1]);
+    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const project = getProjectKnowledgeFromList(knowledge.projects, id);
     if (!project) {
-      return errorJson(404, "project_not_found", `Project ${decodeURIComponent(shortProjectMatch[1])} was not found.`);
+      return errorJson(404, "project_not_found", `Project ${id} was not found.`);
     }
-    return json(toProjectKnowledgeView(project));
+    return json({ ...toProjectKnowledgeView(project), knowledge: project, metadata: knowledge.metadata });
   }
 
   const alternativesMatch = path.match(/^\/api\/alternatives\/([^/]+)\/([^/]+)$/);
   if (alternativesMatch) {
     const id = `${decodeURIComponent(alternativesMatch[1])}/${decodeURIComponent(alternativesMatch[2])}`;
-    const alternatives = await findAlternatives(env, id, parseLimit(url.searchParams.get("limit")));
-    return json({ alternatives: alternatives.map(toProjectKnowledgeView) });
+    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const alternatives = findAlternativesFromList(knowledge.projects, id, parseLimit(url.searchParams.get("limit")));
+    return json({ alternatives: alternatives.map(toProjectKnowledgeView), metadata: knowledge.metadata });
   }
 
   const shortAlternativesMatch = path.match(/^\/api\/alternatives\/([^/]+)$/);
   if (shortAlternativesMatch) {
-    const alternatives = await findAlternatives(env, decodeURIComponent(shortAlternativesMatch[1]), parseLimit(url.searchParams.get("limit")));
-    return json({ alternatives: alternatives.map(toProjectKnowledgeView) });
+    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const alternatives = findAlternativesFromList(
+      knowledge.projects,
+      decodeURIComponent(shortAlternativesMatch[1]),
+      parseLimit(url.searchParams.get("limit"))
+    );
+    return json({ alternatives: alternatives.map(toProjectKnowledgeView), metadata: knowledge.metadata });
   }
 
   return errorJson(404, "not_found", "Unknown API endpoint.");

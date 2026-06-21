@@ -11,8 +11,7 @@ import {
   Sparkles,
   Star
 } from "lucide-react";
-import { seedProjects } from "../src/seed";
-import { calculateAgentScore } from "../src/project-view";
+import { getProjectCollectionData } from "../src/next-data";
 
 const categories = [
   "AI Agents",
@@ -26,8 +25,8 @@ const categories = [
 
 const graphNodes = ["Claude Code", "MCP", "OpenRouter", "Playwright", "Browser Use", "A2A"];
 
-export default function HomePage() {
-  const trendingProjects = seedProjects.slice(0, 4);
+export default async function HomePage() {
+  const { views: trendingProjects, metadata } = await getProjectCollectionData("agent", 4);
 
   return (
     <div className="page-stack marketing-stack">
@@ -36,6 +35,7 @@ export default function HomePage() {
           <p className="eyebrow">GitHub Knowledge Layer</p>
           <h1>GitHub Knowledge Layer for AI Agents</h1>
           <p className="hero-lede">Understand open source projects beyond stars. Git.Top turns GitHub repositories into structured knowledge agents can search, compare, evaluate, and deploy.</p>
+          <p className="muted-copy">Data source: {metadata.source} / {metadata.reason} / {metadata.projectCount} projects</p>
           <div className="header-actions">
             <Link className="button primary" href="/projects">
               <Search size={17} aria-hidden="true" />
@@ -96,31 +96,31 @@ export default function HomePage() {
 
       <section className="project-card-grid" aria-label="Trending projects">
         {trendingProjects.map((item) => (
-          <article className="project-card" key={item.project.id}>
+          <article className="project-card" key={item.repo}>
             <div className="project-card-top">
               <div>
-                <p className="eyebrow">{item.agentCard.category.replaceAll("_", " ")}</p>
-                <h3>{item.project.name}</h3>
+                <p className="eyebrow">{item.category[0]?.replaceAll("_", " ")}</p>
+                <h3>{item.name}</h3>
               </div>
               <Star size={18} aria-hidden="true" />
             </div>
-            <p>{item.project.description}</p>
+            <p>{item.description}</p>
             <div className="signal-row">
               <span>Alternative</span>
-              <strong>{item.agentCard.alternatives[0]?.project_id ?? "Discoverable"}</strong>
+              <strong>{item.alternatives[0]?.repo ?? "Discoverable"}</strong>
             </div>
             <div className="signal-row">
               <span>Deploy</span>
-              <strong>{item.agentCard.deployment.slice(0, 2).join(", ")}</strong>
+              <strong>{item.deployments.slice(0, 2).join(", ")}</strong>
             </div>
             <div className="score-pair">
               <div>
                 <span>Quality</span>
-                <strong>{item.metrics.gitScore}</strong>
+                <strong>{item.qualityScore}</strong>
               </div>
               <div>
                 <span>Agent</span>
-                <strong>{calculateAgentScore(item)}</strong>
+                <strong>{item.agentScore}</strong>
               </div>
             </div>
           </article>

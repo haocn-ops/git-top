@@ -1,6 +1,5 @@
-import { UserManagement } from "../../components/user-management";
-import { auditEvents, managedUsers, tenants } from "../../lib/users";
+import { redirect } from "next/navigation";
 
 export default function UsersPage() {
-  return <UserManagement auditEvents={auditEvents} initialUsers={managedUsers} tenants={tenants} />;
+  redirect("/projects");
 }

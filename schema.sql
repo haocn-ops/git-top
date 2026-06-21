@@ -29,12 +29,15 @@ CREATE TABLE IF NOT EXISTS project_metrics (
   recent_push_days INTEGER,
   git_score INTEGER NOT NULL DEFAULT 0,
   maintenance_score INTEGER NOT NULL DEFAULT 0,
+  signal_confidence_json TEXT NOT NULL DEFAULT '{}',
   calculated_at TEXT NOT NULL,
   FOREIGN KEY (project_id) REFERENCES projects(id)
 );
 
 CREATE TABLE IF NOT EXISTS agent_cards (
   project_id TEXT PRIMARY KEY,
+  project_kind TEXT NOT NULL DEFAULT 'project',
+  collection_json TEXT NOT NULL DEFAULT '{}',
   category TEXT NOT NULL,
   difficulty TEXT NOT NULL,
   deployment_json TEXT NOT NULL DEFAULT '[]',
@@ -43,6 +46,7 @@ CREATE TABLE IF NOT EXISTS agent_cards (
   not_good_for_json TEXT NOT NULL DEFAULT '[]',
   alternatives_json TEXT NOT NULL DEFAULT '[]',
   summary_for_agent TEXT NOT NULL,
+  classification_json TEXT NOT NULL DEFAULT '{}',
   schema_version TEXT NOT NULL DEFAULT 'v1',
   generated_at TEXT NOT NULL,
   FOREIGN KEY (project_id) REFERENCES projects(id)

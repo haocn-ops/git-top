@@ -1,13 +1,8 @@
 import { ArrowUpRight, Boxes, GitCompare, Network, Rocket, ShieldCheck } from "lucide-react";
-import { compareProjectKnowledge, buildKnowledgeGraph } from "../../src/graph";
-import { seedProjects } from "../../src/seed";
-import { toProjectKnowledgeView } from "../../src/project-view";
+import { getGraphOverviewData } from "../../src/next-data";
 
-export default function GraphPage() {
-  const focus = seedProjects.find((item) => item.project.id === "cloudflare/agents") ?? seedProjects[0];
-  const graph = buildKnowledgeGraph(seedProjects, focus.project.id, 18);
-  const compare = compareProjectKnowledge(seedProjects.slice(0, 4), { deployment: "cloudflare" });
-  const focusView = toProjectKnowledgeView(focus);
+export default async function GraphPage() {
+  const { collection, focus, graph, compare, focusView } = await getGraphOverviewData();
 
   return (
     <div className="page-stack">
@@ -17,6 +12,7 @@ export default function GraphPage() {
           <h1>Knowledge, then Graph, then Agent</h1>
         </div>
         <div className="header-actions">
+          <span className="status-pill neutral">{collection.metadata.source} / {collection.metadata.reason}</span>
           <a className="button secondary" href={`/api/graph?repo=${encodeURIComponent(focus.project.id)}`}>
             <Network size={17} aria-hidden="true" />
             <span>Graph API</span>
@@ -102,7 +98,7 @@ export default function GraphPage() {
             <p className="eyebrow">Compare Matrix</p>
             <h2>What agents actually need to decide</h2>
           </div>
-          <a className="plain-link" href={`/api/compare?deployment=cloudflare&repos=${seedProjects.slice(0, 4).map((item) => item.project.id).join(",")}`}>
+          <a className="plain-link" href={`/api/compare?deployment=cloudflare&repos=${collection.projects.slice(0, 4).map((item) => item.project.id).join(",")}`}>
             <span>JSON</span>
             <ArrowUpRight size={16} aria-hidden="true" />
           </a>

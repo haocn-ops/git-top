@@ -28,8 +28,8 @@ if (!Array.isArray(repositories)) {
     seen.add(normalized);
   }
 
-  if (repositories.length < 50) {
-    issues.push(`Expected at least 50 seed repositories, found ${repositories.length}.`);
+  if (repositories.length < 100) {
+    issues.push(`Expected at least 100 seed repositories, found ${repositories.length}.`);
   }
 }
 

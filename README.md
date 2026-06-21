@@ -4,6 +4,20 @@ Agent-native GitHub knowledge layer.
 
 Git.Top turns unstructured GitHub repository data into structured project knowledge that AI agents can search, compare, recommend, and call through REST APIs or MCP tools.
 
+## Documentation
+
+- [Next stage plan](./docs/NEXT_STAGE_PLAN.md)
+- [Deployment decision](./docs/DEPLOYMENT_DECISION.md)
+- [REST API guide](./docs/API.md)
+- [MCP guide](./docs/MCP.md)
+- [GRP examples](./docs/GRP_EXAMPLES.md)
+- [Production runbook](./docs/PRODUCTION_RUNBOOK.md)
+- [Data coverage report](./docs/DATA_COVERAGE.md)
+- [Seed live check report](./docs/SEED_LIVE_CHECK.md)
+- [Eval quality report](./docs/EVAL_QUALITY.md)
+- [Local eval report](./docs/EVAL_LOCAL.md)
+- [Ranking experiments](./docs/RANKING_EXPERIMENTS.md)
+
 ## Development
 
 ```sh
@@ -11,12 +25,35 @@ pnpm install
 pnpm db:execute
 pnpm db:seed
 pnpm seed:validate
+pnpm seed:coverage
+pnpm seed:live-check -- --limit 20
+pnpm seed:live-check -- --offset 20 --limit 20
+pnpm knowledge:validate
+pnpm db:seed-sql
+pnpm db:validate
+pnpm db:integration
+pnpm core:validate
+pnpm api:validate
+pnpm mcp:validate
+pnpm eval:quality
+pnpm eval:local
+pnpm eval:ranking
+pnpm smoke:prod
 pnpm check
+pnpm validate
 pnpm quality:check
 pnpm dev
 ```
 
-`/api/health` reports D1 availability and the current project count. Run `pnpm db:execute` and `pnpm db:seed` before local API checks when the D1 state is empty.
+`/api/health` reports D1 availability and the current project count. Run `pnpm db:execute` and `pnpm db:seed` before local API checks when the D1 state is empty. `pnpm db:execute` prepares the local D1 schema and backfills optional columns that may be missing from older local databases. `seed.sql` is generated from hand-authored seed knowledge and generated eval fixtures; run `pnpm db:seed-sql` after changing those fixtures. `pnpm db:integration` seeds local D1, starts a temporary local Worker, and validates the D1-backed HTTP API path.
+
+`pnpm eval:quality` is the CI-safe recommendation and classification regression gate. `pnpm eval:local` runs broader generated category and deployment probes across the fixture-backed project set and writes [docs/EVAL_LOCAL.md](./docs/EVAL_LOCAL.md); use it before tuning ranking heuristics, but keep it out of the default validation path. `pnpm eval:ranking` compares offline ranking strategies in [docs/RANKING_EXPERIMENTS.md](./docs/RANKING_EXPERIMENTS.md). Runtime search keeps exact-intent ranking by default; broad scoped discovery can opt into `ranking=browse`.
+
+`pnpm smoke:prod` validates the deployed Worker at `https://git.top`. Use `pnpm smoke:prod -- --base-url http://localhost:8787` for a local or preview Worker.
+
+When updating an existing D1 database, apply SQL files in [migrations](./migrations) before deploying code that reads the new columns.
+
+The Next.js UI reads bundled seed data by default so static builds work without a Worker. Set `NEXT_PUBLIC_GIT_TOP_API_BASE` to a deployed or local Worker origin, for example `http://localhost:8787`, to load project lists and graph pages from the live API. UI headers show the active data source and fallback reason.
 
 ## Sync
 

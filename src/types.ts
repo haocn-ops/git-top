@@ -26,6 +26,8 @@ export type Deployment =
   | "kubernetes"
   | "library_only";
 
+export type ProjectKind = "project" | "collection";
+
 export interface Project {
   id: string;
   owner: string;
@@ -54,6 +56,8 @@ export interface Alternative {
 
 export interface AgentCard {
   projectId: string;
+  projectKind?: ProjectKind;
+  collectionMetadata?: CollectionMetadata;
   category: Category;
   difficulty: Difficulty;
   deployment: Deployment[];
@@ -62,8 +66,26 @@ export interface AgentCard {
   notGoodFor: string[];
   alternatives: Alternative[];
   summaryForAgent: string;
+  classification?: {
+    category?: ClassificationSignal;
+    deployment?: ClassificationSignal;
+    difficulty?: ClassificationSignal;
+    cloudflareReady?: ClassificationSignal;
+  };
   schemaVersion: "v1";
   generatedAt: string;
+}
+
+export interface CollectionMetadata {
+  scope: "awesome_list" | "cookbook" | "starter_collection" | "integration_collection" | "resource_hub";
+  curated: boolean;
+  estimatedItems: number | null;
+  freshness: "active" | "stale" | "unknown";
+}
+
+export interface ClassificationSignal {
+  confidence: "high" | "medium" | "low";
+  evidence: string[];
 }
 
 export interface ProjectMetrics {
@@ -76,6 +98,13 @@ export interface ProjectMetrics {
   recentPushDays: number | null;
   gitScore: number;
   maintenanceScore: number;
+  signalConfidence?: {
+    stars30dDelta?: "snapshot" | "estimated";
+    stars30dWindowDays?: number;
+    commits30d?: "complete" | "partial" | "unknown";
+    releases180d?: "complete" | "partial" | "unknown";
+    contributors90d?: "complete" | "partial" | "unknown";
+  };
   calculatedAt: string;
 }
 
@@ -145,4 +174,9 @@ export interface GithubRepoSignals {
   releases180d: number;
   contributors90d: number;
   issueFirstResponseMedianHours: number | null;
+  signalConfidence?: {
+    commits30d: "complete" | "partial" | "unknown";
+    releases180d: "complete" | "partial" | "unknown";
+    contributors90d: "complete" | "partial" | "unknown";
+  };
 }

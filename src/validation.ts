@@ -1,9 +1,12 @@
-import { categoryValues, deploymentValues, difficultyValues } from "./schema";
-import type { AgentCard, Project, ProjectKnowledge, ProjectMetrics } from "./types";
+import { categoryValues, deploymentValues, difficultyValues, projectKindValues } from "./schema";
+import type { AgentCard, ClassificationSignal, Project, ProjectKnowledge, ProjectMetrics } from "./types";
 
 export class ValidationError extends Error {
-  constructor(readonly issues: string[]) {
+  readonly issues: string[];
+
+  constructor(issues: string[]) {
     super(`Validation failed: ${issues.join("; ")}`);
+    this.issues = issues;
     this.name = "ValidationError";
   }
 }
@@ -44,6 +47,10 @@ function validateAgentCard(card: AgentCard): string[] {
   const issues: string[] = [];
   requireRepoId(card.projectId, "agentCard.projectId", issues);
 
+  if (card.projectKind && !projectKindValues.includes(card.projectKind)) {
+    issues.push(`agentCard.projectKind must be one of ${projectKindValues.join(", ")}`);
+  }
+  validateCollectionMetadata(card, issues);
   if (!categoryValues.includes(card.category)) {
     issues.push(`agentCard.category must be one of ${categoryValues.join(", ")}`);
   }
@@ -72,12 +79,61 @@ function validateAgentCard(card: AgentCard): string[] {
     requireNonEmpty(alternative.reason, `agentCard.alternatives[${index}].reason`, issues);
   }
   requireNonEmpty(card.summaryForAgent, "agentCard.summaryForAgent", issues);
+  validateClassification(card, issues);
   if (card.schemaVersion !== "v1") {
     issues.push("agentCard.schemaVersion must be v1");
   }
   requireIsoDate(card.generatedAt, "agentCard.generatedAt", issues);
 
   return issues;
+}
+
+function validateCollectionMetadata(card: AgentCard, issues: string[]): void {
+  if (!card.collectionMetadata) {
+    return;
+  }
+  if (card.projectKind !== "collection") {
+    issues.push("agentCard.collectionMetadata requires projectKind collection");
+  }
+  if (!["awesome_list", "cookbook", "starter_collection", "integration_collection", "resource_hub"].includes(card.collectionMetadata.scope)) {
+    issues.push("agentCard.collectionMetadata.scope is invalid");
+  }
+  if (typeof card.collectionMetadata.curated !== "boolean") {
+    issues.push("agentCard.collectionMetadata.curated must be boolean");
+  }
+  if (card.collectionMetadata.estimatedItems !== null && !Number.isInteger(card.collectionMetadata.estimatedItems)) {
+    issues.push("agentCard.collectionMetadata.estimatedItems must be an integer or null");
+  }
+  if (!["active", "stale", "unknown"].includes(card.collectionMetadata.freshness)) {
+    issues.push("agentCard.collectionMetadata.freshness is invalid");
+  }
+}
+
+function validateClassification(card: AgentCard, issues: string[]): void {
+  if (!card.classification) {
+    return;
+  }
+
+  validateClassificationSignal(card.classification.category, "agentCard.classification.category", issues);
+  validateClassificationSignal(card.classification.deployment, "agentCard.classification.deployment", issues);
+  validateClassificationSignal(card.classification.difficulty, "agentCard.classification.difficulty", issues);
+  validateClassificationSignal(card.classification.cloudflareReady, "agentCard.classification.cloudflareReady", issues);
+}
+
+function validateClassificationSignal(signal: ClassificationSignal | undefined, path: string, issues: string[]): void {
+  if (!signal) {
+    return;
+  }
+  if (!["high", "medium", "low"].includes(signal.confidence)) {
+    issues.push(`${path}.confidence must be high, medium, or low`);
+  }
+  if (!Array.isArray(signal.evidence)) {
+    issues.push(`${path}.evidence must be an array`);
+    return;
+  }
+  for (const [index, evidence] of signal.evidence.entries()) {
+    requireNonEmpty(evidence, `${path}.evidence[${index}]`, issues);
+  }
 }
 
 function validateMetrics(metrics: ProjectMetrics): string[] {

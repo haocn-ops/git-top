@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { ArrowUpRight, Box, Cloud, GitPullRequest, Network, Rocket, Search, ShieldCheck, Star, UsersRound } from "lucide-react";
-import { seedProjects } from "../../src/seed";
-import { toProjectKnowledgeView } from "../../src/project-view";
+import { ArrowUpRight, BookOpen, Box, Cloud, GitPullRequest, Network, Rocket, Search, ShieldCheck, Star, UsersRound } from "lucide-react";
+import { getProjectCollectionData } from "../../src/next-data";
+import type { ProjectKnowledgeView } from "../../src/project-view";
 
-export default function ProjectsPage() {
-  const featured = toProjectKnowledgeView(seedProjects.find((item) => item.project.id === "cloudflare/agents") ?? seedProjects[0]);
-  const related = seedProjects.map(toProjectKnowledgeView);
+export default async function ProjectsPage() {
+  const { views: related, metadata } = await getProjectCollectionData("cloudflare agent framework", 100);
+  const featured = related.find((item) => item.repo === "cloudflare/agents") ?? related[0];
 
   return (
     <div className="page-stack">
@@ -15,6 +15,7 @@ export default function ProjectsPage() {
           <h1>{featured.repo}</h1>
         </div>
         <div className="header-actions">
+          <span className="status-pill neutral">{metadata.source} / {metadata.reason}</span>
           <a className="button secondary" href={`/api/project/${featured.repo}`}>
             <Box size={17} aria-hidden="true" />
             <span>JSON</span>
@@ -37,6 +38,7 @@ export default function ProjectsPage() {
           </div>
           <p className="large-copy">{featured.overview}</p>
           <div className="tag-list">
+            {featured.projectKind === "collection" ? <span>Collection</span> : null}
             {featured.tags.map((tag) => (
               <span key={tag}>{tag}</span>
             ))}
@@ -59,6 +61,19 @@ export default function ProjectsPage() {
       </section>
 
       <section className="three-panel-grid">
+        {featured.collectionMetadata ? (
+          <article className="panel feature-panel collection-panel">
+            <div className="feature-icon"><BookOpen size={21} aria-hidden="true" /></div>
+            <p className="eyebrow">Collection</p>
+            <h2>{collectionScopeLabel(featured.collectionMetadata.scope)}</h2>
+            <div className="metadata-grid">
+              <Meta label="Items" value={formatEstimatedItems(featured.collectionMetadata.estimatedItems)} />
+              <Meta label="Freshness" value={collectionFreshnessLabel(featured.collectionMetadata.freshness)} />
+              <Meta label="Curated" value={featured.collectionMetadata.curated ? "Yes" : "No"} />
+            </div>
+          </article>
+        ) : null}
+
         <article className="panel feature-panel">
           <div className="feature-icon"><Network size={21} aria-hidden="true" /></div>
           <p className="eyebrow">Alternatives</p>
@@ -103,11 +118,13 @@ export default function ProjectsPage() {
           <div>
             <p className="eyebrow">Agent Search Results</p>
             <h2>Ranked project knowledge</h2>
+            <p className="muted-copy">{metadata.projectCount} projects loaded from {metadata.source}.</p>
           </div>
         </div>
         <div className="knowledge-table">
           <div className="knowledge-row knowledge-head">
             <span>Project</span>
+            <span>Kind</span>
             <span>Deploy</span>
             <span>Quality</span>
             <span>Agent</span>
@@ -118,6 +135,9 @@ export default function ProjectsPage() {
                 <strong>{item.repo}</strong>
                 <span>{item.description}</span>
               </div>
+              <span className={item.projectKind === "collection" ? "status-pill active" : "status-pill neutral"}>
+                {item.projectKind === "collection" ? "Collection" : "Project"}
+              </span>
               <span>{item.deployments.slice(0, 2).join(", ")}</span>
               <strong>{item.qualityScore}</strong>
               <strong>{item.agentScore}</strong>
@@ -132,4 +152,37 @@ export default function ProjectsPage() {
       </Link>
     </div>
   );
+}
+
+function Meta({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function collectionScopeLabel(scope: NonNullable<ProjectKnowledgeView["collectionMetadata"]>["scope"]): string {
+  const labels: Record<NonNullable<ProjectKnowledgeView["collectionMetadata"]>["scope"], string> = {
+    awesome_list: "Awesome list",
+    cookbook: "Cookbook",
+    starter_collection: "Starter collection",
+    integration_collection: "Integration collection",
+    resource_hub: "Resource hub"
+  };
+  return labels[scope];
+}
+
+function collectionFreshnessLabel(freshness: NonNullable<ProjectKnowledgeView["collectionMetadata"]>["freshness"]): string {
+  const labels: Record<NonNullable<ProjectKnowledgeView["collectionMetadata"]>["freshness"], string> = {
+    active: "Active",
+    stale: "Stale",
+    unknown: "Unknown"
+  };
+  return labels[freshness];
+}
+
+function formatEstimatedItems(value: number | null): string {
+  return value === null ? "Unknown" : value.toLocaleString();
 }

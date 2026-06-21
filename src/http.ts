@@ -83,7 +83,8 @@ function toSnakeCase(value: string): string {
     stars30dDelta: "stars_30d_delta",
     commits30d: "commits_30d",
     releases180d: "releases_180d",
-    contributors90d: "contributors_90d"
+    contributors90d: "contributors_90d",
+    releaseFrequency180d: "release_frequency_180d"
   };
 
   if (knownKeys[value]) {

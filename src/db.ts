@@ -1,5 +1,5 @@
 import { seedProjects } from "./seed";
-import type { AgentCard, Alternative, Env, Project, ProjectKnowledge, ProjectMetrics, SyncRun } from "./types";
+import type { AgentCard, Alternative, Env, Project, ProjectKnowledge, ProjectMetrics, SyncFailure, SyncRun } from "./types";
 
 interface ProjectRow {
   id: string;
@@ -24,6 +24,8 @@ interface ProjectRow {
 
 interface AgentCardRow {
   ac_project_id: string;
+  project_kind?: AgentCard["projectKind"];
+  collection_json?: string;
   category: AgentCard["category"];
   difficulty: AgentCard["difficulty"];
   deployment_json: string;
@@ -32,6 +34,7 @@ interface AgentCardRow {
   not_good_for_json: string;
   alternatives_json: string;
   summary_for_agent: string;
+  classification_json?: string;
   schema_version: "v1";
   generated_at: string;
 }
@@ -46,6 +49,7 @@ interface MetricsRow {
   recent_push_days: number | null;
   git_score: number;
   maintenance_score: number;
+  signal_confidence_json?: string;
   calculated_at: string;
 }
 
@@ -72,6 +76,7 @@ export interface ProjectFilters {
   difficulty?: string;
   cloudflareReady?: boolean;
   language?: string;
+  ranking?: string;
   limit?: number;
 }
 
@@ -94,54 +99,59 @@ export interface Recommendation {
   metrics: ProjectMetrics;
 }
 
+export type KnowledgeSource = "d1" | "seed";
+export type KnowledgeSourceReason = "d1_query" | "db_missing" | "db_empty" | "db_error";
+
+export interface KnowledgeMetadata {
+  source: KnowledgeSource;
+  reason: KnowledgeSourceReason;
+  projectCount: number;
+  generatedAt: string;
+  warnings?: string[];
+  error?: string;
+}
+
+export interface ProjectKnowledgeResult {
+  projects: ProjectKnowledge[];
+  metadata: KnowledgeMetadata;
+}
+
 const defaultLimit = 20;
 
 export async function listProjectKnowledge(env: Env): Promise<ProjectKnowledge[]> {
+  return (await listProjectKnowledgeWithMeta(env)).projects;
+}
+
+export async function listProjectKnowledgeWithMeta(env: Env): Promise<ProjectKnowledgeResult> {
   if (!env.DB) {
-    return seedProjects;
+    return seedResult("db_missing");
   }
 
   try {
-    const rows = await env.DB.prepare(
-      `SELECT
-        p.*,
-        ac.project_id AS ac_project_id,
-        ac.category,
-        ac.difficulty,
-        ac.deployment_json,
-        ac.cloudflare_ready,
-        ac.use_cases_json,
-        ac.not_good_for_json,
-        ac.alternatives_json,
-        ac.summary_for_agent,
-        ac.schema_version,
-        ac.generated_at,
-        pm.project_id AS pm_project_id,
-        pm.stars_30d_delta,
-        pm.commits_30d,
-        pm.releases_180d,
-        pm.contributors_90d,
-        pm.issue_first_response_median_hours,
-        pm.recent_push_days,
-        pm.git_score,
-        pm.maintenance_score,
-        pm.calculated_at
-      FROM projects p
-      JOIN agent_cards ac ON ac.project_id = p.id
-      JOIN project_metrics pm ON pm.project_id = p.id
-      ORDER BY pm.git_score DESC, p.stars DESC
-      LIMIT 500`
-    ).all<Record<string, unknown>>();
+    const rows = await queryProjectKnowledgeRows(env);
 
     const results = rows.results ?? [];
     if (results.length === 0) {
-      return seedProjects;
+      return seedResult("db_empty");
     }
 
-    return results.map(rowToKnowledge);
-  } catch {
-    return seedProjects;
+    const projects = results.map(rowToKnowledge);
+    return {
+      projects,
+      metadata: {
+        source: "d1",
+        reason: "d1_query",
+        projectCount: projects.length,
+        generatedAt: new Date().toISOString()
+      }
+    };
+  } catch (error) {
+    return seedResult("db_error", error);
   }
+}
+
+export async function getKnowledgeMetadata(env: Env): Promise<KnowledgeMetadata> {
+  return (await listProjectKnowledgeWithMeta(env)).metadata;
 }
 
 export async function getHealth(env: Env): Promise<{
@@ -149,13 +159,15 @@ export async function getHealth(env: Env): Promise<{
   db: "available" | "missing" | "error";
   projectCount: number;
   syncCursor?: number;
+  metadata: KnowledgeMetadata;
 }> {
   if (!env.DB) {
     return {
       ok: true,
       db: "missing",
       projectCount: seedProjects.length,
-      syncCursor: 0
+      syncCursor: 0,
+      metadata: seedMetadata("db_missing")
     };
   }
 
@@ -168,15 +180,67 @@ export async function getHealth(env: Env): Promise<{
       ok: true,
       db: "available",
       projectCount: countRow?.count ?? 0,
-      syncCursor: cursor
+      syncCursor: cursor,
+      metadata:
+        (countRow?.count ?? 0) > 0
+          ? {
+              source: "d1",
+              reason: "d1_query",
+              projectCount: countRow?.count ?? 0,
+              generatedAt: new Date().toISOString()
+            }
+          : seedMetadata("db_empty")
     };
-  } catch {
+  } catch (error) {
     return {
       ok: false,
       db: "error",
       projectCount: seedProjects.length,
-      syncCursor: 0
+      syncCursor: 0,
+      metadata: seedMetadata("db_error", error)
     };
+  }
+}
+
+async function queryProjectKnowledgeRows(env: Env): Promise<D1Result<Record<string, unknown>>> {
+  const baseSelect = `SELECT
+    p.*,
+    ac.project_id AS ac_project_id,
+        ac.project_kind,
+        ac.collection_json,
+        ac.category,
+    ac.difficulty,
+    ac.deployment_json,
+    ac.cloudflare_ready,
+    ac.use_cases_json,
+    ac.not_good_for_json,
+        ac.alternatives_json,
+        ac.summary_for_agent,
+        ac.classification_json,
+        ac.schema_version,
+        ac.generated_at,
+    pm.project_id AS pm_project_id,
+    pm.stars_30d_delta,
+    pm.commits_30d,
+    pm.releases_180d,
+    pm.contributors_90d,
+    pm.issue_first_response_median_hours,
+    pm.recent_push_days,
+    pm.git_score,
+    pm.maintenance_score`;
+  const baseJoin = `FROM projects p
+    JOIN agent_cards ac ON ac.project_id = p.id
+    JOIN project_metrics pm ON pm.project_id = p.id
+    ORDER BY pm.git_score DESC, p.stars DESC
+    LIMIT 500`;
+
+  try {
+    return await env.DB!.prepare(`${baseSelect}, pm.signal_confidence_json, pm.calculated_at ${baseJoin}`).all<Record<string, unknown>>();
+  } catch (error) {
+    if (!isMissingOptionalColumn(error)) {
+      throw error;
+    }
+    return env.DB!.prepare(`${legacyProjectKnowledgeSelect()}, '{}' AS signal_confidence_json, pm.calculated_at ${baseJoin}`).all<Record<string, unknown>>();
   }
 }
 
@@ -236,6 +300,57 @@ export async function insertSyncRun(env: Env, run: SyncRun): Promise<void> {
     .run();
 }
 
+export interface StarDeltaSnapshot {
+  delta: number;
+  windowDays: number;
+}
+
+export async function getStarsDeltaSnapshot(
+  env: Env,
+  projectId: string,
+  currentStars: number,
+  nowIso: string,
+  targetDays = 30,
+  minimumDays = 7
+): Promise<StarDeltaSnapshot | null> {
+  if (!env.DB) {
+    return null;
+  }
+
+  try {
+    const targetIso = daysBefore(nowIso, targetDays);
+    const minimumIso = daysBefore(nowIso, minimumDays);
+    const row =
+      (await env.DB.prepare(
+        `SELECT stars, captured_at FROM star_snapshots
+         WHERE project_id = ? AND captured_at <= ?
+         ORDER BY captured_at DESC
+         LIMIT 1`
+      )
+        .bind(projectId, targetIso)
+        .first<{ stars: number; captured_at: string }>()) ??
+      (await env.DB.prepare(
+        `SELECT stars, captured_at FROM star_snapshots
+         WHERE project_id = ? AND captured_at <= ?
+         ORDER BY captured_at ASC
+         LIMIT 1`
+      )
+        .bind(projectId, minimumIso)
+        .first<{ stars: number; captured_at: string }>());
+
+    if (!row) {
+      return null;
+    }
+
+    return {
+      delta: Math.max(0, currentStars - row.stars),
+      windowDays: daysBetween(row.captured_at, nowIso)
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function listSyncRuns(env: Env, limit = 10): Promise<SyncRun[]> {
   if (!env.DB) {
     return [];
@@ -263,6 +378,10 @@ export async function getSyncStatus(env: Env, seedRepositories: string[] = []): 
   remainingCount: number;
   cycleProgress: number;
   nextBatch: string[];
+  health: "healthy" | "degraded" | "unknown";
+  lastSuccessfulSyncAt: string | null;
+  lastFailedSyncAt: string | null;
+  lastError: SyncFailure | null;
   recentRuns: SyncRun[];
 }> {
   const [cursor, recentRuns, syncedCount] = await Promise.all([getSyncCursor(env), listSyncRuns(env, 10), getSyncedProjectCount(env)]);
@@ -270,6 +389,8 @@ export async function getSyncStatus(env: Env, seedRepositories: string[] = []): 
   const normalizedCursor = seedTotal > 0 ? cursor % seedTotal : 0;
   const nextLimit = recentRuns[0]?.limit ?? 5;
   const nextBatch = seedRepositories.slice(normalizedCursor, normalizedCursor + nextLimit);
+  const lastSuccessfulRun = recentRuns.find((run) => run.syncedCount > 0);
+  const lastFailedRun = recentRuns.find((run) => run.failedCount > 0);
 
   return {
     cursor: normalizedCursor,
@@ -278,6 +399,10 @@ export async function getSyncStatus(env: Env, seedRepositories: string[] = []): 
     remainingCount: Math.max(0, seedTotal - syncedCount),
     cycleProgress: seedTotal > 0 ? Math.round((normalizedCursor / seedTotal) * 100) : 0,
     nextBatch,
+    health: syncHealth(recentRuns),
+    lastSuccessfulSyncAt: lastSuccessfulRun?.finishedAt ?? null,
+    lastFailedSyncAt: lastFailedRun?.finishedAt ?? null,
+    lastError: lastFailedRun?.failed[0] ?? null,
     recentRuns
   };
 }
@@ -296,7 +421,10 @@ export async function getSyncedProjectCount(env: Env): Promise<number> {
 }
 
 export async function getProjectKnowledge(env: Env, id: string): Promise<ProjectKnowledge | null> {
-  const projects = await listProjectKnowledge(env);
+  return getProjectKnowledgeFromList(await listProjectKnowledge(env), id);
+}
+
+export function getProjectKnowledgeFromList(projects: ProjectKnowledge[], id: string): ProjectKnowledge | null {
   const wanted = normalizeProjectId(id);
   return (
     projects.find((item) => {
@@ -313,11 +441,16 @@ export async function getProjectKnowledge(env: Env, id: string): Promise<Project
 }
 
 export async function searchProjects(env: Env, filters: ProjectFilters): Promise<ProjectKnowledge[]> {
+  return searchProjectList(await listProjectKnowledge(env), filters);
+}
+
+export function searchProjectList(projects: ProjectKnowledge[], filters: ProjectFilters): ProjectKnowledge[] {
   const limit = clampLimit(filters.limit);
   const query = normalize(filters.q);
   const queryWords = queryTokens(query);
+  const browseMode = filters.ranking === "browse" && isBrowseRankingQuery(filters, queryWords, limit);
 
-  return (await listProjectKnowledge(env))
+  return projects
     .map((item) => {
       if (filters.category && item.agentCard.category !== filters.category) {
         return null;
@@ -351,7 +484,7 @@ export async function searchProjects(env: Env, filters: ProjectFilters): Promise
         ].join(" ")
       );
 
-      const score = queryMatchScore(query, queryWords, haystack, item);
+      const score = browseMode ? browseModeQueryScore(query, queryWords, haystack, item) : queryMatchScore(query, queryWords, haystack, item);
       return score > 0 ? { item, score } : null;
     })
     .filter(isSearchHit)
@@ -361,13 +494,21 @@ export async function searchProjects(env: Env, filters: ProjectFilters): Promise
 }
 
 export async function getTrending(env: Env, filters: Pick<ProjectFilters, "category" | "limit">): Promise<ProjectKnowledge[]> {
-  return searchProjects(env, { category: filters.category, limit: filters.limit });
+  return getTrendingFromList(await listProjectKnowledge(env), filters);
+}
+
+export function getTrendingFromList(projects: ProjectKnowledge[], filters: Pick<ProjectFilters, "category" | "limit">): ProjectKnowledge[] {
+  return searchProjectList(projects, { category: filters.category, limit: filters.limit });
 }
 
 export async function recommendProjects(env: Env, query: RecommendationQuery): Promise<Recommendation[]> {
+  return recommendProjectList(await listProjectKnowledge(env), query);
+}
+
+export function recommendProjectList(projects: ProjectKnowledge[], query: RecommendationQuery): Recommendation[] {
   const limit = clampLimit(query.limit, 5);
   const useCase = normalize(query.useCase);
-  const candidates = await searchProjects(env, {
+  const candidates = searchProjectList(projects, {
     deployment: query.deployment,
     difficulty: query.difficulty,
     language: query.language,
@@ -407,15 +548,18 @@ export async function recommendProjects(env: Env, query: RecommendationQuery): P
 }
 
 export async function findAlternatives(env: Env, id: string, limit = 5): Promise<ProjectKnowledge[]> {
-  const project = await getProjectKnowledge(env, id);
+  return findAlternativesFromList(await listProjectKnowledge(env), id, limit);
+}
+
+export function findAlternativesFromList(projects: ProjectKnowledge[], id: string, limit = 5): ProjectKnowledge[] {
+  const project = getProjectKnowledgeFromList(projects, id);
   if (!project) {
     return [];
   }
 
   const explicit = new Set(project.agentCard.alternatives.map((item) => item.project_id));
-  const all = await listProjectKnowledge(env);
 
-  return all
+  return projects
     .filter((item) => item.project.id !== project.project.id)
     .map((item) => ({
       item,
@@ -468,8 +612,8 @@ export async function upsertProjectKnowledge(env: Env, knowledge: ProjectKnowled
       `INSERT OR REPLACE INTO project_metrics (
         project_id, stars_30d_delta, commits_30d, releases_180d, contributors_90d,
         issue_first_response_median_hours, recent_push_days, git_score,
-        maintenance_score, calculated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        maintenance_score, signal_confidence_json, calculated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       metrics.projectId,
       metrics.stars30dDelta,
@@ -480,16 +624,19 @@ export async function upsertProjectKnowledge(env: Env, knowledge: ProjectKnowled
       metrics.recentPushDays,
       metrics.gitScore,
       metrics.maintenanceScore,
+      JSON.stringify(metrics.signalConfidence ?? {}),
       metrics.calculatedAt
     ),
     env.DB.prepare(
-      `INSERT OR REPLACE INTO agent_cards (
-        project_id, category, difficulty, deployment_json, cloudflare_ready,
+    `INSERT OR REPLACE INTO agent_cards (
+        project_id, project_kind, collection_json, category, difficulty, deployment_json, cloudflare_ready,
         use_cases_json, not_good_for_json, alternatives_json, summary_for_agent,
-        schema_version, generated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        classification_json, schema_version, generated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       agentCard.projectId,
+      agentCard.projectKind ?? "project",
+      JSON.stringify(agentCard.collectionMetadata ?? {}),
       agentCard.category,
       agentCard.difficulty,
       JSON.stringify(agentCard.deployment),
@@ -498,6 +645,7 @@ export async function upsertProjectKnowledge(env: Env, knowledge: ProjectKnowled
       JSON.stringify(agentCard.notGoodFor),
       JSON.stringify(agentCard.alternatives),
       agentCard.summaryForAgent,
+      JSON.stringify(agentCard.classification ?? {}),
       agentCard.schemaVersion,
       agentCard.generatedAt
     ),
@@ -573,6 +721,8 @@ function rowToProject(row: ProjectRow): Project {
 function rowToAgentCard(row: AgentCardRow): AgentCard {
   return {
     projectId: row.ac_project_id,
+    projectKind: row.project_kind ?? "project",
+    collectionMetadata: parseCollectionMetadata(row.collection_json),
     category: row.category,
     difficulty: row.difficulty,
     deployment: parseJson<AgentCard["deployment"]>(row.deployment_json, []),
@@ -581,6 +731,7 @@ function rowToAgentCard(row: AgentCardRow): AgentCard {
     notGoodFor: parseJson<string[]>(row.not_good_for_json, []),
     alternatives: parseJson<AgentCard["alternatives"]>(row.alternatives_json, []),
     summaryForAgent: row.summary_for_agent,
+    classification: parseJson<AgentCard["classification"]>(row.classification_json ?? "{}", {}),
     schemaVersion: row.schema_version,
     generatedAt: row.generated_at
   };
@@ -597,6 +748,7 @@ function rowToMetrics(row: MetricsRow): ProjectMetrics {
     recentPushDays: row.recent_push_days,
     gitScore: row.git_score,
     maintenanceScore: row.maintenance_score,
+    signalConfidence: parseJson<ProjectMetrics["signalConfidence"]>(row.signal_confidence_json ?? "{}", {}),
     calculatedAt: row.calculated_at
   };
 }
@@ -631,6 +783,31 @@ function buildRecommendationReason(item: ProjectKnowledge, query: Recommendation
     parts.push(`Its difficulty is ${query.difficulty}.`);
   }
   return parts.join(" ");
+}
+
+function syncHealth(runs: SyncRun[]): "healthy" | "degraded" | "unknown" {
+  if (runs.length === 0) {
+    return "unknown";
+  }
+
+  const latest = runs[0];
+  if (latest.syncedCount > 0 && latest.failedCount === 0) {
+    return "healthy";
+  }
+  return "degraded";
+}
+
+function daysBefore(isoDate: string, days: number): string {
+  return new Date(Date.parse(isoDate) - days * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function daysBetween(startIso: string, endIso: string): number {
+  const start = Date.parse(startIso);
+  const end = Date.parse(endIso);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) {
+    return 0;
+  }
+  return Math.max(0, Math.floor((end - start) / 1000 / 60 / 60 / 24));
 }
 
 function readinessBoost(item: ProjectKnowledge, query: RecommendationQuery): number {
@@ -671,6 +848,41 @@ function queryMatchScore(query: string, words: string[], haystack: string, item:
   return hits * 120 + deploymentHits * 80 + topicHits * 60 + categoryHits * 60 + item.metrics.gitScore;
 }
 
+function browseModeQueryScore(query: string, words: string[], haystack: string, item: ProjectKnowledge): number {
+  const qualityScore = browseModeQualityScore(item);
+  if (haystack.includes(query)) {
+    return 220 + qualityScore;
+  }
+
+  const hits = words.filter((word) => haystack.includes(word)).length;
+  if (hits === 0) {
+    return 0;
+  }
+
+  const deploymentHits = words.filter((word) => item.agentCard.deployment.some((deployment) => normalize(deployment).includes(word))).length;
+  const topicHits = words.filter((word) => item.project.topics.some((topic) => normalize(topic).includes(word))).length;
+  const categoryHits = words.filter((word) => normalize(item.agentCard.category).includes(word)).length;
+
+  return hits * 70 + deploymentHits * 70 + topicHits * 45 + categoryHits * 65 + qualityScore;
+}
+
+function isBrowseRankingQuery(filters: ProjectFilters, words: string[], limit: number): boolean {
+  if (limit < 8 || filters.difficulty || filters.language || typeof filters.cloudflareReady === "boolean") {
+    return false;
+  }
+  if (!filters.category && !filters.deployment) {
+    return false;
+  }
+
+  const filterWords = new Set([...queryTokens(filters.category ?? ""), ...queryTokens(filters.deployment ?? "")]);
+  const specificWords = words.filter((word) => !broadProbeWords.has(word) && !filterWords.has(word));
+  return specificWords.length === 0;
+}
+
+function browseModeQualityScore(item: ProjectKnowledge): number {
+  return item.metrics.gitScore * 8 + item.metrics.maintenanceScore * 1.5 + Math.min(120, item.project.stars / 1000);
+}
+
 function queryTokens(query: string): string[] {
   return query
     .split(/[^a-z0-9]+/i)
@@ -681,6 +893,59 @@ function queryTokens(query: string): string[] {
 function isSearchHit(value: { item: ProjectKnowledge; score: number } | null): value is { item: ProjectKnowledge; score: number } {
   return value !== null;
 }
+
+const broadProbeWords = new Set([
+  "agent",
+  "automation",
+  "benchmark",
+  "browser",
+  "calling",
+  "compose",
+  "context",
+  "database",
+  "deployment",
+  "docker",
+  "durable",
+  "embedding",
+  "framework",
+  "gateway",
+  "guardrails",
+  "helm",
+  "inference",
+  "install",
+  "kubernetes",
+  "library",
+  "local",
+  "llm",
+  "mcp",
+  "model",
+  "monitoring",
+  "open",
+  "orchestration",
+  "package",
+  "protocol",
+  "proxy",
+  "rag",
+  "retrieval",
+  "router",
+  "runtime",
+  "search",
+  "server",
+  "serverless",
+  "serving",
+  "starter",
+  "structured",
+  "template",
+  "testing",
+  "tool",
+  "tools",
+  "tracing",
+  "vector",
+  "vercel",
+  "web",
+  "workflow",
+  "workers"
+]);
 
 function sharedCount(left: string[], right: string[]): number {
   const rightText = normalize(right.join(" "));
@@ -712,4 +977,82 @@ function clampLimit(value: number | undefined, fallback = defaultLimit): number 
     return fallback;
   }
   return Math.max(1, Math.min(100, Math.trunc(value)));
+}
+
+function seedResult(reason: KnowledgeSourceReason, error?: unknown): ProjectKnowledgeResult {
+  return {
+    projects: seedProjects,
+    metadata: seedMetadata(reason, error)
+  };
+}
+
+function seedMetadata(reason: KnowledgeSourceReason, error?: unknown): KnowledgeMetadata {
+  return {
+    source: "seed",
+    reason,
+    projectCount: seedProjects.length,
+    generatedAt: new Date().toISOString(),
+    warnings: [seedWarning(reason)],
+    ...(error ? { error: formatError(error) } : {})
+  };
+}
+
+function formatError(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown data source error";
+}
+
+function legacyProjectKnowledgeSelect(): string {
+  return `SELECT
+    p.*,
+    ac.project_id AS ac_project_id,
+    'project' AS project_kind,
+    '{}' AS collection_json,
+    ac.category,
+    ac.difficulty,
+    ac.deployment_json,
+    ac.cloudflare_ready,
+    ac.use_cases_json,
+    ac.not_good_for_json,
+    ac.alternatives_json,
+    ac.summary_for_agent,
+    '{}' AS classification_json,
+    ac.schema_version,
+    ac.generated_at,
+    pm.project_id AS pm_project_id,
+    pm.stars_30d_delta,
+    pm.commits_30d,
+    pm.releases_180d,
+    pm.contributors_90d,
+    pm.issue_first_response_median_hours,
+    pm.recent_push_days,
+    pm.git_score,
+    pm.maintenance_score`;
+}
+
+function isMissingOptionalColumn(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message.includes("signal_confidence_json") ||
+      error.message.includes("classification_json") ||
+      error.message.includes("project_kind") ||
+      error.message.includes("collection_json"))
+  );
+}
+
+function parseCollectionMetadata(value: string | undefined): AgentCard["collectionMetadata"] {
+  const parsed = parseJson<AgentCard["collectionMetadata"] | Record<string, never>>(value ?? "{}", {});
+  return parsed && "scope" in parsed ? (parsed as AgentCard["collectionMetadata"]) : undefined;
+}
+
+function seedWarning(reason: KnowledgeSourceReason): string {
+  if (reason === "db_missing") {
+    return "D1 binding is missing; returning bundled seed projects.";
+  }
+  if (reason === "db_empty") {
+    return "D1 contains no indexed projects; returning bundled seed projects.";
+  }
+  if (reason === "db_error") {
+    return "D1 query failed; returning bundled seed projects.";
+  }
+  return "Returning bundled seed projects.";
 }

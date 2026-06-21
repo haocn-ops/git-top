@@ -1,9 +1,9 @@
 import {
-  findAlternatives,
-  getProjectKnowledge,
-  listProjectKnowledge,
-  recommendProjects,
-  searchProjects
+  findAlternativesFromList,
+  getProjectKnowledgeFromList,
+  listProjectKnowledgeWithMeta,
+  recommendProjectList,
+  searchProjectList
 } from "./db";
 import { buildKnowledgeGraph, compareProjectKnowledge } from "./graph";
 import { normalizeGrpRequest, runGrpQuery } from "./grp";
@@ -28,7 +28,8 @@ interface ToolErrorResult {
 const tools = [
   {
     name: "search_projects",
-    description: "Search Git.Top projects by query, category, deployment, difficulty, language, or Cloudflare readiness.",
+    description:
+      "Search Git.Top projects by query, category, deployment, difficulty, language, or Cloudflare readiness. Results include project_kind and collection_metadata for resource hubs and curated collections.",
     inputSchema: {
       type: "object",
       properties: {
@@ -38,13 +39,19 @@ const tools = [
         difficulty: { type: "string" },
         language: { type: "string" },
         cloudflare_ready: { type: "boolean" },
+        ranking: {
+          type: "string",
+          enum: ["browse"],
+          description: "Optional browse ranking for broad category/deployment discovery with larger limits. Defaults to exact-intent search ranking."
+        },
         limit: { type: "number" }
       }
     }
   },
   {
     name: "get_project",
-    description: "Return structured Git.Top knowledge for a project, including overview, alternatives, deployments, quality score, and agent score.",
+    description:
+      "Return structured Git.Top knowledge for a project or collection, including overview, alternatives, deployments, quality score, agent score, project_kind, and collection_metadata when applicable.",
     inputSchema: {
       type: "object",
       properties: {
@@ -123,7 +130,8 @@ const tools = [
   },
   {
     name: "get_project_card",
-    description: "Return the complete Agent Card for a project.",
+    description:
+      "Return the complete Agent Card for a project, including project_kind and collection_metadata for collection-style repositories.",
     inputSchema: {
       type: "object",
       properties: {
@@ -251,88 +259,112 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
 
 async function callTool(name: string, args: Record<string, unknown>, env: Env): Promise<unknown> {
   if (name === "search_projects") {
-    const projects = await searchProjects(env, {
+    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const projects = searchProjectList(knowledge.projects, {
       q: stringArg(args.query),
       category: stringArg(args.category),
       deployment: stringArg(args.deployment),
       difficulty: stringArg(args.difficulty),
       language: stringArg(args.language),
       cloudflareReady: boolArg(args.cloudflare_ready),
+      ranking: stringArg(args.ranking),
       limit: numberArg(args.limit)
     });
 
     return {
-      projects: projects.map(toProjectKnowledgeView)
+      projects: projects.map(toProjectKnowledgeView),
+      metadata: knowledge.metadata
     };
   }
 
   if (name === "get_project") {
-    const project = await getProjectKnowledge(env, stringArg(args.project_id) ?? "");
+    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const project = getProjectKnowledgeFromList(knowledge.projects, stringArg(args.project_id) ?? "");
     return {
-      project: project ? toProjectKnowledgeView(project) : null
+      project: project ? toProjectKnowledgeView(project) : null,
+      metadata: knowledge.metadata
     };
   }
 
   if (name === "recommend_project") {
     const constraints = objectArg(args.constraints);
+    const knowledge = await listProjectKnowledgeWithMeta(env);
     return {
-      recommendations: await recommendProjects(env, {
+      recommendations: recommendProjectList(knowledge.projects, {
         useCase: stringArg(args.use_case),
         deployment: stringArg(constraints.deployment),
         difficulty: stringArg(constraints.difficulty),
         language: stringArg(constraints.language),
         cloudflareReady: boolArg(constraints.cloudflare_ready),
         limit: numberArg(args.limit)
-      })
+      }),
+      metadata: knowledge.metadata
     };
   }
 
   if (name === "find_alternatives" || name === "get_alternatives") {
+    const knowledge = await listProjectKnowledgeWithMeta(env);
     return {
-      alternatives: (await findAlternatives(env, stringArg(args.project_id) ?? "", numberArg(args.limit))).map(toProjectKnowledgeView)
+      alternatives: findAlternativesFromList(knowledge.projects, stringArg(args.project_id) ?? "", numberArg(args.limit)).map(
+        toProjectKnowledgeView
+      ),
+      metadata: knowledge.metadata
     };
   }
 
   if (name === "get_project_card") {
-    const project = await getProjectKnowledge(env, stringArg(args.project_id) ?? "");
+    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const project = getProjectKnowledgeFromList(knowledge.projects, stringArg(args.project_id) ?? "");
     return {
       project_id: stringArg(args.project_id),
-      agent_card: project?.agentCard ?? null,
-      metrics: project?.metrics ?? null
+      agent_card: project ? withDefaultAgentCardClassification(project.agentCard) : null,
+      metrics: project?.metrics ?? null,
+      metadata: knowledge.metadata
     };
   }
 
   if (name === "get_deployment") {
-    const project = await getProjectKnowledge(env, stringArg(args.project_id) ?? "");
+    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const project = getProjectKnowledgeFromList(knowledge.projects, stringArg(args.project_id) ?? "");
     return {
       project_id: stringArg(args.project_id),
       deployments: project?.agentCard.deployment ?? [],
-      cloudflare_ready: project?.agentCard.cloudflareReady ?? false
+      cloudflare_ready: project?.agentCard.cloudflareReady ?? false,
+      metadata: knowledge.metadata
     };
   }
 
   if (name === "get_quality_score") {
-    const project = await getProjectKnowledge(env, stringArg(args.project_id) ?? "");
+    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const project = getProjectKnowledgeFromList(knowledge.projects, stringArg(args.project_id) ?? "");
     const view = project ? toProjectKnowledgeView(project) : null;
     return {
       project_id: stringArg(args.project_id),
       quality_score: view?.qualityScore ?? null,
       agent_score: view?.agentScore ?? null,
-      quality_signals: view?.qualitySignals ?? null
+      quality_signals: view?.qualitySignals ?? null,
+      metadata: knowledge.metadata
     };
   }
 
   if (name === "get_project_graph") {
+    const knowledge = await listProjectKnowledgeWithMeta(env);
     return {
-      graph: buildKnowledgeGraph(await listProjectKnowledge(env), stringArg(args.project_id), numberArg(args.limit) ?? 24)
+      graph: buildKnowledgeGraph(knowledge.projects, stringArg(args.project_id), numberArg(args.limit) ?? 24),
+      metadata: knowledge.metadata
     };
   }
 
   if (name === "compare_projects") {
     const ids = arrayArg(args.project_ids);
-    const projects = await Promise.all(ids.map((id) => getProjectKnowledge(env, String(id))));
-    const foundProjects = projects.filter(isProjectKnowledge);
-    return compareProjectKnowledge(foundProjects, { deployment: stringArg(args.deployment) });
+    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const foundProjects = ids
+      .map((id) => getProjectKnowledgeFromList(knowledge.projects, String(id)))
+      .filter(isProjectKnowledge);
+    return {
+      ...compareProjectKnowledge(foundProjects, { deployment: stringArg(args.deployment) }),
+      metadata: knowledge.metadata
+    };
   }
 
   if (name === "git_top_grp_query") {
@@ -345,7 +377,15 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
         }
       };
     }
-    return runGrpQuery(await listProjectKnowledge(env), parsed.request);
+    const knowledge = await listProjectKnowledgeWithMeta(env);
+    const result = runGrpQuery(knowledge.projects, parsed.request);
+    return {
+      ...result,
+      metadata: {
+        ...result.metadata,
+        dataSource: knowledge.metadata
+      }
+    };
   }
 
   return {
@@ -401,4 +441,16 @@ function arrayArg(value: unknown): unknown[] {
 
 function isProjectKnowledge(value: ProjectKnowledge | null): value is ProjectKnowledge {
   return value !== null;
+}
+
+function withDefaultAgentCardClassification(card: ProjectKnowledge["agentCard"]): ProjectKnowledge["agentCard"] {
+  return {
+    ...card,
+    classification: {
+      category: card.classification?.category ?? { confidence: "low", evidence: [] },
+      deployment: card.classification?.deployment ?? { confidence: "low", evidence: [] },
+      difficulty: card.classification?.difficulty ?? { confidence: "low", evidence: [] },
+      cloudflareReady: card.classification?.cloudflareReady ?? { confidence: "low", evidence: [] }
+    }
+  };
 }

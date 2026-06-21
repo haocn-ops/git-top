@@ -11,12 +11,13 @@ interface UserManagementProps {
   auditEvents: AuditEvent[];
   initialUsers: ManagedUser[];
   tenants: TenantSummary[];
+  surfaceLabel?: string;
 }
 
 const allRoles = ["all", "owner", "admin", "developer", "viewer"] as const;
 const allStatuses = ["all", "active", "invited", "suspended"] as const;
 
-export function UserManagement({ auditEvents, initialUsers, tenants }: UserManagementProps) {
+export function UserManagement({ auditEvents, initialUsers, tenants, surfaceLabel }: UserManagementProps) {
   const [query, setQuery] = useState("");
   const [role, setRole] = useState<(typeof allRoles)[number]>("all");
   const [status, setStatus] = useState<(typeof allStatuses)[number]>("all");
@@ -102,6 +103,7 @@ export function UserManagement({ auditEvents, initialUsers, tenants }: UserManag
         <div>
           <p className="eyebrow">Access Control</p>
           <h1>User Management</h1>
+          {surfaceLabel ? <p className="muted-copy">{surfaceLabel}</p> : null}
         </div>
         <div className="header-actions">
           <button className="button secondary" type="button" title="Export users">

@@ -1,7 +1,6 @@
-import { ArrowUpRight, GitCompare, Network, Rocket, ShieldCheck } from "lucide-react";
-import { generateAlternatives } from "../../../../src/alternatives";
-import { compareProjectKnowledge, buildKnowledgeGraph } from "../../../../src/graph";
-import { toProjectKnowledgeView } from "../../../../src/project-view";
+import { ArrowUpRight, BookOpen, GitCompare, Network, Rocket, ShieldCheck } from "lucide-react";
+import { getProjectDetailData } from "../../../../src/next-data";
+import type { ProjectKnowledgeView } from "../../../../src/project-view";
 import { seedProjects } from "../../../../src/seed";
 
 export function generateStaticParams() {
@@ -14,17 +13,7 @@ export function generateStaticParams() {
 export default async function ProjectKnowledgePage({ params }: { params: Promise<{ owner: string; repo: string }> }) {
   const { owner, repo } = await params;
   const id = `${owner}/${repo}`;
-  const project = seedProjects.find((item) => item.project.id === id || item.project.fullName === id) ?? seedProjects[0];
-  const view = toProjectKnowledgeView(project);
-  const alternativeIds = new Set([
-    ...project.agentCard.alternatives.map((item) => item.project_id),
-    ...generateAlternatives(project, seedProjects, 4).map((item) => item.project_id)
-  ]);
-  const alternatives = seedProjects.filter((item) => alternativeIds.has(item.project.id)).map(toProjectKnowledgeView);
-  const compare = compareProjectKnowledge([project, ...seedProjects.filter((item) => alternativeIds.has(item.project.id)).slice(0, 3)], {
-    deployment: view.deployments.includes("cloudflare") ? "cloudflare" : undefined
-  });
-  const graph = buildKnowledgeGraph([project, ...seedProjects.filter((item) => alternativeIds.has(item.project.id))], project.project.id, 18);
+  const { view, alternatives, compare, graph, metadata } = await getProjectDetailData(id);
 
   return (
     <div className="page-stack">
@@ -34,6 +23,7 @@ export default async function ProjectKnowledgePage({ params }: { params: Promise
           <h1>{view.repo}</h1>
           <p className="large-copy">{view.overview}</p>
           <div className="tag-list">
+            {view.projectKind === "collection" ? <span>Collection</span> : null}
             {[...view.category, ...view.tags.slice(0, 8)].map((tag) => (
               <span key={tag}>{tag}</span>
             ))}
@@ -43,6 +33,7 @@ export default async function ProjectKnowledgePage({ params }: { params: Promise
           <ArrowUpRight size={17} aria-hidden="true" />
           <span>Agent API</span>
         </a>
+        <span className="status-pill neutral">{metadata.source} / {metadata.reason}</span>
       </header>
 
       <section className="score-grid">
@@ -52,6 +43,24 @@ export default async function ProjectKnowledgePage({ params }: { params: Promise
         <Score label="Deployment" value={view.agentScoreBreakdown.deployment} />
         <Score label="Quality" value={`${view.qualityScore}/100`} />
       </section>
+
+      {view.collectionMetadata ? (
+        <section className="panel collection-detail-panel">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Collection Metadata</p>
+              <h2>{collectionScopeLabel(view.collectionMetadata.scope)}</h2>
+            </div>
+            <BookOpen size={18} aria-hidden="true" />
+          </div>
+          <div className="metadata-grid four-up">
+            <Meta label="Kind" value="Collection" />
+            <Meta label="Estimated items" value={formatEstimatedItems(view.collectionMetadata.estimatedItems)} />
+            <Meta label="Freshness" value={collectionFreshnessLabel(view.collectionMetadata.freshness)} />
+            <Meta label="Curated" value={view.collectionMetadata.curated ? "Yes" : "No"} />
+          </div>
+        </section>
+      ) : null}
 
       <section className="project-detail-layout">
         <article className="panel">
@@ -155,6 +164,39 @@ function KnowledgePanel({ icon, eyebrow, title, items }: { icon: React.ReactNode
       </div>
     </article>
   );
+}
+
+function Meta({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function collectionScopeLabel(scope: NonNullable<ProjectKnowledgeView["collectionMetadata"]>["scope"]): string {
+  const labels: Record<NonNullable<ProjectKnowledgeView["collectionMetadata"]>["scope"], string> = {
+    awesome_list: "Awesome list",
+    cookbook: "Cookbook",
+    starter_collection: "Starter collection",
+    integration_collection: "Integration collection",
+    resource_hub: "Resource hub"
+  };
+  return labels[scope];
+}
+
+function collectionFreshnessLabel(freshness: NonNullable<ProjectKnowledgeView["collectionMetadata"]>["freshness"]): string {
+  const labels: Record<NonNullable<ProjectKnowledgeView["collectionMetadata"]>["freshness"], string> = {
+    active: "Active",
+    stale: "Stale",
+    unknown: "Unknown"
+  };
+  return labels[freshness];
+}
+
+function formatEstimatedItems(value: number | null): string {
+  return value === null ? "Unknown" : value.toLocaleString();
 }
 
 function mark(value: boolean): string {

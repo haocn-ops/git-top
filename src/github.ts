@@ -2,6 +2,9 @@ import type { Env, GithubRepoSignals, GithubRepository } from "./types";
 import seedRepositories from "../data/seed-repositories.json";
 
 const githubApiBase = "https://api.github.com";
+const maxCommitPages = 3;
+const maxReleasePages = 5;
+const maxContributorPages = 5;
 
 export const defaultSeedRepositories = seedRepositories;
 
@@ -38,8 +41,19 @@ interface GithubComment {
   created_at: string;
 }
 
+type SignalConfidence = NonNullable<GithubRepoSignals["signalConfidence"]>;
+
+interface PagedCount {
+  count: number;
+  complete: boolean;
+}
+
 export class GithubClient {
-  constructor(private readonly env: Env) {}
+  private readonly env: Env;
+
+  constructor(env: Env) {
+    this.env = env;
+  }
 
   async getRepository(fullName: string): Promise<GithubRepository> {
     return this.request<GithubRepository>(`/repos/${fullName}`);
@@ -59,10 +73,15 @@ export class GithubClient {
     return {
       readmeText,
       files,
-      commits30d,
-      releases180d,
-      contributors90d,
-      issueFirstResponseMedianHours
+      commits30d: commits30d.count,
+      releases180d: releases180d.count,
+      contributors90d: contributors90d.count,
+      issueFirstResponseMedianHours,
+      signalConfidence: {
+        commits30d: confidenceFor(commits30d),
+        releases180d: confidenceFor(releases180d),
+        contributors90d: confidenceFor(contributors90d)
+      }
     };
   }
 
@@ -87,34 +106,41 @@ export class GithubClient {
     }
   }
 
-  private async countCommits(fullName: string, days: number): Promise<number> {
+  private async countCommits(fullName: string, days: number): Promise<PagedCount> {
     try {
       const since = daysAgo(days);
-      const commits = await this.request<GithubCommit[]>(
-        `/repos/${fullName}/commits?since=${encodeURIComponent(since)}&per_page=100`
+      return this.countPaged<GithubCommit>(
+        `/repos/${fullName}/commits?since=${encodeURIComponent(since)}&per_page=100`,
+        maxCommitPages
       );
-      return commits.length;
     } catch {
-      return 0;
+      return unknownPagedCount();
     }
   }
 
-  private async countReleases(fullName: string, days: number): Promise<number> {
+  private async countReleases(fullName: string, days: number): Promise<PagedCount> {
     try {
-      const releases = await this.request<GithubRelease[]>(`/repos/${fullName}/releases?per_page=100`);
       const cutoff = Date.parse(daysAgo(days));
-      return releases.filter((release) => release.published_at && Date.parse(release.published_at) >= cutoff).length;
+      let count = 0;
+      const pages = await this.forEachPage<GithubRelease>(`/repos/${fullName}/releases?per_page=100`, maxReleasePages, (releases) => {
+        const recent = releases.filter((release) => release.published_at && Date.parse(release.published_at) >= cutoff);
+        count += recent.length;
+        return recent.length === releases.length;
+      });
+      return {
+        count,
+        complete: pages.complete
+      };
     } catch {
-      return 0;
+      return unknownPagedCount();
     }
   }
 
-  private async countContributors(fullName: string): Promise<number> {
+  private async countContributors(fullName: string): Promise<PagedCount> {
     try {
-      const contributors = await this.request<GithubContributor[]>(`/repos/${fullName}/contributors?per_page=100`);
-      return contributors.length;
+      return this.countPaged<GithubContributor>(`/repos/${fullName}/contributors?per_page=100`, maxContributorPages);
     } catch {
-      return 0;
+      return unknownPagedCount();
     }
   }
 
@@ -147,6 +173,10 @@ export class GithubClient {
   }
 
   private async request<T>(path: string): Promise<T> {
+    return (await this.requestWithHeaders<T>(path)).data;
+  }
+
+  private async requestWithHeaders<T>(path: string): Promise<{ data: T; headers: Headers }> {
     const headers = new Headers({
       accept: "application/vnd.github+json",
       "user-agent": "git-top-worker"
@@ -160,8 +190,76 @@ export class GithubClient {
     if (!response.ok) {
       throw new Error(`GitHub API ${response.status} for ${path}`);
     }
-    return response.json<T>();
+    return {
+      data: await response.json<T>(),
+      headers: response.headers
+    };
   }
+
+  private async countPaged<T>(firstPath: string, maxPages: number): Promise<PagedCount> {
+    let count = 0;
+    const pages = await this.forEachPage<T>(firstPath, maxPages, (items) => {
+      count += items.length;
+      return true;
+    });
+    return {
+      count,
+      complete: pages.complete
+    };
+  }
+
+  private async forEachPage<T>(
+    firstPath: string,
+    maxPages: number,
+    visit: (items: T[]) => boolean
+  ): Promise<{ complete: boolean }> {
+    let nextPath: string | null = firstPath;
+    let page = 0;
+
+    while (nextPath && page < maxPages) {
+      const response = await this.requestWithHeaders<T[]>(nextPath);
+      page += 1;
+      if (!visit(response.data)) {
+        return { complete: true };
+      }
+      nextPath = nextPathFromLink(response.headers.get("link"));
+    }
+
+    return { complete: nextPath === null };
+  }
+}
+
+function confidenceFor(result: PagedCount): SignalConfidence[keyof SignalConfidence] {
+  if (result.count === 0 && !result.complete) {
+    return "unknown";
+  }
+  return result.complete ? "complete" : "partial";
+}
+
+function unknownPagedCount(): PagedCount {
+  return {
+    count: 0,
+    complete: false
+  };
+}
+
+function nextPathFromLink(link: string | null): string | null {
+  if (!link) {
+    return null;
+  }
+
+  const next = link
+    .split(",")
+    .map((part) => part.trim())
+    .find((part) => part.endsWith('rel="next"'));
+
+  const match = next?.match(/<([^>]+)>/);
+  if (!match) {
+    return null;
+  }
+
+  const url = new URL(match[1]);
+  return `${url.pathname}${url.search}`;
 }
 
 function daysAgo(days: number): string {

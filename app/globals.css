@@ -818,6 +818,10 @@ h2 {
   min-height: 220px;
 }
 
+.collection-panel {
+  background: #fbfdfd;
+}
+
 .feature-icon {
   display: inline-flex;
   align-items: center;
@@ -941,6 +945,42 @@ h2 {
   margin-top: 8px;
 }
 
+.collection-detail-panel {
+  display: grid;
+  gap: 2px;
+}
+
+.metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.metadata-grid.four-up {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.metadata-grid div {
+  display: grid;
+  gap: 5px;
+  min-height: 72px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafb;
+  padding: 10px;
+}
+
+.metadata-grid span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.metadata-grid strong {
+  overflow-wrap: anywhere;
+}
+
 .quality-list,
 .simple-list {
   display: grid;
@@ -969,12 +1009,12 @@ h2 {
 
 .knowledge-table {
   display: grid;
-  min-width: 820px;
+  min-width: 940px;
 }
 
 .knowledge-row {
   display: grid;
-  grid-template-columns: minmax(280px, 1.4fr) minmax(180px, 0.8fr) 90px 90px;
+  grid-template-columns: minmax(280px, 1.4fr) 110px minmax(180px, 0.8fr) 90px 90px;
   align-items: center;
   gap: 12px;
   border-top: 1px solid var(--line);
@@ -1393,7 +1433,9 @@ h2 {
   .agent-grid,
   .three-panel-grid,
   .node-map,
-  .score-grid {
+  .score-grid,
+  .metadata-grid,
+  .metadata-grid.four-up {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1455,7 +1497,9 @@ h2 {
   .agent-grid,
   .three-panel-grid,
   .node-map,
-  .score-grid {
+  .score-grid,
+  .metadata-grid,
+  .metadata-grid.four-up {
     grid-template-columns: 1fr;
   }
 

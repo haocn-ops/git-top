@@ -1,0 +1,350 @@
+[
+  {
+    "id": "search-cloudflare-agent-framework",
+    "type": "search",
+    "description": "Find a Cloudflare-native agent framework.",
+    "query": {
+      "q": "cloudflare agent framework",
+      "deployment": "cloudflare",
+      "cloudflareReady": true,
+      "limit": 3
+    },
+    "expected": {
+      "acceptableProjects": ["cloudflare/agents"],
+      "categories": ["agent_framework"],
+      "deployments": ["cloudflare"],
+      "cloudflareReady": true,
+      "unacceptableProjects": ["langchain-ai/langchain", "run-llama/llama_index"]
+    }
+  },
+  {
+    "id": "search-mcp-server-examples",
+    "type": "search",
+    "description": "Find MCP server examples for tool integrations.",
+    "query": {
+      "q": "MCP server tools",
+      "category": "mcp_server",
+      "limit": 3
+    },
+    "expected": {
+      "acceptableProjects": ["modelcontextprotocol/servers"],
+      "categories": ["mcp_server"],
+      "deployments": ["local"],
+      "unacceptableProjects": ["cloudflare/agents"]
+    }
+  },
+  {
+    "id": "recommend-rag-framework",
+    "type": "recommend",
+    "description": "Recommend a project for RAG and private data retrieval.",
+    "query": {
+      "useCase": "build RAG systems over private documents",
+      "language": "Python",
+      "limit": 3
+    },
+    "expected": {
+      "acceptableProjects": ["run-llama/llama_index", "langchain-ai/langchain"],
+      "categories": ["rag_framework", "agent_framework"],
+      "deployments": ["library_only", "local"],
+      "unacceptableProjects": ["cloudflare/agents"]
+    }
+  },
+  {
+    "id": "recommend-cloudflare-agent",
+    "type": "recommend",
+    "description": "Recommend a Cloudflare-ready agent project.",
+    "query": {
+      "useCase": "build and deploy agents on Cloudflare Workers",
+      "deployment": "cloudflare",
+      "cloudflareReady": true,
+      "limit": 3
+    },
+    "expected": {
+      "acceptableProjects": ["cloudflare/agents"],
+      "categories": ["agent_framework"],
+      "deployments": ["cloudflare"],
+      "cloudflareReady": true,
+      "unacceptableProjects": ["langchain-ai/langchain", "run-llama/llama_index"]
+    }
+  },
+  {
+    "id": "grp-find-cloudflare-agents",
+    "type": "grp",
+    "description": "Use GRP find mode for Cloudflare-ready agent frameworks.",
+    "query": {
+      "goal": "Find Cloudflare-ready agent frameworks",
+      "mode": "find",
+      "constraints": {
+        "deploy": ["cloudflare"],
+        "agent_ready": true
+      }
+    },
+    "expected": {
+      "acceptableProjects": ["cloudflare/agents"],
+      "categories": ["agent_framework"],
+      "deployments": ["cloudflare"],
+      "cloudflareReady": true,
+      "unacceptableProjects": ["run-llama/llama_index"]
+    }
+  },
+  {
+    "id": "grp-compose-coding-stack",
+    "type": "grp",
+    "description": "Use GRP compose mode for an autonomous coding stack.",
+    "query": {
+      "goal": "compose an autonomous coding stack with tool calling and LLM access",
+      "mode": "compose",
+      "constraints": {
+        "agent_ready": true
+      }
+    },
+    "expected": {
+      "acceptableProjects": ["modelcontextprotocol/servers", "langchain-ai/langchain", "cloudflare/agents"],
+      "categories": ["mcp_server", "agent_framework"],
+      "deployments": ["local", "cloud"],
+      "unacceptableProjects": []
+    }
+  },
+  {
+    "id": "search-local-llm-runtime",
+    "type": "search",
+    "description": "Find local LLM runtimes.",
+    "query": {
+      "q": "local LLM runtime inference",
+      "category": "local_llm_runtime",
+      "limit": 5
+    },
+    "expected": {
+      "acceptableProjects": ["ollama/ollama", "ggml-org/llama.cpp", "vllm-project/vllm", "lmstudio-ai/lms", "xorbitsai/inference", "oobabooga/textgen", "EricLBuehler/mistral.rs", "bentoml/OpenLLM", "mozilla-ai/llamafile", "openvinotoolkit/openvino.genai", "abetlen/llama-cpp-python", "LMCache/LMCache", "kserve/kserve", "llm-d/llm-d", "ollama/ollama-python", "ollama/ollama-js", "bentoml/BentoML", "ray-project/ray", "mlc-ai/web-llm", "openfaas/faas"],
+      "categories": ["local_llm_runtime"],
+      "deployments": ["local"],
+      "unacceptableProjects": ["cloudflare/agents"]
+    }
+  },
+  {
+    "id": "search-vector-database",
+    "type": "search",
+    "description": "Find vector databases for embeddings.",
+    "query": {
+      "q": "vector database embeddings search",
+      "category": "vector_database",
+      "limit": 5
+    },
+    "expected": {
+      "acceptableProjects": ["qdrant/qdrant", "milvus-io/milvus", "weaviate/weaviate", "chroma-core/chroma", "opensearch-project/OpenSearch", "facebookresearch/faiss", "unum-cloud/usearch", "redis/redis", "neo4j/neo4j", "postgresml/postgresml"],
+      "categories": ["vector_database"],
+      "deployments": ["docker", "cloud"],
+      "unacceptableProjects": ["openai/codex", "redis/mcp-redis"]
+    }
+  },
+  {
+    "id": "search-prompt-tooling",
+    "type": "search",
+    "description": "Find prompt tooling and structured output tools.",
+    "query": {
+      "q": "prompt structured output guardrails",
+      "category": "prompt_tooling",
+      "limit": 5
+    },
+    "expected": {
+      "acceptableProjects": ["promptfoo/promptfoo", "guardrails-ai/guardrails", "dottxt-ai/outlines", "567-labs/instructor"],
+      "categories": ["prompt_tooling"],
+      "deployments": ["library_only"],
+      "unacceptableProjects": ["qdrant/qdrant"]
+    }
+  },
+  {
+    "id": "search-ai-observability",
+    "type": "search",
+    "description": "Find observability tools for LLM applications.",
+    "query": {
+      "q": "LLM observability tracing monitoring",
+      "category": "ai_observability",
+      "limit": 5
+    },
+    "expected": {
+      "acceptableProjects": ["jaegertracing/jaeger", "traceloop/openllmetry", "traceloop/openllmetry-js", "langfuse/langfuse", "Arize-ai/phoenix", "helicone/helicone", "AgentOps-AI/agentops", "SigNoz/signoz", "comet-ml/opik", "wandb/weave", "pydantic/logfire"],
+      "categories": ["ai_observability"],
+      "deployments": ["local"],
+      "unacceptableProjects": ["ollama/ollama"]
+    }
+  },
+  {
+    "id": "search-workflow-automation",
+    "type": "search",
+    "description": "Find workflow automation projects.",
+    "query": {
+      "q": "workflow automation orchestration",
+      "category": "workflow_automation",
+      "limit": 5
+    },
+    "expected": {
+      "acceptableProjects": ["n8n-io/n8n", "activepieces/activepieces", "windmill-labs/windmill", "triggerdotdev/trigger.dev", "ComposioHQ/composio", "FlowiseAI/Flowise"],
+      "categories": ["workflow_automation"],
+      "deployments": ["docker", "cloud"],
+      "unacceptableProjects": ["modelcontextprotocol/servers", "PrefectHQ/fastmcp"]
+    }
+  },
+  {
+    "id": "search-coding-agent",
+    "type": "search",
+    "description": "Find coding agents and developer assistants.",
+    "query": {
+      "q": "coding agent developer assistant",
+      "category": "coding_agent",
+      "limit": 5
+    },
+    "expected": {
+      "acceptableProjects": ["openai/codex", "cline/cline", "aider-ai/aider", "OpenHands/OpenHands"],
+      "categories": ["coding_agent"],
+      "deployments": ["local"],
+      "unacceptableProjects": ["qdrant/qdrant"]
+    }
+  },
+  {
+    "id": "search-browser-agent",
+    "type": "search",
+    "description": "Find browser automation agents and tools.",
+    "query": {
+      "q": "browser automation web agent",
+      "category": "browser_agent",
+      "limit": 5
+    },
+    "expected": {
+      "acceptableProjects": ["browser-use/web-ui", "browser-use/browser-use", "microsoft/playwright-mcp", "Skyvern-AI/skyvern", "firecrawl/firecrawl"],
+      "categories": ["browser_agent"],
+      "deployments": ["local"],
+      "unacceptableProjects": ["langfuse/langfuse"]
+    }
+  },
+  {
+    "id": "search-coding-resource-hub",
+    "type": "search",
+    "description": "Find resource collections for coding agents.",
+    "query": {
+      "q": "copilot coding agent resources",
+      "category": "coding_agent",
+      "limit": 5
+    },
+    "expected": {
+      "acceptableProjects": ["github/awesome-copilot", "OpenHands/OpenHands", "cline/cline", "openai/codex", "aider-ai/aider"],
+      "categories": ["coding_agent"],
+      "deployments": ["local"],
+      "unacceptableProjects": ["qdrant/qdrant", "langfuse/langfuse"]
+    }
+  },
+  {
+    "id": "search-ai-app-resource-collection",
+    "type": "search",
+    "description": "Find AI app templates and resource collections.",
+    "query": {
+      "q": "awesome llm apps template starter",
+      "category": "ai_app_template",
+      "limit": 5
+    },
+    "expected": {
+      "acceptableProjects": ["Shubhamsaboo/awesome-llm-apps", "e2b-dev/awesome-ai-agents", "vercel/ai", "run-llama/create-llama", "open-webui/open-webui"],
+      "categories": ["ai_app_template"],
+      "deployments": ["local"],
+      "unacceptableProjects": ["qdrant/qdrant", "ollama/ollama"]
+    }
+  },
+  {
+    "id": "search-mcp-observability-integration",
+    "type": "search",
+    "description": "Find MCP integrations for observability tools.",
+    "query": {
+      "q": "opik mcp server observability tools",
+      "category": "mcp_server",
+      "limit": 5
+    },
+    "expected": {
+      "acceptableProjects": ["comet-ml/opik-mcp", "github/github-mcp-server", "cloudflare/mcp-server-cloudflare", "modelcontextprotocol/servers", "PrefectHQ/fastmcp"],
+      "categories": ["mcp_server"],
+      "deployments": ["local"],
+      "unacceptableProjects": ["ollama/ollama", "qdrant/qdrant"]
+    }
+  },
+  {
+    "id": "search-open-saas-template",
+    "type": "search",
+    "description": "Find open SaaS starter templates.",
+    "query": {
+      "q": "open saas template starter",
+      "category": "ai_app_template",
+      "limit": 5
+    },
+    "expected": {
+      "acceptableProjects": ["wasp-lang/open-saas", "openai/openai-cookbook", "Azure-Samples/azure-search-openai-demo", "openai/openai-cs-agents-demo", "open-webui/open-webui"],
+      "categories": ["ai_app_template"],
+      "deployments": ["local", "docker"],
+      "unacceptableProjects": ["ollama/ollama", "modelcontextprotocol/servers"]
+    }
+  },
+  {
+    "id": "search-ambiguous-memory-framework",
+    "type": "search",
+    "description": "Classify a short, ambiguous repository name using README/topic memory and retrieval evidence.",
+    "query": {
+      "q": "agent memory user context retrieval",
+      "category": "rag_framework",
+      "limit": 5
+    },
+    "expected": {
+      "acceptableProjects": ["mem0ai/mem0", "supermemoryai/supermemory", "getzep/zep"],
+      "categories": ["rag_framework"],
+      "deployments": ["library_only", "local"],
+      "unacceptableProjects": ["Portkey-AI/gateway", "pydantic/logfire", "dottxt-ai/outlines"]
+    }
+  },
+  {
+    "id": "search-ambiguous-structured-output",
+    "type": "search",
+    "description": "Classify an ambiguous project name using structured generation and constrained output evidence.",
+    "query": {
+      "q": "outlines structured generation constrained output",
+      "category": "prompt_tooling",
+      "limit": 5
+    },
+    "expected": {
+      "acceptableProjects": ["dottxt-ai/outlines", "guidance-ai/guidance", "567-labs/instructor", "guardrails-ai/guardrails"],
+      "categories": ["prompt_tooling"],
+      "deployments": ["library_only", "local"],
+      "unacceptableProjects": ["qdrant/qdrant", "mem0ai/mem0", "pydantic/logfire"]
+    }
+  },
+  {
+    "id": "search-ambiguous-observability-tool",
+    "type": "search",
+    "description": "Classify an ambiguous tool name using tracing, monitoring, and observability evidence.",
+    "query": {
+      "q": "logfire tracing monitoring observability",
+      "category": "ai_observability",
+      "limit": 5
+    },
+    "expected": {
+      "acceptableProjects": ["pydantic/logfire", "langfuse/langfuse", "comet-ml/opik", "Arize-ai/phoenix"],
+      "categories": ["ai_observability"],
+      "deployments": ["library_only", "local"],
+      "unacceptableProjects": ["ollama/ollama", "dottxt-ai/outlines", "Portkey-AI/gateway"]
+    }
+  },
+  {
+    "id": "search-cloudflare-mentioned-not-ready",
+    "type": "search",
+    "description": "Avoid treating Cloudflare Workers mentions as ready when runtime blockers are present.",
+    "query": {
+      "q": "cloudflare workers deployment python docker postgres",
+      "deployment": "cloudflare",
+      "cloudflareReady": false,
+      "limit": 5
+    },
+    "expected": {
+      "acceptableProjects": ["example/cloudflare-python-agent", "example/cloudflare-docker-gateway"],
+      "categories": ["agent_framework", "llm_gateway"],
+      "deployments": ["cloudflare"],
+      "cloudflareReady": false,
+      "unacceptableProjects": ["cloudflare/agents", "cloudflare/mcp-server-cloudflare"]
+    }
+  }
+]

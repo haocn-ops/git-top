@@ -3,17 +3,14 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
-import { BarChart3, Braces, Building2, Github, LayoutDashboard, Network, Settings, Shield, UserPlus, UsersRound } from "lucide-react";
+import { Braces, Github, LayoutDashboard, Network, Shield, SquareCode, UserPlus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 const navigation: Array<{ href: Route; label: string; icon: LucideIcon }> = [
   { href: "/", label: "Home", icon: LayoutDashboard },
   { href: "/graph", label: "Graph", icon: Network },
-  { href: "/users", label: "Users", icon: UsersRound },
-  { href: "/register", label: "Register", icon: UserPlus },
   { href: "/projects", label: "Projects", icon: Braces },
-  { href: "/tenants", label: "Tenants", icon: Building2 },
-  { href: "/reports", label: "Reports", icon: BarChart3 }
+  { href: "/register", label: "Register API", icon: UserPlus }
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -48,12 +45,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="sidebar-footer">
           <div className="compliance-badge">
             <Shield size={18} aria-hidden="true" />
-            <span>SOC 2 Ready</span>
+            <span>Agent Ready</span>
           </div>
-          <Link className="nav-item compact" href="/settings">
-            <Settings size={18} aria-hidden="true" />
-            <span>Settings</span>
-          </Link>
+          <a className="nav-item compact" href="/api/schema/project.v2">
+            <SquareCode size={18} aria-hidden="true" />
+            <span>Schema</span>
+          </a>
         </div>
       </aside>
       <main className="workspace">{children}</main>

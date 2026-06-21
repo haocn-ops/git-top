@@ -1,4 +1,4 @@
-import type { Category, Deployment, Difficulty } from "./types";
+import type { Category, Deployment, Difficulty, ProjectKind } from "./types";
 
 export const categoryValues = [
   "agent_framework",
@@ -30,6 +30,8 @@ export const deploymentValues = [
   "library_only"
 ] as const satisfies readonly Deployment[];
 
+export const projectKindValues = ["project", "collection"] as const satisfies readonly ProjectKind[];
+
 export const agentCardJsonSchema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
   $id: "https://git.top/schemas/agent-card.v1.json",
@@ -50,6 +52,8 @@ export const agentCardJsonSchema = {
   ],
   properties: {
     project_id: { type: "string", pattern: "^[^/\\s]+/[^/\\s]+$" },
+    project_kind: { type: "string", enum: projectKindValues, default: "project" },
+    collection_metadata: { $ref: "#/$defs/collection_metadata" },
     category: { type: "string", enum: categoryValues },
     difficulty: { type: "string", enum: difficultyValues },
     deployment: {
@@ -80,8 +84,40 @@ export const agentCardJsonSchema = {
       }
     },
     summary_for_agent: { type: "string", minLength: 1 },
+    classification: {
+      type: "object",
+      properties: {
+        category: { $ref: "#/$defs/classification_signal" },
+        deployment: { $ref: "#/$defs/classification_signal" },
+        difficulty: { $ref: "#/$defs/classification_signal" },
+        cloudflare_ready: { $ref: "#/$defs/classification_signal" }
+      }
+    },
     schema_version: { const: "v1" },
     generated_at: { type: "string", format: "date-time" }
+  },
+  $defs: {
+    collection_metadata: {
+      type: "object",
+      required: ["scope", "curated", "estimated_items", "freshness"],
+      properties: {
+        scope: {
+          type: "string",
+          enum: ["awesome_list", "cookbook", "starter_collection", "integration_collection", "resource_hub"]
+        },
+        curated: { type: "boolean" },
+        estimated_items: { type: ["integer", "null"], minimum: 0 },
+        freshness: { type: "string", enum: ["active", "stale", "unknown"] }
+      }
+    },
+    classification_signal: {
+      type: "object",
+      required: ["confidence", "evidence"],
+      properties: {
+        confidence: { type: "string", enum: ["high", "medium", "low"] },
+        evidence: { type: "array", items: { type: "string" } }
+      }
+    }
   }
 } as const;
 
@@ -161,6 +197,8 @@ export const projectV2JsonSchema = {
   properties: {
     repo: { type: "string", pattern: "^[^/\\s]+/[^/\\s]+$" },
     name: { type: "string", minLength: 1 },
+    project_kind: { type: "string", enum: projectKindValues, default: "project" },
+    collection_metadata: { $ref: "#/$defs/collection_metadata" },
     category: { type: "array", items: { type: "string" } },
     tags: { type: "array", items: { type: "string" } },
     description: { type: "string" },
@@ -179,6 +217,15 @@ export const projectV2JsonSchema = {
     dependencies: { type: "array", items: { type: "string" } },
     deployments: { type: "array", items: { type: "string", enum: deploymentValues } },
     use_cases: { type: "array", items: { type: "string" } },
+    classification: {
+      type: "object",
+      properties: {
+        category: { $ref: "#/$defs/classification_signal" },
+        deployment: { $ref: "#/$defs/classification_signal" },
+        difficulty: { $ref: "#/$defs/classification_signal" },
+        cloudflare_ready: { $ref: "#/$defs/classification_signal" }
+      }
+    },
     quality_signals: {
       type: "object",
       properties: {
@@ -189,7 +236,40 @@ export const projectV2JsonSchema = {
         release_frequency_180d: { type: "integer", minimum: 0 }
       }
     },
+    quality_signal_confidence: {
+      type: "object",
+      properties: {
+        stars_30d_delta: { type: "string", enum: ["snapshot", "estimated"] },
+        stars_30d_window_days: { type: "integer", minimum: 0 },
+        commits_30d: { type: "string", enum: ["complete", "partial", "unknown"] },
+        releases_180d: { type: "string", enum: ["complete", "partial", "unknown"] },
+        contributors_90d: { type: "string", enum: ["complete", "partial", "unknown"] }
+      }
+    },
     quality_score: { type: "integer", minimum: 0, maximum: 100 },
     agent_score: { type: "integer", minimum: 0, maximum: 100 }
+  },
+  $defs: {
+    collection_metadata: {
+      type: "object",
+      required: ["scope", "curated", "estimated_items", "freshness"],
+      properties: {
+        scope: {
+          type: "string",
+          enum: ["awesome_list", "cookbook", "starter_collection", "integration_collection", "resource_hub"]
+        },
+        curated: { type: "boolean" },
+        estimated_items: { type: ["integer", "null"], minimum: 0 },
+        freshness: { type: "string", enum: ["active", "stale", "unknown"] }
+      }
+    },
+    classification_signal: {
+      type: "object",
+      required: ["confidence", "evidence"],
+      properties: {
+        confidence: { type: "string", enum: ["high", "medium", "low"] },
+        evidence: { type: "array", items: { type: "string" } }
+      }
+    }
   }
 } as const;

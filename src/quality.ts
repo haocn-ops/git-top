@@ -16,7 +16,29 @@ export interface QualityReport {
   errorCount: number;
   warningCount: number;
   categoryDistribution: Record<Category, number>;
+  coverage: QualityCoverage;
   issues: QualityIssue[];
+}
+
+export interface LowConfidenceReviewItem {
+  projectId: string;
+  category: Category;
+  classificationSignals: Array<{
+    field: "category" | "deployment" | "difficulty" | "cloudflareReady";
+    confidence: "high" | "medium" | "low";
+    evidence: string[];
+  }>;
+  reasons: string[];
+  suggestedAction: string;
+}
+
+export interface LowConfidenceReviewReport {
+  projectCount: number;
+  reviewCount: number;
+  lowSignalCount: number;
+  mediumSignalCount: number;
+  categoryCounts: Record<Category, number>;
+  items: LowConfidenceReviewItem[];
 }
 
 const categories: Category[] = [
@@ -35,11 +57,27 @@ const categories: Category[] = [
   "ai_observability",
   "other"
 ];
+const classificationFields = ["category", "deployment", "difficulty", "cloudflareReady"] as const;
+
+export interface QualityCoverage {
+  categoryCoverage: Record<Category, number>;
+  coveredCategories: number;
+  totalCategories: number;
+  missingCategories: Category[];
+  lowConfidenceClassificationCount: number;
+  lowConfidenceClassificationRate: number;
+  staleProjectCount: number;
+  staleProjectRate: number;
+  cloudflareReadyCount: number;
+  averageGitScore: number;
+  averageMaintenanceScore: number;
+}
 
 export function buildQualityReport(projects: ProjectKnowledge[]): QualityReport {
   const issues = projects.flatMap(checkProject);
   const errorCount = issues.filter((issue) => issue.severity === "error").length;
   const warningCount = issues.filter((issue) => issue.severity === "warning").length;
+  const distribution = categoryDistribution(projects);
   const penalty = errorCount * 10 + warningCount * 4 + issues.filter((issue) => issue.severity === "info").length;
 
   return {
@@ -48,9 +86,113 @@ export function buildQualityReport(projects: ProjectKnowledge[]): QualityReport 
     issueCount: issues.length,
     errorCount,
     warningCount,
-    categoryDistribution: categoryDistribution(projects),
+    categoryDistribution: distribution,
+    coverage: buildCoverage(projects, distribution),
     issues
   };
+}
+
+export function buildLowConfidenceReviewReport(projects: ProjectKnowledge[]): LowConfidenceReviewReport {
+  const items = projects
+    .map(reviewItem)
+    .filter((item): item is LowConfidenceReviewItem => item !== null)
+    .sort((a, b) => b.reasons.length - a.reasons.length || a.projectId.localeCompare(b.projectId));
+  const categoryCounts = Object.fromEntries(categories.map((category) => [category, 0])) as Record<Category, number>;
+  for (const item of items) {
+    categoryCounts[item.category] += 1;
+  }
+
+  return {
+    projectCount: projects.length,
+    reviewCount: items.length,
+    lowSignalCount: items.reduce((count, item) => count + item.classificationSignals.filter((signal) => signal.confidence === "low").length, 0),
+    mediumSignalCount: items.reduce((count, item) => count + item.classificationSignals.filter((signal) => signal.confidence === "medium").length, 0),
+    categoryCounts,
+    items
+  };
+}
+
+function reviewItem(item: ProjectKnowledge): LowConfidenceReviewItem | null {
+  const classification = item.agentCard.classification;
+  const nonHighSignals: LowConfidenceReviewItem["classificationSignals"] = [];
+  for (const field of classificationFields) {
+    const signal = classification?.[field];
+    if (signal && signal.confidence !== "high") {
+      nonHighSignals.push({
+        field,
+        confidence: signal.confidence,
+        evidence: signal.evidence
+      });
+    }
+  }
+  const signals = nonHighSignals.filter(isActionableClassificationSignal);
+  const reasons = reviewReasons(item, signals);
+
+  if (reasons.length === 0) {
+    return null;
+  }
+
+  return {
+    projectId: item.project.id,
+    category: item.agentCard.category,
+    classificationSignals: nonHighSignals,
+    reasons,
+    suggestedAction: suggestedReviewAction(item, signals, reasons)
+  };
+}
+
+function isActionableClassificationSignal(signal: LowConfidenceReviewItem["classificationSignals"][number]): boolean {
+  if (
+    signal.field === "cloudflareReady" &&
+    signal.confidence === "low" &&
+    signal.evidence.some((item) => item.includes("No Cloudflare deployment signal detected."))
+  ) {
+    return false;
+  }
+  return signal.confidence === "low";
+}
+
+function reviewReasons(
+  item: ProjectKnowledge,
+  signals: LowConfidenceReviewItem["classificationSignals"]
+): string[] {
+  const reasons: string[] = [];
+  if (signals.some((signal) => signal.confidence === "low")) {
+    reasons.push("Contains low-confidence classification evidence.");
+  }
+  if (item.agentCard.category === "other") {
+    reasons.push("Category is other.");
+  }
+  if (item.agentCard.projectKind === "collection") {
+    reasons.push("Repository is a collection and may need curation semantics review.");
+  }
+  if (item.agentCard.cloudflareReady && signals.some((signal) => signal.field === "cloudflareReady" && signal.confidence !== "high")) {
+    reasons.push("Cloudflare-ready classification is not high-confidence.");
+  }
+  if (signals.length > 0 && item.metrics.signalConfidence && Object.values(item.metrics.signalConfidence).some((confidence) => confidence === "unknown" || confidence === "estimated")) {
+    reasons.push("Quality metrics include estimated or unknown signals.");
+  }
+  return reasons;
+}
+
+function suggestedReviewAction(
+  item: ProjectKnowledge,
+  signals: LowConfidenceReviewItem["classificationSignals"],
+  reasons: string[]
+): string {
+  if (item.agentCard.category === "other") {
+    return "Inspect README/topics and either assign a V1 category or remove from the curated seed list.";
+  }
+  if (item.agentCard.projectKind === "collection") {
+    return "Confirm collection scope, freshness, and whether the category should represent resources rather than runtime code.";
+  }
+  if (signals.some((signal) => signal.field === "cloudflareReady")) {
+    return "Verify Cloudflare runtime evidence and blockers, then update classification hints or overrides.";
+  }
+  if (reasons.some((reason) => reason.includes("Quality metrics"))) {
+    return "Re-sync from GitHub with complete signal collection before relying on score movement.";
+  }
+  return "Inspect README, topics, and repository files; add an eval case if the classification is important.";
 }
 
 function checkProject(item: ProjectKnowledge): QualityIssue[] {
@@ -150,6 +292,43 @@ function categoryDistribution(projects: ProjectKnowledge[]): Record<Category, nu
     counts[item.agentCard.category] += 1;
   }
   return counts;
+}
+
+function buildCoverage(projects: ProjectKnowledge[], distribution: Record<Category, number>): QualityCoverage {
+  const missingCategories = categories.filter((category) => category !== "other" && distribution[category] === 0);
+  const lowConfidenceClassificationCount = projects.filter((item) =>
+    Object.values(item.agentCard.classification ?? {}).some((signal) => signal?.confidence === "low")
+  ).length;
+  const staleProjectCount = projects.filter((item) => Date.now() - Date.parse(item.project.syncedAt) > 7 * 24 * 60 * 60 * 1000).length;
+  const cloudflareReadyCount = projects.filter((item) => item.agentCard.cloudflareReady).length;
+
+  return {
+    categoryCoverage: distribution,
+    coveredCategories: categories.filter((category) => category !== "other" && distribution[category] > 0).length,
+    totalCategories: categories.length - 1,
+    missingCategories,
+    lowConfidenceClassificationCount,
+    lowConfidenceClassificationRate: rate(lowConfidenceClassificationCount, projects.length),
+    staleProjectCount,
+    staleProjectRate: rate(staleProjectCount, projects.length),
+    cloudflareReadyCount,
+    averageGitScore: average(projects.map((item) => item.metrics.gitScore)),
+    averageMaintenanceScore: average(projects.map((item) => item.metrics.maintenanceScore))
+  };
+}
+
+function average(values: number[]): number {
+  if (values.length === 0) {
+    return 0;
+  }
+  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+}
+
+function rate(count: number, total: number): number {
+  if (total === 0) {
+    return 0;
+  }
+  return Number((count / total).toFixed(3));
 }
 
 function issue(projectId: string, severity: QualitySeverity, code: string, message: string): QualityIssue {

@@ -1,142 +1,33 @@
-import type { AgentCard, Category, Deployment, Difficulty, GithubRepoSignals, GithubRepository } from "./types";
+import { classifyRepository } from "./classification";
+import type { AgentCard, Category, CollectionMetadata, Deployment, GithubRepoSignals, GithubRepository } from "./types";
 
 export function generateAgentCard(repo: GithubRepository, signals: GithubRepoSignals, now: string): AgentCard {
-  const metadataCorpus = normalize([repo.full_name, repo.description, repo.language, ...(repo.topics ?? [])].join(" "));
-  const corpus = normalize([metadataCorpus, signals.readmeText, signals.files.join(" ")].join(" "));
-  const category = detectCategory(corpus, metadataCorpus);
-  const deployment = detectDeployment(corpus, signals.files);
-  const cloudflareReady = deployment.includes("cloudflare") && !hasRuntimeBlockers(corpus);
-  const difficulty = detectDifficulty(repo, signals, deployment);
+  const { category, deployment, cloudflareReady, difficulty, classification } = classifyRepository(repo, signals);
+  const projectKind = detectProjectKind(repo, signals);
 
   return {
     projectId: repo.full_name,
+    projectKind,
+    ...(projectKind === "collection" ? { collectionMetadata: buildCollectionMetadata(repo, signals) } : {}),
     category,
     difficulty,
     deployment,
     cloudflareReady,
-    useCases: buildUseCases(category, repo),
-    notGoodFor: buildNotGoodFor(category, deployment, cloudflareReady),
+    useCases: buildUseCases(category, repo, projectKind),
+    notGoodFor: buildNotGoodFor(category, deployment, cloudflareReady, projectKind),
     alternatives: [],
-    summaryForAgent: buildSummary(repo, category, deployment, cloudflareReady),
+    summaryForAgent: buildSummary(repo, category, deployment, cloudflareReady, projectKind),
+    classification,
     schemaVersion: "v1",
     generatedAt: now
   };
 }
 
-function detectCategory(corpus: string, metadataCorpus: string): Category {
-  if (hasAny(metadataCorpus, ["browser-use", "browserbase"]) || hasAny(metadataCorpus, ["browser agent", "browser automation"])) {
-    return "browser_agent";
-  }
-  if (
-    hasAny(metadataCorpus, ["continuedev", "cline", "aider", "openhands", "tabbyml", "openai/codex"]) ||
-    hasAny(metadataCorpus, ["coding agent", "code assistant", "developer assistant"])
-  ) {
-    return "coding_agent";
-  }
-  if (hasAny(metadataCorpus, ["model context protocol", "mcp server", "modelcontextprotocol"])) {
-    return "mcp_server";
-  }
-  if (hasAny(metadataCorpus, ["agent engineering platform", "agent framework", "agents framework"])) {
-    return "agent_framework";
-  }
-  if (hasAny(metadataCorpus, ["vector database", "ann search", "embedding database"])) {
-    return "vector_database";
-  }
-  if (hasAny(metadataCorpus, ["rag", "retrieval augmented", "retrieval-augmented", "indexing", "data framework"])) {
-    return "rag_framework";
-  }
-  if (hasAny(metadataCorpus, ["agent", "agents", "multiagent", "tool calling"])) {
-    return "agent_framework";
-  }
-  if (hasAny(corpus, ["coding agent", "code assistant", "developer assistant"]) || hasWord(corpus, "ide")) {
-    return "coding_agent";
-  }
-  if (hasAny(corpus, ["browser agent", "browser automation", "web agent", "playwright"])) {
-    return "browser_agent";
-  }
-  if (hasAny(corpus, ["vector database", "ann search", "embedding database"])) {
-    return "vector_database";
-  }
-  if (hasAny(corpus, ["rag", "retrieval augmented", "retrieval-augmented", "indexing"])) {
-    return "rag_framework";
-  }
-  if (hasAny(corpus, ["mcp server", "model context protocol server"])) {
-    return "mcp_server";
-  }
-  if (hasAny(corpus, ["eval", "benchmark", "evaluation"])) {
-    return "llm_eval";
-  }
-  if (hasAny(corpus, ["gateway", "proxy", "router", "openai compatible"])) {
-    return "llm_gateway";
-  }
-  if (hasAny(corpus, ["prompt", "prompt management", "prompt engineering"])) {
-    return "prompt_tooling";
-  }
-  if (hasAny(corpus, ["workflow", "automation", "orchestration"])) {
-    return "workflow_automation";
-  }
-  if (hasAny(corpus, ["local llm", "inference server", "serve models", "gguf"])) {
-    return "local_llm_runtime";
-  }
-  if (hasAny(corpus, ["template", "starter", "boilerplate"])) {
-    return "ai_app_template";
-  }
-  if (hasAny(corpus, ["observability", "tracing", "monitoring"])) {
-    return "ai_observability";
-  }
-  if (hasAny(corpus, ["agent", "agents", "tool calling"])) {
-    return "agent_framework";
-  }
-  return "other";
-}
-
-function detectDeployment(corpus: string, files: string[]): Deployment[] {
-  const deployments = new Set<Deployment>();
-  const fileSet = new Set(files.map((file) => file.toLowerCase()));
-
-  if (fileSet.has("dockerfile") || fileSet.has("docker-compose.yml") || corpus.includes("docker")) {
-    deployments.add("docker");
-  }
-  if (fileSet.has("wrangler.toml") || corpus.includes("cloudflare workers") || corpus.includes("durable objects")) {
-    deployments.add("cloudflare");
-    deployments.add("serverless");
-  }
-  if (fileSet.has("vercel.json") || corpus.includes("vercel")) {
-    deployments.add("vercel");
-    deployments.add("serverless");
-  }
-  if (corpus.includes("kubernetes") || corpus.includes("helm chart")) {
-    deployments.add("kubernetes");
-  }
-  if (corpus.includes("serverless")) {
-    deployments.add("serverless");
-  }
-  if (hasAny(corpus, ["pip install", "npm install", "pnpm add", "library"])) {
-    deployments.add("library_only");
+function buildUseCases(category: Category, repo: GithubRepository, projectKind: AgentCard["projectKind"]): string[] {
+  if (projectKind === "collection") {
+    return ["discover related AI projects", "compare implementation patterns", "bootstrap project selection"];
   }
 
-  deployments.add("local");
-  if (!deployments.has("cloudflare") && !deployments.has("vercel")) {
-    deployments.add("cloud");
-  }
-
-  return Array.from(deployments);
-}
-
-function detectDifficulty(repo: GithubRepository, signals: GithubRepoSignals, deployment: Deployment[]): Difficulty {
-  if (deployment.includes("cloudflare") || repo.stargazers_count < 10000) {
-    return "beginner";
-  }
-  if (signals.files.some((file) => ["docker-compose.yml", "helmfile.yaml", "skaffold.yaml"].includes(file.toLowerCase()))) {
-    return "advanced";
-  }
-  if ((repo.topics ?? []).some((topic) => ["kubernetes", "distributed", "inference"].includes(topic))) {
-    return "advanced";
-  }
-  return "intermediate";
-}
-
-function buildUseCases(category: Category, repo: GithubRepository): string[] {
   const project = repo.name;
   const byCategory: Record<Category, string[]> = {
     agent_framework: [`build agents with ${project}`, "orchestrate LLM tools", "prototype autonomous workflows"],
@@ -158,8 +49,11 @@ function buildUseCases(category: Category, repo: GithubRepository): string[] {
   return byCategory[category];
 }
 
-function buildNotGoodFor(category: Category, deployment: Deployment[], cloudflareReady: boolean): string[] {
+function buildNotGoodFor(category: Category, deployment: Deployment[], cloudflareReady: boolean, projectKind: AgentCard["projectKind"]): string[] {
   const warnings: string[] = [];
+  if (projectKind === "collection") {
+    warnings.push("users expecting a single installable runtime or library");
+  }
   if (!cloudflareReady) {
     warnings.push("edge-only Cloudflare Workers deployment without adaptation");
   }
@@ -175,24 +69,80 @@ function buildNotGoodFor(category: Category, deployment: Deployment[], cloudflar
   return warnings.slice(0, 3);
 }
 
-function buildSummary(repo: GithubRepository, category: Category, deployment: Deployment[], cloudflareReady: boolean): string {
+function buildSummary(
+  repo: GithubRepository,
+  category: Category,
+  deployment: Deployment[],
+  cloudflareReady: boolean,
+  projectKind: AgentCard["projectKind"]
+): string {
   const deploymentText = deployment.slice(0, 3).join(", ");
   const cloudflareText = cloudflareReady ? " It is marked Cloudflare-ready." : "";
+  if (projectKind === "collection") {
+    return `Use ${repo.full_name} when the user needs a curated ${category.replace(/_/g, " ")} resource collection with ${deploymentText} usage paths.${cloudflareText}`;
+  }
   return `Use ${repo.full_name} when the user needs a ${category.replace(/_/g, " ")} project with ${deploymentText} deployment options.${cloudflareText}`;
 }
 
-function hasRuntimeBlockers(corpus: string): boolean {
-  return hasAny(corpus, ["python", "cuda", "gpu", "docker daemon", "postgres", "native extension", "filesystem"]);
+function detectProjectKind(repo: GithubRepository, signals: GithubRepoSignals): AgentCard["projectKind"] {
+  const corpus = [repo.full_name, repo.name, repo.description, ...(repo.topics ?? []), signals.readmeText].join(" ").toLowerCase();
+  const collectionSignals = ["awesome", "cookbook", "resource collection", "starter collection", "directory", "course"];
+  return collectionSignals.some((signal) => corpus.includes(signal)) ? "collection" : "project";
+}
+
+function buildCollectionMetadata(repo: GithubRepository, signals: GithubRepoSignals): CollectionMetadata {
+  const corpus = [repo.full_name, repo.name, repo.description, ...(repo.topics ?? []), signals.readmeText].join(" ").toLowerCase();
+  const scope = collectionScope(corpus);
+  return {
+    scope,
+    curated: hasAny(corpus, ["awesome", "curated", "cookbook", "course", "directory"]),
+    estimatedItems: estimatedCollectionItems(corpus, scope),
+    freshness: collectionFreshness(signals)
+  };
+}
+
+function collectionScope(corpus: string): CollectionMetadata["scope"] {
+  if (corpus.includes("awesome")) {
+    return "awesome_list";
+  }
+  if (corpus.includes("cookbook") || corpus.includes("course")) {
+    return "cookbook";
+  }
+  if (corpus.includes("starter collection") || corpus.includes("template") || corpus.includes("starter")) {
+    return "starter_collection";
+  }
+  if (corpus.includes("mcp") || corpus.includes("integration") || corpus.includes("directory")) {
+    return "integration_collection";
+  }
+  return "resource_hub";
+}
+
+function estimatedCollectionItems(corpus: string, scope: CollectionMetadata["scope"]): number | null {
+  if (scope === "awesome_list") {
+    return 100;
+  }
+  if (scope === "cookbook") {
+    return 25;
+  }
+  if (scope === "starter_collection") {
+    return 10;
+  }
+  if (scope === "integration_collection") {
+    return 10;
+  }
+  return corpus.includes("collection") ? 20 : null;
+}
+
+function collectionFreshness(signals: GithubRepoSignals): CollectionMetadata["freshness"] {
+  if (signals.commits30d >= 10 || signals.releases180d > 0) {
+    return "active";
+  }
+  if (signals.commits30d === 0 && signals.releases180d === 0) {
+    return "stale";
+  }
+  return "unknown";
 }
 
 function hasAny(corpus: string, needles: string[]): boolean {
   return needles.some((needle) => corpus.includes(needle));
-}
-
-function hasWord(corpus: string, word: string): boolean {
-  return new RegExp(`\\b${word}\\b`).test(corpus);
-}
-
-function normalize(value: string): string {
-  return value.toLowerCase();
 }

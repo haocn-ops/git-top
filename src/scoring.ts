@@ -1,7 +1,12 @@
 import type { GithubRepoSignals, GithubRepository, ProjectMetrics } from "./types";
 
-export function calculateMetrics(repo: GithubRepository, signals: GithubRepoSignals, now: string): ProjectMetrics {
-  const stars30dDelta = estimateStars30dDelta(repo);
+export interface MetricsOptions {
+  stars30dDelta?: number | null;
+  signalConfidence?: ProjectMetrics["signalConfidence"];
+}
+
+export function calculateMetrics(repo: GithubRepository, signals: GithubRepoSignals, now: string, options: MetricsOptions = {}): ProjectMetrics {
+  const stars30dDelta = options.stars30dDelta ?? estimateStars30dDelta(repo);
   const starGrowthScore = normalize(stars30dDelta, 1500);
   const commitScore = normalize(signals.commits30d, 200);
   const releaseScore = normalize(signals.releases180d, 12);
@@ -36,6 +41,7 @@ export function calculateMetrics(repo: GithubRepository, signals: GithubRepoSign
     recentPushDays,
     gitScore,
     maintenanceScore,
+    signalConfidence: options.signalConfidence,
     calculatedAt: now
   };
 }

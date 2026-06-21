@@ -2,7 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Eye, EyeOff, KeyRound, Mail, ShieldCheck, Sparkles, UserPlus } from "lucide-react";
+import { Braces, CheckCircle2, Eye, EyeOff, KeyRound, Mail, ShieldCheck, Sparkles, UserPlus } from "lucide-react";
 import type { UserRole } from "../lib/users";
 import { roleLabels } from "../lib/users";
 
@@ -50,20 +50,20 @@ export function RegistrationForm() {
           <div className="success-icon">
             <CheckCircle2 size={28} aria-hidden="true" />
           </div>
-          <p className="eyebrow">Registration ready</p>
-          <h1>{fullName.trim()} is registered</h1>
+          <p className="eyebrow">Registration payload ready</p>
+          <h1>{fullName.trim()} is staged</h1>
           <p>
-            The new {roleLabels[role].toLowerCase()} account for {company.trim()} has been staged. A real backend can now persist this
-            account, send verification email, and create the tenant workspace.
+            The new {roleLabels[role].toLowerCase()} account payload for {company.trim()} has been staged. This page is an API contract
+            demo; persistence and email delivery should happen in a real backend workflow.
           </p>
           <div className="success-actions">
             <button className="button secondary" type="button" onClick={() => setSubmitted(false)}>
               <UserPlus size={17} aria-hidden="true" />
               <span>Register another</span>
             </button>
-            <Link className="button primary" href="/users">
-              <ShieldCheck size={17} aria-hidden="true" />
-              <span>View users</span>
+            <Link className="button primary" href="/projects">
+              <Braces size={17} aria-hidden="true" />
+              <span>Explore projects</span>
             </Link>
           </div>
         </section>
@@ -75,13 +75,13 @@ export function RegistrationForm() {
     <div className="page-stack">
       <header className="page-header">
         <div>
-          <p className="eyebrow">Account Creation</p>
-          <h1>User Registration</h1>
+          <p className="eyebrow">API Contract Demo</p>
+          <h1>Registration Payload</h1>
         </div>
-        <Link className="button secondary" href="/users">
+        <a className="button secondary" href="/api/schema/project.v2">
           <ShieldCheck size={17} aria-hidden="true" />
-          <span>User directory</span>
-        </Link>
+          <span>Schema</span>
+        </a>
       </header>
 
       <section className="registration-layout">

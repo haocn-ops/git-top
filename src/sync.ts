@@ -2,6 +2,7 @@ import { generateAgentCard } from "./cards";
 import { generateAlternativesForAll } from "./alternatives";
 import {
   getSyncCursor,
+  getStarsDeltaSnapshot,
   insertSyncRun,
   listProjectKnowledge,
   setSyncCursor,
@@ -26,6 +27,16 @@ export interface SyncResult {
   offset: number;
   nextOffset: number;
   failed: SyncFailure[];
+  metricSources: Record<
+    string,
+    {
+      stars30dDelta: "snapshot" | "estimated";
+      stars30dWindowDays?: number;
+      commits30d?: "complete" | "partial" | "unknown";
+      releases180d?: "complete" | "partial" | "unknown";
+      contributors90d?: "complete" | "partial" | "unknown";
+    }
+  >;
 }
 
 export async function syncGithubProjects(env: Env, options: SyncOptions = {}): Promise<SyncResult> {
@@ -46,7 +57,8 @@ export async function syncGithubProjects(env: Env, options: SyncOptions = {}): P
     alternativesUpdated: 0,
     offset,
     nextOffset,
-    failed: []
+    failed: [],
+    metricSources: {}
   };
 
   for (const repository of repositories) {
@@ -54,10 +66,17 @@ export async function syncGithubProjects(env: Env, options: SyncOptions = {}): P
       const repo = await github.getRepository(repository);
       const signals = await github.getSignals(repo);
       const now = new Date().toISOString();
+      const stars30dSnapshot = await getStarsDeltaSnapshot(env, repo.full_name, repo.stargazers_count, now);
+      const signalConfidence = {
+        stars30dDelta: stars30dSnapshot === null ? "estimated" : "snapshot",
+        ...(stars30dSnapshot ? { stars30dWindowDays: stars30dSnapshot.windowDays } : {}),
+        ...signals.signalConfidence
+      } satisfies NonNullable<ProjectKnowledge["metrics"]["signalConfidence"]>;
+      result.metricSources[repository] = signalConfidence;
       const knowledge: ProjectKnowledge = {
         project: repositoryToProject(repo, now),
         agentCard: generateAgentCard(repo, signals, now),
-        metrics: calculateMetrics(repo, signals, now)
+        metrics: calculateMetrics(repo, signals, now, { stars30dDelta: stars30dSnapshot?.delta, signalConfidence })
       };
 
       validateProjectKnowledge(knowledge);

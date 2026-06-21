@@ -1,7 +1,5 @@
 import { ArrowUpRight, Network } from "lucide-react";
-import { generateAlternatives } from "../../../src/alternatives";
-import { buildKnowledgeGraph } from "../../../src/graph";
-import { toProjectKnowledgeView } from "../../../src/project-view";
+import { getProjectDetailData } from "../../../src/next-data";
 import { seedProjects } from "../../../src/seed";
 
 export function generateStaticParams() {
@@ -12,18 +10,8 @@ export function generateStaticParams() {
 
 export default async function ProjectGraphPage({ params }: { params: Promise<{ project: string }> }) {
   const { project: projectSlug } = await params;
-  const project =
-    seedProjects.find((item) =>
-      [item.project.id, item.project.fullName, item.project.name, item.project.fullName.replace("/", "-")].includes(projectSlug)
-    ) ?? seedProjects[0];
-  const view = toProjectKnowledgeView(project);
-  const alternativeIds = new Set([
-    ...project.agentCard.alternatives.map((item) => item.project_id),
-    ...generateAlternatives(project, seedProjects, 6).map((item) => item.project_id)
-  ]);
-  const alternatives = seedProjects.filter((item) => alternativeIds.has(item.project.id)).map(toProjectKnowledgeView);
-  const graph = buildKnowledgeGraph(seedProjects, project.project.id, 28);
-  const ringNodes = graph.nodes.filter((node) => node.id !== project.project.id).slice(0, 14);
+  const { view, alternatives, graph, metadata } = await getProjectDetailData(projectSlug);
+  const ringNodes = graph.nodes.filter((node) => node.id !== view.repo).slice(0, 14);
 
   return (
     <div className="page-stack">
@@ -32,10 +20,13 @@ export default async function ProjectGraphPage({ params }: { params: Promise<{ p
           <p className="eyebrow">Project Graph</p>
           <h1>{view.repo}</h1>
         </div>
-        <a className="button primary" href={`/api/graph?repo=${encodeURIComponent(view.repo)}`}>
-          <ArrowUpRight size={17} aria-hidden="true" />
-          <span>Graph API</span>
-        </a>
+        <div className="header-actions">
+          <span className="status-pill neutral">{metadata.source} / {metadata.reason}</span>
+          <a className="button primary" href={`/api/graph?repo=${encodeURIComponent(view.repo)}`}>
+            <ArrowUpRight size={17} aria-hidden="true" />
+            <span>Graph API</span>
+          </a>
+        </div>
       </header>
 
       <section className="graph-dashboard">
