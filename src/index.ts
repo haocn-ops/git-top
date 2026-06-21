@@ -49,6 +49,11 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
     return legacyRedirect;
   }
 
+  const canonicalProjectRedirect = legacyProjectPageRedirect(url);
+  if (canonicalProjectRedirect) {
+    return canonicalProjectRedirect;
+  }
+
   if (url.pathname === "/robots.txt") {
     return renderRobotsTxt();
   }
@@ -133,8 +138,12 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
     }
   }
 
-  if (url.pathname === "/" || url.pathname === "/explorer" || url.pathname === "/projects") {
+  if (url.pathname === "/" || url.pathname === "/explorer") {
     return renderExplorer();
+  }
+
+  if (url.pathname === "/projects") {
+    return renderExplorer({ page: "projects" });
   }
 
   if (url.pathname === "/graph") {
@@ -147,6 +156,12 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
     if (response) {
       return response;
     }
+  }
+
+  if (url.pathname === "/api/status") {
+    const target = new URL("/api/health", url);
+    target.search = url.search;
+    return Response.redirect(target.toString(), 301);
   }
 
   if (url.pathname.startsWith("/api/")) {
@@ -185,6 +200,17 @@ const legacyConsoleRedirects: Record<string, string> = {
   "/settings": "/projects",
   "/reports": "/graph"
 };
+
+function legacyProjectPageRedirect(url: URL): Response | null {
+  const projectMatch = url.pathname.match(/^\/project\/([^/]+)\/([^/]+)$/);
+  if (!projectMatch) {
+    return null;
+  }
+
+  const target = new URL(`/projects/${projectMatch[1]}/${projectMatch[2]}`, url);
+  target.search = url.search;
+  return Response.redirect(target.toString(), 301);
+}
 
 function graphProjectIdFromPath(pathname: string): string | null {
   const ownerRepoMatch = pathname.match(/^\/graph\/([^/]+)\/([^/]+)$/);

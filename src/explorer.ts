@@ -1,5 +1,5 @@
-export function renderExplorer(): Response {
-  return new Response(html, {
+export function renderExplorer(options: { page?: "home" | "projects" } = {}): Response {
+  return new Response(options.page === "projects" ? projectsHtml() : html, {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "public, max-age=120"
@@ -734,12 +734,48 @@ const html = String.raw`<!doctype html>
   </body>
 </html>`;
 
+function projectsHtml(): string {
+  const title = "Git.Top Projects | Agent-Native GitHub Project Index";
+  const description =
+    "Browse Git.Top indexed GitHub projects with agent scores, quality signals, deployment fit, alternatives, and structured project knowledge.";
+  const ogImage =
+    "https://git.top/og.svg?title=Git.Top%20Projects&subtitle=Agent-native%20GitHub%20project%20index";
+
+  return html
+    .replace("<title>Git.Top | GitHub Knowledge Layer for AI Agents</title>", `<title>${title}</title>`)
+    .replace(
+      '<meta name="description" content="Agent-friendly open source project knowledge, semantic search, alternatives, deployment signals, and quality scores." />',
+      `<meta name="description" content="${description}" />`
+    )
+    .replace('<link rel="canonical" href="https://git.top/" />', '<link rel="canonical" href="https://git.top/projects" />')
+    .replace(
+      '<meta property="og:title" content="Git.Top | GitHub Knowledge Layer for AI Agents" />',
+      `<meta property="og:title" content="${title}" />`
+    )
+    .replace(
+      '<meta property="og:description" content="Agent-friendly open source project knowledge, semantic search, alternatives, deployment signals, and quality scores." />',
+      `<meta property="og:description" content="${description}" />`
+    )
+    .replace('<meta property="og:url" content="https://git.top/" />', '<meta property="og:url" content="https://git.top/projects" />')
+    .replace('<meta property="og:image" content="https://git.top/og.svg" />', `<meta property="og:image" content="${ogImage}" />`)
+    .replace('<meta name="twitter:image" content="https://git.top/og.svg" />', `<meta name="twitter:image" content="${ogImage}" />`);
+}
+
 const graphHtml = String.raw`<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Git.Top Graph | Project Knowledge Graph</title>
+    <meta name="description" content="Explore Git.Top project graph relationships across alternatives, deployments, dependencies, use cases, and agent-ready open-source stacks." />
+    <link rel="canonical" href="https://git.top/graph" />
+    <meta property="og:title" content="Git.Top Graph | Project Knowledge Graph" />
+    <meta property="og:description" content="Graph relationships for agent-native GitHub project discovery, comparison, deployment fit, and alternatives." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://git.top/graph" />
+    <meta property="og:image" content="https://git.top/og.svg?title=Git.Top%20Graph&subtitle=Project%20relationships%20for%20AI%20agents" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:image" content="https://git.top/og.svg?title=Git.Top%20Graph&subtitle=Project%20relationships%20for%20AI%20agents" />
     <style>
       :root {
         color-scheme: light;

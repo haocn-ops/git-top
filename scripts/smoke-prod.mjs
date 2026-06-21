@@ -63,11 +63,16 @@ export async function runSmoke(args = [], env = process.env) {
     const { status, body } = await getJson(context, "/mcp");
     assert.equal(status, 200);
     assert.equal(body.name, "git-top");
+    assert.equal(body.openapi_url, "https://git.top/openapi.json");
+    assert.equal(body.api_openapi_url, "https://git.top/api/openapi.json");
+    assert.equal(body.schema_url, "https://git.top/api/schema/project.v2");
     assert.ok(Array.isArray(body.tools), "MCP discovery should include tools");
     assert.ok(body.tools.some((tool) => tool.name === "search_projects"), "MCP discovery should include search_projects");
     assert.ok(body.tools.some((tool) => tool.name === "git_top_grp_query"), "MCP discovery should include git_top_grp_query");
     return {
-      tools: body.tools.length
+      tools: body.tools.length,
+      openapiUrl: body.openapi_url,
+      schemaUrl: body.schema_url
     };
   });
 
@@ -136,6 +141,21 @@ export async function runSmoke(args = [], env = process.env) {
       type: jsonLd["@type"],
       repo: jsonLd.name,
       properties: jsonLd.additionalProperty.length
+    };
+  });
+
+  await check(context, "canonical_redirects", async () => {
+    const legacyProject = await getHead(context, "/project/cloudflare/agents");
+    assert.equal(legacyProject.status, 301);
+    assert.equal(legacyProject.location, `${context.baseUrl}/projects/cloudflare/agents`);
+
+    const legacyStatus = await getHead(context, "/api/status?require_d1=true");
+    assert.equal(legacyStatus.status, 301);
+    assert.equal(legacyStatus.location, `${context.baseUrl}/api/health?require_d1=true`);
+
+    return {
+      project: legacyProject.location,
+      status: legacyStatus.location
     };
   });
 
@@ -220,6 +240,23 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
+  await check(context, "index_page_seo", async () => {
+    const projects = await getText(context, "/projects");
+    assert.equal(projects.status, 200);
+    assert.match(projects.text, /<link rel="canonical" href="https:\/\/git\.top\/projects"/);
+    assert.match(projects.text, /Git\.Top Projects \| Agent-Native GitHub Project Index/);
+
+    const graph = await getText(context, "/graph");
+    assert.equal(graph.status, 200);
+    assert.match(graph.text, /<link rel="canonical" href="https:\/\/git\.top\/graph"/);
+    assert.match(graph.text, /Project%20relationships%20for%20AI%20agents/);
+
+    return {
+      projectsCanonical: true,
+      graphCanonical: true
+    };
+  });
+
   return {
     baseUrl,
     ok: true,
@@ -270,6 +307,18 @@ async function getJson(context, path) {
 
 async function getText(context, path) {
   return requestText(context, path, { method: "GET" });
+}
+
+async function getHead(context, path) {
+  const response = await fetch(`${context.baseUrl}${path}`, {
+    method: "HEAD",
+    redirect: "manual",
+    signal: AbortSignal.timeout(context.timeoutMs)
+  });
+  return {
+    status: response.status,
+    location: response.headers.get("location")
+  };
 }
 
 async function postJson(context, path, body) {

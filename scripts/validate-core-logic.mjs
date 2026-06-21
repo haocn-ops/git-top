@@ -34,10 +34,34 @@ async function testLegacyConsoleRedirects() {
 
   const projects = await worker.fetch(new Request("https://git.top/projects"), {});
   assert.equal(projects.status, 200);
+  const projectsText = await projects.text();
+  assert.match(projectsText, /<link rel="canonical" href="https:\/\/git\.top\/projects"/);
+  assert.match(projectsText, /Git\.Top Projects \| Agent-Native GitHub Project Index/);
 
   const reports = await worker.fetch(new Request("https://git.top/reports"), {});
   assert.equal(reports.status, 302);
   assert.equal(reports.headers.get("location"), "https://git.top/graph");
+
+  const graph = await worker.fetch(new Request("https://git.top/graph"), {});
+  assert.equal(graph.status, 200);
+  const graphText = await graph.text();
+  assert.match(graphText, /<link rel="canonical" href="https:\/\/git\.top\/graph"/);
+
+  const legacyProject = await worker.fetch(new Request("https://git.top/project/cloudflare/agents"), {});
+  assert.equal(legacyProject.status, 301);
+  assert.equal(legacyProject.headers.get("location"), "https://git.top/projects/cloudflare/agents");
+
+  const legacyStatus = await worker.fetch(new Request("https://git.top/api/status?require_d1=true"), {});
+  assert.equal(legacyStatus.status, 301);
+  assert.equal(legacyStatus.headers.get("location"), "https://git.top/api/health?require_d1=true");
+
+  const httpRoot = await worker.fetch(new Request("http://git.top/"), {});
+  assert.equal(httpRoot.status, 301);
+  assert.equal(httpRoot.headers.get("location"), "https://git.top/");
+
+  const wwwRoot = await worker.fetch(new Request("https://www.git.top/projects"), {});
+  assert.equal(wwwRoot.status, 301);
+  assert.equal(wwwRoot.headers.get("location"), "https://git.top/projects");
 }
 
 async function testCoverageRoute() {

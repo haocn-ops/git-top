@@ -19,6 +19,9 @@ async function testDiscovery() {
   assert.equal(getDiscovery.status, 200);
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "search_projects"));
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "git_top_grp_query"));
+  assert.equal(getDiscovery.body.openapi_url, "https://git.top/openapi.json");
+  assert.equal(getDiscovery.body.api_openapi_url, "https://git.top/api/openapi.json");
+  assert.equal(getDiscovery.body.schema_url, "https://git.top/api/schema/project.v2");
 
   const rpcDiscovery = await rpc("tools/list", {});
   assert.equal(rpcDiscovery.status, 200);

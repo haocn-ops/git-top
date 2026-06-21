@@ -5,11 +5,17 @@ const siteOrigin = "https://git.top";
 
 export function canonicalHostRedirect(request: Request, url: URL): Response | null {
   const host = request.headers.get("host")?.split(":")[0].toLowerCase() ?? url.hostname;
-  if (host !== "www.git.top") {
+  const isCanonicalHost = host === "git.top";
+  const isWwwHost = host === "www.git.top";
+  const shouldUpgradeProtocol = url.protocol === "http:" && (isCanonicalHost || isWwwHost);
+  if (!isWwwHost && !shouldUpgradeProtocol) {
     return null;
   }
   const target = new URL(request.url);
-  target.hostname = "git.top";
+  target.protocol = "https:";
+  if (isWwwHost) {
+    target.hostname = "git.top";
+  }
   return Response.redirect(target.toString(), 301);
 }
 

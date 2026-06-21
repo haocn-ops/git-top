@@ -272,7 +272,9 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
       protocolVersion: "2025-06-18",
       endpoint: "/mcp",
       docsUrl: "https://git.top/docs",
-      openapiUrl: "https://git.top/api/schema/project.v2",
+      openapiUrl: "https://git.top/openapi.json",
+      apiOpenapiUrl: "https://git.top/api/openapi.json",
+      schemaUrl: "https://git.top/api/schema/project.v2",
       healthUrl: "https://git.top/api/health",
       qualityUrl: "https://git.top/api/quality",
       quickstart: [
