@@ -484,6 +484,7 @@ export async function getSyncStatus(env: Env, seedRepositories: string[] = []): 
   cursor: number;
   seedTotal: number;
   syncedCount: number;
+  indexedCount: number;
   remainingCount: number;
   cycleProgress: number;
   nextBatch: string[];
@@ -493,9 +494,10 @@ export async function getSyncStatus(env: Env, seedRepositories: string[] = []): 
   lastError: SyncFailure | null;
   recentRuns: SyncRun[];
 }> {
-  const [cursor, recentRuns, syncedCount] = await Promise.all([getSyncCursor(env), listSyncRuns(env, 10), getSyncedProjectCount(env)]);
+  const [cursor, recentRuns, indexedCount] = await Promise.all([getSyncCursor(env), listSyncRuns(env, 10), getSyncedProjectCount(env)]);
   const seedTotal = seedRepositories.length;
   const normalizedCursor = seedTotal > 0 ? cursor % seedTotal : 0;
+  const syncedCount = seedTotal > 0 ? Math.min(indexedCount, seedTotal) : indexedCount;
   const nextLimit = recentRuns[0]?.limit ?? 5;
   const nextBatch = seedRepositories.slice(normalizedCursor, normalizedCursor + nextLimit);
   const lastSuccessfulRun = recentRuns.find((run) => run.syncedCount > 0);
@@ -505,6 +507,7 @@ export async function getSyncStatus(env: Env, seedRepositories: string[] = []): 
     cursor: normalizedCursor,
     seedTotal,
     syncedCount,
+    indexedCount,
     remainingCount: Math.max(0, seedTotal - syncedCount),
     cycleProgress: seedTotal > 0 ? Math.round((normalizedCursor / seedTotal) * 100) : 0,
     nextBatch,

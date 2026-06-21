@@ -120,10 +120,23 @@ async function testSyncStatusMapping() {
   assert.equal(status.cursor, 3);
   assert.equal(status.health, "degraded");
   assert.equal(status.syncedCount, 1);
+  assert.equal(status.indexedCount, 1);
   assert.equal(status.lastSuccessfulSyncAt, "2026-06-20T01:00:00Z");
   assert.equal(status.lastFailedSyncAt, "2026-06-20T02:00:00Z");
   assert.equal(status.lastError?.repository, mockD1ProjectId);
   assert.deepEqual(status.nextBatch, ["d/d", "e/e", "f/f"]);
+
+  const overflowStatus = await getSyncStatus(
+    mockD1Env({
+      knowledge: buildGeneratedKnowledgeFixtures()
+        .slice(0, 3)
+        .map((item) => item.knowledge)
+    }),
+    ["a/a", "b/b"]
+  );
+  assert.equal(overflowStatus.indexedCount, 3);
+  assert.equal(overflowStatus.syncedCount, 2);
+  assert.equal(overflowStatus.remainingCount, 0);
 
   assert.equal(await getSyncedProjectCount(mockD1Env()), 1);
 }
