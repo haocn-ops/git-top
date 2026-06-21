@@ -5,7 +5,7 @@ import { normalizeGrpRequest, runGrpQuery } from "../src/grp.ts";
 import { getProjectDetailData } from "../src/next-data.ts";
 import { calculateMetrics } from "../src/scoring.ts";
 import { seedProjects } from "../src/seed.ts";
-import { selectRepositoryBatch } from "../src/sync.ts";
+import { defaultSyncLimit, selectRepositoryBatch } from "../src/sync.ts";
 
 await testScoring();
 await testSyncBatchSelection();
@@ -72,6 +72,8 @@ async function testScoring() {
 }
 
 async function testSyncBatchSelection() {
+  assert.equal(defaultSyncLimit, 1, "scheduled sync should stay below Worker subrequest limits by default");
+
   const repositories = ["a/a", "b/b", "c/c", "d/d", "e/e"];
   assert.deepEqual(selectRepositoryBatch(repositories, 1, 3), ["b/b", "c/c", "d/d"]);
   assert.deepEqual(selectRepositoryBatch(repositories, 3, 4), ["d/d", "e/e", "a/a", "b/b"]);

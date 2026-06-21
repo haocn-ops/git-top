@@ -4,7 +4,7 @@ import { renderProjectGraphPage } from "./graph-page";
 import { errorJson } from "./http";
 import { handleMcp } from "./mcp";
 import { renderProjectPage } from "./project-page";
-import { syncGithubProjects } from "./sync";
+import { defaultSyncLimit, syncGithubProjects } from "./sync";
 import type { Env } from "./types";
 
 export default {
@@ -47,7 +47,7 @@ export default {
   },
 
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(syncGithubProjects(env, { limit: 5, trigger: "cron" }));
+    ctx.waitUntil(syncGithubProjects(env, { limit: defaultSyncLimit, trigger: "cron" }));
   }
 };
 

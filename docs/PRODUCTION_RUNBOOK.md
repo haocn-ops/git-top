@@ -97,14 +97,18 @@ Healthy production should show:
 - `last_failed_sync_at` empty or older than the latest successful run.
 - `last_error` empty unless the most recent sync failed.
 
+Cron sync intentionally processes one repository per invocation to stay under Cloudflare Worker subrequest limits while collecting GitHub README, file, commit, release, contributor, and issue signals.
+
 Trigger a small protected sync when needed:
 
 ```sh
 curl -X POST https://git.top/api/admin/sync \
   -H "authorization: Bearer $SYNC_SECRET" \
   -H "content-type: application/json" \
-  -d '{"limit":5}'
+  -d '{"limit":1}'
 ```
+
+Use larger manual limits only after checking recent `/api/sync/status` runs. If production is `degraded` with a subrequest-limit error, run `limit:1` until a successful run makes `health` return to `healthy`.
 
 ## Data Quality Check
 

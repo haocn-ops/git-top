@@ -14,6 +14,8 @@ import { calculateMetrics } from "./scoring";
 import type { Env, GithubRepository, Project, ProjectKnowledge, SyncFailure, SyncTrigger } from "./types";
 import { validateProjectKnowledge, ValidationError } from "./validation";
 
+export const defaultSyncLimit = 1;
+
 export interface SyncOptions {
   repositories?: string[];
   limit?: number;
@@ -178,7 +180,7 @@ export function selectRepositoryBatch(repositories: string[], offset: number, li
 
 function clampLimit(value: number | undefined): number {
   if (!value || !Number.isFinite(value)) {
-    return 5;
+    return defaultSyncLimit;
   }
   return Math.max(1, Math.min(10, Math.trunc(value)));
 }
