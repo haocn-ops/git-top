@@ -8,6 +8,7 @@ import { handleMcp } from "./mcp";
 import { openApiDocument } from "./openapi";
 import { renderProjectPage } from "./project-page";
 import { renderQualityPage } from "./quality-page";
+import { renderQualityReviewPage } from "./quality-review-page";
 import {
   canonicalHostRedirect,
   renderDocsPage,
@@ -69,8 +70,8 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
     return renderDocsPage();
   }
 
-  if (url.pathname === "/quality") {
-    return renderQualityPage(env);
+  if (url.pathname === "/quality" || url.pathname === "/quality/review") {
+    return url.pathname === "/quality/review" ? renderQualityReviewPage(env) : renderQualityPage(env);
   }
 
   if (url.pathname === "/openapi.json") {

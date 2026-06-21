@@ -105,6 +105,16 @@ async function testGraphAndQualityRoutes() {
   assert.ok(typeof quality.body.coverage.stale_collection_count === "number");
   assert.ok(typeof quality.body.coverage.collection_review_count === "number");
   assertMetadata(quality.body.metadata, "db_missing");
+
+  const review = await getJson("/api/quality/review");
+  assert.equal(review.status, 200);
+  assert.ok(typeof review.body.project_count === "number");
+  assert.ok(typeof review.body.review_count === "number");
+  assert.ok(typeof review.body.low_signal_count === "number");
+  assert.ok(typeof review.body.medium_signal_count === "number");
+  assert.ok(Array.isArray(review.body.items));
+  assert.ok(review.body.category_counts && typeof review.body.category_counts === "object");
+  assertMetadata(review.body.metadata, "db_missing");
 }
 
 async function testSchemaRoutes() {

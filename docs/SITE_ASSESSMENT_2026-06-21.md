@@ -112,6 +112,13 @@ Completed in the quality governance pass:
 - Added `/quality` to sitemap, docs, homepage trust links, and LLM discovery guidance.
 - Added production smoke coverage for the quality governance page and sitemap entry.
 
+Completed in the review queue pass:
+
+- Added `/api/quality/review` for machine-readable low-confidence classification and collection review items.
+- Added `/quality/review` as a human-readable review queue with review counts, category distribution, classification signal pills, reasons, and suggested actions.
+- Added `/quality/review` to quality governance, sitemap, and LLM discovery guidance.
+- Added API and production smoke coverage for review queue JSON and page rendering.
+
 ## Product Direction
 
 The product should keep emphasizing that it is not a leaderboard. Its stronger position is:

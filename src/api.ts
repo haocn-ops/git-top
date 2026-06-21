@@ -15,7 +15,7 @@ import { normalizeGrpRequest, runGrpQuery } from "./grp";
 import { errorJson, json, parseBool, parseLimit, rawJson } from "./http";
 import { openApiDocument } from "./openapi";
 import { toProjectKnowledgeView } from "./project-view";
-import { buildQualityReport } from "./quality";
+import { buildLowConfidenceReviewReport, buildQualityReport } from "./quality";
 import { agentCardJsonSchema, projectKnowledgeJsonSchema, projectV2JsonSchema } from "./schema";
 import { getKnowledgeForSourcePolicy } from "./source-policy";
 import { syncGithubProjects } from "./sync";
@@ -210,6 +210,18 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       return knowledge;
     }
     return json({ ...buildQualityReport(knowledge.projects), metadata: knowledge.metadata }, {
+      headers: {
+        "cache-control": "no-store"
+      }
+    });
+  }
+
+  if (path === "/api/quality/review") {
+    const knowledge = await requireKnowledgeSource(request, env);
+    if (knowledge instanceof Response) {
+      return knowledge;
+    }
+    return json({ ...buildLowConfidenceReviewReport(knowledge.projects), metadata: knowledge.metadata }, {
       headers: {
         "cache-control": "no-store"
       }

@@ -95,6 +95,7 @@ function renderHtml(
         <p class="lead">Use this page before treating a project recommendation as high-confidence. The release score, risk layer, coverage metrics, and issue list are generated from the same knowledge source used by search, MCP, and project pages.</p>
         <div class="actions">
           <a class="button primary" href="/api/quality">Open quality JSON</a>
+          <a class="button" href="/quality/review">Review queue</a>
           <a class="button" href="/docs#scoring">Scoring methodology</a>
           <a class="button" href="/api/sync/status">Sync status</a>
         </div>
@@ -119,7 +120,7 @@ function renderHtml(
           <p class="eyebrow">Source Metadata</p>
           <h2>${escapeHtml(metadata.source)} / ${escapeHtml(metadata.reason)}</h2>
           <p class="muted">${metadata.projectCount} knowledge-ready projects. Generated at ${escapeHtml(metadata.generatedAt)}.</p>
-          <div class="pills"><a class="pill" href="/api/health">Health</a><a class="pill" href="/api/quality">Quality JSON</a><a class="pill" href="/llms.txt">llms.txt</a></div>
+          <div class="pills"><a class="pill" href="/api/health">Health</a><a class="pill" href="/api/quality">Quality JSON</a><a class="pill" href="/api/quality/review">Review JSON</a><a class="pill" href="/llms.txt">llms.txt</a></div>
         </aside>
       </section>
 

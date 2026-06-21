@@ -93,6 +93,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms\.txt<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms-full\.txt<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quality<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quality\/review<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/projects\/cloudflare\/agents<\/loc>/);
 
     const llms = await getText(context, "/llms.txt");
@@ -136,9 +137,29 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(text, /Category coverage/);
     assert.match(text, /Low-confidence classifications/);
     assert.match(text, /Open quality JSON/);
+    assert.match(text, /Review queue/);
 
     return {
       hasQualityJsonLink: text.includes("/api/quality")
+    };
+  });
+
+  await check(context, "quality_review_page", async () => {
+    const { status, text } = await getText(context, "/quality/review");
+    assert.equal(status, 200);
+    assert.match(text, /Review Queue/);
+    assert.match(text, /Low-confidence classification/);
+    assert.match(text, /Open review JSON/);
+    assert.match(text, /Review items/);
+
+    const { status: apiStatus, body } = await getJson(context, "/api/quality/review");
+    assert.equal(apiStatus, 200);
+    assert.ok(Number.isFinite(body.review_count), "review_count should be numeric");
+    assert.ok(Array.isArray(body.items), "review API should include items");
+
+    return {
+      reviewCount: body.review_count,
+      lowSignalCount: body.low_signal_count
     };
   });
 
