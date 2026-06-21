@@ -96,9 +96,7 @@ code {
 }
 
 .brand-mark,
-.metric-icon,
-.tenant-card-icon,
-.report-icon {
+.metric-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -125,10 +123,7 @@ code {
 .sidebar-footer,
 .side-stack,
 .page-stack,
-.activity-list,
-.tenant-list,
-.invite-form,
-.report-list {
+.activity-list {
   display: grid;
   gap: 10px;
 }
@@ -259,10 +254,7 @@ h2 {
 }
 
 .metric-card,
-.panel,
-.tenant-card,
-.report-row,
-.setting-card {
+.panel {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
@@ -280,12 +272,8 @@ h2 {
 .metric-card small,
 .mini-stat span,
 .identity-cell small,
-.tenant-row span,
 .activity-row p,
-.activity-row time,
-.tenant-card p,
-.report-row p,
-.setting-card p {
+.activity-row time {
   color: var(--muted);
 }
 
@@ -353,37 +341,6 @@ h2 {
   font-size: 22px;
 }
 
-.tenant-row {
-  display: grid;
-  grid-template-columns: 150px 1fr 50px;
-  align-items: center;
-  gap: 12px;
-  min-height: 48px;
-}
-
-.tenant-row strong,
-.tenant-row span {
-  display: block;
-}
-
-.seat-meter {
-  height: 8px;
-  border-radius: 999px;
-  background: #e5ecef;
-  overflow: hidden;
-}
-
-.seat-meter span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--teal), var(--violet));
-}
-
-.seat-meter.wide {
-  width: 100%;
-}
-
 .activity-row {
   display: grid;
   grid-template-columns: 12px minmax(0, 1fr) auto;
@@ -416,12 +373,6 @@ h2 {
   white-space: nowrap;
 }
 
-.management-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 12px;
-}
-
 .table-panel {
   min-width: 0;
   overflow: hidden;
@@ -435,9 +386,7 @@ h2 {
 }
 
 .search-box,
-.select-box,
-.invite-form label,
-.registration-form label {
+.select-box {
   display: grid;
   gap: 6px;
 }
@@ -458,11 +407,7 @@ h2 {
 }
 
 .search-box input,
-.select-box select,
-.invite-form input,
-.invite-form select,
-.registration-form input,
-.registration-form select {
+.select-box select {
   width: 100%;
   min-height: 40px;
   border: 1px solid var(--line-strong);
@@ -477,29 +422,11 @@ h2 {
   padding-left: 38px;
 }
 
-.invite-form span,
-.registration-form label > span {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.user-table,
 .data-table {
   display: grid;
   min-width: 760px;
 }
 
-.user-row {
-  display: grid;
-  grid-template-columns: minmax(230px, 1.25fr) 150px 128px 150px 110px 42px;
-  align-items: center;
-  gap: 12px;
-  border-top: 1px solid var(--line);
-  padding: 12px 0;
-}
-
-.user-head,
 .table-head {
   min-height: 36px;
   border-top: 0;
@@ -524,21 +451,6 @@ h2 {
   white-space: nowrap;
 }
 
-.avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: 38px;
-  height: 38px;
-  border-radius: 8px;
-  background: #eef1ff;
-  color: #4730b5;
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.role-pill,
 .status-pill {
   display: inline-flex;
   align-items: center;
@@ -556,27 +468,10 @@ h2 {
   white-space: nowrap;
 }
 
-.status-pill.active {
-  border-color: #b7dfcc;
-  background: #eefaf4;
-  color: var(--green);
-}
-
-.status-pill.invited,
 .status-pill.neutral {
   border-color: #dfd2a9;
   background: #fff8e7;
   color: var(--amber);
-}
-
-.status-pill.suspended {
-  border-color: #f0b8b2;
-  background: #fff1f0;
-  color: var(--red);
-}
-
-.invite-panel {
-  scroll-margin-top: 18px;
 }
 
 .activity-list.slim {
@@ -1166,229 +1061,6 @@ h2 {
   text-transform: uppercase;
 }
 
-.tenant-card-grid,
-.settings-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.tenant-card,
-.setting-card {
-  display: grid;
-  gap: 14px;
-  padding: 16px;
-}
-
-.report-row {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 28px;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-}
-
-.report-icon.good {
-  background: #eefaf4;
-  color: var(--green);
-}
-
-.report-icon.warn {
-  background: #fff8e7;
-  color: var(--amber);
-}
-
-.setting-card svg {
-  color: var(--teal);
-}
-
-.registration-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 12px;
-}
-
-.registration-form {
-  display: grid;
-  gap: 16px;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.plan-selector {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  border: 0;
-  margin: 0;
-  padding: 0;
-}
-
-.plan-selector legend {
-  grid-column: 1 / -1;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
-  margin-bottom: 2px;
-}
-
-.plan-option {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 78px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fbfdfd;
-  cursor: pointer;
-  padding: 12px;
-}
-
-.plan-option.selected {
-  border-color: var(--teal);
-  background: #edf8f5;
-  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.12);
-}
-
-.plan-option input {
-  width: 16px;
-  height: 16px;
-  min-height: 16px;
-}
-
-.plan-option strong,
-.plan-option small {
-  display: block;
-}
-
-.plan-option small,
-.muted-copy {
-  color: var(--muted);
-  line-height: 1.5;
-}
-
-.password-field > div {
-  position: relative;
-}
-
-.password-field svg {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  color: var(--muted);
-  transform: translateY(-50%);
-  pointer-events: none;
-}
-
-.password-field input {
-  padding-left: 38px;
-  padding-right: 46px;
-}
-
-.password-field button {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--ink);
-  cursor: pointer;
-  transform: translateY(-50%);
-}
-
-.password-field button svg {
-  position: static;
-  transform: none;
-  pointer-events: auto;
-}
-
-.password-meter {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.password-meter span {
-  height: 6px;
-  border-radius: 999px;
-  background: #e5ecef;
-}
-
-.password-meter span.filled {
-  background: var(--teal);
-}
-
-.registration-aside {
-  display: grid;
-  gap: 12px;
-  align-content: start;
-}
-
-.check-list {
-  display: grid;
-  gap: 10px;
-}
-
-.check-list span {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #40505a;
-  font-weight: 700;
-}
-
-.check-list svg {
-  color: var(--green);
-}
-
-.registration-success {
-  display: grid;
-  justify-items: center;
-  gap: 14px;
-  max-width: 760px;
-  margin: 8vh auto 0;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  text-align: center;
-  padding: 32px;
-}
-
-.registration-success p:not(.eyebrow) {
-  max-width: 580px;
-  color: var(--muted);
-  line-height: 1.55;
-}
-
-.success-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 54px;
-  height: 54px;
-  border-radius: 8px;
-  background: #eefaf4;
-  color: var(--green);
-}
-
-.success-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
 @media (max-width: 1120px) {
   .app-shell {
     grid-template-columns: 82px minmax(0, 1fr);
@@ -1420,8 +1092,6 @@ h2 {
   }
 
   .two-column,
-  .management-grid,
-  .registration-layout,
   .hero-section,
   .project-detail-layout,
   .graph-section,
@@ -1488,10 +1158,6 @@ h2 {
 
   .overview-grid,
   .stat-grid,
-  .tenant-card-grid,
-  .settings-grid,
-  .form-grid,
-  .plan-selector,
   .knowledge-grid,
   .project-card-grid,
   .agent-grid,
@@ -1523,11 +1189,6 @@ h2 {
 
   .table-panel {
     overflow-x: auto;
-  }
-
-  .tenant-row {
-    grid-template-columns: 1fr;
-    gap: 7px;
   }
 
   .activity-row {

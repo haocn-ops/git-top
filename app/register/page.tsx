@@ -1,5 +1,5 @@
-import { RegistrationForm } from "../../components/registration-form";
+import { redirect } from "next/navigation";
 
 export default function RegisterPage() {
-  return <RegistrationForm />;
+  redirect("/projects");
 }

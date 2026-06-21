@@ -3,14 +3,13 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
-import { Braces, Github, LayoutDashboard, Network, Shield, SquareCode, UserPlus } from "lucide-react";
+import { Braces, Github, LayoutDashboard, Network, Shield, SquareCode } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 const navigation: Array<{ href: Route; label: string; icon: LucideIcon }> = [
   { href: "/", label: "Home", icon: LayoutDashboard },
   { href: "/graph", label: "Graph", icon: Network },
-  { href: "/projects", label: "Projects", icon: Braces },
-  { href: "/register", label: "Register API", icon: UserPlus }
+  { href: "/projects", label: "Projects", icon: Braces }
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
