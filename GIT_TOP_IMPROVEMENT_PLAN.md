@@ -120,6 +120,6 @@ Acceptance criteria:
 
 1. Replace the Node strip-types validation scripts with a formal test runner if the project grows.
 2. Add Wrangler-based integration tests against a real local D1 database.
-3. Add deployment preview checks that call a deployed Worker after CI.
+3. Completed: GitHub Actions runs `pnpm smoke:prod` after successful pushes to `main`, so CI checks the deployed Worker after the local release gate passes.
 4. Completed: `/register` is removed from primary navigation and redirects to `/projects` until backed by real account persistence.
 5. Add visual regression or Playwright coverage for the Next.js project and graph pages.
