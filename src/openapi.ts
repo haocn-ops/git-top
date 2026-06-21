@@ -121,6 +121,31 @@ export const openApiDocument = {
         responses: { "200": { description: "Graph-grounded project set, plan, comparison, or stack" } }
       }
     },
+    "/api/admin/classification-overrides": {
+      get: {
+        summary: "List reviewed classification overrides.",
+        security: [{ syncSecret: [] }],
+        parameters: [queryParam("limit", "Maximum override count")],
+        responses: { "200": { description: "Reviewed classification override ledger" }, "401": { description: "Missing or invalid admin authorization" } }
+      },
+      post: {
+        summary: "Create or update a reviewed classification override.",
+        security: [{ syncSecret: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ClassificationOverrideInput" }
+            }
+          }
+        },
+        responses: {
+          "200": { description: "Persisted classification override" },
+          "400": { description: "Invalid classification override payload" },
+          "401": { description: "Missing or invalid admin authorization" }
+        }
+      }
+    },
     "/mcp": {
       get: {
         summary: "Discover Git.Top MCP tools, docs, quickstart, and JSON-RPC examples.",
@@ -133,6 +158,13 @@ export const openApiDocument = {
     }
   },
   components: {
+    securitySchemes: {
+      syncSecret: {
+        type: "http",
+        scheme: "bearer",
+        description: "Admin endpoints require the SYNC_SECRET bearer token."
+      }
+    },
     schemas: {
       Metadata: {
         type: "object",
@@ -141,6 +173,39 @@ export const openApiDocument = {
           reason: { type: "string" },
           project_count: { type: "integer" },
           generated_at: { type: "string", format: "date-time" }
+        }
+      },
+      ClassificationOverrideInput: {
+        type: "object",
+        required: ["project_id"],
+        properties: {
+          project_id: { type: "string", description: "GitHub owner/repo identifier." },
+          category: {
+            type: "string",
+            enum: [
+              "agent_framework",
+              "coding_agent",
+              "browser_agent",
+              "rag_framework",
+              "vector_database",
+              "llm_gateway",
+              "llm_eval",
+              "prompt_tooling",
+              "workflow_automation",
+              "local_llm_runtime",
+              "ai_app_template",
+              "mcp_server",
+              "ai_observability",
+              "other"
+            ]
+          },
+          difficulty: { type: "string", enum: ["beginner", "intermediate", "advanced"] },
+          deployment: { type: "array", items: { type: "string" } },
+          cloudflare_ready: { type: "boolean" },
+          classification: { type: "object", description: "Optional classification evidence override." },
+          notes: { type: "string" },
+          reviewed_by: { type: "string" },
+          reviewed_at: { type: "string", format: "date-time" }
         }
       }
     }

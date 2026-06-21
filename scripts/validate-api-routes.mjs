@@ -147,6 +147,9 @@ async function testOpenApiDocument() {
   assert.equal(openapi.body.openapi, "3.1.0");
   assert.ok(openapi.body.paths["/api/quality"], "OpenAPI should document quality report endpoint");
   assert.ok(openapi.body.paths["/api/quality/review"], "OpenAPI should document quality review endpoint");
+  assert.ok(openapi.body.paths["/api/admin/classification-overrides"], "OpenAPI should document classification override endpoint");
+  assert.deepEqual(openapi.body.paths["/api/admin/classification-overrides"], openApiDocument.paths["/api/admin/classification-overrides"]);
+  assert.equal(openapi.body.components.securitySchemes.syncSecret.scheme, "bearer");
   assert.deepEqual(openapi.body.paths["/api/quality/review"], openApiDocument.paths["/api/quality/review"]);
 }
 

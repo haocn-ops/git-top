@@ -130,6 +130,7 @@ export function renderLlmsFullTxt(): Response {
       "4. Fetch alternatives with /api/alternatives/:owner/:repo or MCP get_alternatives.",
       "5. Compare final candidates with /api/compare or MCP compare_projects.",
       "6. Cite metadata, classification evidence, quality_signal_confidence, and freshness fields.",
+      "7. Operators can use the protected classification override API for reviewed one-off corrections from /quality/review.",
       "",
       "## REST Endpoints",
       "",
@@ -149,6 +150,7 @@ export function renderLlmsFullTxt(): Response {
       "- GET /api/schema/project.v2",
       "- GET /api/openapi.json",
       "- POST /api/grp/query",
+      "- GET/POST /api/admin/classification-overrides (requires SYNC_SECRET)",
       "",
       "## MCP",
       "",
@@ -415,7 +417,9 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
             <a class="pill" href="/api/search">/api/search</a>
             <a class="pill" href="/api/trending">/api/trending</a>
             <a class="pill" href="/api/quality">/api/quality</a>
+            <a class="pill" href="/api/quality/review">/api/quality/review</a>
             <a class="pill" href="/quality">/quality</a>
+            <a class="pill" href="/openapi.json">/openapi.json</a>
             <a class="pill" href="/api/schema/project.v2">/api/schema/project.v2</a>
             <a class="pill" href="/llms.txt">/llms.txt</a>
             <a class="pill" href="/llms-full.txt">/llms-full.txt</a>
@@ -459,6 +463,18 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
           <h2>Recommendations should be explainable</h2>
           <p class="muted">Classification evidence separates category, deployment, difficulty, and Cloudflare readiness. Quality signal confidence marks estimates, partial counts, unknown counts, and snapshot-backed star movement.</p>
         </article>
+        <article class="panel" id="governance">
+          <p class="eyebrow">Quality Governance</p>
+          <h2>Review queues become auditable corrections</h2>
+          <ul>
+            <li><code>/quality/review</code> shows low-confidence classifications, collection semantics, and signal gaps.</li>
+            <li><code>/api/quality/review</code> exposes the same backlog for agent and operator workflows.</li>
+            <li><code>/api/admin/classification-overrides</code> is protected by <code>SYNC_SECRET</code> and records reviewed one-off corrections separately from generated Agent Cards.</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="two">
         <article class="panel" id="security">
           <p class="eyebrow">Site Trust</p>
           <h2>Production surfaces</h2>

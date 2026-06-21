@@ -125,6 +125,12 @@ Completed in the API contract pass:
 - Documented review queue fields and `require_d1` behavior in `docs/API.md`.
 - Added API validation coverage so `/api/openapi.json` must include the quality and quality review endpoints.
 
+Completed in the governance contract pass:
+
+- Added protected `/api/admin/classification-overrides` GET/POST operations to OpenAPI discovery with `SYNC_SECRET` bearer auth.
+- Added a quality governance docs section linking review queues to auditable classification overrides.
+- Added production smoke coverage for the OpenAPI override contract and review queue override workflow link.
+
 ## Product Direction
 
 The product should keep emphasizing that it is not a leaderboard. Its stronger position is:

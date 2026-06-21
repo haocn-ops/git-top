@@ -89,6 +89,7 @@ function renderHtml(
         <p class="lead">This queue highlights projects that need manual review before Git.Top treats their category, deployment, Cloudflare readiness, or collection semantics as high-confidence.</p>
         <div class="actions">
           <a class="button primary" href="/api/quality/review">Open review JSON</a>
+          <a class="button" href="/docs#governance">Override workflow</a>
           <a class="button" href="/quality">Quality dashboard</a>
           <a class="button" href="/api/quality">Quality JSON</a>
         </div>
@@ -108,7 +109,7 @@ function renderHtml(
           <div class="rows">
             <div class="row"><strong>Prioritize low-confidence categories and Cloudflare readiness.</strong><span>These can directly change project recommendations and deployment-fit answers.</span></div>
             <div class="row"><strong>Review collections separately from runtime projects.</strong><span>Collections are useful for discovery, but should not be presented as direct implementation choices without context.</span></div>
-            <div class="row"><strong>Use overrides for high-traffic ambiguous projects.</strong><span>Reviewed corrections should go through the classification override workflow instead of being hidden in page copy.</span></div>
+            <div class="row"><strong>Use overrides for high-traffic ambiguous projects.</strong><span>Reviewed corrections should go through the <a href="/docs#governance">classification override workflow</a> instead of being hidden in page copy.</span></div>
           </div>
         </article>
         <aside class="panel">

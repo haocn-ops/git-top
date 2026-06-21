@@ -100,8 +100,15 @@ export async function runSmoke(args = [], env = process.env) {
     assert.equal(llms.status, 200);
     assert.match(llms.text, /Git\.Top is an agent-native GitHub project knowledge layer/);
 
+    const { status: openapiStatus, body: openapi } = await getJson(context, "/openapi.json");
+    assert.equal(openapiStatus, 200);
+    assert.ok(openapi.paths["/api/quality/review"], "OpenAPI should include quality review");
+    assert.ok(openapi.paths["/api/admin/classification-overrides"], "OpenAPI should include classification overrides");
+    assert.equal(openapi.components.securitySchemes.syncSecret.scheme, "bearer");
+
     return {
-      sitemapProjectUrls: Array.from(sitemap.text.matchAll(/<loc>https:\/\/git\.top\/projects\//g)).length
+      sitemapProjectUrls: Array.from(sitemap.text.matchAll(/<loc>https:\/\/git\.top\/projects\//g)).length,
+      openapiAdminOverride: true
     };
   });
 
@@ -150,6 +157,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(text, /Review Queue/);
     assert.match(text, /Low-confidence classification/);
     assert.match(text, /Open review JSON/);
+    assert.match(text, /Override workflow/);
     assert.match(text, /Review items/);
 
     const { status: apiStatus, body } = await getJson(context, "/api/quality/review");
