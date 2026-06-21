@@ -14,6 +14,7 @@
     "seed:validate": "node scripts/validate-seed-repositories.mjs",
     "seed:coverage": "node scripts/seed-coverage.mjs",
     "seed:live-check": "node scripts/check-seed-live.mjs",
+    "seed:candidates": "node scripts/find-seed-candidates.mjs",
     "knowledge:validate": "node --experimental-strip-types --import ./scripts/register-ts-loader.mjs scripts/validate-generated-knowledge.mjs",
     "db:validate": "node --experimental-strip-types --import ./scripts/register-ts-loader.mjs scripts/validate-db-mapping.mjs",
     "core:validate": "node --experimental-strip-types --import ./scripts/register-ts-loader.mjs scripts/validate-core-logic.mjs",

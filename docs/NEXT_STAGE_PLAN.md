@@ -136,6 +136,12 @@ Public V1 completion:
 - The current seed list has 308 repositories.
 - The latest full authenticated live check passed with 308/308 repositories OK.
 - Expansion toward 500 remains a quality-controlled growth task rather than a V1 blocker.
+- `pnpm seed:candidates` now generates a live GitHub-backed candidate review queue in `docs/SEED_CANDIDATES.md` so future expansion can be curated instead of guessed.
+
+500-repository growth rule:
+
+- Do not append candidates directly from discovery output.
+- Review candidate category fit, remove peripheral repos such as docs, charts, examples, and generic SDKs, then run `pnpm seed:live-check -- --fail-on-archived --fail-on-error` before release.
 
 ## Phase 3: Evaluation Set and Recommendation Baseline
 

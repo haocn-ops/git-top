@@ -27,6 +27,7 @@ pnpm db:execute
 pnpm db:seed
 pnpm seed:validate
 pnpm seed:coverage
+pnpm seed:candidates
 pnpm seed:live-check -- --limit 20
 pnpm seed:live-check -- --offset 20 --limit 20
 pnpm knowledge:validate
@@ -50,6 +51,8 @@ pnpm dev
 `/api/health` reports D1 availability and the current project count. Run `pnpm db:execute` and `pnpm db:seed` before local API checks when the D1 state is empty. `pnpm db:execute` prepares the local D1 schema and backfills optional columns that may be missing from older local databases. `seed.sql` is generated from hand-authored seed knowledge and generated eval fixtures; run `pnpm db:seed-sql` after changing those fixtures. `pnpm db:integration` seeds local D1, starts a temporary local Worker, and validates the D1-backed HTTP API path.
 
 `pnpm eval:quality` is the CI-safe recommendation and classification regression gate. `pnpm eval:local` runs broader generated category and deployment probes across the fixture-backed project set and writes [docs/EVAL_LOCAL.md](./docs/EVAL_LOCAL.md); use it before tuning ranking heuristics, but keep it out of the default validation path. `pnpm eval:ranking` compares offline ranking strategies in [docs/RANKING_EXPERIMENTS.md](./docs/RANKING_EXPERIMENTS.md). Runtime search keeps exact-intent ranking by default; broad scoped discovery can opt into `ranking=browse`.
+
+`pnpm seed:candidates` discovers seed expansion candidates from live GitHub organization metadata and writes [docs/SEED_CANDIDATES.md](./docs/SEED_CANDIDATES.md). Treat it as a review queue, not an automatic append step; candidates still need live-check and category review before entering `data/seed-repositories.json`.
 
 `pnpm smoke:prod` validates the deployed Worker at `https://git.top` and requires D1-backed responses. Use `pnpm smoke:prod -- --base-url http://localhost:8787` for a local or preview Worker, or add `--allow-seed` only when intentionally checking seed fallback behavior.
 
