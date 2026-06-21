@@ -13,6 +13,7 @@ await testScoring();
 await testQualityInfoIssuesDoNotLowerScore();
 await testQualityCollectionCoverage();
 await testLegacyConsoleRedirects();
+await testCoverageRoute();
 await testSyncBatchSelection();
 await testNextProjectDetailLookup();
 await testBrowseRanking();
@@ -35,6 +36,15 @@ async function testLegacyConsoleRedirects() {
   const reports = await worker.fetch(new Request("https://git.top/reports"), {});
   assert.equal(reports.status, 302);
   assert.equal(reports.headers.get("location"), "https://git.top/graph");
+}
+
+async function testCoverageRoute() {
+  const response = await worker.fetch(new Request("https://git.top/coverage"), {});
+  const text = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(text, /Project corpus, taxonomy, and trust boundaries/);
+  assert.match(text, /Category Distribution/);
+  assert.match(text, /Use Boundaries/);
 }
 
 async function testScoring() {

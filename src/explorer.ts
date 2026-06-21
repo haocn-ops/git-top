@@ -616,6 +616,7 @@ const html = String.raw`<!doctype html>
           <div class="link-list">
             <a href="/docs">Developer docs</a>
             <a href="/quality">Quality governance</a>
+            <a href="/coverage">Corpus coverage</a>
             <a href="/api/quality">Quality JSON</a>
             <a href="/api/sync/status">Sync status</a>
           </div>

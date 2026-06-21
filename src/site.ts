@@ -81,6 +81,7 @@ export function renderLlmsTxt(): Response {
       "- Health: https://git.top/api/health",
       "- Quality: https://git.top/api/quality",
       "- Quality governance: https://git.top/quality",
+      "- Corpus coverage: https://git.top/coverage",
       "- Low-confidence review: https://git.top/quality/review",
       "- Search: https://git.top/api/search?q=cloudflare%20agent&limit=5",
       "",
@@ -88,6 +89,7 @@ export function renderLlmsTxt(): Response {
       "",
       "- Check metadata.source before making high-confidence recommendations.",
       "- Prefer metadata.source=d1 for production answers.",
+      "- Check /coverage when the question depends on corpus breadth or category representation.",
       "- Inspect classification evidence and quality_signal_confidence before citing a score.",
       "- Use /mcp for JSON-RPC tools/list and tools/call.",
       "",
@@ -201,6 +203,7 @@ export function renderLlmsFullTxt(): Response {
       "- /sitemap.xml",
       "- /.well-known/security.txt",
       "- /quality",
+      "- /coverage",
       "- /quality/review",
       "- /llms.txt",
       "- /llms-full.txt",
@@ -247,6 +250,7 @@ function staticSitemapUrls(now: string): SitemapUrl[] {
     { path: "/", changefreq: "daily", priority: "1.0", lastmod: now },
     { path: "/docs", changefreq: "weekly", priority: "0.9", lastmod: now },
     { path: "/quality", changefreq: "daily", priority: "0.8", lastmod: now },
+    { path: "/coverage", changefreq: "daily", priority: "0.8", lastmod: now },
     { path: "/quality/review", changefreq: "daily", priority: "0.7", lastmod: now },
     { path: "/projects", changefreq: "daily", priority: "0.9", lastmod: now },
     { path: "/graph", changefreq: "weekly", priority: "0.8", lastmod: now },
@@ -419,6 +423,7 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
             <a class="pill" href="/api/quality">/api/quality</a>
             <a class="pill" href="/api/quality/review">/api/quality/review</a>
             <a class="pill" href="/quality">/quality</a>
+            <a class="pill" href="/coverage">/coverage</a>
             <a class="pill" href="/openapi.json">/openapi.json</a>
             <a class="pill" href="/api/schema/project.v2">/api/schema/project.v2</a>
             <a class="pill" href="/llms.txt">/llms.txt</a>
@@ -468,6 +473,7 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
           <h2>Review queues become auditable corrections</h2>
           <ul>
             <li><code>/quality/review</code> shows low-confidence classifications, collection semantics, and signal gaps.</li>
+            <li><code>/coverage</code> shows corpus boundaries, category distribution, and collection representation before agents rely on broad recommendations.</li>
             <li><code>/api/quality/review</code> exposes the same backlog for agent and operator workflows.</li>
             <li><code>/api/admin/classification-overrides</code> is protected by <code>SYNC_SECRET</code> and records reviewed one-off corrections separately from generated Agent Cards.</li>
           </ul>

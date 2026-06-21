@@ -131,6 +131,12 @@ Completed in the governance contract pass:
 - Added a quality governance docs section linking review queues to auditable classification overrides.
 - Added production smoke coverage for the OpenAPI override contract and review queue override workflow link.
 
+Completed in the corpus coverage pass:
+
+- Added `/coverage` as a public corpus coverage page for project count, taxonomy coverage, collection representation, Cloudflare-ready count, and use boundaries.
+- Linked `/coverage` from the homepage trust section, `/quality`, `/docs`, LLM discovery, and sitemap.
+- Added production smoke coverage for the public coverage page and sitemap entry.
+
 ## Product Direction
 
 The product should keep emphasizing that it is not a leaderboard. Its stronger position is:

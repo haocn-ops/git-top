@@ -93,6 +93,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms\.txt<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms-full\.txt<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quality<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/coverage<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quality\/review<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/projects\/cloudflare\/agents<\/loc>/);
 
@@ -145,9 +146,24 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(text, /Low-confidence classifications/);
     assert.match(text, /Open quality JSON/);
     assert.match(text, /Review queue/);
+    assert.match(text, /Corpus coverage/);
 
     return {
       hasQualityJsonLink: text.includes("/api/quality")
+    };
+  });
+
+  await check(context, "coverage_page", async () => {
+    const { status, text } = await getText(context, "/coverage");
+    assert.equal(status, 200);
+    assert.match(text, /Project corpus, taxonomy, and trust boundaries/);
+    assert.match(text, /Category Distribution/);
+    assert.match(text, /Use Boundaries/);
+    assert.match(text, /Cloudflare-ready/);
+    assert.match(text, /Collection Semantics/);
+
+    return {
+      hasCoverageJsonLink: text.includes("/api/quality")
     };
   });
 

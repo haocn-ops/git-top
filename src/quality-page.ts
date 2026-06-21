@@ -95,6 +95,7 @@ function renderHtml(
         <p class="lead">Use this page before treating a project recommendation as high-confidence. The release score, risk layer, coverage metrics, and issue list are generated from the same knowledge source used by search, MCP, and project pages.</p>
         <div class="actions">
           <a class="button primary" href="/api/quality">Open quality JSON</a>
+          <a class="button" href="/coverage">Corpus coverage</a>
           <a class="button" href="/quality/review">Review queue</a>
           <a class="button" href="/docs#scoring">Scoring methodology</a>
           <a class="button" href="/api/sync/status">Sync status</a>
