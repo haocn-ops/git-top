@@ -44,6 +44,8 @@ async function testSearchAndProjectRoutes() {
   assert.equal(search.status, 200);
   assert.equal(search.body.query.q, "cloudflare");
   assert.ok(search.body.projects.length > 0, "search should return at least one seed project");
+  assert.equal(search.body.search.applied_filters.q, "cloudflare");
+  assert.ok(search.body.search.known_filter_values.category.includes("agent_framework"));
   assertMetadata(search.body.metadata, "db_missing");
 
   const browseSearch = await getJson("/api/search?q=agent%20framework&category=agent_framework&deployment=cloudflare&ranking=browse&limit=8");
@@ -52,6 +54,16 @@ async function testSearchAndProjectRoutes() {
   assert.ok(browseSearch.body.projects.length > 0, "browse search should return seed projects");
   assert.ok(browseSearch.body.projects.length <= 8, "browse search should honor the limit");
   assertMetadata(browseSearch.body.metadata, "db_missing");
+
+  const emptySearch = await getJson("/api/search?query=agent&category=framework&deployment=cloudflare&language=typescript&cloudflare_ready=true&limit=5");
+  assert.equal(emptySearch.status, 200);
+  assert.equal(emptySearch.body.query.query, "agent");
+  assert.equal(emptySearch.body.search.applied_filters.q, "agent");
+  assert.equal(emptySearch.body.search.applied_filters.category, "framework");
+  assert.equal(emptySearch.body.search.applied_filters.cloudflare_ready, true);
+  assert.equal(emptySearch.body.projects.length, 0);
+  assert.match(emptySearch.body.search.empty_reason, /No projects matched/);
+  assert.ok(emptySearch.body.search.suggestions.some((item) => item.includes("category='agent_framework'")));
 
   const project = await getJson("/api/project/cloudflare/agents");
   assert.equal(project.status, 200);
@@ -80,6 +92,9 @@ async function testRecommendationAndCompareRoutes() {
   const compare = await getJson("/api/compare?repos=cloudflare/agents,run-llama/llama_index&deployment=cloudflare");
   assert.equal(compare.status, 200);
   assert.ok(compare.body.projects.length >= 1);
+  assert.equal(compare.body.projects[0].repo, "cloudflare/agents");
+  assert.deepEqual(compare.body.requested_repos, ["cloudflare/agents", "run-llama/llama_index"]);
+  assert.equal(compare.body.order, "input");
   assert.equal(compare.body.context.deployment, "cloudflare");
   assertMetadata(compare.body.metadata, "db_missing");
 }

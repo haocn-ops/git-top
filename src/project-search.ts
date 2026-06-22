@@ -30,6 +30,19 @@ export interface Recommendation {
   metrics: ProjectMetrics;
 }
 
+export interface SearchResultContext {
+  applied_filters: Record<string, string | boolean>;
+  known_filter_values: {
+    category: string[];
+    deployment: string[];
+    difficulty: string[];
+    language: string[];
+    cloudflare_ready: boolean[];
+  };
+  empty_reason?: string;
+  suggestions?: string[];
+}
+
 const defaultLimit = 20;
 
 export function getProjectKnowledgeFromList(projects: ProjectKnowledge[], id: string): ProjectKnowledge | null {
@@ -98,6 +111,77 @@ export function searchProjectList(projects: ProjectKnowledge[], filters: Project
     .sort((a, b) => b.score - a.score || byGitScore(a.item, b.item))
     .map(({ item }) => item)
     .slice(0, limit);
+}
+
+export function describeSearchResult(projects: ProjectKnowledge[], filters: ProjectFilters, resultCount: number): SearchResultContext {
+  const appliedFilters: Record<string, string | boolean> = {};
+  if (filters.q) {
+    appliedFilters.q = filters.q;
+  }
+  if (filters.category) {
+    appliedFilters.category = filters.category;
+  }
+  if (filters.deployment) {
+    appliedFilters.deployment = filters.deployment;
+  }
+  if (filters.difficulty) {
+    appliedFilters.difficulty = filters.difficulty;
+  }
+  if (filters.language) {
+    appliedFilters.language = filters.language;
+  }
+  if (typeof filters.cloudflareReady === "boolean") {
+    appliedFilters.cloudflare_ready = filters.cloudflareReady;
+  }
+
+  const knownFilterValues = {
+    category: sortedUnique(projects.map((item) => item.agentCard.category)),
+    deployment: sortedUnique(projects.flatMap((item) => item.agentCard.deployment)),
+    difficulty: sortedUnique(projects.map((item) => item.agentCard.difficulty)),
+    language: sortedUnique(projects.map((item) => item.project.language).filter((value): value is string => Boolean(value))),
+    cloudflare_ready: [false, true]
+  };
+
+  if (resultCount > 0) {
+    return {
+      applied_filters: appliedFilters,
+      known_filter_values: knownFilterValues
+    };
+  }
+
+  const suggestions: string[] = [];
+  if (filters.category && !knownFilterValues.category.includes(filters.category)) {
+    const nearest = nearestFilterValue(filters.category, knownFilterValues.category);
+    suggestions.push(nearest ? `Unknown category '${filters.category}'. Try category='${nearest}'.` : `Unknown category '${filters.category}'.`);
+  }
+  if (filters.deployment && !knownFilterValues.deployment.includes(filters.deployment)) {
+    const nearest = nearestFilterValue(filters.deployment, knownFilterValues.deployment);
+    suggestions.push(nearest ? `Unknown deployment '${filters.deployment}'. Try deployment='${nearest}'.` : `Unknown deployment '${filters.deployment}'.`);
+  }
+  if (filters.difficulty && !knownFilterValues.difficulty.includes(filters.difficulty)) {
+    const nearest = nearestFilterValue(filters.difficulty, knownFilterValues.difficulty);
+    suggestions.push(nearest ? `Unknown difficulty '${filters.difficulty}'. Try difficulty='${nearest}'.` : `Unknown difficulty '${filters.difficulty}'.`);
+  }
+  if (filters.language && !knownFilterValues.language.map(normalize).includes(normalize(filters.language))) {
+    const nearest = nearestFilterValue(filters.language, knownFilterValues.language);
+    suggestions.push(nearest ? `Unknown language '${filters.language}'. Try language='${nearest}'.` : `Unknown language '${filters.language}'.`);
+  }
+  if (Object.keys(appliedFilters).length > 1) {
+    suggestions.push("Relax one filter at a time, or use ranking='browse' for broad category/deployment discovery.");
+  }
+  if (filters.q && !filters.ranking) {
+    suggestions.push("Use q for REST search and query for MCP search_projects; the REST API also accepts query as an alias.");
+  }
+
+  return {
+    applied_filters: appliedFilters,
+    known_filter_values: knownFilterValues,
+    empty_reason:
+      suggestions.length > 0
+        ? "No projects matched the requested query and filters; at least one filter may be unknown or the intersection may be empty."
+        : "No projects matched the requested query and filters.",
+    suggestions
+  };
 }
 
 export function getTrendingFromList(projects: ProjectKnowledge[], filters: Pick<ProjectFilters, "category" | "limit">): ProjectKnowledge[] {
@@ -288,6 +372,15 @@ function queryTokens(query: string): string[] {
     .split(/[^a-z0-9]+/i)
     .map((word) => word.trim().toLowerCase())
     .filter((word) => word.length > 2);
+}
+
+function sortedUnique(values: string[]): string[] {
+  return Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b));
+}
+
+function nearestFilterValue(value: string, knownValues: string[]): string | null {
+  const normalized = normalize(value);
+  return knownValues.find((known) => normalize(known).includes(normalized) || normalized.includes(normalize(known))) ?? null;
 }
 
 function isSearchHit(value: { item: ProjectKnowledge; score: number } | null): value is { item: ProjectKnowledge; score: number } {

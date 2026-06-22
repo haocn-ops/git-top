@@ -38,6 +38,11 @@ async function testLegacyConsoleRedirects() {
   assert.match(projectsText, /<link rel="canonical" href="https:\/\/git\.top\/projects"/);
   assert.match(projectsText, /Git\.Top Projects \| Agent-Native GitHub Project Index/);
 
+  const docs = await worker.fetch(new Request("https://git.top/docs"), {});
+  assert.equal(docs.status, 200);
+  const docsText = await docs.text();
+  assert.match(docsText, /<link rel="canonical" href="https:\/\/git\.top\/docs"/);
+
   const reports = await worker.fetch(new Request("https://git.top/reports"), {});
   assert.equal(reports.status, 302);
   assert.equal(reports.headers.get("location"), "https://git.top/graph");

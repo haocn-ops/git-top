@@ -66,6 +66,8 @@ curl -X POST http://localhost:8787/mcp \
   -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_project","arguments":{"project_id":"cloudflare/agents"}}}'
 ```
 
+`get_project` also accepts `{"owner":"cloudflare","repo":"agents"}` and `{"repo":"cloudflare/agents"}` for clients that split GitHub owner and repository fields.
+
 ## Recommend Project
 
 ```sh

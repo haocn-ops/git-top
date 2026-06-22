@@ -27,6 +27,18 @@ async function testDiscovery() {
   assert.equal(rpcDiscovery.status, 200);
   assert.equal(rpcDiscovery.body.result.tools.length, getDiscovery.body.tools.length);
 
+  const initialize = await rpc("initialize", {
+    protocolVersion: "2025-06-18",
+    capabilities: {},
+    clientInfo: { name: "git-top-validator", version: "0.0.0" }
+  });
+  assert.equal(initialize.status, 200);
+  assert.equal(initialize.body.result.serverInfo.name, "git-top");
+  assert.equal(initialize.body.result.capabilities.tools.listChanged, false);
+
+  const initialized = await rpc("notifications/initialized", {});
+  assert.equal(initialized.status, 202);
+
   const searchTool = getDiscovery.body.tools.find((tool) => tool.name === "search_projects");
   assert.match(searchTool.description, /project_kind/);
   assert.match(searchTool.description, /collection_metadata/);
@@ -61,9 +73,21 @@ async function testToolCalls() {
 
   const project = await callTool("get_project", { project_id: "cloudflare/agents" });
   assert.equal(project.status, 200);
+  assert.equal(project.result.project_id, "cloudflare/agents");
   assert.equal(project.result.project.repo, "cloudflare/agents");
   assert.equal(project.result.project.classification.category.confidence, "low");
   assertMetadata(project.result.metadata, "db_missing");
+
+  const splitProject = await callTool("get_project", { owner: "cloudflare", repo: "agents" });
+  assert.equal(splitProject.status, 200);
+  assert.equal(splitProject.result.project_id, "cloudflare/agents");
+  assert.equal(splitProject.result.project.repo, "cloudflare/agents");
+  assertMetadata(splitProject.result.metadata, "db_missing");
+
+  const repoProject = await callTool("get_project", { repo: "cloudflare/agents" });
+  assert.equal(repoProject.status, 200);
+  assert.equal(repoProject.result.project_id, "cloudflare/agents");
+  assert.equal(repoProject.result.project.repo, "cloudflare/agents");
 
   const card = await callTool("get_project_card", { project_id: "cloudflare/agents" });
   assert.equal(card.status, 200);
@@ -100,6 +124,9 @@ async function testToolCalls() {
   });
   assert.equal(compare.status, 200);
   assert.ok(compare.result.projects.length >= 1);
+  assert.equal(compare.result.projects[0].repo, "cloudflare/agents");
+  assert.deepEqual(compare.result.requested_project_ids, ["cloudflare/agents", "run-llama/llama_index"]);
+  assert.equal(compare.result.order, "input");
   assert.equal(compare.result.context.deployment, "cloudflare");
   assertMetadata(compare.result.metadata, "db_missing");
 }
@@ -250,9 +277,10 @@ async function request(method, path) {
 
 async function rawRequest(method, path, body, headers = {}, requestEnv = env) {
   const response = await handleMcp(new Request(`https://git.top${path}`, { method, body, headers }), requestEnv);
+  const text = await response.text();
   return {
     status: response.status,
-    body: await response.json()
+    body: text ? JSON.parse(text) : null
   };
 }
 

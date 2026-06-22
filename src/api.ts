@@ -1,4 +1,5 @@
 import {
+  describeSearchResult,
   findAlternativesFromList,
   getProjectKnowledgeFromList,
   getTrendingFromList,
@@ -266,8 +267,8 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     if (knowledge instanceof Response) {
       return knowledge;
     }
-    const results = searchProjectList(knowledge.projects, {
-      q: url.searchParams.get("q") ?? undefined,
+    const filters = {
+      q: url.searchParams.get("q") ?? url.searchParams.get("query") ?? undefined,
       category: url.searchParams.get("category") ?? undefined,
       deployment: url.searchParams.get("deployment") ?? undefined,
       difficulty: url.searchParams.get("difficulty") ?? undefined,
@@ -275,12 +276,16 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       language: url.searchParams.get("language") ?? undefined,
       ranking: url.searchParams.get("ranking") ?? undefined,
       limit: parseLimit(url.searchParams.get("limit"))
+    };
+    const results = searchProjectList(knowledge.projects, {
+      ...filters
     });
 
     return json({
       query: Object.fromEntries(url.searchParams.entries()),
       projects: results.map(toProjectKnowledgeView),
       knowledge: results,
+      search: describeSearchResult(knowledge.projects, filters, results.length),
       metadata: knowledge.metadata
     });
   }
@@ -330,10 +335,12 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     }
     const projects =
       ids.length > 0
-        ? knowledge.projects.filter((item) => ids.includes(item.project.id) || ids.includes(item.project.fullName))
+        ? ids.map((id) => getProjectKnowledgeFromList(knowledge.projects, id)).filter(isProjectKnowledge)
         : knowledge.projects.slice(0, 3);
     return json({
       ...compareProjectKnowledge(projects, { deployment: url.searchParams.get("deployment") ?? undefined }),
+      requested_repos: ids,
+      order: ids.length > 0 ? "input" : "default_score",
       metadata: knowledge.metadata
     });
   }
@@ -447,6 +454,10 @@ function isAuthorizedAdmin(request: Request, env: Env): boolean {
   const auth = request.headers.get("authorization") ?? "";
   const expected = `Bearer ${env.SYNC_SECRET}`;
   return auth === expected;
+}
+
+function isProjectKnowledge(value: ReturnType<typeof getProjectKnowledgeFromList>): value is NonNullable<ReturnType<typeof getProjectKnowledgeFromList>> {
+  return value !== null;
 }
 
 function parseSignalDepth(value: unknown): "full" | "lite" | undefined {

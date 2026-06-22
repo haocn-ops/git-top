@@ -192,6 +192,10 @@ export function renderLlmsFullTxt(): Response {
       "",
       'curl -X POST https://git.top/mcp -H "content-type: application/json" -d \'{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search_projects","arguments":{"query":"cloudflare agent framework","limit":5}}}\'',
       "",
+      "Example project lookup:",
+      "",
+      'curl -X POST https://git.top/mcp -H "content-type: application/json" -d \'{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_project","arguments":{"owner":"cloudflare","repo":"agents","require_d1":true}}}\'',
+      "",
       "## Scoring",
       "",
       "quality_score weights repository activity: 40% 30-day star movement, 20% commits, 15% releases, 15% contributors, 10% issue response.",
@@ -357,6 +361,7 @@ export function renderDocsPage(): Response {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Git.Top Docs | API, MCP, Scoring, and Data Trust</title>
     <meta name="description" content="Git.Top documentation for REST APIs, MCP tools, scoring methodology, data freshness, and production trust signals." />
+    <link rel="canonical" href="https://git.top/docs" />
     <meta property="og:title" content="Git.Top Docs" />
     <meta property="og:description" content="API, MCP, scoring methodology, data freshness, and trust documentation for the Git.Top knowledge layer." />
     <meta property="og:type" content="website" />

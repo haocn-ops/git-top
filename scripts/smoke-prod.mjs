@@ -92,6 +92,41 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
+  await check(context, "mcp_initialize_and_get_project", async () => {
+    const initialized = await postJson(context, "/mcp", {
+      jsonrpc: "2.0",
+      id: 2,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-06-18",
+        capabilities: {},
+        clientInfo: { name: "git-top-smoke", version: "0.0.0" }
+      }
+    });
+    assert.equal(initialized.status, 200);
+    assert.equal(initialized.body.result.serverInfo.name, "git-top");
+
+    const project = await postJson(context, "/mcp", {
+      jsonrpc: "2.0",
+      id: 3,
+      method: "tools/call",
+      params: {
+        name: "get_project",
+        arguments: { owner: "cloudflare", repo: "agents", require_d1: !context.allowSeed }
+      }
+    });
+    assert.equal(project.status, 200);
+    const result = JSON.parse(project.body.result.content[0].text);
+    assert.equal(result.project_id, "cloudflare/agents");
+    assert.equal(result.project.repo, "cloudflare/agents");
+    assertMetadata(result.metadata, { allowSeed });
+
+    return {
+      server: initialized.body.result.serverInfo.name,
+      repo: result.project.repo
+    };
+  });
+
   await check(context, "machine_discovery", async () => {
     const sitemap = await getText(context, "/sitemap.xml");
     assert.equal(sitemap.status, 200);
@@ -157,6 +192,13 @@ export async function runSmoke(args = [], env = process.env) {
       project: legacyProject.location,
       status: legacyStatus.location
     };
+  });
+
+  await check(context, "docs_canonical", async () => {
+    const { status, text } = await getText(context, "/docs");
+    assert.equal(status, 200);
+    assert.match(text, /<link rel="canonical" href="https:\/\/git\.top\/docs"/);
+    return { canonical: true };
   });
 
   await check(context, "quality_page", async () => {
@@ -254,6 +296,34 @@ export async function runSmoke(args = [], env = process.env) {
     return {
       projectsCanonical: true,
       graphCanonical: true
+    };
+  });
+
+  await check(context, "search_empty_and_compare_order", async () => {
+    const empty = await getJson(
+      context,
+      `/api/search?query=agent&category=framework&deployment=cloudflare&language=typescript&cloudflare_ready=true&limit=5${context.allowSeed ? "" : "&require_d1=true"}`
+    );
+    assert.equal(empty.status, 200);
+    assert.equal(empty.body.search.applied_filters.q, "agent");
+    assert.equal(empty.body.search.applied_filters.category, "framework");
+    assert.equal(empty.body.search.applied_filters.cloudflare_ready, true);
+    if (empty.body.projects.length === 0) {
+      assert.match(empty.body.search.empty_reason, /No projects matched/);
+      assert.ok(Array.isArray(empty.body.search.suggestions), "empty search should include suggestions");
+    }
+    assertMetadata(empty.body.metadata, { allowSeed });
+
+    const compare = await getJson(context, "/api/compare?repos=cloudflare/agents,langchain-ai/langchain&deployment=cloudflare");
+    assert.equal(compare.status, 200);
+    assert.equal(compare.body.projects[0].repo, "cloudflare/agents");
+    assert.deepEqual(compare.body.requested_repos, ["cloudflare/agents", "langchain-ai/langchain"]);
+    assert.ok(typeof compare.body.winner === "string", "compare should keep winner separate from order");
+    assertMetadata(compare.body.metadata, { allowSeed });
+
+    return {
+      emptySearchProjects: empty.body.projects.length,
+      compareOrder: compare.body.projects.map((project) => project.repo)
     };
   });
 

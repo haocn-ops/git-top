@@ -1,4 +1,5 @@
 import {
+  describeSearchResult,
   findAlternativesFromList,
   getProjectKnowledgeFromList,
   recommendProjectList,
@@ -7,7 +8,7 @@ import {
 import type { ProjectKnowledgeResult } from "./knowledge-source";
 import { buildKnowledgeGraph, compareProjectKnowledge } from "./graph";
 import { normalizeGrpRequest, runGrpQuery } from "./grp";
-import { errorJson, json, stringifyApiJson } from "./http";
+import { errorJson, json, rawJson, stringifyApiJson } from "./http";
 import { toProjectKnowledgeView } from "./project-view";
 import { getKnowledgeForSourcePolicy } from "./source-policy";
 import type { Env, ProjectKnowledge } from "./types";
@@ -60,13 +61,18 @@ const tools = [
     inputSchema: {
       type: "object",
       properties: {
-        project_id: { type: "string" },
+        project_id: {
+          type: "string",
+          description: "Canonical owner/repo identifier. The repo field may also contain owner/repo."
+        },
+        owner: { type: "string", description: "GitHub owner; use with repo when project_id is omitted." },
+        repo: { type: "string", description: "GitHub repository name, or owner/repo when owner is omitted." },
         require_d1: {
           type: "boolean",
           description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
         }
       },
-      required: ["project_id"]
+      anyOf: [{ required: ["project_id"] }, { required: ["repo"] }, { required: ["owner", "repo"] }]
     }
   },
   {
@@ -323,6 +329,26 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
     return rpcResult(body.id, { tools });
   }
 
+  if (body.method === "initialize") {
+    return rpcResult(body.id, {
+      protocolVersion: "2025-06-18",
+      capabilities: {
+        tools: {
+          listChanged: false
+        }
+      },
+      serverInfo: {
+        name: "git-top",
+        title: "Git.Top GitHub Knowledge Layer for AI Agents",
+        version: "0.1.0"
+      }
+    });
+  }
+
+  if (body.method === "notifications/initialized") {
+    return new Response(null, { status: 202 });
+  }
+
   if (body.method === "tools/call") {
     const name = String(body.params?.name ?? "");
     const args = (body.params?.arguments ?? {}) as Record<string, unknown>;
@@ -349,7 +375,7 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
     if (isToolErrorResult(knowledge)) {
       return knowledge;
     }
-    const projects = searchProjectList(knowledge.projects, {
+    const filters = {
       q: stringArg(args.query),
       category: stringArg(args.category),
       deployment: stringArg(args.deployment),
@@ -358,10 +384,12 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
       cloudflareReady: boolArg(args.cloudflare_ready),
       ranking: stringArg(args.ranking),
       limit: numberArg(args.limit)
-    });
+    };
+    const projects = searchProjectList(knowledge.projects, filters);
 
     return {
       projects: projects.map(toProjectKnowledgeView),
+      search: describeSearchResult(knowledge.projects, filters, projects.length),
       metadata: knowledge.metadata
     };
   }
@@ -371,8 +399,10 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
     if (isToolErrorResult(knowledge)) {
       return knowledge;
     }
-    const project = getProjectKnowledgeFromList(knowledge.projects, stringArg(args.project_id) ?? "");
+    const projectId = projectIdArg(args);
+    const project = getProjectKnowledgeFromList(knowledge.projects, projectId);
     return {
+      project_id: projectId || null,
       project: project ? toProjectKnowledgeView(project) : null,
       metadata: knowledge.metadata
     };
@@ -476,6 +506,8 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
       .filter(isProjectKnowledge);
     return {
       ...compareProjectKnowledge(foundProjects, { deployment: stringArg(args.deployment) }),
+      requested_project_ids: ids.map(String),
+      order: ids.length > 0 ? "input" : "default_score",
       metadata: knowledge.metadata
     };
   }
@@ -531,7 +563,7 @@ function isToolErrorResult(value: unknown): value is ToolErrorResult {
 }
 
 function rpcResult(id: RpcRequest["id"], result: unknown): Response {
-  return json({
+  return rawJson({
     jsonrpc: "2.0",
     id: id ?? null,
     result
@@ -539,7 +571,7 @@ function rpcResult(id: RpcRequest["id"], result: unknown): Response {
 }
 
 function rpcError(id: RpcRequest["id"], code: number, message: string): Response {
-  return json(
+  return rawJson(
     {
       jsonrpc: "2.0",
       id: id ?? null,
@@ -559,6 +591,19 @@ function numberArg(value: unknown): number | undefined {
 
 function boolArg(value: unknown): boolean | undefined {
   return typeof value === "boolean" ? value : undefined;
+}
+
+function projectIdArg(args: Record<string, unknown>): string {
+  const projectId = stringArg(args.project_id);
+  if (projectId) {
+    return projectId;
+  }
+  const repo = stringArg(args.repo);
+  const owner = stringArg(args.owner);
+  if (owner && repo && !repo.includes("/")) {
+    return `${owner}/${repo}`;
+  }
+  return repo ?? "";
 }
 
 function objectArg(value: unknown): Record<string, unknown> {

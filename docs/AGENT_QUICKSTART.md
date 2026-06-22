@@ -103,6 +103,14 @@ curl -X POST https://git.top/mcp \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search_projects","arguments":{"query":"mcp observability","limit":5}}}'
 ```
 
+Call project lookup with split GitHub fields:
+
+```sh
+curl -X POST https://git.top/mcp \
+  -H "content-type: application/json" \
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_project","arguments":{"owner":"cloudflare","repo":"agents","require_d1":true}}}'
+```
+
 Call GRP through MCP for goal-level planning:
 
 ```sh
