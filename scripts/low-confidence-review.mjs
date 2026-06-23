@@ -1,4 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
+import { isReviewedCollection, reviewedCollectionPolicy } from "../src/collection-policy.ts";
 import { listProjectKnowledgeWithMeta } from "../src/knowledge-source.ts";
 import { buildLowConfidenceReviewReport } from "../src/quality.ts";
 import { seedProjects } from "../src/seed.ts";
@@ -40,7 +41,9 @@ function toMarkdown(report, projects) {
   const generatedAt = new Date().toISOString();
   const projectIndex = new Map(projects.map((item) => [item.project.id, item]));
   const checklistItems = buildReleaseChecklist(report, projectIndex);
+  const priorityCounts = buildPriorityCounts(report);
   const collectionSummary = buildCollectionSummary(projects);
+  const reviewedCollectionRows = buildReviewedCollectionRows(projects);
   const categoryRows = Object.entries(report.categoryCounts)
     .filter(([, count]) => count > 0)
     .map(([category, count]) => `| \`${category}\` | ${count} |`);
@@ -72,6 +75,10 @@ function toMarkdown(report, projects) {
     `- Projects needing review: ${report.reviewCount}`,
     `- Low-confidence signals: ${report.lowSignalCount}`,
     `- Medium-confidence signals: ${report.mediumSignalCount}`,
+    `- P0 review items: ${priorityCounts.P0}`,
+    `- P1 review items: ${priorityCounts.P1}`,
+    `- P2 review items: ${priorityCounts.P2}`,
+    `- P3 review items: ${priorityCounts.P3}`,
     "",
     "## Release Candidate Checklist",
     "",
@@ -86,6 +93,7 @@ function toMarkdown(report, projects) {
     "Collection-style repositories are useful for discovery, but should be reviewed separately from executable projects.",
     "",
     `- Collection-style checklist items: ${collectionSummary.checklistTotal}`,
+    `- Reviewed collection policy items: ${collectionSummary.reviewed}`,
     `- Collection metadata exception items: ${collectionSummary.total}`,
     `- Stale collection metadata exception items: ${collectionSummary.stale}`,
     `- Collection metadata exception items with unknown freshness: ${collectionSummary.unknown}`,
@@ -93,6 +101,12 @@ function toMarkdown(report, projects) {
     "| Scope | Review Count |",
     "| --- | ---: |",
     ...collectionSummary.scopeRows,
+    "",
+    "## Reviewed Collection Policy",
+    "",
+    "| Project | Category | Scope | Reviewed At | Policy |",
+    "| --- | --- | --- | --- | --- |",
+    ...reviewedCollectionRows,
     "",
     "## Correction Loop",
     "",
@@ -140,9 +154,18 @@ function buildReleaseChecklist(report, projectIndex) {
   }).map((row) => `| ${row} |`);
 }
 
+function buildPriorityCounts(report) {
+  const counts = { P0: 0, P1: 0, P2: 0, P3: 0 };
+  for (const item of report.items) {
+    counts[reviewPriority(item)] += 1;
+  }
+  return counts;
+}
+
 function buildCollectionSummary(projects) {
   const collectionChecklistItems = reportCollectionItems(projects);
   const collectionItems = projects.filter((item) => item.agentCard.projectKind === "collection" && needsCollectionReview(item));
+  const reviewedItems = projects.filter(isReviewedCollection);
   const scopeCounts = new Map();
 
   for (const item of collectionItems) {
@@ -156,11 +179,31 @@ function buildCollectionSummary(projects) {
 
   return {
     checklistTotal: collectionChecklistItems.length,
+    reviewed: reviewedItems.length,
     total: collectionItems.length,
     stale: collectionItems.filter((item) => item.agentCard.collectionMetadata?.freshness === "stale").length,
     unknown: collectionItems.filter((item) => !item.agentCard.collectionMetadata || item.agentCard.collectionMetadata.freshness === "unknown").length,
     scopeRows: scopeRows.length > 0 ? scopeRows : ["| none | 0 |"]
   };
+}
+
+function buildReviewedCollectionRows(projects) {
+  const rows = projects
+    .filter(isReviewedCollection)
+    .sort((a, b) => a.project.id.localeCompare(b.project.id))
+    .map((item) => {
+      const policy = reviewedCollectionPolicy(item.project.id);
+      return [
+        `\`${item.project.id}\``,
+        `\`${item.agentCard.category}\``,
+        `\`${item.agentCard.collectionMetadata?.scope ?? "unknown"}\``,
+        policy?.reviewedAt ?? "unknown",
+        escapeCell(policy?.use ?? "Reviewed collection.")
+      ].join(" | ");
+    })
+    .map((row) => `| ${row} |`);
+
+  return rows.length > 0 ? rows : ["| none | none | none | none | none |"];
 }
 
 function reportCollectionItems(projects) {
@@ -185,6 +228,9 @@ function priorityRank(priority) {
 }
 
 function needsCollectionReview(item) {
+  if (reviewedCollectionPolicy(item.project.id)) {
+    return false;
+  }
   const metadata = item.agentCard.collectionMetadata;
   return !metadata || !metadata.curated || metadata.estimatedItems === null || metadata.freshness !== "active";
 }

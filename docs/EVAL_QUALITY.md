@@ -1,6 +1,6 @@
 # Git.Top Eval Quality
 
-Generated at: 2026-06-21T12:03:02.980Z
+Generated at: 2026-06-23T04:40:41.978Z
 
 This report summarizes the CI-safe recommendation and classification baseline. Evaluation knowledge is built from hand-authored seed projects first and generated Agent Card fixtures for the full seed list second.
 
@@ -13,8 +13,8 @@ This report summarizes the CI-safe recommendation and classification baseline. E
 - Deployment accuracy: 1
 - Cloudflare readiness accuracy: 1
 - Unacceptable hit count: 0
-- Generated fixture projects: 506
-- D1 fixture projects: 506
+- Generated fixture projects: 504
+- D1 fixture projects: 504
 - Effective generated fixture projects: 500
 - Synthetic projects: 0
 
@@ -31,7 +31,7 @@ Case | Type | Top-1 | Top-3 | Category | Deployment | Cloudflare Ready | Unaccep
 `recommend-rag-framework` | recommend | yes | yes | yes | yes | yes | 0 | `run-llama/llama_index`, `langchain-ai/langchain`, `langflow-ai/langflow`
 `recommend-cloudflare-agent` | recommend | yes | yes | yes | yes | yes | 0 | `cloudflare/agents`, `cloudflare/puppeteer`, `cloudflare/mcp-server-cloudflare`
 `grp-find-cloudflare-agents` | grp | yes | yes | yes | yes | yes | 0 | `cloudflare/agents`, `cloudflare/puppeteer`, `cloudflare/mcp-server-cloudflare`, `cloudflare/dynamic-workflows`, `cloudflare/templates`
-`grp-compose-coding-stack` | grp | yes | yes | yes | yes | yes | 0 | `langchain-ai/langchain`, `modelcontextprotocol/servers`, `run-llama/llama_index`, `Portkey-AI/mcp-tool-filter`, `OpenHands/OpenHands`
+`grp-compose-coding-stack` | grp | yes | yes | yes | yes | yes | 0 | `langchain-ai/langchain`, `modelcontextprotocol/servers`, `run-llama/llama_index`, `OpenHands/OpenHands`, `open-webui/mcpo`
 `search-local-llm-runtime` | search | yes | yes | yes | yes | yes | 0 | `huggingface/text-embeddings-inference`, `ollama/ollama`, `ggml-org/llama.cpp`, `nomic-ai/gpt4all`, `oobabooga/textgen`
 `search-vector-database` | search | yes | yes | yes | yes | yes | 0 | `redis/redis`, `milvus-io/milvus`, `qdrant/qdrant`, `neo4j/neo4j`, `unum-cloud/usearch`
 `search-prompt-tooling` | search | yes | yes | yes | yes | yes | 0 | `guardrails-ai/guardrails`, `guidance-ai/guidance`, `dottxt-ai/outlines`, `567-labs/instructor`, `openai/openai-structured-outputs-samples`
@@ -42,7 +42,7 @@ Case | Type | Top-1 | Top-3 | Category | Deployment | Cloudflare Ready | Unaccep
 `search-coding-resource-hub` | search | yes | yes | yes | yes | yes | 0 | `github/awesome-copilot`, `e2b-dev/awesome-devins`, `OpenHands/OpenHands`, `cline/cline`, `openai/codex`
 `search-ai-app-resource-collection` | search | yes | yes | yes | yes | yes | 0 | `Shubhamsaboo/awesome-llm-apps`, `e2b-dev/awesome-ai-agents`, `microsoft/generative-ai-for-beginners`, `openai/openai-cookbook`, `open-webui/open-webui`
 `search-rag-resource-collection` | search | yes | yes | yes | yes | yes | 0 | `run-llama/awesome-rag`, `deepset-ai/haystack-cookbook`, `run-llama/llama_index`, `langflow-ai/langflow`, `microsoft/markitdown`
-`search-mcp-observability-integration` | search | yes | yes | yes | yes | yes | 0 | `comet-ml/opik-mcp`, `modelcontextprotocol/servers`, `github/github-mcp-server`, `cloudflare/mcp-server-cloudflare`, `qdrant/mcp-server-qdrant`
+`search-mcp-observability-integration` | search | yes | yes | yes | yes | yes | 0 | `comet-ml/opik-mcp`, `modelcontextprotocol/servers`, `github/github-mcp-server`, `cloudflare/mcp-server-cloudflare`, `PrefectHQ/fastmcp`
 `search-mcp-resource-collection` | search | yes | yes | yes | yes | yes | 0 | `punkpeye/awesome-mcp-servers`, `wong2/awesome-mcp-servers`, `modelcontextprotocol/servers`, `modelcontextprotocol/typescript-sdk`, `awslabs/mcp`
 `search-open-saas-template` | search | yes | yes | yes | yes | yes | 0 | `wasp-lang/open-saas`, `openai/openai-chatkit-starter-app`, `openai/openai-responses-starter-app`, `open-webui/open-webui`, `openai/openai-cookbook`
 `search-ambiguous-memory-framework` | search | yes | yes | yes | yes | yes | 0 | `mem0ai/mem0`, `supermemoryai/supermemory`, `getzep/zep`, `supermemoryai/claude-supermemory`, `supermemoryai/opensearch-ai`
@@ -51,6 +51,6 @@ Case | Type | Top-1 | Top-3 | Category | Deployment | Cloudflare Ready | Unaccep
 `search-cloudflare-mentioned-not-ready` | search | yes | yes | yes | yes | yes | 0 | `example/cloudflare-python-agent`, `example/cloudflare-docker-gateway`
 `search-browser-research-agent` | search | yes | yes | yes | yes | yes | 0 | `firecrawl/open-researcher`, `firecrawl/firesearch`, `firecrawl/open-scouts`, `openai/openai-cua-sample-app`, `firecrawl/firecrawl`
 `search-lightweight-cloudflare-workers-agent` | search | yes | yes | yes | yes | yes | 0 | `cloudflare/agents`
-`search-github-mcp-automation` | search | yes | yes | yes | yes | yes | 0 | `github/github-mcp-server`, `idosal/git-mcp`, `cloudflare/mcp-server-cloudflare`, `qdrant/mcp-server-qdrant`, `PrefectHQ/prefect-mcp-server`
+`search-github-mcp-automation` | search | yes | yes | yes | yes | yes | 0 | `github/github-mcp-server`, `idosal/git-mcp`, `cloudflare/mcp-server-cloudflare`, `PrefectHQ/fastmcp`, `Portkey-AI/mcp-tool-filter`
 `search-cloudflare-mcp-workers` | search | yes | yes | yes | yes | yes | 0 | `cloudflare/mcp-server-cloudflare`
-`recommend-local-rag-with-observability` | recommend | yes | yes | yes | yes | yes | 0 | `langchain-ai/langchain`, `SigNoz/signoz`, `run-llama/llama_index`, `deepset-ai/haystack`, `jaegertracing/jaeger`
+`recommend-local-rag-with-observability` | recommend | yes | yes | yes | yes | yes | 0 | `langchain-ai/langchain`, `SigNoz/signoz`, `run-llama/llama_index`, `modelcontextprotocol/servers`, `deepset-ai/haystack`

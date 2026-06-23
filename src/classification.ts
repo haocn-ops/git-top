@@ -205,11 +205,11 @@ function evidenceForCategory(category: Category, corpus: string, metadataCorpus:
     vector_database: ["vector database", "embedding database", "ann search"],
     llm_gateway: ["gateway", "proxy", "router", "openai compatible"],
     llm_eval: ["eval", "evaluation", "benchmark"],
-    prompt_tooling: ["prompt", "prompt management"],
+    prompt_tooling: ["prompt", "prompt management", "guardrails"],
     workflow_automation: ["workflow", "automation", "orchestration"],
     local_llm_runtime: ["local llm", "inference server", "serve models", "gguf"],
     ai_app_template: ["template", "starter", "boilerplate"],
-    mcp_server: ["model context protocol", "mcp server", "modelcontextprotocol"],
+    mcp_server: ["model context protocol", "mcp server", "modelcontextprotocol", "mcp"],
     ai_observability: ["observability", "trace", "tracing", "monitoring"],
     other: []
   };

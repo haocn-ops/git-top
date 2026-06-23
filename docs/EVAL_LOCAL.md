@@ -1,6 +1,6 @@
 # Git.Top Local Eval
 
-Generated at: 2026-06-21T11:53:20.972Z
+Generated at: 2026-06-23T04:32:08.284Z
 
 This local-only report expands the CI-safe eval with generated category and deployment probes across the full fixture-backed project set. It is intended for ranking review before heuristic changes, not as a strict CI gate.
 
@@ -13,8 +13,8 @@ This local-only report expands the CI-safe eval with generated category and depl
 - Deployment accuracy: 1
 - Cloudflare readiness accuracy: 1
 - Unacceptable hit count: 0
-- Generated fixture projects: 506
-- D1 fixture projects: 506
+- Generated fixture projects: 504
+- D1 fixture projects: 504
 - Effective generated fixture projects: 500
 - Synthetic projects: 0
 
@@ -27,7 +27,7 @@ No review focus items. The current cases all satisfy the tracked thresholds.
 Case | Type | Top-1 | Top-3 | Category | Deployment | Cloudflare Ready | Unacceptable Hits | Top Candidates
 --- | --- | --- | --- | --- | --- | --- | ---: | ---
 `local-category-agent_framework` | search | yes | yes | yes | yes | yes | 0 | `langchain-ai/langchain`, `cloudflare/agents`, `Significant-Gravitas/AutoGPT`, `microsoft/semantic-kernel`, `CrewAIInc/crewAI`
-`local-category-ai_app_template` | search | yes | yes | yes | yes | yes | 0 | `Shubhamsaboo/awesome-llm-apps`, `stackblitz/bolt.new`, `google-gemini/starter-applets`, `openai/openai-chatkit-starter-app`, `openai/openai-responses-starter-app`
+`local-category-ai_app_template` | search | yes | yes | yes | yes | yes | 0 | `Shubhamsaboo/awesome-llm-apps`, `stackblitz/bolt.new`, `google-gemini/starter-applets`, `n8n-io/n8n-nodes-starter`, `vercel/ai-sdk-rag-starter`
 `local-category-ai_observability` | search | yes | yes | yes | yes | yes | 0 | `SigNoz/signoz`, `jaegertracing/jaeger`, `langfuse/langfuse`, `comet-ml/opik`, `Arize-ai/phoenix`
 `local-category-browser_agent` | search | yes | yes | yes | yes | yes | 0 | `firecrawl/firecrawl`, `puppeteer/puppeteer`, `microsoft/playwright`, `scrapy/scrapy`, `unclecode/crawl4ai`
 `local-category-coding_agent` | search | yes | yes | yes | yes | yes | 0 | `OpenHands/OpenHands`, `cline/cline`, `openai/codex`, `aider-ai/aider`, `TabbyML/tabby`
@@ -43,9 +43,9 @@ Case | Type | Top-1 | Top-3 | Category | Deployment | Cloudflare Ready | Unaccep
 `local-deployment-docker` | search | yes | yes | yes | yes | yes | 0 | `langchain-ai/langchain`, `run-llama/llama_index`, `modelcontextprotocol/servers`, `Significant-Gravitas/AutoGPT`, `langgenius/dify`
 `local-deployment-local` | search | yes | yes | yes | yes | yes | 0 | `langchain-ai/langchain`, `run-llama/llama_index`, `modelcontextprotocol/servers`, `mudler/LocalAI`, `ollama/ollama`
 `local-deployment-library_only` | search | yes | yes | yes | yes | yes | 0 | `langchain-ai/langchain`, `run-llama/llama_index`, `FoundationAgents/MetaGPT`, `scrapy/scrapy`, `CrewAIInc/crewAI`
-`local-deployment-serverless` | search | yes | yes | yes | yes | yes | 0 | `cloudflare/agents`, `openfaas/faas`, `mckaywrigley/chatbot-ui`, `vercel/ai-sdk-rag-starter`, `vercel/ai-chatbot`
-`local-deployment-vercel` | search | yes | yes | yes | yes | yes | 0 | `mckaywrigley/chatbot-ui`, `vercel/ai-sdk-rag-starter`, `vercel/ai-chatbot`, `vercel/ai`, `vercel/workflow`
+`local-deployment-serverless` | search | yes | yes | yes | yes | yes | 0 | `cloudflare/agents`, `openfaas/faas`, `mckaywrigley/chatbot-ui`, `vercel/ai-chatbot`, `vercel/ai`
+`local-deployment-vercel` | search | yes | yes | yes | yes | yes | 0 | `mckaywrigley/chatbot-ui`, `vercel/ai-chatbot`, `vercel/ai`, `vercel/workflow`, `vercel/ai-elements`
 `local-deployment-kubernetes` | search | yes | yes | yes | yes | yes | 0 | `vllm-project/vllm`, `milvus-io/milvus`, `qdrant/qdrant`, `windmill-labs/windmill`, `weaviate/weaviate`
 `local-cloudflare-ready` | search | yes | yes | yes | yes | yes | 0 | `cloudflare/agents`, `cloudflare/puppeteer`, `cloudflare/dynamic-workflows`, `cloudflare/templates`, `cloudflare/ai-utils`
 `local-cloudflare-mentioned-not-ready` | search | yes | yes | yes | yes | yes | 0 | `example/cloudflare-python-agent`, `example/cloudflare-docker-gateway`
-`local-target-github-mcp-broad-query` | search | yes | yes | yes | yes | yes | 0 | `github/github-mcp-server`, `PrefectHQ/prefect-mcp-server`, `wonderwhy-er/DesktopCommanderMCP`, `browserbase/mcp-server-browserbase`, `microsoft/playwright-mcp`
+`local-target-github-mcp-broad-query` | search | yes | yes | yes | yes | yes | 0 | `github/github-mcp-server`, `wonderwhy-er/DesktopCommanderMCP`, `browserbase/mcp-server-browserbase`, `microsoft/playwright-mcp`, `idosal/git-mcp`

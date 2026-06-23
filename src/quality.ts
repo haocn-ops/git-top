@@ -1,3 +1,4 @@
+import { isReviewedCollection } from "./collection-policy";
 import type { Category, ProjectKnowledge } from "./types";
 
 export type QualitySeverity = "error" | "warning" | "info";
@@ -189,7 +190,7 @@ function reviewReasons(
   if (item.agentCard.category === "other") {
     reasons.push("Category is other.");
   }
-  if (item.agentCard.projectKind === "collection") {
+  if (item.agentCard.projectKind === "collection" && !isReviewedCollection(item)) {
     reasons.push("Repository is a collection and may need curation semantics review.");
   }
   if (item.agentCard.cloudflareReady && signals.some((signal) => signal.field === "cloudflareReady" && signal.confidence !== "high")) {
@@ -417,6 +418,9 @@ function buildRiskSummary(coverage: QualityCoverage, projectCount: number): Qual
 }
 
 function needsCollectionReview(item: ProjectKnowledge): boolean {
+  if (isReviewedCollection(item)) {
+    return false;
+  }
   const metadata = item.agentCard.collectionMetadata;
   return !metadata || !metadata.curated || metadata.estimatedItems === null || metadata.freshness !== "active";
 }

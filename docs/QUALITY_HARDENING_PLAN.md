@@ -130,16 +130,17 @@ Reported fields:
 
 ## Local Eval Review
 
-Latest reviewed local eval:
+Latest reviewed local eval is generated in `docs/EVAL_LOCAL.md`:
 
 - Command: `pnpm eval:local`
 - Evaluated cases: `23`
-- Top-1 hit rate: `0.739`
-- Top-3 hit rate: `0.783`
+- Top-1 hit rate: `1`
+- Top-3 hit rate: `1`
 - Category accuracy: `1`
 - Deployment accuracy: `1`
 - Cloudflare readiness accuracy: `1`
 - Unacceptable hit count: `0`
+- Generated fixture projects: `504`
 
 Accepted review-focus observations:
 

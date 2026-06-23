@@ -1,6 +1,6 @@
 # Git.Top Data Coverage
 
-Generated at: 2026-06-21T12:03:01.172Z
+Generated at: 2026-06-23T04:40:39.780Z
 
 This report summarizes the curated seed repository list. It is a heuristic coverage report, not a replacement for live GitHub sync or generated Agent Card classification.
 
@@ -18,15 +18,15 @@ This report summarizes the curated seed repository list. It is a heuristic cover
 | `agent_framework` | 50 |
 | `coding_agent` | 37 |
 | `browser_agent` | 40 |
-| `rag_framework` | 51 |
-| `vector_database` | 42 |
-| `llm_gateway` | 23 |
-| `llm_eval` | 33 |
+| `rag_framework` | 49 |
+| `vector_database` | 40 |
+| `llm_gateway` | 21 |
+| `llm_eval` | 34 |
 | `prompt_tooling` | 30 |
-| `workflow_automation` | 30 |
+| `workflow_automation` | 28 |
 | `local_llm_runtime` | 44 |
-| `ai_app_template` | 51 |
-| `mcp_server` | 33 |
+| `ai_app_template` | 53 |
+| `mcp_server` | 38 |
 | `ai_observability` | 36 |
 
 ## Uncategorized Repositories

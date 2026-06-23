@@ -105,7 +105,7 @@ Post-plan ranking follow-up is now complete for the first runtime pass:
 - Focused core validation now includes a regression case for preserving GitHub MCP specific intent against a stronger generic MCP automation candidate.
 - Focused API and MCP validation now covers Agent Card/project collection schema fields and MCP `ranking: "browse"` discovery.
 - Focused validation now runs `quality:check` against a local mock quality endpoint so release summary fields such as `risk_level` and `risk_reason_count` stay covered without relying on production.
-- `intent_aware_browse` is the current best offline candidate: it keeps CI top-1/top-3 at `1.0`, improves local top-1/top-3 to `0.913`, and removes the GitHub MCP broad-query probe from the review focus list.
+- The current runtime baseline is the strongest overall ranking result after the latest fixture cleanup; offline browse-quality strategies remain useful probes, but should not be promoted until they improve local discovery without reducing CI-safe exact-intent quality.
 - Production smoke health assertions are now importable and covered by focused validation, including D1-required production mode, explicit seed fallback mode, and raw-versus-knowledge-ready count consistency.
 - `pnpm db:integration` passed after the health count changes, covering the local Worker plus D1 path for `/api/health`, `/api/search`, project details, quality, sync status, GRP, and MCP routes.
 
