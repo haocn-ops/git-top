@@ -11,6 +11,7 @@ import { getSyncStatus } from "./db-sync-store";
 import { listClassificationOverrides, updateProjectAlternatives, upsertClassificationOverride } from "./db-write-store";
 import { generateAlternativesForAll } from "./alternatives";
 import { defaultSeedRepositories } from "./github";
+import { getGovernanceSummary, listGovernanceRuns, parseGovernanceRunInput, upsertGovernanceRun } from "./governance-store";
 import { buildKnowledgeGraph, compareProjectKnowledge } from "./graph";
 import { normalizeGrpRequest, runGrpQuery } from "./grp";
 import { errorJson, json, parseBool, parseLimit, rawJson } from "./http";
@@ -147,6 +148,42 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     }
   }
 
+  if (path === "/api/admin/governance/runs") {
+    if (request.method !== "POST") {
+      return errorJson(405, "method_not_allowed", "Governance run recording endpoint requires POST.");
+    }
+
+    if (!isAuthorizedAdmin(request, env)) {
+      return errorJson(401, "unauthorized", "Missing or invalid admin authorization.");
+    }
+
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return errorJson(400, "invalid_json", "Governance run endpoint requires a valid JSON body.");
+    }
+
+    const parsed = parseGovernanceRunInput(body);
+    if (!parsed.ok) {
+      return errorJson(400, "invalid_governance_run", parsed.message);
+    }
+
+    try {
+      const run = await upsertGovernanceRun(env, parsed.input);
+      return json(
+        { run },
+        {
+          headers: {
+            "cache-control": "no-store"
+          }
+        }
+      );
+    } catch (error) {
+      return errorJson(500, "governance_run_write_failed", formatError(error));
+    }
+  }
+
   if (path === "/api/grp/query") {
     if (request.method !== "POST") {
       return errorJson(405, "method_not_allowed", "GRP query endpoint requires POST.");
@@ -199,6 +236,27 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
 
   if (path === "/api/sync/status") {
     return json(await getSyncStatus(env, defaultSeedRepositories), {
+      headers: {
+        "cache-control": "no-store"
+      }
+    });
+  }
+
+  if (path === "/api/governance/runs") {
+    return json(
+      {
+        runs: await listGovernanceRuns(env, parseLimit(url.searchParams.get("limit")) ?? 25, url.searchParams.get("task") ?? undefined)
+      },
+      {
+        headers: {
+          "cache-control": "no-store"
+        }
+      }
+    );
+  }
+
+  if (path === "/api/governance/summary") {
+    return json(await getGovernanceSummary(env), {
       headers: {
         "cache-control": "no-store"
       }

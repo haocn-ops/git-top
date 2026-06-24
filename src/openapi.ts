@@ -109,6 +109,19 @@ export const openApiDocument = {
         responses: { "200": { description: "Sync status" } }
       }
     },
+    "/api/governance/summary": {
+      get: {
+        summary: "Inspect automated operations and data-governance run summary.",
+        responses: { "200": { description: "Governance run summary" } }
+      }
+    },
+    "/api/governance/runs": {
+      get: {
+        summary: "List recent automated operations and data-governance runs.",
+        parameters: [queryParam("task", "Optional governance task identifier"), queryParam("limit", "Maximum run count")],
+        responses: { "200": { description: "Governance run history" } }
+      }
+    },
     "/api/schema/project.v2": {
       get: {
         summary: "Fetch the compact project response JSON Schema.",
@@ -142,6 +155,25 @@ export const openApiDocument = {
         responses: {
           "200": { description: "Persisted classification override" },
           "400": { description: "Invalid classification override payload" },
+          "401": { description: "Missing or invalid admin authorization" }
+        }
+      }
+    },
+    "/api/admin/governance/runs": {
+      post: {
+        summary: "Record an automated governance run result.",
+        security: [{ syncSecret: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/GovernanceRunInput" }
+            }
+          }
+        },
+        responses: {
+          "200": { description: "Persisted governance run" },
+          "400": { description: "Invalid governance run payload" },
           "401": { description: "Missing or invalid admin authorization" }
         }
       }
@@ -206,6 +238,22 @@ export const openApiDocument = {
           notes: { type: "string" },
           reviewed_by: { type: "string" },
           reviewed_at: { type: "string", format: "date-time" }
+        }
+      },
+      GovernanceRunInput: {
+        type: "object",
+        required: ["task", "status"],
+        properties: {
+          id: { type: "string" },
+          task: { type: "string", description: "Short governance task identifier." },
+          status: { type: "string", enum: ["success", "failed", "running", "skipped"] },
+          trigger: { type: "string", enum: ["github_actions", "cron", "admin", "manual"] },
+          started_at: { type: "string", format: "date-time" },
+          finished_at: { type: "string", format: "date-time" },
+          duration_ms: { type: "integer" },
+          summary: { type: "object" },
+          report_url: { type: "string" },
+          error: { type: "string" }
         }
       }
     }

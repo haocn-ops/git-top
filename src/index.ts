@@ -7,6 +7,7 @@ import { renderIntegrationsPage } from "./integrations-page";
 import { renderCollectionLandingPage, renderCompareLandingPage, renderTopicLandingPage } from "./landing-pages";
 import { handleMcp } from "./mcp";
 import { openApiDocument } from "./openapi";
+import { renderOperationsPage } from "./operations-page";
 import { renderCoveragePage } from "./coverage-page";
 import { renderProjectPage } from "./project-page";
 import { renderQualityPage } from "./quality-page";
@@ -88,6 +89,10 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
 
   if (url.pathname === "/status") {
     return renderStatusPage(env);
+  }
+
+  if (url.pathname === "/operations") {
+    return renderOperationsPage(env);
   }
 
   if (url.pathname === "/integrations") {
@@ -235,7 +240,7 @@ function projectIdFromPath(pathname: string): string | null {
 
   const slug = decodeURIComponent(shortMatch[1]);
   if (
-    ["api", "mcp", "graph", "explorer", "docs", "api-docs", "quality", "coverage", "status", "integrations", "categories", "deployments", "compare", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "favicon.ico"].includes(
+    ["api", "mcp", "graph", "explorer", "docs", "api-docs", "quality", "coverage", "status", "operations", "integrations", "categories", "deployments", "compare", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "favicon.ico"].includes(
       slug
     )
   ) {

@@ -5,6 +5,10 @@ const siteOrigin = "https://git.top";
 
 export function canonicalHostRedirect(request: Request, url: URL): Response | null {
   const host = request.headers.get("host")?.split(":")[0].toLowerCase() ?? url.hostname;
+  if ([host, url.hostname].some((value) => ["localhost", "127.0.0.1", "::1"].includes(value))) {
+    return null;
+  }
+
   const isCanonicalHost = host === "git.top";
   const isWwwHost = host === "www.git.top";
   const shouldUpgradeProtocol = url.protocol === "http:" && (isCanonicalHost || isWwwHost);
@@ -267,6 +271,7 @@ function staticSitemapUrls(now: string): SitemapUrl[] {
     { path: "/docs", changefreq: "weekly", priority: "0.9", lastmod: now },
     { path: "/integrations", changefreq: "weekly", priority: "0.8", lastmod: now },
     { path: "/status", changefreq: "daily", priority: "0.8", lastmod: now },
+    { path: "/operations", changefreq: "daily", priority: "0.8", lastmod: now },
     { path: "/quality", changefreq: "daily", priority: "0.8", lastmod: now },
     { path: "/coverage", changefreq: "daily", priority: "0.8", lastmod: now },
     { path: "/quality/review", changefreq: "daily", priority: "0.7", lastmod: now },
@@ -292,6 +297,8 @@ function staticSitemapUrls(now: string): SitemapUrl[] {
     { path: "/api/search", changefreq: "daily", priority: "0.7", lastmod: now },
     { path: "/api/trending", changefreq: "daily", priority: "0.7", lastmod: now },
     { path: "/api/quality", changefreq: "daily", priority: "0.7", lastmod: now },
+    { path: "/api/governance/summary", changefreq: "daily", priority: "0.6", lastmod: now },
+    { path: "/api/governance/runs", changefreq: "daily", priority: "0.6", lastmod: now },
     { path: "/api/schema/project.v2", changefreq: "weekly", priority: "0.7", lastmod: now },
     { path: "/api/openapi.json", changefreq: "weekly", priority: "0.7", lastmod: now },
     { path: "/openapi.json", changefreq: "weekly", priority: "0.7", lastmod: now },

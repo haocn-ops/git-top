@@ -4,6 +4,7 @@ import type {
   ClassificationOverride,
   Deployment,
   Difficulty,
+  GovernanceRun,
   Project,
   ProjectKnowledge,
   ProjectMetrics,
@@ -94,6 +95,20 @@ export interface ClassificationOverrideRow {
   reviewed_by: string | null;
   reviewed_at: string;
   updated_at: string;
+}
+
+export interface GovernanceRunRow {
+  id: string;
+  task: string;
+  status: GovernanceRun["status"];
+  trigger: GovernanceRun["trigger"];
+  started_at: string;
+  finished_at: string;
+  duration_ms: number;
+  summary_json: string;
+  report_url: string | null;
+  error: string | null;
+  created_at: string;
 }
 
 export function rowToKnowledge(row: Record<string, unknown>): ProjectKnowledge {
@@ -206,6 +221,22 @@ export function rowToSyncRun(row: SyncRunRow): SyncRun {
     alternativesUpdated: row.alternatives_updated,
     synced: parseJson<string[]>(row.synced_json, []),
     failed: parseJson<SyncRun["failed"]>(row.failed_json, [])
+  };
+}
+
+export function rowToGovernanceRun(row: GovernanceRunRow): GovernanceRun {
+  return {
+    id: row.id,
+    task: row.task,
+    status: row.status,
+    trigger: row.trigger,
+    startedAt: row.started_at,
+    finishedAt: row.finished_at,
+    durationMs: row.duration_ms,
+    summary: parseJson<Record<string, unknown>>(row.summary_json, {}),
+    reportUrl: row.report_url,
+    error: row.error,
+    createdAt: row.created_at
   };
 }
 

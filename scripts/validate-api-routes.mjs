@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { handleApi } from "../src/api.ts";
 import { openApiDocument } from "../src/openapi.ts";
-import { mockD1Env, mockD1ProjectId, syncRunRow } from "./mock-d1.mjs";
+import { governanceRunRow, mockD1Env, mockD1ProjectId, syncRunRow } from "./mock-d1.mjs";
 
 const env = {};
 
@@ -17,6 +17,7 @@ await testRequireD1Mode();
 await testD1FallbackReasons();
 await testSyncStatusWithMockD1();
 await testClassificationOverridesWithMockD1();
+await testGovernanceRunsWithMockD1();
 
 console.log("Validated API route behavior with seed and mocked D1 data sources.");
 
@@ -212,6 +213,10 @@ async function testMethodAndBodyValidation() {
   const adminOverrides = await request("/api/admin/classification-overrides");
   assert.equal(adminOverrides.status, 401);
   assert.equal(adminOverrides.body.error.code, "unauthorized");
+
+  const adminGovernance = await request("/api/admin/governance/runs", { method: "POST" });
+  assert.equal(adminGovernance.status, 401);
+  assert.equal(adminGovernance.body.error.code, "unauthorized");
 }
 
 async function testMockD1Source() {
@@ -430,6 +435,83 @@ async function testClassificationOverridesWithMockD1() {
   );
   assert.equal(invalid.status, 400);
   assert.equal(invalid.body.error.code, "invalid_classification_override");
+}
+
+async function testGovernanceRunsWithMockD1() {
+  const config = {
+    governanceRuns: [
+      governanceRunRow(),
+      governanceRunRow({
+        id: "governance_2",
+        task: "weekly-data-governance",
+        status: "failed",
+        summary_json: JSON.stringify({ eval_quality: false }),
+        error: "eval quality failed",
+        started_at: "2026-06-23T00:00:00Z",
+        finished_at: "2026-06-23T00:00:20Z"
+      })
+    ]
+  };
+  const env = mockD1Env(config);
+
+  const runs = await request("/api/governance/runs?limit=5", {}, env);
+  assert.equal(runs.status, 200);
+  assert.equal(runs.body.runs.length, 2);
+  assert.equal(runs.body.runs[0].task, "daily-production-health");
+  assert.equal(runs.body.runs[0].summary.quality_score, 100);
+
+  const filtered = await request("/api/governance/runs?task=weekly-data-governance", {}, env);
+  assert.equal(filtered.status, 200);
+  assert.equal(filtered.body.runs.length, 1);
+  assert.equal(filtered.body.runs[0].status, "failed");
+
+  const summary = await request("/api/governance/summary", {}, env);
+  assert.equal(summary.status, 200);
+  assert.equal(summary.body.run_count, 2);
+  assert.equal(summary.body.status_counts.success, 1);
+  assert.equal(summary.body.status_counts.failed, 1);
+  assert.equal(summary.body.failed_tasks.length, 1);
+
+  const invalid = await request(
+    "/api/admin/governance/runs",
+    {
+      method: "POST",
+      headers: {
+        authorization: "Bearer test-secret",
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({ task: "bad task", status: "ok" })
+    },
+    { ...env, SYNC_SECRET: "test-secret" }
+  );
+  assert.equal(invalid.status, 400);
+  assert.equal(invalid.body.error.code, "invalid_governance_run");
+
+  const created = await request(
+    "/api/admin/governance/runs",
+    {
+      method: "POST",
+      headers: {
+        authorization: "Bearer test-secret",
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        id: "governance_3",
+        task: "daily-production-health",
+        status: "success",
+        trigger: "github_actions",
+        started_at: "2026-06-24T01:00:00Z",
+        finished_at: "2026-06-24T01:00:03Z",
+        summary: { quality_score: 100, smoke_ok: true },
+        report_url: "https://github.com/example/actions/runs/3"
+      })
+    },
+    { ...env, SYNC_SECRET: "test-secret" }
+  );
+  assert.equal(created.status, 200);
+  assert.equal(created.body.run.id, "governance_3");
+  assert.equal(created.body.run.duration_ms, 3000);
+  assert.equal(config.governanceRuns.length, 3);
 }
 
 async function getJson(path) {

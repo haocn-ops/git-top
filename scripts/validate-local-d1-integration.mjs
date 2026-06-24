@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 const cwd = new URL("..", import.meta.url);
 const port = Number(process.env.GIT_TOP_INTEGRATION_PORT ?? (await getOpenPort()));
-const origin = `http://127.0.0.1:${port}`;
+const origin = `https://127.0.0.1:${port}`;
 
 await run("pnpm", ["db:prepare-local"]);
 await run("pnpm", ["db:seed"]);
@@ -23,6 +23,8 @@ const server = spawn(
     "wrangler",
     "dev",
     "--local",
+    "--local-protocol",
+    "https",
     "--ip",
     "127.0.0.1",
     "--port",
@@ -48,6 +50,8 @@ try {
   await testProject(origin);
   await testQuality(origin);
   await testSyncStatus(origin);
+  await testGovernance(origin);
+  await testOperationsPage(origin);
   await testGrp(origin);
   await testMcp(origin);
 
@@ -56,7 +60,18 @@ try {
       {
         origin,
         localD1: "ok",
-        checked: ["/api/health", "/api/search", "/api/project/:owner/:repo", "/api/quality", "/api/sync/status", "/api/grp/query", "/mcp"]
+        checked: [
+          "/api/health",
+          "/api/search",
+          "/api/project/:owner/:repo",
+          "/api/quality",
+          "/api/sync/status",
+          "/api/governance/summary",
+          "/api/governance/runs",
+          "/operations",
+          "/api/grp/query",
+          "/mcp"
+        ]
       },
       null,
       2
@@ -119,6 +134,26 @@ async function testSyncStatus(baseUrl) {
   assert.equal(body.remaining_count, 0);
 }
 
+async function testGovernance(baseUrl) {
+  const summary = await getJson(`${baseUrl}/api/governance/summary`);
+  assert.equal(summary.status, 200);
+  assert.equal(summary.body.run_count, 0);
+  assert.equal(summary.body.status_counts.success, 0);
+
+  const runs = await getJson(`${baseUrl}/api/governance/runs?limit=5`);
+  assert.equal(runs.status, 200);
+  assert.deepEqual(runs.body.runs, []);
+}
+
+async function testOperationsPage(baseUrl) {
+  const { status, text } = await getText(`${baseUrl}/operations`);
+  assert.equal(status, 200);
+  assert.match(text, /Automation runs and data governance/);
+  assert.match(text, /Latest Automation/);
+  assert.match(text, /Operating Rhythm/);
+  assert.match(text, /\/api\/governance\/summary/);
+}
+
 async function testGrp(baseUrl) {
   const { status, body } = await postJson(`${baseUrl}/api/grp/query`, {
     goal: "build an observability stack for AI agents",
@@ -151,7 +186,7 @@ async function testMcp(baseUrl) {
 }
 
 async function waitForHealthyD1(baseUrl) {
-  const timeoutAt = Date.now() + 30_000;
+  const timeoutAt = Date.now() + 90_000;
   let lastError = null;
 
   while (Date.now() < timeoutAt) {
@@ -179,26 +214,53 @@ async function waitForHealthyD1(baseUrl) {
 }
 
 async function getJson(url) {
-  const response = await fetch(url);
-  const body = await response.json();
+  const { status, text } = await curlJson(url, { method: "GET" });
   return {
-    status: response.status,
-    body
+    status,
+    body: JSON.parse(text || "null")
+  };
+}
+
+async function getText(url) {
+  const { status, text } = await curlJson(url, { method: "GET", rawText: true });
+  return {
+    status,
+    text
   };
 }
 
 async function postJson(url, body) {
-  const response = await fetch(url, {
+  const { status, text } = await curlJson(url, {
     method: "POST",
-    headers: {
-      "content-type": "application/json"
-    },
     body: JSON.stringify(body)
   });
   return {
-    status: response.status,
-    body: await response.json()
+    status,
+    body: JSON.parse(text || "null")
   };
+}
+
+async function curlJson(url, { method = "GET", body = undefined, rawText = false } = {}) {
+  const args = ["-k", "-sS", "-D", "-", "-o", "-"];
+  if (method !== "GET") {
+    args.push("-X", method);
+  }
+  if (body !== undefined) {
+    args.push("-H", "content-type: application/json", "--data-binary", body);
+  }
+  args.push(url);
+
+  const { stdout } = await execFileAsync("curl", args, {
+    cwd,
+    maxBuffer: 1024 * 1024 * 16
+  });
+
+  const splitIndex = stdout.indexOf("\r\n\r\n");
+  const headerBlock = splitIndex >= 0 ? stdout.slice(0, splitIndex) : stdout;
+  const text = splitIndex >= 0 ? stdout.slice(splitIndex + 4) : "";
+  const statusLine = headerBlock.split(/\r?\n/)[0] ?? "";
+  const status = Number(statusLine.split(" ")[1] ?? 0);
+  return { status, text: rawText ? text : text.trimStart() };
 }
 
 async function run(command, args) {

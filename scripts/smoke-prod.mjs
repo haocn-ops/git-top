@@ -134,6 +134,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms-full\.txt<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/integrations<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/status<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/operations<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quality<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/coverage<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quality\/review<\/loc>/);
@@ -146,6 +147,8 @@ export async function runSmoke(args = [], env = process.env) {
     const { status: openapiStatus, body: openapi } = await getJson(context, "/openapi.json");
     assert.equal(openapiStatus, 200);
     assert.ok(openapi.paths["/api/quality/review"], "OpenAPI should include quality review");
+    assert.ok(openapi.paths["/api/governance/summary"], "OpenAPI should include governance summary");
+    assert.ok(openapi.paths["/api/admin/governance/runs"], "OpenAPI should include governance run recording");
     assert.ok(openapi.paths["/api/admin/classification-overrides"], "OpenAPI should include classification overrides");
     assert.equal(openapi.components.securitySchemes.syncSecret.scheme, "bearer");
 
@@ -229,6 +232,28 @@ export async function runSmoke(args = [], env = process.env) {
     return {
       hasHealthJsonLink: text.includes("/api/health"),
       hasSyncJsonLink: text.includes("/api/sync/status")
+    };
+  });
+
+  await check(context, "operations_page", async () => {
+    const { status, text } = await getText(context, "/operations");
+    assert.equal(status, 200);
+    assert.match(text, /Automation runs and data governance/);
+    assert.match(text, /Latest Automation/);
+    assert.match(text, /Quality Issues/);
+    assert.match(text, /Operating Rhythm/);
+
+    const summary = await getJson(context, "/api/governance/summary");
+    assert.equal(summary.status, 200);
+    assert.ok(summary.body.status_counts, "governance summary should include status counts");
+
+    const runs = await getJson(context, "/api/governance/runs?limit=5");
+    assert.equal(runs.status, 200);
+    assert.ok(Array.isArray(runs.body.runs), "governance runs should be an array");
+
+    return {
+      hasSummaryLink: text.includes("/api/governance/summary"),
+      runCount: runs.body.runs.length
     };
   });
 

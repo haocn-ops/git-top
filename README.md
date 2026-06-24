@@ -14,6 +14,7 @@ Git.Top turns unstructured GitHub repository data into structured project knowle
 - [Agent quickstart](./docs/AGENT_QUICKSTART.md)
 - [Site assessment 2026-06-21](./docs/SITE_ASSESSMENT_2026-06-21.md)
 - [Production runbook](./docs/PRODUCTION_RUNBOOK.md)
+- [Operations and data governance plan](./docs/OPERATIONS_DATA_GOVERNANCE_PLAN.md)
 - [Data coverage report](./docs/DATA_COVERAGE.md)
 - [Seed live check report](./docs/SEED_LIVE_CHECK.md)
 - [Eval quality report](./docs/EVAL_QUALITY.md)
@@ -33,6 +34,7 @@ pnpm seed:coverage
 pnpm seed:candidates
 pnpm seed:live-check -- --limit 20
 pnpm seed:live-check -- --offset 20 --limit 20
+node scripts/run-governance-task.mjs daily-production-health
 pnpm knowledge:validate
 pnpm db:seed-sql
 pnpm db:validate
@@ -61,6 +63,8 @@ pnpm dev
 `pnpm smoke:prod` validates the deployed Worker at `https://git.top` and requires D1-backed responses. Use `pnpm smoke:prod -- --base-url http://localhost:8787` for a local or preview Worker, or add `--allow-seed` only when intentionally checking seed fallback behavior.
 
 `pnpm quality:check` validates the production `/api/quality` endpoint at `https://git.top` by default, requires D1-backed metadata, and uses a default minimum score of `90`. Use `--base-url`, `--target`, `--min-score`, or `--allow-seed` for preview and fallback checks.
+
+Operations and data governance are exposed through `/operations`, `/api/governance/summary`, and `/api/governance/runs`. The scheduled GitHub Actions workflow in `.github/workflows/governance.yml` runs daily, weekly, biweekly, and monthly governance tasks and records results through `/api/admin/governance/runs` using `SYNC_SECRET`.
 
 `pnpm release:check` runs the public V1 release gate: local validation, local D1 integration, production quality, and production smoke. Use `pnpm release:check -- --skip-prod-smoke` only when validating a build before the production deployment exists; it skips production-only checks. Use `pnpm release:check -- --base-url <origin>` to run the same gate against a Worker preview or local origin.
 
@@ -105,6 +109,8 @@ Omit `offset` to use the stored seed cursor. Cron syncs use this cursor and adva
 - `GET /api/project/:owner/:name`
 - `GET /api/health`
 - `GET /api/quality`
+- `GET /api/governance/summary`
+- `GET /api/governance/runs`
 - `GET /api/sync/status`
 - `GET /api/schema/agent-card.v1`
 - `GET /api/schema/project-knowledge.v1`
@@ -117,5 +123,6 @@ Omit `offset` to use the stored seed cursor. Cron syncs use this cursor and adva
 - `POST /api/grp/query`
 - `POST /api/admin/sync`
 - `POST /api/admin/alternatives`
+- `POST /api/admin/governance/runs`
 
 See [git_top_v1.md](./git_top_v1.md) for the V1 development spec and [git_top_grp_v1.md](./git_top_grp_v1.md) for the GRP v1 reasoning protocol implementation spec.

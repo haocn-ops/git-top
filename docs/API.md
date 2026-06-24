@@ -84,6 +84,33 @@ If D1-backed `metadata.truncated` is `true`, the endpoint used a bounded in-memo
 
 Use this before relying on live data. If D1 is unavailable or empty, Git.Top may return seed-backed knowledge with warnings.
 
+## Operations Governance
+
+The public operations dashboard is available at:
+
+```txt
+https://git.top/operations
+```
+
+Governance read endpoints expose recent automation history and are safe for dashboards:
+
+```sh
+curl https://git.top/api/governance/summary
+curl "https://git.top/api/governance/runs?limit=20"
+curl "https://git.top/api/governance/runs?task=daily-production-health"
+```
+
+Scheduled GitHub Actions jobs record task results through the protected endpoint:
+
+```sh
+curl -X POST https://git.top/api/admin/governance/runs \
+  -H "authorization: Bearer $SYNC_SECRET" \
+  -H "content-type: application/json" \
+  -d '{"task":"daily-production-health","status":"success","trigger":"github_actions","summary":{"quality_score":100}}'
+```
+
+The first automated tasks are `daily-production-health`, `weekly-data-governance`, `biweekly-live-check`, and `monthly-corpus-review`.
+
 ## Search
 
 ```sh

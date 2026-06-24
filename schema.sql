@@ -96,6 +96,20 @@ CREATE TABLE IF NOT EXISTS sync_runs (
   failed_json TEXT NOT NULL DEFAULT '[]'
 );
 
+CREATE TABLE IF NOT EXISTS governance_runs (
+  id TEXT PRIMARY KEY,
+  task TEXT NOT NULL,
+  status TEXT NOT NULL,
+  trigger TEXT NOT NULL,
+  started_at TEXT NOT NULL,
+  finished_at TEXT NOT NULL,
+  duration_ms INTEGER NOT NULL DEFAULT 0,
+  summary_json TEXT NOT NULL DEFAULT '{}',
+  report_url TEXT,
+  error TEXT,
+  created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_projects_language ON projects(language);
 CREATE INDEX IF NOT EXISTS idx_projects_stars ON projects(stars DESC);
 CREATE INDEX IF NOT EXISTS idx_agent_cards_category ON agent_cards(category);
@@ -104,3 +118,5 @@ CREATE INDEX IF NOT EXISTS idx_metrics_git_score ON project_metrics(git_score DE
 CREATE INDEX IF NOT EXISTS idx_metrics_maintenance_score ON project_metrics(maintenance_score DESC);
 CREATE INDEX IF NOT EXISTS idx_sync_runs_started_at ON sync_runs(started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_classification_overrides_reviewed_at ON classification_overrides(reviewed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_governance_runs_task_started_at ON governance_runs(task, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_governance_runs_started_at ON governance_runs(started_at DESC);

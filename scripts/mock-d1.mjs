@@ -21,6 +21,7 @@ class MockStatement {
       rawProjectCount: null,
       starSnapshot: null,
       syncRuns: [],
+      governanceRuns: [],
       knowledge: null,
       classificationOverrides: [],
       ...config
@@ -58,6 +59,13 @@ class MockStatement {
     if (this.sql.includes("FROM classification_overrides")) {
       return {
         results: this.config.classificationOverrides
+      };
+    }
+    if (this.sql.includes("FROM governance_runs")) {
+      const task = this.sql.includes("WHERE task = ?") ? String(this.bindings[0]) : null;
+      const rows = task ? this.config.governanceRuns.filter((row) => row.task === task) : this.config.governanceRuns;
+      return {
+        results: rows.slice(0, Number(this.bindings[this.bindings.length - 1] ?? rows.length))
       };
     }
     return {
@@ -111,6 +119,28 @@ class MockStatement {
   }
 
   async run() {
+    if (this.sql.includes("governance_runs")) {
+      const [id, task, status, trigger, started_at, finished_at, duration_ms, summary_json, report_url, error, created_at] = this.bindings;
+      const nextRow = {
+        id,
+        task,
+        status,
+        trigger,
+        started_at,
+        finished_at,
+        duration_ms,
+        summary_json,
+        report_url,
+        error,
+        created_at
+      };
+      const index = this.config.governanceRuns.findIndex((row) => row.id === id);
+      if (index >= 0) {
+        this.config.governanceRuns[index] = nextRow;
+      } else {
+        this.config.governanceRuns.unshift(nextRow);
+      }
+    }
     if (this.sql.includes("classification_overrides")) {
       const [
         project_id,
@@ -147,6 +177,23 @@ class MockStatement {
       success: true
     };
   }
+}
+
+export function governanceRunRow(overrides = {}) {
+  return {
+    id: "governance_1",
+    task: "daily-production-health",
+    status: "success",
+    trigger: "github_actions",
+    started_at: "2026-06-24T00:00:00Z",
+    finished_at: "2026-06-24T00:00:10Z",
+    duration_ms: 10000,
+    summary_json: JSON.stringify({ quality_score: 100, smoke_ok: true }),
+    report_url: "https://github.com/example/actions/runs/1",
+    error: null,
+    created_at: "2026-06-24T00:00:11Z",
+    ...overrides
+  };
 }
 
 export function syncRunRow(overrides = {}) {

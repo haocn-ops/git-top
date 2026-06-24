@@ -129,6 +129,10 @@ export interface ProjectKnowledge {
 
 export type SyncTrigger = "cron" | "admin" | "manual";
 
+export type GovernanceRunStatus = "success" | "failed" | "running" | "skipped";
+
+export type GovernanceRunTrigger = "github_actions" | "cron" | "admin" | "manual";
+
 export interface SyncFailure {
   repository: string;
   error: string;
@@ -148,6 +152,20 @@ export interface SyncRun {
   alternativesUpdated: number;
   synced: string[];
   failed: SyncFailure[];
+}
+
+export interface GovernanceRun {
+  id: string;
+  task: string;
+  status: GovernanceRunStatus;
+  trigger: GovernanceRunTrigger;
+  startedAt: string;
+  finishedAt: string;
+  durationMs: number;
+  summary: Record<string, unknown>;
+  reportUrl: string | null;
+  error: string | null;
+  createdAt: string;
 }
 
 export interface Env {
