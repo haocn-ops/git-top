@@ -12,6 +12,7 @@ Git.Top turns unstructured GitHub repository data into structured project knowle
 - [MCP guide](./docs/MCP.md)
 - [GRP examples](./docs/GRP_EXAMPLES.md)
 - [Agent quickstart](./docs/AGENT_QUICKSTART.md)
+- [MailAgents agent workflow article](./docs/MAILAGENTS_AGENT_WORKFLOW.md)
 - [Site assessment 2026-06-21](./docs/SITE_ASSESSMENT_2026-06-21.md)
 - [Production runbook](./docs/PRODUCTION_RUNBOOK.md)
 - [Operations and data governance plan](./docs/OPERATIONS_DATA_GOVERNANCE_PLAN.md)
