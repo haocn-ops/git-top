@@ -95,8 +95,8 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     humanPage: "/atlas",
     rest: ["GET /api/atlas", "GET /api/atlas/:ecosystem"],
     mcpTools: ["get_atlas", "git_top_grp_query"],
-    outputFields: ["ecosystems", "stats", "exploration_paths", "exploration_journeys", "map.nodes", "map.edges"],
-    trustFields: ["metadata.source", "stats.project_count", "exploration_paths", "exploration_journeys"],
+    outputFields: ["ecosystems", "stats", "exploration_paths", "exploration_journeys", "comparison_paths", "map.nodes", "map.edges"],
+    trustFields: ["metadata.source", "stats.project_count", "exploration_paths", "exploration_journeys", "comparison_paths"],
     recommendedUse: "Start from an ecosystem map before choosing a specific repository."
   },
   {
@@ -104,8 +104,8 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     humanPage: "/journeys",
     rest: ["GET /api/journeys"],
     mcpTools: ["get_atlas", "git_top_grp_query"],
-    outputFields: ["journeys", "journeys[].steps", "stats", "metadata"],
-    trustFields: ["metadata.source", "stats.ecosystem_count", "journeys[].ecosystem_id"],
+    outputFields: ["journeys", "journeys[].steps", "comparison_paths", "stats", "metadata"],
+    trustFields: ["metadata.source", "stats.ecosystem_count", "journeys[].ecosystem_id", "comparison_paths[].context"],
     recommendedUse: "Use this when an agent needs ordered ecosystem routes into recommendations, graph, alternatives, compare, score, and Agent Map surfaces."
   },
   {

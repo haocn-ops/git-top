@@ -4,6 +4,7 @@ import type { Env, ProjectKnowledge } from "./types";
 
 type AtlasView = ReturnType<typeof buildAtlasEcosystemView>;
 type AtlasJourney = AtlasView["exploration_journeys"][number];
+type AtlasComparisonPath = AtlasView["comparison_paths"][number];
 
 export interface AtlasJourneyView extends AtlasJourney {
   id: string;
@@ -18,9 +19,11 @@ export interface AtlasJourneysView {
   positioning: string;
   summary: string;
   journeys: AtlasJourneyView[];
+  comparisonPaths: AtlasComparisonPathView[];
   stats: {
     ecosystemCount: number;
     journeyCount: number;
+    comparisonPathCount: number;
     stepCount: number;
   };
   metadata: {
@@ -29,6 +32,12 @@ export interface AtlasJourneysView {
     projectCount: number;
     generatedAt: string;
   };
+}
+
+export interface AtlasComparisonPathView extends AtlasComparisonPath {
+  id: string;
+  ecosystemId: string;
+  ecosystemTitle: string;
 }
 
 export async function buildAtlasJourneysView(env: Env, limit = 8): Promise<AtlasJourneysView> {
@@ -42,8 +51,11 @@ export function buildAtlasJourneysFromProjects(
   limit = 8
 ): AtlasJourneysView {
   const ecosystems = listAtlasEcosystems();
-  const journeys = ecosystems.flatMap((ecosystem) => {
-    const atlas = buildAtlasEcosystemView(projects, ecosystem, limit);
+  const atlasViews = ecosystems.map((ecosystem) => ({
+    ecosystem,
+    atlas: buildAtlasEcosystemView(projects, ecosystem, limit)
+  }));
+  const journeys = atlasViews.flatMap(({ ecosystem, atlas }) => {
     return atlas.exploration_journeys.map((journey, index) => ({
       ...journey,
       id: `${ecosystem.id}-${slug(journey.label)}-${index + 1}`,
@@ -53,15 +65,25 @@ export function buildAtlasJourneysFromProjects(
       pageHref: `/atlas/${ecosystem.id}`
     }));
   });
+  const comparisonPaths = atlasViews.flatMap(({ ecosystem, atlas }) =>
+    atlas.comparison_paths.map((path, index) => ({
+      ...path,
+      id: `${ecosystem.id}-${slug(path.label)}-${index + 1}`,
+      ecosystemId: ecosystem.id,
+      ecosystemTitle: ecosystem.title
+    }))
+  );
 
   return {
     name: "Git.Top Atlas Journeys",
     positioning: "The Knowledge Graph of Open Source",
     summary: "Reusable exploration routes that move users and agents from ecosystem maps into recommendations, graph context, alternatives, comparisons, scores, and Agent Map surfaces.",
     journeys,
+    comparisonPaths,
     stats: {
       ecosystemCount: ecosystems.length,
       journeyCount: journeys.length,
+      comparisonPathCount: comparisonPaths.length,
       stepCount: journeys.reduce((sum, journey) => sum + journey.steps.length, 0)
     },
     metadata
@@ -106,7 +128,7 @@ function renderHtml(view: AtlasJourneysView): string {
       .brand-mark { display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:8px; background:#e6f3ef; color:var(--teal); }
       .nav-links,.actions,.tag-list { display:flex; gap:9px; flex-wrap:wrap; }
       .nav-links { color:#40505a; font-weight:800; }
-      .hero,.panel,.journey,.metric { border:1px solid var(--line); border-radius:8px; background:var(--surface); box-shadow:var(--shadow); }
+      .hero,.panel,.journey,.metric,.compare-path { border:1px solid var(--line); border-radius:8px; background:var(--surface); box-shadow:var(--shadow); }
       .hero { display:grid; gap:14px; padding:20px; background:linear-gradient(135deg,rgba(15,118,110,.12),rgba(255,255,255,.96)); }
       .eyebrow { color:#0b5d56; font-size:12px; font-weight:900; letter-spacing:0; text-transform:uppercase; }
       h1 { max-width:920px; font-size:clamp(34px,6vw,64px); line-height:1; }
@@ -129,6 +151,9 @@ function renderHtml(view: AtlasJourneysView): string {
       .rows { display:grid; gap:8px; }
       .row { display:grid; gap:5px; border-top:1px solid var(--line); padding-top:8px; }
       .row:first-child { border-top:0; padding-top:0; }
+      .compare-paths { display:grid; gap:10px; margin-top:4px; }
+      .compare-path { display:grid; gap:8px; padding:12px; box-shadow:none; }
+      .compare-path .repo-list { display:flex; gap:6px; flex-wrap:wrap; }
       @media (max-width:900px) { .metrics,.layout { grid-template-columns:1fr; } }
     </style>
   </head>
@@ -154,8 +179,8 @@ function renderHtml(view: AtlasJourneysView): string {
       <section class="metrics">
         ${metric("Ecosystems", view.stats.ecosystemCount, "Curated Atlas maps.")}
         ${metric("Journeys", view.stats.journeyCount, "Reusable exploration routes.")}
+        ${metric("Compare Paths", view.stats.comparisonPathCount, "Ecosystem-specific shortlist comparisons.")}
         ${metric("Steps", view.stats.stepCount, "Linked actions across Git.Top surfaces.")}
-        ${metric("Source", view.metadata.source, `${view.metadata.projectCount} projects / ${view.metadata.reason}`)}
       </section>
 
       <main class="layout">
@@ -169,6 +194,11 @@ function renderHtml(view: AtlasJourneysView): string {
           <div class="rows">
             ${view.journeys.slice(0, 10).map((journey) => `<a class="button" href="#${escapeAttr(journey.id)}">${escapeHtml(journey.ecosystemTitle)}: ${escapeHtml(journey.label)}</a>`).join("")}
           </div>
+          <p class="eyebrow">Compare Paths</p>
+          <div class="compare-paths">
+            ${view.comparisonPaths.slice(0, 6).map(comparisonPathCard).join("")}
+          </div>
+          <p class="muted">Data source: ${escapeHtml(view.metadata.source)} / ${escapeHtml(view.metadata.reason)} / ${view.metadata.projectCount} projects.</p>
         </aside>
       </main>
     </div>
@@ -187,6 +217,15 @@ function journeyCard(journey: AtlasJourneyView): string {
       ${journey.steps.map((step) => `<li><a href="${escapeAttr(step.href)}">${escapeHtml(step.label)}</a>: ${escapeHtml(step.description)}</li>`).join("")}
     </ol>
     <div class="tag-list"><span class="tag">${escapeHtml(journey.ecosystemId)}</span><span class="tag">${journey.steps.length} steps</span></div>
+  </article>`;
+}
+
+function comparisonPathCard(path: AtlasComparisonPathView): string {
+  return `<article class="compare-path">
+    <h3>${escapeHtml(path.ecosystemTitle)}: ${escapeHtml(path.label)}</h3>
+    <p class="muted">${escapeHtml(path.description)}</p>
+    <div class="repo-list">${path.repos.map((repo) => `<span class="tag">${escapeHtml(repo)}</span>`).join("")}</div>
+    <div class="actions"><a class="button primary" href="${escapeAttr(path.href)}">Compare</a><a class="button" href="${escapeAttr(path.api_href)}">JSON</a></div>
   </article>`;
 }
 

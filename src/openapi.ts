@@ -51,7 +51,7 @@ export const openApiDocument = {
       get: {
         summary: "Fetch Atlas exploration journeys that connect ecosystems to recommendations, graph, alternatives, compare, score, and Agent Map surfaces.",
         parameters: [queryParam("limit", "Maximum projects per ecosystem used to build journey links")],
-        responses: { "200": { description: "Atlas journeys with ecosystem ids, ordered steps, human page links, API links, stats, and metadata" } }
+        responses: { "200": { description: "Atlas journeys with ecosystem ids, ordered steps, ecosystem-specific comparison paths, human page links, API links, stats, and metadata" } }
       }
     },
     "/api/search": {
@@ -288,14 +288,14 @@ export const openApiDocument = {
     },
     "/api/atlas": {
       get: {
-        summary: "List Atlas ecosystem maps with stats, exploration paths, concept/project nodes, edges, representative projects, and Agent API links.",
+        summary: "List Atlas ecosystem maps with stats, exploration paths, comparison paths, concept/project nodes, edges, representative projects, and Agent API links.",
         parameters: [queryParam("limit", "Maximum projects per ecosystem")],
         responses: { "200": { description: "Atlas ecosystem list with stats, exploration_paths, recommendation links, map.nodes, and map.edges" } }
       }
     },
     "/api/atlas/{ecosystem}": {
       get: {
-        summary: "Fetch one Atlas ecosystem map with stats, exploration paths, concept/project nodes, edges, representative projects, and Agent API links.",
+        summary: "Fetch one Atlas ecosystem map with stats, exploration paths, comparison paths, concept/project nodes, edges, representative projects, and Agent API links.",
         parameters: [pathParam("ecosystem", "Atlas ecosystem id"), queryParam("limit", "Maximum project count")],
         responses: { "200": { description: "Atlas ecosystem with stats, exploration_paths, recommendation links, map.nodes, and map.edges" }, "404": { description: "Atlas ecosystem not found" } }
       }

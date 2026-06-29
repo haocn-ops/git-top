@@ -106,6 +106,7 @@ export function buildProductRoadmap(): ProductRoadmap {
         "Atlas maps are live for Cloudflare, AI Agents, MCP, RAG, and Browser AI.",
         "Atlas exposes stats, exploration paths, graph nodes, graph edges, representative projects, and journeys.",
         "Atlas Journeys is live as a human page and JSON API for turning ecosystem maps into ordered exploration routes.",
+        "Atlas now exposes ecosystem-specific comparison paths so users and agents can move from a map to a decision matrix.",
         "MCP get_atlas exposes the same curated maps to agents."
       ],
       next: ["Add richer interactive graph controls when the Worker UI needs dense exploration."],

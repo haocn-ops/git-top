@@ -434,10 +434,13 @@ export async function runSmoke(args = [], env = process.env) {
     assert.ok(journeys.body.journeys.length > 0, "journeys API should not be empty");
     assert.ok(journeys.body.journeys.some((journey) => journey.ecosystem_id === "cloudflare"), "journeys should include Cloudflare ecosystem");
     assert.ok(journeys.body.journeys.some((journey) => journey.steps.some((step) => step.href === "/api/agent-map")), "journeys should link to Agent Map");
+    assert.ok(Array.isArray(journeys.body.comparison_paths), "journeys API should include comparison_paths");
+    assert.ok(journeys.body.comparison_paths.some((path) => path.api_href.includes("/api/compare")), "journeys comparison paths should link to Compare JSON");
     assertMetadata(journeys.body.metadata, { allowSeed });
 
     return {
       journeys: journeys.body.journeys.length,
+      comparisonPaths: journeys.body.comparison_paths.length,
       ecosystems: journeys.body.stats.ecosystem_count,
       source: journeys.body.metadata.source
     };

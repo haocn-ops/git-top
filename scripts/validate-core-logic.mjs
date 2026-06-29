@@ -85,6 +85,7 @@ async function testLegacyConsoleRedirects() {
   assert.match(llmsFullText, /POST \/api\/graph/);
   assert.match(llmsFullText, /GET \/api\/atlas\?limit=6/);
   assert.match(llmsFullText, /journeys\[\]\.steps/);
+  assert.match(llmsFullText, /comparison_paths/);
   assert.match(llmsFullText, /exploration_paths/);
   assert.match(llmsFullText, /decision_summary/);
   assert.match(llmsFullText, /fit_profile/);
@@ -213,6 +214,8 @@ async function testJourneysRoute() {
   assert.ok(Array.isArray(body.journeys));
   assert.ok(body.journeys.some((journey) => journey.ecosystem_id === "cloudflare"));
   assert.ok(body.journeys.some((journey) => journey.steps.some((step) => step.href === "/api/agent-map")));
+  assert.ok(Array.isArray(body.comparison_paths));
+  assert.ok(body.comparison_paths.some((path) => path.ecosystem_id === "cloudflare" && path.api_href.includes("/api/compare")));
   assert.ok(body.stats.ecosystem_count >= 5);
 
   const agentMap = await worker.fetch(new Request("https://git.top/api/agent-map"), {});
@@ -335,6 +338,8 @@ async function testAtlasRoute() {
   assert.match(text, /Discover Projects/);
   assert.match(text, /Get Recommendations/);
   assert.match(text, /Compare Options/);
+  assert.match(text, /Compare Path/);
+  assert.match(text, /Open Compare/);
   assert.match(text, /Choose a production candidate/);
   assert.match(text, /Map dependencies and neighbors/);
   assert.match(text, /Compare replacement paths/);
@@ -348,6 +353,7 @@ async function testAtlasRoute() {
   assert.match(cloudflareText, /Atlas JSON/);
   assert.match(cloudflareText, /Recommend/);
   assert.match(cloudflareText, /Journey/);
+  assert.match(cloudflareText, /Compare Path/);
   assert.match(cloudflareText, /href="\/api\/search\?q=cloudflare%20workers%20agents&amp;ranking=browse&amp;limit=12"/);
 
   const missing = await worker.fetch(new Request("https://git.top/atlas/not-real"), {});

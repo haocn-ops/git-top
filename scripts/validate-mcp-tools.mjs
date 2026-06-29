@@ -342,6 +342,8 @@ async function testToolCalls() {
   assert.ok(Array.isArray(atlas.result.ecosystem.map.edges));
   assert.ok(Array.isArray(atlas.result.ecosystem.exploration_paths));
   assert.ok(Array.isArray(atlas.result.ecosystem.exploration_journeys));
+  assert.ok(Array.isArray(atlas.result.ecosystem.comparison_paths));
+  assert.ok(atlas.result.ecosystem.comparison_paths.some((path) => path.api_href.includes("/api/compare")));
   assert.ok(atlas.result.available_ecosystems.includes("cloudflare"));
   assertMetadata(atlas.result.metadata, "db_missing");
 
@@ -355,6 +357,7 @@ async function testToolCalls() {
   assert.ok(Array.isArray(allAtlas.result.ecosystems));
   assert.ok(allAtlas.result.ecosystems.length >= 5);
   assert.ok(allAtlas.result.ecosystems[0].projects.length <= 2);
+  assert.ok(Array.isArray(allAtlas.result.ecosystems[0].comparison_paths));
   assertMetadata(allAtlas.result.metadata, "db_missing");
 }
 

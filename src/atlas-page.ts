@@ -68,6 +68,7 @@ export function findAtlasEcosystem(id: string): AtlasEcosystem | null {
 
 export function buildAtlasEcosystemView(projects: ProjectKnowledge[], ecosystem: AtlasEcosystem, limit = 8) {
   const ecosystemProjects = atlasProjects(projects, ecosystem, limit);
+  const comparisonProjects = atlasComparisonProjects(projects, ecosystem, Math.max(limit, 8));
   const map = buildAtlasEcosystemMap(ecosystem, ecosystemProjects);
   return {
     id: ecosystem.id,
@@ -89,6 +90,7 @@ export function buildAtlasEcosystemView(projects: ProjectKnowledge[], ecosystem:
     map,
     exploration_paths: buildExplorationPaths(ecosystem, ecosystemProjects),
     exploration_journeys: buildExplorationJourneys(ecosystem, ecosystemProjects),
+    comparison_paths: buildComparisonPaths(ecosystem, comparisonProjects),
     links: {
       page: `/atlas/${ecosystem.id}`,
       search_api: `/api/search?q=${encodeURIComponent(ecosystem.query)}&ranking=browse&limit=${limit}`,
@@ -183,6 +185,74 @@ function buildExplorationJourneys(ecosystem: AtlasEcosystem, projects: ProjectVi
   ];
 }
 
+function buildComparisonPaths(ecosystem: AtlasEcosystem, projects: ProjectView[]) {
+  const paths: Array<{
+    label: string;
+    description: string;
+    repos: string[];
+    href: string;
+    api_href: string;
+    decision_focus: string;
+    context: {
+      ecosystem_id: string;
+      category: string | null;
+      deployment: string | null;
+    };
+  }> = [];
+  const seen = new Set<string>();
+  const addPath = (labelText: string, description: string, candidates: ProjectView[], decisionFocus: string) => {
+    const repos = uniqueRepos(candidates).slice(0, 4);
+    if (repos.length < 2) {
+      return;
+    }
+    const signature = `${decisionFocus}|${repos.join("|")}`;
+    if (seen.has(signature)) {
+      return;
+    }
+    seen.add(signature);
+    paths.push({
+      label: labelText,
+      description,
+      repos,
+      href: comparePageHref(repos),
+      api_href: compareApiHref(ecosystem, repos),
+      decision_focus: decisionFocus,
+      context: {
+        ecosystem_id: ecosystem.id,
+        category: ecosystem.category ?? null,
+        deployment: ecosystem.deployment ?? null
+      }
+    });
+  };
+
+  addPath(
+    "Compare leading candidates",
+    `Compare the strongest indexed projects in ${ecosystem.title} before choosing a default.`,
+    projects,
+    "winner_by_agent_score"
+  );
+
+  if (ecosystem.deployment) {
+    const deploymentMatches = projects.filter((project) => project.deployments.includes(ecosystem.deployment ?? "") || (ecosystem.deployment === "cloudflare" && project.cloudflareReady));
+    addPath(
+      `${label(ecosystem.deployment)} deployment fit`,
+      `Compare projects that carry explicit ${label(ecosystem.deployment)} deployment signals.`,
+      [...deploymentMatches, ...projects],
+      "deployment_fit"
+    );
+  }
+
+  const maintenanceFallbacks = [...projects].sort((a, b) => b.qualityScore + b.agentScore - (a.qualityScore + a.agentScore));
+  addPath(
+    "Evaluate fallback options",
+    "Compare high-quality fallback candidates when the top project is not the right operational fit.",
+    maintenanceFallbacks,
+    "fallback_quality"
+  );
+
+  return paths.slice(0, 3);
+}
+
 function journeyStep(label: string, href: string, description: string) {
   return {
     label,
@@ -265,7 +335,8 @@ export async function renderAtlasPage(env: Env): Promise<Response> {
   const knowledge = await listProjectKnowledgeWithMeta(env);
   const sections = ecosystems.map((ecosystem) => ({
     ecosystem,
-    projects: atlasProjects(knowledge.projects, ecosystem, 8)
+    projects: atlasProjects(knowledge.projects, ecosystem, 8),
+    comparisonProjects: atlasComparisonProjects(knowledge.projects, ecosystem, 8)
   }));
 
   return new Response(renderHtml({ sections, metadata: knowledge.metadata }), {
@@ -287,7 +358,8 @@ export async function renderAtlasEcosystemPage(env: Env, id: string): Promise<Re
       sections: [
         {
           ecosystem,
-          projects: atlasProjects(knowledge.projects, ecosystem, 8)
+          projects: atlasProjects(knowledge.projects, ecosystem, 8),
+          comparisonProjects: atlasComparisonProjects(knowledge.projects, ecosystem, 8)
         }
       ],
       metadata: knowledge.metadata,
@@ -313,12 +385,36 @@ function atlasProjects(projects: ProjectKnowledge[], ecosystem: AtlasEcosystem, 
   return results.map(toProjectKnowledgeView);
 }
 
+function atlasComparisonProjects(projects: ProjectKnowledge[], ecosystem: AtlasEcosystem, limit: number): ProjectView[] {
+  const strict = atlasProjects(projects, ecosystem, limit);
+  if (strict.length >= 2) {
+    return strict;
+  }
+  const relaxed = searchProjectList(projects, {
+    q: ecosystem.query,
+    ranking: "browse",
+    limit
+  }).map(toProjectKnowledgeView);
+  return mergeProjectViews(strict, relaxed).slice(0, limit);
+}
+
+function mergeProjectViews(primary: ProjectView[], fallback: ProjectView[]): ProjectView[] {
+  const seen = new Set<string>();
+  return [...primary, ...fallback].filter((project) => {
+    if (seen.has(project.repo)) {
+      return false;
+    }
+    seen.add(project.repo);
+    return true;
+  });
+}
+
 function renderHtml({
   sections,
   metadata,
   focus
 }: {
-  sections: Array<{ ecosystem: AtlasEcosystem; projects: ProjectView[] }>;
+  sections: Array<{ ecosystem: AtlasEcosystem; projects: ProjectView[]; comparisonProjects: ProjectView[] }>;
   metadata: { source: string; reason: string; projectCount: number; generatedAt: string };
   focus?: AtlasEcosystem;
 }): string {
@@ -394,21 +490,25 @@ function renderHtml({
       .path-item { display:grid; gap:7px; min-height:130px; padding:12px; box-shadow:none; }
       .path-item span { color:var(--teal-dark); font-size:12px; font-weight:900; text-transform:uppercase; }
       .path-item p { color:#40505a; line-height:1.45; }
+      .comparison-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:12px; }
+      .comparison-card { display:grid; gap:10px; border:1px solid var(--line); border-radius:8px; background:#fff; padding:12px; }
+      .repo-list { display:flex; gap:7px; flex-wrap:wrap; }
+      .repo-pill { display:inline-flex; align-items:center; min-height:28px; border:1px solid var(--line); border-radius:999px; background:#fbfdfd; color:#40505a; font-size:12px; font-weight:900; padding:5px 8px; overflow-wrap:anywhere; }
       .journey-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:12px; }
       .journey { display:grid; gap:10px; border:1px solid var(--line); border-radius:8px; background:#fbfdfd; padding:12px; }
       .journey ol { display:grid; gap:8px; margin:0; padding-left:20px; }
       .journey li { color:#40505a; line-height:1.45; }
       .journey a { font-weight:900; color:#22313a; }
       @media (max-width:1100px) { .atlas-grid,.project-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-      @media (max-width:1100px) { .path-grid,.stats,.journey-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-      @media (max-width:700px) { .atlas-grid,.project-grid,.path-grid,.stats,.journey-grid { grid-template-columns:1fr; } .ecosystem { min-height:auto; } }
+      @media (max-width:1100px) { .path-grid,.stats,.journey-grid,.comparison-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+      @media (max-width:700px) { .atlas-grid,.project-grid,.path-grid,.stats,.journey-grid,.comparison-grid { grid-template-columns:1fr; } .ecosystem { min-height:auto; } }
     </style>
   </head>
   <body>
     <div class="page">
       <nav class="nav">
         <a class="brand" href="/"><span class="brand-mark">G</span><span>Git.Top</span></a>
-        <div class="nav-links"><a href="/projects">Projects</a><a href="/graph">Graph</a><a href="/docs">Docs</a><a href="/mcp">MCP</a></div>
+        <div class="nav-links"><a href="/projects">Projects</a><a href="/journeys">Journeys</a><a href="/graph">Graph</a><a href="/docs">Docs</a><a href="/mcp">MCP</a></div>
       </nav>
 
       <header class="hero">
@@ -439,7 +539,7 @@ function renderHtml({
         ${sections.map(({ ecosystem }) => ecosystemCard(ecosystem)).join("")}
       </section>
 
-      ${sections.map(({ ecosystem, projects }) => ecosystemSection(ecosystem, projects)).join("")}
+      ${sections.map(({ ecosystem, projects, comparisonProjects }) => ecosystemSection(ecosystem, projects, comparisonProjects)).join("")}
     </div>
   </body>
 </html>`;
@@ -461,7 +561,7 @@ function ecosystemCard(ecosystem: AtlasEcosystem): string {
   </article>`;
 }
 
-function ecosystemSection(ecosystem: AtlasEcosystem, projects: ProjectView[]): string {
+function ecosystemSection(ecosystem: AtlasEcosystem, projects: ProjectView[], comparisonProjects: ProjectView[]): string {
   const stats = {
     concepts: ecosystem.nodes.length,
     projects: projects.length,
@@ -492,6 +592,9 @@ function ecosystemSection(ecosystem: AtlasEcosystem, projects: ProjectView[]): s
       <div class="path-grid" aria-label="${escapeAttr(ecosystem.title)} exploration paths">
         ${buildExplorationPaths(ecosystem, projects).map(explorationPath).join("")}
       </div>
+      <div class="comparison-grid" aria-label="${escapeAttr(ecosystem.title)} comparison paths">
+        ${buildComparisonPaths(ecosystem, comparisonProjects).map(comparisonPath).join("")}
+      </div>
       <div class="journey-grid" aria-label="${escapeAttr(ecosystem.title)} exploration journeys">
         ${buildExplorationJourneys(ecosystem, projects).map(explorationJourney).join("")}
       </div>
@@ -508,6 +611,19 @@ function explorationPath(path: ReturnType<typeof buildExplorationPaths>[number])
     <strong>${escapeHtml(path.label)}</strong>
     <p>${escapeHtml(path.description)}</p>
   </a>`;
+}
+
+function comparisonPath(path: ReturnType<typeof buildComparisonPaths>[number]): string {
+  return `<article class="comparison-card">
+    <p class="eyebrow">Compare Path</p>
+    <h3>${escapeHtml(path.label)}</h3>
+    <p class="muted">${escapeHtml(path.description)}</p>
+    <div class="repo-list">${path.repos.map((repo) => `<span class="repo-pill">${escapeHtml(repo)}</span>`).join("")}</div>
+    <div class="actions">
+      <a class="button primary" href="${escapeAttr(path.href)}">Open Compare</a>
+      <a class="button" href="${escapeAttr(path.api_href)}">JSON</a>
+    </div>
+  </article>`;
 }
 
 function explorationJourney(journey: ReturnType<typeof buildExplorationJourneys>[number]): string {
@@ -561,6 +677,24 @@ function recommendHref(ecosystem: AtlasEcosystem, limit: number): string {
     params.set("deployment", ecosystem.deployment);
   }
   return `/api/recommend?${params.toString()}`;
+}
+
+function comparePageHref(repos: string[]): string {
+  return `/compare/${repos.map((repo) => repo.replaceAll("/", "-")).join("...")}`;
+}
+
+function compareApiHref(ecosystem: AtlasEcosystem, repos: string[]): string {
+  const params = new URLSearchParams({
+    repos: repos.join(",")
+  });
+  if (ecosystem.deployment) {
+    params.set("deployment", ecosystem.deployment);
+  }
+  return `/api/compare?${params.toString()}`;
+}
+
+function uniqueRepos(projects: ProjectView[]): string[] {
+  return Array.from(new Set(projects.map((project) => project.repo)));
 }
 
 function slug(value: string): string {
