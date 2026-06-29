@@ -55,6 +55,15 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     recommendedUse: "Use recipes when an agent needs a repeatable workflow for choosing projects, finding alternatives, comparing shortlists, exploring ecosystems, mapping Atlas journeys to comparison paths, checking trust, or planning with GRP."
   },
   {
+    concept: "API and MCP discovery",
+    humanPage: "/topics/open-source-knowledge-graph-api",
+    rest: ["GET /api/agent-map", "GET /openapi.json", "GET /mcp", "GET /llms.txt", "GET /llms-full.txt"],
+    mcpTools: [],
+    outputFields: ["surfaces", "openapi_url", "schema_url", "llms_url", "recommended_agent_flow", "trust_policy"],
+    trustFields: ["trust_policy.high_confidence_source", "trust_policy.strict_mode", "surfaces[].trust_fields"],
+    recommendedUse: "Use this discovery path before guessing routes or tool names; it links REST, MCP, OpenAPI, LLM discovery, output fields, and trust policy."
+  },
+  {
     concept: "Alternatives",
     humanPage: "/alternatives/:project",
     rest: ["GET /api/alternatives/:project", "POST /api/alternatives"],

@@ -310,6 +310,27 @@ const topicLandings: Record<
       }
     ]
   },
+  "mcp-integration-guide": {
+    title: "MCP Integration Guide",
+    subtitle: "Connect agents to Git.Top MCP tools for open-source project search, recommendations, alternatives, graph context, scores, Atlas maps, and trust checks.",
+    query: "mcp server integration agent tools",
+    category: "mcp_server",
+    apiPath: "/mcp",
+    sections: [
+      {
+        title: "Discovery First",
+        body: "Start with GET /mcp to inspect available tools, schema URLs, health links, quality links, example JSON-RPC payloads, and the same Agent Map concepts exposed by /api/agent-map."
+      },
+      {
+        title: "Tool Call Shape",
+        body: "Use tools/list before tools/call, then call search_projects, get_project, recommend_project, get_project_graph, compare_projects, get_atlas, or get_quality_report depending on the user intent."
+      },
+      {
+        title: "Production Trust",
+        body: "Set require_d1 in MCP tool arguments when an agent should fail closed instead of using seed fallback, and cite metadata.source, classification evidence, and quality signal confidence."
+      }
+    ]
+  },
   "project-comparison-guide": {
     title: "Project Comparison Guide",
     subtitle: "A practical guide for comparing open-source projects by fit, deployment, maintenance, and quality signals.",

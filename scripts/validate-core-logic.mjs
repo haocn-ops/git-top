@@ -65,6 +65,7 @@ async function testLegacyConsoleRedirects() {
   assert.match(llmsText, /Atlas journeys: https:\/\/git\.top\/journeys/);
   assert.match(llmsText, /Atlas Journey Guide: https:\/\/git\.top\/topics\/atlas-journey-guide/);
   assert.match(llmsText, /Open Source Knowledge Graph API: https:\/\/git\.top\/topics\/open-source-knowledge-graph-api/);
+  assert.match(llmsText, /MCP Integration Guide: https:\/\/git\.top\/topics\/mcp-integration-guide/);
   assert.match(llmsText, /Roadmap: https:\/\/git\.top\/roadmap/);
 
   const llmsFull = await worker.fetch(new Request("https://git.top/llms-full.txt"), {});
@@ -88,6 +89,7 @@ async function testLegacyConsoleRedirects() {
   assert.match(llmsFullText, /GET \/api\/atlas\?limit=6/);
   assert.match(llmsFullText, /\/topics\/atlas-journey-guide/);
   assert.match(llmsFullText, /\/topics\/open-source-knowledge-graph-api/);
+  assert.match(llmsFullText, /\/topics\/mcp-integration-guide/);
   assert.match(llmsFullText, /journeys\[\]\.steps/);
   assert.match(llmsFullText, /comparison_paths/);
   assert.match(llmsFullText, /exploration_paths/);
@@ -248,11 +250,14 @@ async function testRoadmapRoute() {
   assert.equal(body.phases.length, 6);
   assert.ok(body.phases.some((phase) => phase.id === "atlas" && phase.human_pages.includes("/journeys")));
   assert.ok(body.phases.some((phase) => phase.id === "atlas" && phase.api_endpoints.includes("/api/journeys")));
+  assert.ok(body.phases.some((phase) => phase.id === "agent-api" && phase.human_pages.includes("/topics/mcp-integration-guide")));
+  assert.ok(body.completion >= 88);
 
   const agentMap = await worker.fetch(new Request("https://git.top/api/agent-map"), {});
   const agentMapBody = await agentMap.json();
   assert.equal(agentMap.status, 200);
   assert.ok(agentMapBody.surfaces.some((surface) => surface.concept === "Product roadmap"));
+  assert.ok(agentMapBody.surfaces.some((surface) => surface.concept === "API and MCP discovery"));
 }
 
 async function testDiscoverRoute() {
@@ -265,6 +270,7 @@ async function testDiscoverRoute() {
   assert.match(homeText, /href="\/topics\/ai-ide-coding-agents"/);
   assert.match(homeText, /href="\/topics\/atlas-journey-guide"/);
   assert.match(homeText, /href="\/topics\/open-source-knowledge-graph-api"/);
+  assert.match(homeText, /href="\/topics\/mcp-integration-guide"/);
 
   const response = await worker.fetch(new Request("https://git.top/discover"), {});
   const text = await response.text();
@@ -302,6 +308,13 @@ async function testDiscoverRoute() {
   assert.match(apiTopicText, /Open Source Knowledge Graph API/);
   assert.match(apiTopicText, /Agent Workflow/);
   assert.match(apiTopicText, /\/api\/agent-map/);
+
+  const mcpTopic = await worker.fetch(new Request("https://git.top/topics/mcp-integration-guide"), {});
+  const mcpTopicText = await mcpTopic.text();
+  assert.equal(mcpTopic.status, 200);
+  assert.match(mcpTopicText, /MCP Integration Guide/);
+  assert.match(mcpTopicText, /Tool Call Shape/);
+  assert.match(mcpTopicText, /\/mcp/);
 }
 
 async function testTrendsRoute() {

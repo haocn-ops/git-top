@@ -180,6 +180,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/ai-ide-coding-agents<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/atlas-journey-guide<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/open-source-knowledge-graph-api<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/mcp-integration-guide<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/quickstart<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/recipes<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/journeys<\/loc>/);
@@ -191,6 +192,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(llms.text, /Git\.Top is an agent-native GitHub project knowledge layer/);
     assert.match(llms.text, /Atlas journeys: https:\/\/git\.top\/journeys/);
     assert.match(llms.text, /Open Source Knowledge Graph API: https:\/\/git\.top\/topics\/open-source-knowledge-graph-api/);
+    assert.match(llms.text, /MCP Integration Guide: https:\/\/git\.top\/topics\/mcp-integration-guide/);
 
     const { status: openapiStatus, body: openapi } = await getJson(context, "/openapi.json");
     assert.equal(openapiStatus, 200);
@@ -301,6 +303,7 @@ export async function runSmoke(args = [], env = process.env) {
     const atlasGuide = await getHead(context, "/topics/atlas-guide");
     const atlasJourneyGuide = await getHead(context, "/topics/atlas-journey-guide");
     const apiGuide = await getHead(context, "/topics/open-source-knowledge-graph-api");
+    const mcpIntegrationGuide = await getHead(context, "/topics/mcp-integration-guide");
     const graphGuide = await getHead(context, "/topics/graph-guide");
     const compareGuide = await getHead(context, "/topics/project-comparison-guide");
     const recommendationGuide = await getHead(context, "/topics/recommendation-guide");
@@ -313,6 +316,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.equal(atlasGuide.status, 200);
     assert.equal(atlasJourneyGuide.status, 200);
     assert.equal(apiGuide.status, 200);
+    assert.equal(mcpIntegrationGuide.status, 200);
     assert.equal(graphGuide.status, 200);
     assert.equal(compareGuide.status, 200);
     assert.equal(recommendationGuide.status, 200);
@@ -326,6 +330,7 @@ export async function runSmoke(args = [], env = process.env) {
       atlas: atlasGuide.status,
       atlasJourney: atlasJourneyGuide.status,
       apiGuide: apiGuide.status,
+      mcpIntegrationGuide: mcpIntegrationGuide.status,
       graph: graphGuide.status,
       compare: compareGuide.status,
       recommendation: recommendationGuide.status,

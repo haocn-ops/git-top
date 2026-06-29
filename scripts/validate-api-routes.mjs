@@ -306,6 +306,9 @@ async function testRoadmapRoute() {
   assert.ok(Array.isArray(roadmap.body.phases));
   assert.equal(roadmap.body.phases.length, 6);
   assert.ok(roadmap.body.phases.some((phase) => phase.id === "agent-api" && phase.api_endpoints.includes("/api/agent-map")));
+  assert.ok(roadmap.body.phases.some((phase) => phase.id === "agent-api" && phase.human_pages.includes("/topics/open-source-knowledge-graph-api")));
+  assert.ok(roadmap.body.phases.some((phase) => phase.id === "agent-api" && phase.human_pages.includes("/topics/mcp-integration-guide")));
+  assert.ok(roadmap.body.completion >= 88);
   assert.ok(roadmap.body.phases.some((phase) => phase.id === "atlas" && phase.human_pages.includes("/atlas")));
   assert.ok(Array.isArray(roadmap.body.agent_use));
 
@@ -692,6 +695,7 @@ async function testSchemaRoutes() {
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Project graph" && surface.human_page === "/graph/:project"));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Recommendations" && surface.mcp_tools.includes("recommend_project")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Agent workflow" && surface.mcp_tools.includes("get_agent_workflow")));
+  assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "API and MCP discovery" && surface.rest.includes("GET /mcp")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Recommendations" && surface.output_fields.includes("recommendations[].adoption_plan")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Open source trends" && surface.rest.includes("GET /api/trends")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Alternatives" && surface.output_fields.includes("alternative_matches[].replacement_risk")));

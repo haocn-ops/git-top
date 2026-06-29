@@ -36,7 +36,7 @@ export function buildProductRoadmap(): ProductRoadmap {
       goal: "Make the first visit explain Git.Top's value as the knowledge layer for open source.",
       shipped: [
         "Homepage hero states The Knowledge Graph of Open Source.",
-        "Discover, Compare, Alternatives, Workflow, Score, Trust, Graph, Atlas, Recommend, and Ecosystems entry cards are live.",
+        "Discover, Compare, Alternatives, Workflow, Agent API, Score, Trust, Graph, Atlas, Recommend, and Ecosystems entry cards are live.",
         "High-value topic pages cover agents, MCP, RAG, browser automation, AI IDE, comparison, graph, score, workflow, alternatives, and trust."
       ],
       next: ["Continue adding topic pages for high-intent discovery and SEO clusters."],
@@ -119,17 +119,18 @@ export function buildProductRoadmap(): ProductRoadmap {
       phase: 6,
       title: "Agent API",
       status: "active",
-      progress: 86,
+      progress: 89,
       goal: "Make Git.Top a default structured knowledge source for agents.",
       shipped: [
         "REST endpoints cover project lookup, recommendation, workflow, alternatives, graph, compare, score, trends, atlas, journeys, quality, quickstart, recipes, and agent map.",
         "MCP tools map to the same product concepts and support D1-required strict mode.",
         "llms.txt, llms-full.txt, OpenAPI, schema, Agent Map, Quickstart, Recipes, and workflow pages make the product machine-discoverable.",
-        "Quickstart and Recipes now include Atlas journeys and comparison paths as first-class agent workflows."
+        "Quickstart and Recipes now include Atlas journeys and comparison paths as first-class agent workflows.",
+        "Knowledge Graph API and MCP integration guide pages now explain the human page, REST, MCP, OpenAPI, LLM discovery, output field, and trust-field pairs."
       ],
       next: ["Continue tightening OpenAPI examples, agent docs, MCP integration recipes, and production trust gates."],
-      humanPages: ["/docs", "/quickstart", "/recipes", "/integrations", "/workflow", "/mcp", "/llms.txt"],
-      apiEndpoints: ["/api/project/cloudflare/agents", "/api/recommend", "/api/workflow", "/api/quickstart", "/api/recipes", "/api/agent-map", "/openapi.json"],
+      humanPages: ["/docs", "/quickstart", "/recipes", "/integrations", "/workflow", "/mcp", "/topics/open-source-knowledge-graph-api", "/topics/mcp-integration-guide", "/llms.txt"],
+      apiEndpoints: ["/api/project/cloudflare/agents", "/api/recommend", "/api/workflow", "/api/quickstart", "/api/recipes", "/api/agent-map", "/openapi.json", "/mcp"],
       mcpTools: ["get_project", "recommend_project", "get_agent_workflow", "compare_projects", "get_quality_report"]
     }
   ];
@@ -143,7 +144,7 @@ export function buildProductRoadmap(): ProductRoadmap {
       "Expand high-intent topic pages and product guides.",
       "Improve Atlas exploration depth without reintroducing a separate frontend surface.",
       "Reduce data trust risk through sync freshness, classification review, and stronger alternatives evidence.",
-      "Keep REST, MCP, OpenAPI, llms.txt, and human pages aligned."
+      "Keep REST, MCP, OpenAPI, llms.txt, Agent Map, and human pages aligned."
     ],
     phases,
     agentUse: [
