@@ -209,6 +209,9 @@ async function testAtlasRoute() {
   assert.match(text, /Discover Projects/);
   assert.match(text, /Get Recommendations/);
   assert.match(text, /Compare Options/);
+  assert.match(text, /Choose a production candidate/);
+  assert.match(text, /Map dependencies and neighbors/);
+  assert.match(text, /Compare replacement paths/);
   assert.match(text, /href="\/atlas\/cloudflare"/);
 
   const cloudflare = await worker.fetch(new Request("https://git.top/atlas/cloudflare"), {});
@@ -218,6 +221,7 @@ async function testAtlasRoute() {
   assert.match(cloudflareText, /All Ecosystems/);
   assert.match(cloudflareText, /Atlas JSON/);
   assert.match(cloudflareText, /Recommend/);
+  assert.match(cloudflareText, /Journey/);
   assert.match(cloudflareText, /href="\/api\/search\?q=cloudflare%20workers%20agents&amp;ranking=browse&amp;limit=12"/);
 
   const missing = await worker.fetch(new Request("https://git.top/atlas/not-real"), {});

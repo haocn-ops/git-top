@@ -88,6 +88,7 @@ export function buildAtlasEcosystemView(projects: ProjectKnowledge[], ecosystem:
     },
     map,
     exploration_paths: buildExplorationPaths(ecosystem, ecosystemProjects),
+    exploration_journeys: buildExplorationJourneys(ecosystem, ecosystemProjects),
     links: {
       page: `/atlas/${ecosystem.id}`,
       search_api: `/api/search?q=${encodeURIComponent(ecosystem.query)}&ranking=browse&limit=${limit}`,
@@ -139,6 +140,55 @@ function buildExplorationPaths(ecosystem: AtlasEcosystem, projects: ProjectView[
       kind: "compare"
     }
   ];
+}
+
+function buildExplorationJourneys(ecosystem: AtlasEcosystem, projects: ProjectView[]) {
+  const primary = projects[0];
+  const secondary = projects[1];
+  const compareRepos = [primary?.repo, secondary?.repo].filter(Boolean).join(",");
+  const categoryOrDeployment = ecosystem.category
+    ? `/categories/${encodeURIComponent(ecosystem.category)}`
+    : ecosystem.deployment
+      ? `/deployments/${encodeURIComponent(ecosystem.deployment)}`
+      : searchApiHref(ecosystem.query, 12);
+
+  return [
+    {
+      label: "Choose a production candidate",
+      description: `Start broad in ${ecosystem.title}, then narrow to one project with score and graph evidence.`,
+      steps: [
+        journeyStep("Discover", categoryOrDeployment, "Browse the ecosystem entry point."),
+        journeyStep("Recommend", recommendHref(ecosystem, 5).replace("/api/recommend", "/recommend"), "Generate a constrained shortlist."),
+        journeyStep("Score", primary ? `/score/${primary.repo}` : "/projects", primary ? `Inspect ${primary.repo} risk and score evidence.` : "Inspect project score evidence.")
+      ]
+    },
+    {
+      label: "Map dependencies and neighbors",
+      description: "Follow graph relationships before deciding whether a project fits the stack.",
+      steps: [
+        journeyStep("Graph", primary ? `/graph/${primary.repo}` : "/graph", primary ? `Open ${primary.repo} relationship graph.` : "Open the graph surface."),
+        journeyStep("Related", primary ? `/api/related/${primary.repo}?limit=8` : searchApiHref(ecosystem.query, 8), "Inspect adjacent projects as structured JSON."),
+        journeyStep("Atlas", `/api/atlas/${ecosystem.id}?limit=8`, "Fetch the ecosystem map for agent planning.")
+      ]
+    },
+    {
+      label: "Compare replacement paths",
+      description: "Move from the top project to alternatives and a decision matrix.",
+      steps: [
+        journeyStep("Alternatives", primary ? `/alternatives/${primary.repo}` : "/alternatives", primary ? `Find alternatives for ${primary.repo}.` : "Find replacement candidates."),
+        journeyStep("Compare", compareRepos ? `/api/compare?repos=${encodeURIComponent(compareRepos)}` : "/compare", compareRepos ? `Compare ${compareRepos.replace(",", " and ")}.` : "Compare shortlisted projects."),
+        journeyStep("Agent Map", "/api/agent-map", "Choose the next REST or MCP surface.")
+      ]
+    }
+  ];
+}
+
+function journeyStep(label: string, href: string, description: string) {
+  return {
+    label,
+    href,
+    description
+  };
 }
 
 function averageScore(projects: ProjectView[]): number | null {
@@ -344,9 +394,14 @@ function renderHtml({
       .path-item { display:grid; gap:7px; min-height:130px; padding:12px; box-shadow:none; }
       .path-item span { color:var(--teal-dark); font-size:12px; font-weight:900; text-transform:uppercase; }
       .path-item p { color:#40505a; line-height:1.45; }
+      .journey-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:12px; }
+      .journey { display:grid; gap:10px; border:1px solid var(--line); border-radius:8px; background:#fbfdfd; padding:12px; }
+      .journey ol { display:grid; gap:8px; margin:0; padding-left:20px; }
+      .journey li { color:#40505a; line-height:1.45; }
+      .journey a { font-weight:900; color:#22313a; }
       @media (max-width:1100px) { .atlas-grid,.project-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-      @media (max-width:1100px) { .path-grid,.stats { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-      @media (max-width:700px) { .atlas-grid,.project-grid,.path-grid,.stats { grid-template-columns:1fr; } .ecosystem { min-height:auto; } }
+      @media (max-width:1100px) { .path-grid,.stats,.journey-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+      @media (max-width:700px) { .atlas-grid,.project-grid,.path-grid,.stats,.journey-grid { grid-template-columns:1fr; } .ecosystem { min-height:auto; } }
     </style>
   </head>
   <body>
@@ -437,6 +492,9 @@ function ecosystemSection(ecosystem: AtlasEcosystem, projects: ProjectView[]): s
       <div class="path-grid" aria-label="${escapeAttr(ecosystem.title)} exploration paths">
         ${buildExplorationPaths(ecosystem, projects).map(explorationPath).join("")}
       </div>
+      <div class="journey-grid" aria-label="${escapeAttr(ecosystem.title)} exploration journeys">
+        ${buildExplorationJourneys(ecosystem, projects).map(explorationJourney).join("")}
+      </div>
       <div class="project-grid">
         ${projects.length ? projects.map(projectCard).join("") : `<article class="project-card"><h3>No indexed projects yet</h3><p>Atlas will fill this ecosystem as Git.Top expands its corpus.</p></article>`}
       </div>
@@ -450,6 +508,17 @@ function explorationPath(path: ReturnType<typeof buildExplorationPaths>[number])
     <strong>${escapeHtml(path.label)}</strong>
     <p>${escapeHtml(path.description)}</p>
   </a>`;
+}
+
+function explorationJourney(journey: ReturnType<typeof buildExplorationJourneys>[number]): string {
+  return `<article class="journey">
+    <p class="eyebrow">Journey</p>
+    <h3>${escapeHtml(journey.label)}</h3>
+    <p class="muted">${escapeHtml(journey.description)}</p>
+    <ol>
+      ${journey.steps.map((step) => `<li><a href="${escapeAttr(step.href)}">${escapeHtml(step.label)}</a>: ${escapeHtml(step.description)}</li>`).join("")}
+    </ol>
+  </article>`;
 }
 
 function projectCard(view: ProjectView): string {
