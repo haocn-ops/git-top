@@ -55,6 +55,38 @@ const ecosystems: AtlasEcosystem[] = [
     query: "browser automation ai",
     category: "browser_agent",
     nodes: ["Browser Use", "Playwright", "Chromium", "Stagehand", "Crawling", "Computer Use"]
+  },
+  {
+    id: "ai-ide",
+    title: "AI IDE Ecosystem",
+    description: "Coding agents, AI-first editors, and terminal workflows that shape the daily developer experience.",
+    query: "ai ide coding agent",
+    category: "coding_agent",
+    nodes: ["Cursor", "Aider", "Continue", "OpenCode", "Windsurf", "Zed"]
+  },
+  {
+    id: "llm-gateway",
+    title: "LLM Gateway Ecosystem",
+    description: "Model routing, proxying, policy, and observability projects that sit between apps and providers.",
+    query: "llm gateway",
+    category: "llm_gateway",
+    nodes: ["LiteLLM", "OpenRouter", "Portkey", "Gateway", "Routing", "Fallbacks"]
+  },
+  {
+    id: "ai-observability",
+    title: "AI Observability Ecosystem",
+    description: "Tracing, evaluation, prompt logging, cost control, and runtime analysis for AI products.",
+    query: "ai observability",
+    category: "ai_observability",
+    nodes: ["Langfuse", "LangSmith", "Helicone", "Promptfoo", "Tracing", "Evaluation"]
+  },
+  {
+    id: "workflow-automation",
+    title: "Workflow Automation Ecosystem",
+    description: "Automation engines, integrations, and orchestration layers that connect AI actions to business workflows.",
+    query: "workflow automation ai",
+    category: "workflow_automation",
+    nodes: ["n8n", "Zapier", "Make", "Pipedream", "Orchestration", "Integrations"]
   }
 ];
 
@@ -527,6 +559,10 @@ function renderHtml({
           <a class="button" href="#mcp">MCP</a>
           <a class="button" href="#rag">RAG</a>
           <a class="button" href="#browser-ai">Browser AI</a>
+          <a class="button" href="#ai-ide">AI IDE</a>
+          <a class="button" href="#llm-gateway">LLM Gateway</a>
+          <a class="button" href="#ai-observability">Observability</a>
+          <a class="button" href="#workflow-automation">Workflow Automation</a>
         </div>
         <div class="tag-list">
           <span class="tag">Data source: ${escapeHtml(metadata.source)} / ${escapeHtml(metadata.reason)}</span>

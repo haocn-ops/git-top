@@ -179,6 +179,10 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/score\/cursor<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/browser-ai-automation<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/ai-ide-coding-agents<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/atlas\/ai-ide<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/atlas\/llm-gateway<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/atlas\/ai-observability<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/atlas\/workflow-automation<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/atlas-journey-guide<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/open-source-knowledge-graph-api<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/mcp-integration-guide<\/loc>/);

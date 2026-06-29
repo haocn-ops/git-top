@@ -104,6 +104,7 @@ export function buildProductRoadmap(): ProductRoadmap {
       goal: "Create an exploratory map for open-source ecosystems.",
       shipped: [
         "Atlas maps are live for Cloudflare, AI Agents, MCP, RAG, and Browser AI.",
+        "Atlas now includes AI IDE, LLM Gateway, AI Observability, and Workflow Automation ecosystems for denser exploration.",
         "Atlas exposes stats, exploration paths, graph nodes, graph edges, representative projects, and journeys.",
         "Atlas Journeys is live as a human page and JSON API for turning ecosystem maps into ordered exploration routes.",
         "Atlas now exposes ecosystem-specific comparison paths so users and agents can move from a map to a decision matrix.",

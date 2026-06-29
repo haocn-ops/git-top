@@ -177,7 +177,7 @@ Acceptance criteria:
 
 Status:
 
-- Atlas Alpha is implemented with curated Cloudflare, AI Agent, MCP, RAG, and Browser AI ecosystems.
+- Atlas Alpha is implemented with curated Cloudflare, AI Agent, MCP, RAG, Browser AI, AI IDE, LLM Gateway, AI Observability, and Workflow Automation ecosystems.
 - Atlas Beta foundation is implemented with ecosystem stats, exploration paths, concept/project map nodes, and API responses that expose `stats`, `exploration_paths`, `map.nodes`, and `map.edges`.
 - Atlas now exposes `exploration_journeys`, multi-step routes that move users and agents from discovery into recommendation, graph, alternatives, compare, score, and Agent Map surfaces.
 - Atlas now exposes `comparison_paths`, ecosystem-specific candidate sets that link maps directly to Compare pages and `/api/compare` decision matrices.

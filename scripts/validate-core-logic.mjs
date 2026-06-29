@@ -252,7 +252,7 @@ async function testJourneysRoute() {
   assert.ok(body.journeys.some((journey) => journey.steps.some((step) => step.href === "/api/agent-map")));
   assert.ok(Array.isArray(body.comparison_paths));
   assert.ok(body.comparison_paths.some((path) => path.ecosystem_id === "cloudflare" && path.api_href.includes("/api/compare")));
-  assert.ok(body.stats.ecosystem_count >= 5);
+  assert.ok(body.stats.ecosystem_count >= 9);
 
   const agentMap = await worker.fetch(new Request("https://git.top/api/agent-map"), {});
   const agentMapBody = await agentMap.json();

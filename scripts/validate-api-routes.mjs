@@ -504,7 +504,11 @@ async function testGraphAndQualityRoutes() {
   const atlas = await getJson("/api/atlas?limit=3");
   assert.equal(atlas.status, 200);
   assert.ok(Array.isArray(atlas.body.ecosystems));
-  assert.ok(atlas.body.ecosystems.length > 0, "atlas should return ecosystem maps");
+  assert.ok(atlas.body.ecosystems.length >= 9, "atlas should return expanded ecosystem maps");
+  assert.ok(atlas.body.ecosystems.some((ecosystem) => ecosystem.id === "ai-ide"));
+  assert.ok(atlas.body.ecosystems.some((ecosystem) => ecosystem.id === "llm-gateway"));
+  assert.ok(atlas.body.ecosystems.some((ecosystem) => ecosystem.id === "ai-observability"));
+  assert.ok(atlas.body.ecosystems.some((ecosystem) => ecosystem.id === "workflow-automation"));
   assert.ok(atlas.body.ecosystems[0].projects.length <= 3, "atlas should honor per-ecosystem limit");
   assert.ok(Array.isArray(atlas.body.ecosystems[0].map.nodes));
   assert.ok(Array.isArray(atlas.body.ecosystems[0].map.edges));

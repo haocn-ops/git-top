@@ -356,7 +356,9 @@ async function testToolCalls() {
   const allAtlas = await callTool("get_atlas", { limit: 2 });
   assert.equal(allAtlas.status, 200);
   assert.ok(Array.isArray(allAtlas.result.ecosystems));
-  assert.ok(allAtlas.result.ecosystems.length >= 5);
+  assert.ok(allAtlas.result.ecosystems.length >= 9);
+  assert.ok(allAtlas.result.ecosystems.some((ecosystem) => ecosystem.id === "ai-ide"));
+  assert.ok(allAtlas.result.ecosystems.some((ecosystem) => ecosystem.id === "llm-gateway"));
   assert.ok(allAtlas.result.ecosystems[0].projects.length <= 2);
   assert.ok(Array.isArray(allAtlas.result.ecosystems[0].comparison_paths));
   assertMetadata(allAtlas.result.metadata, "db_missing");
