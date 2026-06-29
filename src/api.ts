@@ -23,7 +23,7 @@ import { errorJson, json, parseBool, parseLimit, rawJson } from "./http";
 import { buildAtlasJourneysView } from "./journeys-page";
 import { openApiDocument } from "./openapi";
 import { resolveProject } from "./project-aliases";
-import { toProjectKnowledgeView, withRelatedProjects } from "./project-view";
+import { buildProjectSummary, toProjectKnowledgeView, withRelatedProjects } from "./project-view";
 import { buildLowConfidenceReviewReport, buildQualityReport } from "./quality";
 import { buildAgentQuickstart } from "./quickstart";
 import { buildAgentRecipes } from "./recipes";
@@ -827,8 +827,10 @@ function projectLookupResponse(
 ): Response {
   const related = findRelatedProjectsFromList(projects, project.project.id, relatedLimit);
   const view = withRelatedProjects(toProjectKnowledgeView(project), related);
+  const summary = buildProjectSummary(view);
   return json({
     ...view,
+    summary,
     project_id: view.projectId,
     knowledge: project,
     ...(resolution ? { resolvedFrom: resolution } : {}),

@@ -1,6 +1,6 @@
 # Git.Top Explanation Eval
 
-Generated at: 2026-06-28T23:51:07.095Z
+Generated at: 2026-06-29T14:09:33.929Z
 
 This report validates that agent-facing API responses include explanation material, not only project IDs and scores.
 

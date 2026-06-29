@@ -87,25 +87,25 @@ export const openApiDocument = {
     },
     "/api/project/{owner}/{repo}": {
       get: {
-        summary: "Fetch a project knowledge record with related projects, scores, and metadata.",
+        summary: "Fetch a project knowledge record with agent summary, related projects, scores, and metadata.",
         parameters: [pathParam("owner", "GitHub owner"), pathParam("repo", "GitHub repository name"), queryParam("require_d1", "Fail closed unless D1-backed data is available")],
-        responses: { "200": { description: "Project knowledge view plus full knowledge and metadata" }, "404": { description: "Project not found" } }
+        responses: { "200": { description: "Project knowledge view plus summary, full knowledge, and metadata" }, "404": { description: "Project not found" } }
       }
     },
     "/api/project/{project}": {
       get: {
-        summary: "Fetch a project knowledge record by short slug, encoded owner/repo, or Git.Top product alias.",
+        summary: "Fetch a project knowledge record with agent summary by short slug, encoded owner/repo, or Git.Top product alias.",
         parameters: [
           pathParam("project", "Project slug, encoded owner/repo id, or product alias such as claude-code"),
           queryParam("related_limit", "Maximum related project count"),
           queryParam("require_d1", "Fail closed unless D1-backed data is available")
         ],
-        responses: { "200": { description: "Project knowledge view plus full knowledge, related projects, resolved_from, and metadata" }, "404": { description: "Project not found" } }
+        responses: { "200": { description: "Project knowledge view plus summary, full knowledge, related projects, resolved_from, and metadata" }, "404": { description: "Project not found" } }
       }
     },
     "/api/project": {
       post: {
-        summary: "Fetch a project knowledge record from a structured JSON body.",
+        summary: "Fetch a project knowledge record with agent summary from a structured JSON body.",
         parameters: [queryParam("require_d1", "Fail closed unless D1-backed data is available")],
         requestBody: {
           required: true,
@@ -115,7 +115,7 @@ export const openApiDocument = {
             }
           }
         },
-        responses: { "200": { description: "Project knowledge view plus full knowledge and metadata" }, "400": { description: "Invalid project lookup request" }, "404": { description: "Project not found" } }
+        responses: { "200": { description: "Project knowledge view plus summary, full knowledge, and metadata" }, "400": { description: "Invalid project lookup request" }, "404": { description: "Project not found" } }
       }
     },
     "/api/trending": {
@@ -588,6 +588,31 @@ export const openApiDocument = {
           projectId: { type: "string" },
           repo: { type: "string" },
           related_limit: { type: "integer" }
+        }
+      },
+      ProjectSummary: {
+        type: "object",
+        required: ["tl_dr", "purpose", "inputs", "outputs", "good_for", "not_good_for", "deployment", "alternatives"],
+        properties: {
+          tl_dr: { type: "string", description: "One-sentence project overview for agents." },
+          purpose: { type: "string", description: "Longer agent-facing project purpose." },
+          install: { type: ["string", "null"], description: "Conservative install or setup hint when Git.Top can infer one." },
+          inputs: { type: "array", items: { type: "string" } },
+          outputs: { type: "array", items: { type: "string" } },
+          good_for: { type: "array", items: { type: "string" } },
+          not_good_for: { type: "array", items: { type: "string" } },
+          deployment: { type: "array", items: { type: "string" } },
+          alternatives: {
+            type: "array",
+            items: {
+              type: "object",
+              required: ["repo", "reason"],
+              properties: {
+                repo: { type: "string" },
+                reason: { type: "string" }
+              }
+            }
+          }
         }
       },
       RelatedRequest: {

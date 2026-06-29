@@ -70,6 +70,8 @@ curl -X POST http://localhost:8787/mcp \
 
 `get_project` also accepts `{"owner":"cloudflare","repo":"agents"}`, `{"repo":"cloudflare/agents"}`, and Git.Top product aliases such as `{"project_id":"claude-code"}` for clients starting from product names instead of canonical GitHub owner/repo identifiers.
 
+The tool result includes a top-level `summary` object with `tl_dr`, `purpose`, `install`, `inputs`, `outputs`, `good_for`, `not_good_for`, `deployment`, and `alternatives`. Use that object for first-pass agent reasoning, then inspect `project.classification`, `project.quality_signal_confidence`, `resolved_from`, and `metadata.source` before making high-confidence claims.
+
 ## Recommend Project
 
 ```sh

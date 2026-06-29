@@ -48,6 +48,7 @@ The project intentionally does not ship a separate Next.js app. Keeping Worker-r
 
 - [Git.Top 2.0 product upgrade plan](./docs/GIT_TOP_2_PRODUCT_UPGRADE_PLAN.md)
 - [Next stage plan](./docs/NEXT_STAGE_PLAN.md)
+- [Agent friendliness optimization plan](./docs/AGENT_FRIENDLINESS_OPTIMIZATION_PLAN_2026-06-29.md)
 - [Deployment decision](./docs/DEPLOYMENT_DECISION.md)
 - [REST API guide](./docs/API.md)
 - [MCP guide](./docs/MCP.md)

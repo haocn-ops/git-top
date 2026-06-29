@@ -206,6 +206,31 @@ export const projectV2JsonSchema = {
     tags: { type: "array", items: { type: "string" } },
     description: { type: "string" },
     overview: { type: "string" },
+    summary: {
+      type: "object",
+      required: ["tl_dr", "purpose", "inputs", "outputs", "good_for", "not_good_for", "deployment", "alternatives"],
+      properties: {
+        tl_dr: { type: "string", minLength: 1 },
+        purpose: { type: "string", minLength: 1 },
+        install: { type: ["string", "null"] },
+        inputs: { type: "array", items: { type: "string" } },
+        outputs: { type: "array", items: { type: "string" } },
+        good_for: { type: "array", items: { type: "string" } },
+        not_good_for: { type: "array", items: { type: "string" } },
+        deployment: { type: "array", items: { type: "string" } },
+        alternatives: {
+          type: "array",
+          items: {
+            type: "object",
+            required: ["repo", "reason"],
+            properties: {
+              repo: { type: "string" },
+              reason: { type: "string" }
+            }
+          }
+        }
+      }
+    },
     score: { type: "integer", minimum: 0, maximum: 100 },
     alternatives: {
       type: "array",

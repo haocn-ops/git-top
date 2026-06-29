@@ -1,4 +1,16 @@
-import type { ProjectKnowledge } from "./types";
+import type { Category, ProjectKnowledge } from "./types";
+
+export interface ProjectSummary {
+  tl_dr: string;
+  purpose: string;
+  install: string | null;
+  inputs: string[];
+  outputs: string[];
+  good_for: string[];
+  not_good_for: string[];
+  deployment: string[];
+  alternatives: Array<{ repo: string; reason: string }>;
+}
 
 export interface ProjectKnowledgeView {
   projectId: string;
@@ -57,6 +69,116 @@ export interface ProjectKnowledgeView {
     agentReadability: number;
   };
 }
+
+const categorySummaryHints: Record<
+  Category,
+  {
+    inputs: string[];
+    outputs: string[];
+    goodFor: string[];
+    notGoodFor: string[];
+    install: string | null;
+  }
+> = {
+  agent_framework: {
+    inputs: ["task prompt", "tools", "context", "memory/state"],
+    outputs: ["agent runs", "tool calls", "workflow state"],
+    goodFor: ["stateful agents", "tool-using assistants", "workflow orchestration"],
+    notGoodFor: ["simple prompt-only apps", "one-shot chat wrappers"],
+    install: "Run the framework according to the repository README or package registry instructions."
+  },
+  coding_agent: {
+    inputs: ["coding task", "repo context", "tool permissions"],
+    outputs: ["code changes", "patches", "developer assistant actions"],
+    goodFor: ["software engineering tasks", "code editing", "repo automation"],
+    notGoodFor: ["static documentation sites", "non-code workflows"],
+    install: "Use the repository's CLI, package, or agent runtime instructions."
+  },
+  browser_agent: {
+    inputs: ["URL or page task", "browser session", "navigation constraints"],
+    outputs: ["browser actions", "page state", "extracted data"],
+    goodFor: ["web automation", "browser tasks", "UI-driven workflows"],
+    notGoodFor: ["backend-only jobs", "offline batch processing"],
+    install: "Run the browser agent with the setup described in the repository README."
+  },
+  rag_framework: {
+    inputs: ["documents", "queries", "embedding store"],
+    outputs: ["retrieval results", "grounded answers", "indexes"],
+    goodFor: ["retrieval augmented generation", "document search", "knowledge grounding"],
+    notGoodFor: ["simple prompt apps", "tasks without external knowledge"],
+    install: "Follow the repository's package or service setup instructions."
+  },
+  vector_database: {
+    inputs: ["embeddings", "records", "similarity queries"],
+    outputs: ["nearest neighbors", "vector search results", "filtered matches"],
+    goodFor: ["embedding search", "semantic retrieval", "similarity indexing"],
+    notGoodFor: ["plain key-value storage", "prompt-only apps"],
+    install: "Deploy according to the project's database or service instructions."
+  },
+  llm_gateway: {
+    inputs: ["model requests", "routing config", "provider credentials"],
+    outputs: ["proxied completions", "routed responses", "usage metrics"],
+    goodFor: ["model routing", "provider abstraction", "LLM proxying"],
+    notGoodFor: ["local-only inference", "non-LLM services"],
+    install: "Use the gateway deployment instructions in the repository README."
+  },
+  llm_eval: {
+    inputs: ["prompts", "model outputs", "test cases"],
+    outputs: ["scores", "benchmarks", "eval reports"],
+    goodFor: ["model evaluation", "benchmarking", "regression testing"],
+    notGoodFor: ["production inference serving", "end-user chat apps"],
+    install: "Install and run the evaluation harness as documented by the repository."
+  },
+  prompt_tooling: {
+    inputs: ["prompt templates", "schemas", "constraints"],
+    outputs: ["structured prompts", "validated generations", "prompt tooling artifacts"],
+    goodFor: ["structured output", "prompt engineering", "format enforcement"],
+    notGoodFor: ["raw inference serving", "database workloads"],
+    install: "Follow the repository's library or CLI setup instructions."
+  },
+  workflow_automation: {
+    inputs: ["triggers", "jobs", "state"],
+    outputs: ["automation runs", "orchestrated steps", "workflow events"],
+    goodFor: ["scheduled jobs", "durable workflows", "service orchestration"],
+    notGoodFor: ["single-step utilities", "stateless examples"],
+    install: "Use the workflow engine or automation deployment instructions in the README."
+  },
+  local_llm_runtime: {
+    inputs: ["model weights", "hardware/runtime config"],
+    outputs: ["local inference", "served endpoints", "runtime logs"],
+    goodFor: ["private inference", "local model serving", "self-hosted runtimes"],
+    notGoodFor: ["hosted SaaS deployment only", "non-ML projects"],
+    install: "Follow the local runtime setup instructions in the repository."
+  },
+  ai_app_template: {
+    inputs: ["starter config", "app requirements"],
+    outputs: ["project scaffold", "starter app", "template structure"],
+    goodFor: ["new AI applications", "starter projects", "reference implementations"],
+    notGoodFor: ["drop-in libraries", "runtime infrastructure"],
+    install: "Use the template bootstrap instructions from the repository."
+  },
+  mcp_server: {
+    inputs: ["tool definitions", "resource config", "transport settings"],
+    outputs: ["MCP tools", "JSON-RPC responses", "server capabilities"],
+    goodFor: ["agent tool exposure", "MCP integrations", "tool servers"],
+    notGoodFor: ["front-end apps", "non-tooling backends"],
+    install: "Run the MCP server following the repository's transport instructions."
+  },
+  ai_observability: {
+    inputs: ["traces", "events", "metrics"],
+    outputs: ["dashboards", "alerts", "trace views"],
+    goodFor: ["monitoring AI systems", "debugging agent behavior", "instrumentation"],
+    notGoodFor: ["model serving by itself", "UI-only projects"],
+    install: "Deploy the observability stack using the repository guidance."
+  },
+  other: {
+    inputs: ["project context"],
+    outputs: ["project knowledge"],
+    goodFor: ["discovery", "review", "further inspection"],
+    notGoodFor: ["high-confidence production decisions without review"],
+    install: "See the repository README for setup instructions."
+  }
+};
 
 export function toProjectKnowledgeView(item: ProjectKnowledge): ProjectKnowledgeView {
   const qualityScore = item.metrics.gitScore;
@@ -118,6 +240,21 @@ export function withRelatedProjects(
       repo: item.project.id,
       reason: relatedReason(view, toProjectKnowledgeView(item), sourceRepo)
     }))
+  };
+}
+
+export function buildProjectSummary(view: ProjectKnowledgeView): ProjectSummary {
+  const hints = categorySummaryHints[(view.category[0] as Category | undefined) ?? "other"] ?? categorySummaryHints.other;
+  return {
+    tl_dr: firstSentence(view.overview),
+    purpose: view.overview,
+    install: installationHint(view, hints.install),
+    inputs: hints.inputs,
+    outputs: hints.outputs,
+    good_for: uniqueStrings([...view.useCases, ...hints.goodFor]),
+    not_good_for: uniqueStrings([...view.notGoodFor, ...hints.notGoodFor]),
+    deployment: view.deployments,
+    alternatives: view.alternatives.slice(0, 5)
   };
 }
 
@@ -233,6 +370,32 @@ function getGitTopScoreParts(item: ProjectKnowledge): ProjectKnowledgeView["gitT
 
 function clampScore(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function firstSentence(value: string): string {
+  const trimmed = value.trim();
+  const match = trimmed.match(/^(.+?[.!?])(\s|$)/);
+  return (match?.[1] ?? trimmed).slice(0, 220);
+}
+
+function installationHint(view: ProjectKnowledgeView, fallback: string | null): string | null {
+  if (view.projectKind === "collection") {
+    return "Reference collection; there is no direct install step.";
+  }
+  if (view.deployments.includes("cloudflare")) {
+    return "Deploy on Cloudflare Workers using the repository's deployment instructions.";
+  }
+  if (view.deployments.includes("docker")) {
+    return "Run with Docker using the repository's container instructions.";
+  }
+  if (view.deployments.includes("library_only")) {
+    return "Install as a library or package using the repository instructions.";
+  }
+  return fallback;
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))].slice(0, 6);
 }
 
 function inferDependencies(item: ProjectKnowledge): string[] {

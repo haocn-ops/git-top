@@ -245,7 +245,19 @@ curl -X POST "http://localhost:8787/api/project" \
   -d '{"project_id":"cloudflare/agents","related_limit":8}'
 ```
 
-The response includes a compact project view, full `knowledge`, classification evidence, quality signal confidence, and metadata.
+The response includes a compact project view, a first-class `summary` object, full `knowledge`, classification evidence, quality signal confidence, related projects, and metadata.
+
+The `summary` object is the shortest agent-readable project contract. It includes:
+
+- `tl_dr`: one-sentence project overview.
+- `purpose`: longer agent-facing purpose text.
+- `install`: conservative setup hint or `null` when Git.Top cannot infer one.
+- `inputs` and `outputs`: category-level operating model.
+- `good_for` and `not_good_for`: use cases and caveats merged from Agent Card knowledge and category hints.
+- `deployment`: indexed deployment targets.
+- `alternatives`: first replacement candidates with reasons.
+
+Use `summary` for first-pass agent reasoning, then inspect `knowledge.agent_card.classification`, `quality_signal_confidence`, and `metadata.source` before making high-confidence production claims.
 
 ## Trending
 

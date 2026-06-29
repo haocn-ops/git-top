@@ -13,7 +13,7 @@ import type { ProjectKnowledgeResult } from "./knowledge-source";
 import { buildKnowledgeGraph, compareProjectKnowledge } from "./graph";
 import { normalizeGrpRequest, runGrpQuery } from "./grp";
 import { errorJson, json, rawJson, stringifyApiJson } from "./http";
-import { toProjectKnowledgeView, withRelatedProjects } from "./project-view";
+import { buildProjectSummary, toProjectKnowledgeView, withRelatedProjects } from "./project-view";
 import { buildProjectScoreExplanation } from "./score";
 import { buildQualityReport } from "./quality";
 import { getKnowledgeForSourcePolicy } from "./source-policy";
@@ -90,7 +90,7 @@ const tools = [
   {
     name: "get_project",
     description:
-      "Return structured Git.Top knowledge for a project or collection, including overview, alternatives, deployments, quality score, agent score, project_kind, and collection_metadata when applicable.",
+      "Return structured Git.Top knowledge for a project or collection, including the compact agent summary, overview, alternatives, deployments, quality score, agent score, project_kind, and collection_metadata when applicable.",
     inputSchema: {
       type: "object",
       properties: {
@@ -613,9 +613,11 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
     const resolution = resolveMcpProject(knowledge.projects, projectId);
     const project = resolution?.project ?? null;
     const related = resolution ? findRelatedProjectsFromList(knowledge.projects, resolution.resolvedId, 8) : [];
+    const projectView = project ? withRelatedProjects(toProjectKnowledgeView(project), related) : null;
     return {
       project_id: projectId || null,
-      project: project ? withRelatedProjects(toProjectKnowledgeView(project), related) : null,
+      project: projectView,
+      summary: projectView ? buildProjectSummary(projectView) : null,
       resolved_from: resolution ? mcpResolvedFrom(resolution) : null,
       metadata: knowledge.metadata
     };

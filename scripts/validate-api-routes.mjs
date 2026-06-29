@@ -93,6 +93,11 @@ async function testSearchAndProjectRoutes() {
   assert.equal(project.body.project_id, "cloudflare/agents");
   assert.equal(project.body.repo, "cloudflare/agents");
   assert.equal(project.body.knowledge.project.full_name, "cloudflare/agents");
+  assert.ok(project.body.summary && typeof project.body.summary.purpose === "string");
+  assert.ok(Array.isArray(project.body.summary.good_for));
+  assert.ok(Array.isArray(project.body.summary.not_good_for));
+  assert.ok(Array.isArray(project.body.summary.deployment));
+  assert.ok(Array.isArray(project.body.summary.alternatives));
   assert.equal(project.body.score, project.body.git_top_score);
   assert.ok(typeof project.body.git_top_score === "number");
   assert.ok(project.body.git_top_score_breakdown && typeof project.body.git_top_score_breakdown === "object");
@@ -1059,6 +1064,9 @@ async function testMockD1Source() {
   assert.ok(Array.isArray(project.body.related));
   assert.equal(project.body.knowledge.project.full_name, mockD1ProjectId);
   assert.equal(project.body.knowledge.agent_card.project_kind, "project");
+  assert.ok(typeof project.body.summary.tl_dr === "string");
+  assert.ok(Array.isArray(project.body.summary.inputs));
+  assert.ok(Array.isArray(project.body.summary.outputs));
   assert.equal(project.body.quality_signal_confidence.stars_30d_delta, "snapshot");
   assertMetadata(project.body.metadata, "d1_query", "d1");
 }

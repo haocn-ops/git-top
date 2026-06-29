@@ -126,6 +126,10 @@ async function testToolCalls() {
   assert.equal(project.status, 200);
   assert.equal(project.result.project_id, "cloudflare/agents");
   assert.equal(project.result.project.repo, "cloudflare/agents");
+  assert.ok(project.result.summary && typeof project.result.summary.purpose === "string");
+  assert.ok(Array.isArray(project.result.summary.good_for));
+  assert.ok(Array.isArray(project.result.summary.not_good_for));
+  assert.ok(Array.isArray(project.result.summary.deployment));
   assert.ok(Array.isArray(project.result.project.related));
   assert.ok(project.result.project.related.length > 0);
   assert.equal(project.result.project.classification.category.confidence, "low");
@@ -447,6 +451,9 @@ async function testMockD1ToolSource() {
   const project = await callTool("get_project", { project_id: mockD1ProjectId }, d1Env);
   assert.equal(project.status, 200);
   assert.equal(project.result.project.repo, mockD1ProjectId);
+  assert.ok(typeof project.result.summary.tl_dr === "string");
+  assert.ok(Array.isArray(project.result.summary.inputs));
+  assert.ok(Array.isArray(project.result.summary.outputs));
   assert.equal(project.result.project.classification.category.confidence, "high");
   assertMetadata(project.result.metadata, "d1_query", "d1");
 
@@ -462,6 +469,7 @@ async function testMockD1ToolSource() {
   assert.equal(collection.result.project.project_kind, "collection");
   assert.equal(collection.result.project.collection_metadata.scope, "awesome_list");
   assert.equal(collection.result.project.collection_metadata.freshness, "active");
+  assert.equal(collection.result.summary.install, "Reference collection; there is no direct install step.");
 
   const collectionCard = await callTool("get_project_card", { project_id: collectionId }, collectionEnv);
   assert.equal(collectionCard.status, 200);

@@ -1,6 +1,6 @@
 # Git.Top Eval Fixture Health
 
-Generated at: 2026-06-28T23:51:06.122Z
+Generated at: 2026-06-29T14:09:32.974Z
 
 This report validates the generated evaluation fixture corpus before ranking, classification, or fixture-structure changes.
 

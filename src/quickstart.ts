@@ -95,12 +95,12 @@ export function buildAgentQuickstart(): AgentQuickstart {
       {
         id: "inspect-project",
         title: "Inspect One Project",
-        purpose: "Fetch structured project knowledge before recommending, comparing, or citing a repository.",
+        purpose: "Fetch structured project knowledge and the compact agent summary before recommending, comparing, or citing a repository.",
         rest: "GET /api/project/:project",
         mcpTool: "get_project",
         command: "curl https://git.top/api/project/cloudflare/agents?require_d1=true",
-        inspect: ["knowledge.agent_card.classification", "quality_signal_confidence", "score", "related", "metadata.source"],
-        next: "Check classification evidence before saying a project is Cloudflare-ready or production-fit."
+        inspect: ["summary.purpose", "summary.good_for", "summary.not_good_for", "quality_signal_confidence", "metadata.source"],
+        next: "Use summary for first-pass agent reasoning, then check classification evidence before saying a project is Cloudflare-ready or production-fit."
       },
       {
         id: "recommend",

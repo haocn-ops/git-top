@@ -1,12 +1,14 @@
-# Git.Top Agent Friendliness Optimization Plan - 2026-06-29
+# Git.Top Agent Friendliness Optimization Plan
+
+Date: 2026-06-29
 
 ## Goal
 
-Make Git.Top easier for agents to discover, call, and trust without changing the core product shape.
+Make Git.Top easier for agents to discover, trust, and consume as structured project knowledge.
 
-## Current State
+## What is already in place
 
-Git.Top already exposes strong agent surfaces:
+Git.Top already has the core surfaces this direction needs:
 
 - `GET /api/health`
 - `GET /api/trust`
@@ -16,145 +18,115 @@ Git.Top already exposes strong agent surfaces:
 - `GET /openapi.json`
 - `GET /llms.txt`
 - `GET /llms-full.txt`
-- project, recommendation, compare, alternatives, graph, workflow, Atlas, quality, and GRP endpoints
+- project lookup, recommendation, compare, alternatives, graph, workflow, Atlas, quality, and GRP endpoints
 
-The main gaps are not correctness gaps. They are discoverability and contract-shape gaps:
+The main gap is not a missing platform. The gap is that the current knowledge contract is still more convenient for humans than for agents.
 
-1. The discovery story is spread across too many parallel entry points.
-2. Some agent-facing payloads are rich but verbose.
-3. Field names are not always normalized across REST, MCP, and docs.
-4. Trust and D1 requirements are present, but not always the first thing an agent sees.
+## Product decision
 
-## Status
+Keep Git.Top as a single Worker-backed product surface, but make the project knowledge contract more agent-native.
 
-The plan has been implemented in the codebase and validated with the focused API, MCP, and test suites. The remaining work is documentation upkeep and future iteration, not core implementation.
+The next step is not "more pages". It is:
 
-## Problems To Solve
+1. A compact project summary that agents can consume directly.
+2. Stable summary fields that sit on top of existing Agent Card and project knowledge data.
+3. Trust-first guidance that keeps D1-backed data and confidence visible.
 
-### P0: Put Trust First
+## Priority 1
 
-Agents should hit a small, obvious trust gate before they rely on recommendations.
+### Add a project summary layer
 
-Risk if unfixed: agents may call into rich endpoints before checking source quality or sync state.
+Expose a structured summary on top of the existing project lookup response and MCP `get_project` output.
 
-### P0: Shorten the Discovery Path
+Recommended fields:
 
-Agents should be able to move from one compact discovery surface to the right endpoint or tool without reading three different pages.
+- `purpose`
+- `install`
+- `inputs`
+- `outputs`
+- `good_for`
+- `not_good_for`
+- `alternatives`
+- `deployment`
+- `tl_dr`
 
-Risk if unfixed: tool selection becomes fragile and more prompt-dependent.
+The important constraint: derive these fields from existing knowledge whenever possible. Do not invent new extraction systems before the current contract proves useful.
 
-### P1: Normalize Contract Shapes
+### Why this matters
 
-Agent-facing JSON should prefer stable, consistent field names and should not require mental translation between similar surfaces.
+Agents should be able to answer:
 
-Risk if unfixed: downstream prompts need extra glue logic.
+- What does this project do?
+- How do I install or start it?
+- What does it take in and produce?
+- When should I use it?
+- What should I avoid it for?
 
-### P1: Reduce Verbosity
+without reading a README first.
 
-Long discovery payloads are useful for humans, but agents benefit from a smaller “core path” and a more detailed “reference path.”
+## Priority 2
 
-Risk if unfixed: token cost rises and the right fields are harder to find.
+### Make trust obvious
 
-### P2: Make D1 Requirement Explicit
+Keep trust and freshness visible near the first call path.
 
-The `require_d1` pattern is already present, but it should be easier to notice and reuse.
+Current signals already exist:
 
-Risk if unfixed: agents may accidentally accept seed fallback when they wanted production-only answers.
+- `/api/health`
+- `/api/trust`
+- `metadata.source`
+- `require_d1=true`
+- `quality_signal_confidence`
 
-## Optimization Phases
+The improvement is to keep those signals attached to the summary path so agents do not have to hunt for them.
 
-### Phase 1: Agent Trust Gate
+## Priority 3
 
-Implement first.
+### Normalize the contract
 
-- Make `/api/trust` the primary recommended preflight for high-confidence agent use.
-- Put the trust gate ahead of recommendations in quickstart and discovery text.
-- Make `require_d1=true` visible in the shortest integration path.
+Use one canonical shape across REST and MCP where practical:
 
-Acceptance:
+- `project_id`
+- `summary`
+- `quality_score`
+- `agent_score`
+- `metadata.source`
+- `require_d1`
 
-- `llms.txt`, `llms-full.txt`, `/api/quickstart`, and `/mcp` all point agents to trust preflight first.
-- Trust-first guidance appears before recommendation or graph guidance.
+Keep compatibility aliases, but prefer one obvious field name for each concept.
 
-Status: completed.
+## Priority 4
 
-### Phase 2: Compact Discovery Surface
+### Keep the broader roadmap later
 
-Implement next.
+Alternative graphs, dependency graphs, deployment recipes, MCP registries, and tool schema indexes are useful, but they should come after the summary contract is stable.
 
-- Add a small “core agent surfaces” block to `/api/agent-map`.
-- Keep the current detailed map, but add a shorter list of the first calls an agent should make.
-- Keep `GET /mcp` aligned with the same order.
+## Implementation order
 
-Acceptance:
+1. Add `summary` to project lookup responses.
+2. Add the same summary to MCP `get_project`.
+3. Keep trust metadata attached to the summary payload.
+4. Validate the response shape in focused API and MCP checks.
 
-- An agent can decide between trust, workflow, search, project lookup, alternatives, compare, graph, and quality from one compact section.
+## Success criteria
 
-Status: completed.
+- Agents can consume project intent without parsing the README.
+- `GET /api/project/...` returns a stable summary object.
+- `get_project` returns the same summary shape.
+- Existing trust and confidence signals remain visible.
 
-### Phase 3: Contract Normalization
+## Current implementation status
 
-Implement after the discovery layer is stable.
+Status: completed for the summary contract pass.
 
-- Align naming across REST and MCP where practical.
-- Prefer one canonical label for the same concept:
-  - `project_id`
-  - `quality_score`
-  - `agent_score`
-  - `metadata.source`
-  - `quality_signal_confidence`
-  - `require_d1`
-- Keep compatibility aliases where needed.
+Implemented:
 
-Acceptance:
+- REST project lookup responses now include `summary`.
+- MCP `get_project` now returns the same top-level `summary`.
+- API, MCP, OpenAPI, quickstart, and README docs describe the contract.
+- API and MCP validation cover the summary response shape.
 
-- Fewer duplicate concepts appear in docs and payload examples.
-- Agents do not need to translate between several names for the same thing.
+Next iteration:
 
-Status: completed.
-
-### Phase 4: Split Short Path From Reference Path
-
-Implement last.
-
-- Keep full discovery docs for humans and tool builders.
-- Add a compact agent-first path that includes only the minimum preflight and action steps.
-
-Acceptance:
-
-- The short path is enough for a capable agent to start without reading the full guide.
-
-Status: completed.
-
-## Implementation Order
-
-1. Update quickstart and discovery text to lead with trust.
-2. Add a compact core surface summary to `/api/agent-map`.
-3. Keep `/mcp` and `llms.txt` aligned with that order.
-4. Reduce naming drift in examples and inspect fields.
-5. Re-validate agent smoke checks.
-
-Result: all five steps are complete.
-
-## Verification
-
-Run:
-
-```sh
-pnpm core:validate
-pnpm api:validate
-pnpm mcp:validate
-pnpm test:focused
-```
-
-Then smoke:
-
-```sh
-curl https://git.top/api/trust
-curl https://git.top/api/agent-map
-curl https://git.top/api/quickstart
-curl https://git.top/mcp
-curl https://git.top/llms.txt
-```
-
-Validation status: passed.
+- Replace conservative install hints with source-backed package extraction once Git.Top stores package registry evidence.
+- Add tool schema extraction only after the project summary contract remains stable in production.
