@@ -512,6 +512,7 @@ export function renderDocsPage(): Response {
         <p class="lead">Git.Top is an agent-native knowledge layer for GitHub repositories. It turns project metadata, repository signals, deployment hints, alternatives, and quality evidence into structured responses that agents can cite and compare.</p>
         <div class="actions">
           <a class="button primary" href="/api/search?q=cloudflare%20agent&limit=5">Try REST search</a>
+          <a class="button" href="/workflow">Open workflow</a>
           <a class="button" href="/integrations">Integration paths</a>
           <a class="button" href="/mcp">Inspect MCP tools</a>
           <a class="button" href="/quality">Check quality governance</a>
@@ -534,7 +535,8 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
             <a class="pill" href="/api/health">/api/health</a>
             <a class="pill" href="/api/search">/api/search</a>
             <a class="pill" href="/api/trending">/api/trending</a>
-            <a class="pill" href="/api/trends">/api/trends</a>
+          <a class="pill" href="/api/trends">/api/trends</a>
+            <a class="pill" href="/workflow">/workflow</a>
             <a class="pill" href="/status">/status</a>
             <a class="pill" href="/integrations">/integrations</a>
             <a class="pill" href="/api/quality">/api/quality</a>
@@ -562,12 +564,23 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
           </ul>
         </article>
 
+        <article class="panel" id="workflow">
+          <p class="eyebrow">Agent Workflow</p>
+          <h2>Turn intent into a selection path</h2>
+          <ul>
+            <li><code>/workflow</code> and <code>/api/workflow</code> expose a guided path from trends to shortlist, graph, alternatives, score, compare, and trust policy.</li>
+            <li><code>get_agent_workflow</code> and <code>get_atlas</code> make the same workflow and Atlas map available through MCP.</li>
+            <li>Start here when the task is broad, ambiguous, or likely to benefit from trend context before a direct recommendation.</li>
+          </ul>
+        </article>
+
         <article class="panel" id="mcp">
           <p class="eyebrow">MCP</p>
           <h2>Tools agents can call</h2>
           <ul>
             <li><code>search_projects</code> for retrieval by query, category, deployment, language, and Cloudflare readiness.</li>
             <li><code>get_project</code> for structured project knowledge and evidence.</li>
+            <li><code>get_agent_workflow</code> and <code>get_atlas</code> for guided selection and ecosystem maps.</li>
             <li><code>compare_projects</code> and <code>git_top_grp_query</code> for graph-grounded selection.</li>
           </ul>
         </article>

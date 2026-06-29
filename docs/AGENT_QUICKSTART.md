@@ -26,7 +26,37 @@ Trust the response as production data when:
 
 Treat `metadata.source: "seed"` as a fallback mode. Seed data is useful for demos, but agents should mention the fallback before making a strong recommendation.
 
-## 2. Search Projects
+## 2. Choose a Workflow
+
+When an agent needs a guided path across trends, recommendations, graph, alternatives, score, compare, and trust checks, fetch the agent workflow:
+
+```sh
+curl "https://git.top/api/workflow?intent=choose%20a%20Cloudflare-ready%20agent%20framework&deployment=cloudflare&category=agent_framework&cloudflare_ready=true&limit=5"
+```
+
+Use the same path in MCP:
+
+```sh
+curl -X POST https://git.top/mcp \
+  -H "content-type: application/json" \
+  -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"get_agent_workflow","arguments":{"intent":"choose a Cloudflare-ready agent framework","constraints":{"deployment":"cloudflare","category":"agent_framework","cloudflare_ready":true},"limit":5}}}'
+```
+
+The response gives a recommended sequence, shortlist, trend context, agent map hints, and trust policy.
+
+## 3. Explore Atlas
+
+When an agent needs an ecosystem map before choosing a repository, fetch Atlas:
+
+```sh
+curl -X POST https://git.top/mcp \
+  -H "content-type: application/json" \
+  -d '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"get_atlas","arguments":{"ecosystem":"cloudflare","limit":5}}}'
+```
+
+Use Atlas to move from ecosystem discovery into search, graph, alternatives, score, and compare flows.
+
+## 4. Search Projects
 
 When an agent needs to choose the right surface first, fetch the machine-readable surface map:
 
@@ -55,7 +85,7 @@ Read these fields before presenting results:
 - `projects[].collection_metadata` when `project_kind` is `collection`.
 - `metadata.source` and `metadata.project_count` for data-source confidence.
 
-## 3. Inspect One Project
+## 5. Inspect One Project
 
 Fetch the full project view before making a recommendation:
 
@@ -70,7 +100,7 @@ Use:
 - `quality_signal_confidence` to avoid overclaiming partial GitHub metrics.
 - `knowledge.agent_card.cloudflare_ready` and `knowledge.agent_card.classification.cloudflare_ready.evidence` before saying a project is Cloudflare-ready.
 
-## 4. Ask for a Recommendation
+## 6. Ask for a Recommendation
 
 Use `/api/recommend` for a concrete use case:
 
@@ -84,7 +114,7 @@ When presenting the answer, include:
 - Any deployment caveat from classification evidence.
 - The response `metadata.source`.
 
-## 5. Compare Candidates
+## 7. Compare Candidates
 
 Use comparison when the user already has candidate projects:
 
@@ -94,7 +124,7 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
 
 Prefer comparison output over raw star counts when the task is a product decision.
 
-## 6. Use MCP
+## 8. Use MCP
 
 List tools:
 
@@ -128,7 +158,7 @@ curl -X POST https://git.top/mcp \
   -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"git_top_grp_query","arguments":{"goal":"compose an autonomous coding stack with MCP tools","mode":"compose","constraints":{"agent_ready":true}}}}'
 ```
 
-## 7. Use GRP Directly
+## 9. Use GRP Directly
 
 GRP is best when the user asks for a plan, comparison, project set, or stack:
 
