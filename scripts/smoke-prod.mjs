@@ -138,6 +138,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quality<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/coverage<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quality\/review<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/trends<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/recommend<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/compare\/claude-code\.\.\.opencode<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/compare\/dify\.\.\.langflow<\/loc>/);
@@ -157,6 +158,7 @@ export async function runSmoke(args = [], env = process.env) {
     const { status: openapiStatus, body: openapi } = await getJson(context, "/openapi.json");
     assert.equal(openapiStatus, 200);
     assert.ok(openapi.paths["/api/quality/review"], "OpenAPI should include quality review");
+    assert.ok(openapi.paths["/api/trends"], "OpenAPI should include trends");
     assert.ok(openapi.paths["/api/governance/summary"], "OpenAPI should include governance summary");
     assert.ok(openapi.paths["/api/admin/governance/runs"], "OpenAPI should include governance run recording");
     assert.ok(openapi.paths["/api/admin/classification-overrides"], "OpenAPI should include classification overrides");

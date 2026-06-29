@@ -24,6 +24,7 @@ import { renderQualityReviewPage } from "./quality-review-page";
 import { renderRecommendPage } from "./recommend-page";
 import { renderProjectScorePage } from "./score-page";
 import { renderStatusPage } from "./status-page";
+import { renderTrendsPage } from "./trends-page";
 import {
   canonicalHostRedirect,
   renderDocsPage,
@@ -194,6 +195,10 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
     return renderRecommendPage(env, url);
   }
 
+  if (url.pathname === "/trends") {
+    return renderTrendsPage(env);
+  }
+
   if (url.pathname === "/compare") {
     return renderCompareIndexPage(env);
   }
@@ -305,7 +310,7 @@ function projectIdFromPath(pathname: string): string | null {
 
   const slug = decodeURIComponent(shortMatch[1]);
   if (
-    ["api", "mcp", "graph", "atlas", "score", "explorer", "discover", "docs", "api-docs", "quality", "coverage", "status", "operations", "integrations", "categories", "deployments", "compare", "alternatives", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "favicon.ico"].includes(
+    ["api", "mcp", "graph", "atlas", "score", "explorer", "discover", "trends", "docs", "api-docs", "quality", "coverage", "status", "operations", "integrations", "categories", "deployments", "compare", "alternatives", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "favicon.ico"].includes(
       slug
     )
   ) {

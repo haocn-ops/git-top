@@ -192,6 +192,21 @@ Optional category filter:
 curl "http://localhost:8787/api/trending?category=mcp_server&limit=10"
 ```
 
+## Trends
+
+```sh
+curl "http://localhost:8787/api/trends?limit=8"
+```
+
+Use trends when you need corpus-level direction before selecting projects. The response includes:
+
+- `summary`
+- `stats`
+- `trend_signals`
+- `categories`, `deployments`, and `languages`
+- `rising_projects`
+- `agent_briefing`
+
 ## Recommendation
 
 ```sh

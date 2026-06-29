@@ -16,6 +16,7 @@ await testCoverageRoute();
 await testStatusRoute();
 await testIntegrationsRoute();
 await testDiscoverRoute();
+await testTrendsRoute();
 await testAlternativesRoute();
 await testAtlasRoute();
 await testRecommendRoute();
@@ -153,7 +154,7 @@ async function testDiscoverRoute() {
   assert.match(text, /MCP Servers/);
   assert.match(text, /Browser Automation/);
   assert.match(text, /AI IDE/);
-  assert.match(text, /\/api\/trending\?limit=12/);
+  assert.match(text, /\/api\/trends\?limit=8/);
   assert.match(text, /\/api\/search\?q=agent%20framework/);
 
   const browserTopic = await worker.fetch(new Request("https://git.top/topics/browser-ai-automation"), {});
@@ -167,6 +168,17 @@ async function testDiscoverRoute() {
   assert.equal(ideTopic.status, 200);
   assert.match(ideTopicText, /AI IDE and Coding Agent Projects/);
   assert.match(ideTopicText, /What To Compare/);
+}
+
+async function testTrendsRoute() {
+  const response = await worker.fetch(new Request("https://git.top/trends"), {});
+  const text = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(text, /Open Source Trends/);
+  assert.match(text, /Open Trends JSON/);
+  assert.match(text, /Category Trends/);
+  assert.match(text, /Rising Projects/);
+  assert.match(text, /Agent Briefing/);
 }
 
 async function testAlternativesRoute() {

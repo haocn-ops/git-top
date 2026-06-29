@@ -648,6 +648,7 @@ const html = String.raw`<!doctype html>
         <div class="nav-links">
           <a href="/atlas">Atlas</a>
           <a href="/recommend">Recommend</a>
+          <a href="/trends">Trends</a>
           <a href="/graph">Graph</a>
           <a href="/docs">Docs</a>
           <a href="/api/search?q=cloudflare%20agent%20framework">Agent API</a>
@@ -665,6 +666,7 @@ const html = String.raw`<!doctype html>
             <a class="button primary" href="/discover">Discover Projects</a>
             <a class="button secondary" href="/graph">Explore Graph</a>
             <a class="button secondary" href="/atlas">Open Atlas</a>
+            <a class="button secondary" href="/trends">View Trends</a>
             <a class="button secondary" href="/recommend">Get Recommendations</a>
             <a class="button secondary" href="/docs">Docs</a>
             <a class="button secondary" href="/api/search?q=cloudflare%20agent%20framework">Agent API</a>
@@ -744,6 +746,7 @@ const html = String.raw`<!doctype html>
       </section>
 
       <section class="category-strip" aria-label="Trending categories">
+        <a class="category-chip" href="/trends">Open Source Trends</a>
         <a class="category-chip" href="/api/search?q=AI%20Agents&ranking=browse">AI Agents</a>
         <a class="category-chip" href="/api/search?q=MCP%20Servers&ranking=browse">MCP Servers</a>
         <a class="category-chip" href="/api/search?q=RAG&ranking=browse">RAG</a>

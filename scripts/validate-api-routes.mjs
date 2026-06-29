@@ -38,6 +38,18 @@ async function testSeedMetadata() {
   assert.equal(trending.status, 200);
   assert.equal(trending.body.projects.length, 2);
   assertMetadata(trending.body.metadata, "db_missing");
+
+  const trends = await getJson("/api/trends?limit=4");
+  assert.equal(trends.status, 200);
+  assert.ok(typeof trends.body.summary === "string");
+  assert.ok(typeof trends.body.stats.project_count === "number");
+  assert.ok(Array.isArray(trends.body.trend_signals));
+  assert.ok(Array.isArray(trends.body.categories));
+  assert.ok(Array.isArray(trends.body.deployments));
+  assert.ok(Array.isArray(trends.body.languages));
+  assert.ok(Array.isArray(trends.body.rising_projects));
+  assert.ok(Array.isArray(trends.body.agent_briefing));
+  assertMetadata(trends.body.metadata, "db_missing");
 }
 
 async function testSearchAndProjectRoutes() {
@@ -548,6 +560,7 @@ async function testSchemaRoutes() {
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Project graph" && surface.human_page === "/graph/:project"));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Recommendations" && surface.mcp_tools.includes("recommend_project")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Recommendations" && surface.output_fields.includes("recommendations[].adoption_plan")));
+  assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Open source trends" && surface.rest.includes("GET /api/trends")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Alternatives" && surface.output_fields.includes("alternative_matches[].replacement_risk")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Score explanation" && surface.output_fields.includes("score_confidence")));
   assert.equal(agentMap.body.trust_policy.high_confidence_source, "metadata.source=d1");
@@ -571,6 +584,7 @@ async function testOpenApiDocument() {
   assert.ok(openapi.body.paths["/api/atlas/{ecosystem}"], "OpenAPI should document Atlas ecosystem endpoint");
   assert.ok(openapi.body.paths["/api/project"].post, "OpenAPI should document structured project POST endpoint");
   assert.ok(openapi.body.paths["/api/recommend"].post, "OpenAPI should document structured recommend POST endpoint");
+  assert.ok(openapi.body.paths["/api/trends"], "OpenAPI should document trends endpoint");
   assert.ok(openapi.body.paths["/api/compare"].post, "OpenAPI should document structured compare POST endpoint");
   assert.ok(openapi.body.paths["/api/alternatives"].post, "OpenAPI should document structured alternatives POST endpoint");
   assert.ok(openapi.body.paths["/api/related"].post, "OpenAPI should document structured related POST endpoint");

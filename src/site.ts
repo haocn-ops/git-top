@@ -245,6 +245,10 @@ export function renderLlmsFullTxt(): Response {
       "",
       "Atlas responses expose ecosystem stats, exploration_paths, map.nodes, and map.edges so agents can move from ecosystem discovery into search, graph, alternatives, score, and compare flows.",
       "",
+      "## Trends",
+      "",
+      "Trends responses expose summary, stats, trend_signals, category/deployment/language buckets, rising_projects, and agent_briefing so agents can understand current corpus-level direction before recommending projects.",
+      "",
       "## Agent Surface Map",
       "",
       "GET /api/agent-map maps Git.Top concepts to human pages, REST endpoints, MCP tools, output fields, trust fields, and recommended use. Agents should call it when choosing between project lookup, recommendations, alternatives, graph, compare, score, Atlas, GRP, and quality surfaces.",
@@ -325,6 +329,7 @@ function staticSitemapUrls(now: string): SitemapUrl[] {
     { path: "/quality/review", changefreq: "daily", priority: "0.7", lastmod: now },
     { path: "/projects", changefreq: "daily", priority: "0.9", lastmod: now },
     { path: "/discover", changefreq: "daily", priority: "0.9", lastmod: now },
+    { path: "/trends", changefreq: "daily", priority: "0.9", lastmod: now },
     { path: "/recommend", changefreq: "daily", priority: "0.9", lastmod: now },
     { path: "/graph", changefreq: "weekly", priority: "0.8", lastmod: now },
     { path: "/compare", changefreq: "weekly", priority: "0.8", lastmod: now },
@@ -370,6 +375,7 @@ function staticSitemapUrls(now: string): SitemapUrl[] {
     { path: "/api/health", changefreq: "daily", priority: "0.6", lastmod: now },
     { path: "/api/search", changefreq: "daily", priority: "0.7", lastmod: now },
     { path: "/api/trending", changefreq: "daily", priority: "0.7", lastmod: now },
+    { path: "/api/trends", changefreq: "daily", priority: "0.7", lastmod: now },
     { path: "/api/quality", changefreq: "daily", priority: "0.7", lastmod: now },
     { path: "/api/governance/summary", changefreq: "daily", priority: "0.6", lastmod: now },
     { path: "/api/governance/runs", changefreq: "daily", priority: "0.6", lastmod: now },
@@ -522,6 +528,7 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
             <a class="pill" href="/api/health">/api/health</a>
             <a class="pill" href="/api/search">/api/search</a>
             <a class="pill" href="/api/trending">/api/trending</a>
+            <a class="pill" href="/api/trends">/api/trends</a>
             <a class="pill" href="/status">/status</a>
             <a class="pill" href="/integrations">/integrations</a>
             <a class="pill" href="/api/quality">/api/quality</a>

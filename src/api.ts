@@ -27,6 +27,7 @@ import { agentCardJsonSchema, projectKnowledgeJsonSchema, projectV2JsonSchema } 
 import { buildProjectScoreExplanation } from "./score";
 import { getKnowledgeForSourcePolicy } from "./source-policy";
 import { syncGithubProjects } from "./sync";
+import { buildTrendsView } from "./trends";
 import type { AgentCard, Category, Deployment, Difficulty, Env } from "./types";
 import type { ProjectKnowledgeResult } from "./knowledge-source";
 
@@ -452,6 +453,17 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     });
 
     return json({ projects: results.map(toProjectKnowledgeView), knowledge: results, metadata: knowledge.metadata });
+  }
+
+  if (path === "/api/trends") {
+    const knowledge = await requireKnowledgeSource(request, env);
+    if (knowledge instanceof Response) {
+      return knowledge;
+    }
+    return json({
+      ...buildTrendsView(knowledge.projects, parseLimit(url.searchParams.get("limit")) ?? 8),
+      metadata: knowledge.metadata
+    });
   }
 
   const categoryMatch = path.match(/^\/api\/category\/([^/]+)$/);

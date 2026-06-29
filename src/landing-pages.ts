@@ -825,7 +825,8 @@ function renderDiscoverHtml({
         <h1>Discover open-source projects by technical intent</h1>
         <p class="lead">Start from the job you need done: agents, MCP servers, RAG, browser automation, or AI IDE workflows. Each section links to matching HTML guides and agent-readable JSON.</p>
         <div class="actions">
-          <a class="button primary" href="/api/trending?limit=12">Trending JSON</a>
+          <a class="button primary" href="/trends">Trends</a>
+          <a class="button" href="/api/trends?limit=8">Trends JSON</a>
           <a class="button" href="/atlas">Atlas</a>
           <a class="button" href="/compare">Compare</a>
           <a class="button" href="/mcp">MCP</a>

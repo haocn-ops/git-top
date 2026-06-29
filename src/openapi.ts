@@ -87,6 +87,13 @@ export const openApiDocument = {
         responses: { "200": { description: "Trending projects" } }
       }
     },
+    "/api/trends": {
+      get: {
+        summary: "Inspect corpus-level open-source trends by category, deployment, language, and project momentum.",
+        parameters: [queryParam("limit", "Maximum bucket and project count"), queryParam("require_d1", "Fail closed unless D1-backed data is available")],
+        responses: { "200": { description: "Trend summary with stats, trend_signals, buckets, rising_projects, agent_briefing, and metadata" } }
+      }
+    },
     "/api/recommend": {
       get: {
         summary: "Recommend projects for an agent use case and constraints.",

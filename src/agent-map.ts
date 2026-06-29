@@ -73,6 +73,15 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     recommendedUse: "Start from an ecosystem map before choosing a specific repository."
   },
   {
+    concept: "Open source trends",
+    humanPage: "/trends",
+    rest: ["GET /api/trends", "GET /api/trending"],
+    mcpTools: [],
+    outputFields: ["summary", "stats", "trend_signals", "categories", "deployments", "languages", "rising_projects", "agent_briefing"],
+    trustFields: ["metadata.source", "stats.project_count", "rising_projects[].quality_signal_confidence"],
+    recommendedUse: "Understand current corpus-level trends before choosing categories, deployment targets, or rising projects."
+  },
+  {
     concept: "Graph reasoning",
     humanPage: "/integrations",
     rest: ["POST /api/grp/query"],
