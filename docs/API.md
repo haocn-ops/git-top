@@ -207,6 +207,8 @@ Use trends when you need corpus-level direction before selecting projects. The r
 - `rising_projects`
 - `agent_briefing`
 
+The same concept is available to MCP clients as `get_trends`.
+
 ## Recommendation
 
 ```sh

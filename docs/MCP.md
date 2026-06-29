@@ -78,6 +78,16 @@ curl -X POST http://localhost:8787/mcp \
   -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"recommend_project","arguments":{"use_case":"build browser automation agents","constraints":{"deployment":"docker"},"limit":5}}}'
 ```
 
+## Get Trends
+
+```sh
+curl -X POST http://localhost:8787/mcp \
+  -H "content-type: application/json" \
+  -d '{"jsonrpc":"2.0","id":41,"method":"tools/call","params":{"name":"get_trends","arguments":{"limit":8}}}'
+```
+
+Use `get_trends` before recommendations when an agent needs corpus-level direction across categories, deployment targets, languages, and rising projects.
+
 ## Find Alternatives
 
 ```sh

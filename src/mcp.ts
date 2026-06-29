@@ -15,6 +15,7 @@ import { errorJson, json, rawJson, stringifyApiJson } from "./http";
 import { toProjectKnowledgeView, withRelatedProjects } from "./project-view";
 import { buildProjectScoreExplanation } from "./score";
 import { getKnowledgeForSourcePolicy } from "./source-policy";
+import { buildTrendsView } from "./trends";
 import { resolveProject } from "./project-aliases";
 import type { Env, ProjectKnowledge } from "./types";
 
@@ -167,6 +168,23 @@ const tools = [
         }
       },
       required: ["use_case"]
+    }
+  },
+  {
+    name: "get_trends",
+    description: "Return corpus-level Git.Top trends across categories, deployments, languages, rising projects, and agent briefing notes.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: {
+          type: "number",
+          description: "Maximum trend buckets and rising projects to return."
+        },
+        require_d1: {
+          type: "boolean",
+          description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
+        }
+      }
     }
   },
   {
@@ -357,6 +375,12 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
             method: "POST",
             description: "Fetch a project knowledge graph with grouped alternatives, related projects, dependencies, deployments, and use cases.",
             bodyExample: { project_id: "cloudflare/agents", limit: 24 }
+          },
+          {
+            path: "/api/trends",
+            method: "GET",
+            description: "Inspect corpus-level category, deployment, language, rising-project, and agent-briefing trend signals.",
+            bodyExample: null
           }
         ]
       },
@@ -519,6 +543,17 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
         cloudflareReady: boolArg(constraints.cloudflare_ready),
         limit: numberArg(args.limit)
       }),
+      metadata: knowledge.metadata
+    };
+  }
+
+  if (name === "get_trends") {
+    const knowledge = await requireKnowledgeSource(env, args);
+    if (isToolErrorResult(knowledge)) {
+      return knowledge;
+    }
+    return {
+      ...buildTrendsView(knowledge.projects, numberArg(args.limit) ?? 8),
       metadata: knowledge.metadata
     };
   }

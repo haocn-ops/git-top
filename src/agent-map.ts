@@ -76,7 +76,7 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     concept: "Open source trends",
     humanPage: "/trends",
     rest: ["GET /api/trends", "GET /api/trending"],
-    mcpTools: [],
+    mcpTools: ["get_trends"],
     outputFields: ["summary", "stats", "trend_signals", "categories", "deployments", "languages", "rising_projects", "agent_briefing"],
     trustFields: ["metadata.source", "stats.project_count", "rising_projects[].quality_signal_confidence"],
     recommendedUse: "Understand current corpus-level trends before choosing categories, deployment targets, or rising projects."

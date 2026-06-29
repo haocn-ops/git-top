@@ -68,6 +68,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.equal(body.schema_url, "https://git.top/api/schema/project.v2");
     assert.ok(Array.isArray(body.tools), "MCP discovery should include tools");
     assert.ok(body.tools.some((tool) => tool.name === "search_projects"), "MCP discovery should include search_projects");
+    assert.ok(body.tools.some((tool) => tool.name === "get_trends"), "MCP discovery should include get_trends");
     assert.ok(body.tools.some((tool) => tool.name === "git_top_grp_query"), "MCP discovery should include git_top_grp_query");
     return {
       tools: body.tools.length,

@@ -226,7 +226,7 @@ Status:
 - Structured POST endpoints are implemented for project lookup, recommendation, compare, alternatives, related projects, score explanations, and graph retrieval.
 - Recommendation Engine responses include confidence, constraints, ranking signals, tradeoffs, decision summaries, and next-action links into project, graph, alternatives, score, and compare flows.
 - Recommendation results now include `fit_profile`, `adoption_plan`, and `risk_flags` so agents can turn ranked candidates into an actionable selection workflow.
-- MCP discovery and tools expose the same concepts as REST, with D1-required fail-closed options for production agents.
+- MCP discovery and tools expose the same concepts as REST, including trends via `get_trends`, with D1-required fail-closed options for production agents.
 - `/api/agent-map` now exposes a machine-readable map from product concepts to human pages, REST endpoints, MCP tools, output fields, trust fields, and recommended use.
 
 ## Technical Architecture

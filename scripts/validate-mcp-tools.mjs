@@ -19,6 +19,7 @@ async function testDiscovery() {
   assert.equal(getDiscovery.status, 200);
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "search_projects"));
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "git_top_grp_query"));
+  assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_trends"));
   assert.equal(getDiscovery.body.openapi_url, "https://git.top/openapi.json");
   assert.equal(getDiscovery.body.api_openapi_url, "https://git.top/api/openapi.json");
   assert.equal(getDiscovery.body.schema_url, "https://git.top/api/schema/project.v2");
@@ -26,6 +27,7 @@ async function testDiscovery() {
   assert.equal(getDiscovery.body.agent_map.positioning, "The Knowledge Graph of Open Source");
   assert.ok(getDiscovery.body.agent_map.surfaces.some((surface) => surface.concept === "Project graph"));
   assert.ok(getDiscovery.body.agent_map.surfaces.some((surface) => surface.mcp_tools.includes("compare_projects")));
+  assert.ok(getDiscovery.body.agent_map.surfaces.some((surface) => surface.concept === "Open source trends" && surface.mcp_tools.includes("get_trends")));
   assert.ok(Array.isArray(getDiscovery.body.agent_api.structured_post_endpoints));
   assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/project"));
   assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/recommend"));
@@ -64,6 +66,10 @@ async function testDiscovery() {
   assert.match(cardTool.description, /project_kind/);
   assert.match(cardTool.description, /collection_metadata/);
   assert.equal(cardTool.input_schema.properties.require_d1.type, "boolean");
+
+  const trendsTool = getDiscovery.body.tools.find((tool) => tool.name === "get_trends");
+  assert.match(trendsTool.description, /corpus-level/);
+  assert.equal(trendsTool.input_schema.properties.require_d1.type, "boolean");
 }
 
 async function testToolCalls() {
@@ -263,6 +269,16 @@ async function testToolCalls() {
   assert.ok(typeof recommend.result.recommendations[0].ranking_signals.use_case_match === "number");
   assert.ok(["high", "medium", "low"].includes(recommend.result.recommendations[0].confidence));
   assertMetadata(recommend.result.metadata, "db_missing");
+
+  const trends = await callTool("get_trends", { limit: 3 });
+  assert.equal(trends.status, 200);
+  assert.ok(typeof trends.result.summary === "string");
+  assert.ok(Array.isArray(trends.result.trend_signals));
+  assert.ok(Array.isArray(trends.result.categories));
+  assert.ok(Array.isArray(trends.result.rising_projects));
+  assert.ok(Array.isArray(trends.result.agent_briefing));
+  assert.ok(trends.result.categories.length <= 3);
+  assertMetadata(trends.result.metadata, "db_missing");
 }
 
 async function testGrpToolValidation() {
