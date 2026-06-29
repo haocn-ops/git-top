@@ -29,12 +29,21 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
   },
   {
     concept: "Agent workflow",
-    humanPage: "/docs",
+    humanPage: "/workflow",
     rest: ["GET /api/workflow", "POST /api/workflow"],
     mcpTools: ["get_agent_workflow"],
     outputFields: ["summary", "recommended_sequence", "shortlist", "trend_context", "agent_map", "trust_policy"],
     trustFields: ["metadata.source", "shortlist[].confidence", "trust_policy.disclose_when", "trend_context.stats.project_count"],
     recommendedUse: "Start here when an agent needs a guided path from trend context to shortlist, graph, alternatives, score, compare, and trust checks."
+  },
+  {
+    concept: "Agent quickstart",
+    humanPage: "/quickstart",
+    rest: ["GET /api/quickstart"],
+    mcpTools: [],
+    outputFields: ["production_endpoints", "steps", "steps[].command", "steps[].inspect", "output_pattern", "trust_policy"],
+    trustFields: ["trust_policy", "steps[].inspect", "production_endpoints"],
+    recommendedUse: "Use this as the shortest integration path from health checks to workflow, project lookup, recommendations, comparison, MCP, GRP, and trust checks."
   },
   {
     concept: "Alternatives",

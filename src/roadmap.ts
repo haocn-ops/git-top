@@ -117,16 +117,16 @@ export function buildProductRoadmap(): ProductRoadmap {
       phase: 6,
       title: "Agent API",
       status: "active",
-      progress: 84,
+      progress: 86,
       goal: "Make Git.Top a default structured knowledge source for agents.",
       shipped: [
-        "REST endpoints cover project lookup, recommendation, workflow, alternatives, graph, compare, score, trends, atlas, quality, and agent map.",
+        "REST endpoints cover project lookup, recommendation, workflow, alternatives, graph, compare, score, trends, atlas, quality, quickstart, and agent map.",
         "MCP tools map to the same product concepts and support D1-required strict mode.",
-        "llms.txt, llms-full.txt, OpenAPI, schema, Agent Map, and workflow pages make the product machine-discoverable."
+        "llms.txt, llms-full.txt, OpenAPI, schema, Agent Map, Quickstart, and workflow pages make the product machine-discoverable."
       ],
       next: ["Continue tightening OpenAPI examples, agent docs, MCP integration recipes, and production trust gates."],
-      humanPages: ["/docs", "/integrations", "/workflow", "/mcp", "/llms.txt"],
-      apiEndpoints: ["/api/project/cloudflare/agents", "/api/recommend", "/api/workflow", "/api/agent-map", "/openapi.json"],
+      humanPages: ["/docs", "/quickstart", "/integrations", "/workflow", "/mcp", "/llms.txt"],
+      apiEndpoints: ["/api/project/cloudflare/agents", "/api/recommend", "/api/workflow", "/api/quickstart", "/api/agent-map", "/openapi.json"],
       mcpTools: ["get_project", "recommend_project", "get_agent_workflow", "compare_projects", "get_quality_report"]
     }
   ];

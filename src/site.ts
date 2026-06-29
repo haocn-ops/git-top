@@ -86,9 +86,11 @@ export function renderLlmsTxt(): Response {
       "## Core URLs",
       "",
       "- Docs: https://git.top/docs",
+      "- Agent quickstart: https://git.top/quickstart",
       "- Integrations: https://git.top/integrations",
       "- MCP discovery: https://git.top/mcp",
       "- Agent surface map: https://git.top/api/agent-map",
+      "- Agent quickstart JSON: https://git.top/api/quickstart",
       "- Roadmap: https://git.top/roadmap",
       "- Agent workflow: https://git.top/workflow",
       "- OpenAPI: https://git.top/openapi.json",
@@ -109,6 +111,7 @@ export function renderLlmsTxt(): Response {
       "- Check /coverage when the question depends on corpus breadth or category representation.",
       "- Inspect classification evidence and quality_signal_confidence before citing a score.",
       "- Use /mcp for JSON-RPC tools/list and tools/call.",
+      "- Use /quickstart or /api/quickstart for the shortest integration path.",
       "- Use /integrations for REST, MCP, and GRP production integration paths.",
       "",
       "## Useful Pages",
@@ -189,6 +192,7 @@ export function renderLlmsFullTxt(): Response {
       "- GET /api/atlas?limit=6",
       "- GET /api/atlas/cloudflare?limit=8",
       "- GET /api/agent-map",
+      "- GET /api/quickstart",
       "- GET /api/roadmap",
       "- GET /api/quality",
       "- GET /api/quality/review",
@@ -284,6 +288,7 @@ export function renderLlmsFullTxt(): Response {
       "- /sitemap.xml",
       "- /.well-known/security.txt",
       "- /integrations",
+      "- /quickstart",
       "- /status",
       "- /quality",
       "- /coverage",
@@ -291,6 +296,7 @@ export function renderLlmsFullTxt(): Response {
       "- /atlas",
       "- /api/agent-map",
       "- /roadmap",
+      "- /api/quickstart",
       "- /api/roadmap",
       "- /llms.txt",
       "- /llms-full.txt",
@@ -348,6 +354,7 @@ function staticSitemapUrls(now: string): SitemapUrl[] {
   return [
     { path: "/", changefreq: "daily", priority: "1.0", lastmod: now },
     { path: "/docs", changefreq: "weekly", priority: "0.9", lastmod: now },
+    { path: "/quickstart", changefreq: "weekly", priority: "0.9", lastmod: now },
     { path: "/integrations", changefreq: "weekly", priority: "0.8", lastmod: now },
     { path: "/roadmap", changefreq: "weekly", priority: "0.8", lastmod: now },
     { path: "/status", changefreq: "daily", priority: "0.8", lastmod: now },
@@ -420,6 +427,7 @@ function staticSitemapUrls(now: string): SitemapUrl[] {
     { path: "/api/governance/runs", changefreq: "daily", priority: "0.6", lastmod: now },
     { path: "/api/schema/project.v2", changefreq: "weekly", priority: "0.7", lastmod: now },
     { path: "/api/agent-map", changefreq: "weekly", priority: "0.7", lastmod: now },
+    { path: "/api/quickstart", changefreq: "weekly", priority: "0.7", lastmod: now },
     { path: "/api/roadmap", changefreq: "weekly", priority: "0.7", lastmod: now },
     { path: "/api/openapi.json", changefreq: "weekly", priority: "0.7", lastmod: now },
     { path: "/openapi.json", changefreq: "weekly", priority: "0.7", lastmod: now },
@@ -547,6 +555,7 @@ export function renderDocsPage(): Response {
         <div class="actions">
           <a class="button primary" href="/api/search?q=cloudflare%20agent&limit=5">Try REST search</a>
           <a class="button" href="/workflow">Open workflow</a>
+          <a class="button" href="/quickstart">Agent quickstart</a>
           <a class="button" href="/integrations">Integration paths</a>
           <a class="button" href="/mcp">Inspect MCP tools</a>
           <a class="button" href="/quality">Check quality governance</a>
@@ -572,6 +581,8 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
           <a class="pill" href="/api/trends">/api/trends</a>
             <a class="pill" href="/workflow">/workflow</a>
             <a class="pill" href="/status">/status</a>
+            <a class="pill" href="/quickstart">/quickstart</a>
+            <a class="pill" href="/api/quickstart">/api/quickstart</a>
             <a class="pill" href="/integrations">/integrations</a>
             <a class="pill" href="/api/quality">/api/quality</a>
             <a class="pill" href="/api/quality/review">/api/quality/review</a>

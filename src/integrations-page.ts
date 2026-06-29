@@ -77,7 +77,7 @@ function renderHtml(): string {
         <h1>Use Git.Top as project intelligence inside agents and developer tools.</h1>
         <p class="lead">Git.Top exposes the same project knowledge through REST, MCP, and GRP. Use it when an agent needs to choose open-source AI projects by deployment fit, alternatives, quality signals, data confidence, and graph context.</p>
         <div class="actions">
-          <a class="button primary" href="/docs#quickstart">Start quickstart</a>
+          <a class="button primary" href="/quickstart">Start quickstart</a>
           <a class="button" href="/mcp">Inspect MCP discovery</a>
           <a class="button" href="/openapi.json">OpenAPI</a>
           <a class="button" href="/status">Production status</a>

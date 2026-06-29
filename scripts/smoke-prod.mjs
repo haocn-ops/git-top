@@ -157,6 +157,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.equal(sitemap.status, 200);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms\.txt<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms-full\.txt<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quickstart<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/integrations<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/status<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/operations<\/loc>/);
@@ -175,6 +176,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/score\/cursor<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/browser-ai-automation<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/ai-ide-coding-agents<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/quickstart<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/roadmap<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/projects\/cloudflare\/agents<\/loc>/);
 
@@ -366,6 +368,25 @@ export async function runSmoke(args = [], env = process.env) {
     return {
       hasMcpLink: text.includes("/mcp"),
       hasOpenApiLink: text.includes("/openapi.json")
+    };
+  });
+
+  await check(context, "quickstart_page", async () => {
+    const { status, text } = await getText(context, "/quickstart");
+    assert.equal(status, 200);
+    assert.match(text, /Git\.Top Agent Quickstart/);
+    assert.match(text, /Open Quickstart JSON/);
+    assert.match(text, /Use GRP For Goal-Level Planning/);
+
+    const quickstart = await getJson(context, "/api/quickstart");
+    assert.equal(quickstart.status, 200);
+    assert.equal(quickstart.body.positioning, "The Knowledge Graph of Open Source");
+    assert.ok(quickstart.body.steps.some((step) => step.id === "check-data-source"));
+    assert.ok(quickstart.body.steps.some((step) => step.rest === "POST /api/grp/query"));
+
+    return {
+      steps: quickstart.body.steps.length,
+      hasTrustPolicy: Array.isArray(quickstart.body.trust_policy)
     };
   });
 

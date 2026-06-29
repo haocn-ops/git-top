@@ -23,6 +23,7 @@ import { openApiDocument } from "./openapi";
 import { resolveProject } from "./project-aliases";
 import { toProjectKnowledgeView, withRelatedProjects } from "./project-view";
 import { buildLowConfidenceReviewReport, buildQualityReport } from "./quality";
+import { buildAgentQuickstart } from "./quickstart";
 import { buildProductRoadmap } from "./roadmap";
 import { agentCardJsonSchema, projectKnowledgeJsonSchema, projectV2JsonSchema } from "./schema";
 import { buildProjectScoreExplanation } from "./score";
@@ -279,6 +280,17 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       return errorJson(405, "method_not_allowed", "Roadmap endpoint supports GET.");
     }
     return json(buildProductRoadmap(), {
+      headers: {
+        "cache-control": "public, max-age=300"
+      }
+    });
+  }
+
+  if (path === "/api/quickstart") {
+    if (request.method !== "GET") {
+      return errorJson(405, "method_not_allowed", "Quickstart endpoint supports GET.");
+    }
+    return json(buildAgentQuickstart(), {
       headers: {
         "cache-control": "public, max-age=300"
       }

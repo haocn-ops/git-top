@@ -35,6 +35,12 @@ export const openApiDocument = {
         responses: { "200": { description: "Product roadmap with completion, phases, shipped work, next milestones, agent use guidance, pages, APIs, and MCP tools" } }
       }
     },
+    "/api/quickstart": {
+      get: {
+        summary: "Fetch the Git.Top Agent Quickstart with REST, MCP, GRP, command examples, trust fields, and output pattern.",
+        responses: { "200": { description: "Agent quickstart with ordered steps, endpoint examples, inspection fields, trust policy, and answer pattern" } }
+      }
+    },
     "/api/search": {
       get: {
         summary: "Search project knowledge by query, category, deployment, difficulty, language, project type, confidence, and Cloudflare readiness.",
