@@ -290,6 +290,26 @@ const topicLandings: Record<
       }
     ]
   },
+  "open-source-knowledge-graph-api": {
+    title: "Open Source Knowledge Graph API",
+    subtitle: "Use Git.Top as an agent-readable API layer for project knowledge, alternatives, graphs, scores, recommendations, Atlas journeys, and MCP tools.",
+    query: "agent framework knowledge graph api",
+    apiPath: "/api/agent-map",
+    sections: [
+      {
+        title: "API Surface",
+        body: "Start with /api/agent-map to choose the right REST endpoint, human page, MCP tool, output fields, and trust fields for a project lookup, recommendation, alternatives, graph, compare, score, Atlas, or quality task."
+      },
+      {
+        title: "Agent Workflow",
+        body: "Agents should inspect health and source metadata, retrieve project knowledge, expand through graph or alternatives, compare finalists, check score confidence, and cite freshness before answering."
+      },
+      {
+        title: "Integration Path",
+        body: "Use /openapi.json for REST clients, /mcp for tool discovery, /llms.txt for crawler guidance, and /api/schema/project.v2 when validating structured project knowledge responses."
+      }
+    ]
+  },
   "project-comparison-guide": {
     title: "Project Comparison Guide",
     subtitle: "A practical guide for comparing open-source projects by fit, deployment, maintenance, and quality signals.",

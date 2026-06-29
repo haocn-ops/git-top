@@ -64,6 +64,7 @@ async function testLegacyConsoleRedirects() {
   assert.match(llmsText, /Agent recipes: https:\/\/git\.top\/recipes/);
   assert.match(llmsText, /Atlas journeys: https:\/\/git\.top\/journeys/);
   assert.match(llmsText, /Atlas Journey Guide: https:\/\/git\.top\/topics\/atlas-journey-guide/);
+  assert.match(llmsText, /Open Source Knowledge Graph API: https:\/\/git\.top\/topics\/open-source-knowledge-graph-api/);
   assert.match(llmsText, /Roadmap: https:\/\/git\.top\/roadmap/);
 
   const llmsFull = await worker.fetch(new Request("https://git.top/llms-full.txt"), {});
@@ -86,6 +87,7 @@ async function testLegacyConsoleRedirects() {
   assert.match(llmsFullText, /POST \/api\/graph/);
   assert.match(llmsFullText, /GET \/api\/atlas\?limit=6/);
   assert.match(llmsFullText, /\/topics\/atlas-journey-guide/);
+  assert.match(llmsFullText, /\/topics\/open-source-knowledge-graph-api/);
   assert.match(llmsFullText, /journeys\[\]\.steps/);
   assert.match(llmsFullText, /comparison_paths/);
   assert.match(llmsFullText, /exploration_paths/);
@@ -262,6 +264,7 @@ async function testDiscoverRoute() {
   assert.match(homeText, /href="\/topics\/browser-ai-automation"/);
   assert.match(homeText, /href="\/topics\/ai-ide-coding-agents"/);
   assert.match(homeText, /href="\/topics\/atlas-journey-guide"/);
+  assert.match(homeText, /href="\/topics\/open-source-knowledge-graph-api"/);
 
   const response = await worker.fetch(new Request("https://git.top/discover"), {});
   const text = await response.text();
@@ -292,6 +295,13 @@ async function testDiscoverRoute() {
   assert.match(atlasJourneyTopicText, /Atlas Journey Guide/);
   assert.match(atlasJourneyTopicText, /Comparison Paths/);
   assert.match(atlasJourneyTopicText, /\/api\/journeys\?limit=8/);
+
+  const apiTopic = await worker.fetch(new Request("https://git.top/topics/open-source-knowledge-graph-api"), {});
+  const apiTopicText = await apiTopic.text();
+  assert.equal(apiTopic.status, 200);
+  assert.match(apiTopicText, /Open Source Knowledge Graph API/);
+  assert.match(apiTopicText, /Agent Workflow/);
+  assert.match(apiTopicText, /\/api\/agent-map/);
 }
 
 async function testTrendsRoute() {

@@ -654,7 +654,7 @@ const html = String.raw`<!doctype html>
           <a href="/docs">Docs</a>
           <a href="/quickstart">Quickstart</a>
           <a href="/recipes">Recipes</a>
-          <a href="/api/search?q=cloudflare%20agent%20framework">Agent API</a>
+          <a href="/topics/open-source-knowledge-graph-api">Agent API</a>
           <a href="/mcp">MCP</a>
           <a href="/api/schema/project.v2">Schema</a>
         </div>
@@ -675,7 +675,7 @@ const html = String.raw`<!doctype html>
             <a class="button secondary" href="/docs">Docs</a>
             <a class="button secondary" href="/quickstart">Quickstart</a>
             <a class="button secondary" href="/recipes">Recipes</a>
-            <a class="button secondary" href="/api/search?q=cloudflare%20agent%20framework">Agent API</a>
+            <a class="button secondary" href="/topics/open-source-knowledge-graph-api">Agent API</a>
           </div>
         </div>
 
@@ -738,6 +738,17 @@ const html = String.raw`<!doctype html>
             <a href="/workflow?intent=choose%20a%20Cloudflare-ready%20agent%20framework&amp;deployment=cloudflare&amp;category=agent_framework&amp;cloudflare_ready=true"><span>Cloudflare Agent Workflow</span><span>-></span></a>
             <a href="/workflow?intent=evaluate%20Claude%20Code%20alternatives&amp;project_id=claude-code&amp;deployment=local"><span>Claude Code Alternatives</span><span>-></span></a>
             <a href="/api/workflow?intent=choose%20a%20RAG%20framework&amp;category=rag_framework&amp;deployment=local"><span>Workflow JSON</span><span>-></span></a>
+          </div>
+        </article>
+        <article class="intent-card">
+          <div class="intent-card-top"><div class="feature-icon">API</div><div><p class="eyebrow">Serve agents</p><h2>Agent API</h2></div></div>
+          <p class="muted">Expose project knowledge, relationship maps, recommendations, scores, and trust fields to agents.</p>
+          <div class="intent-links">
+            <a href="/topics/open-source-knowledge-graph-api"><span>Knowledge Graph API Guide</span><span>-></span></a>
+            <a href="/api/agent-map"><span>Agent Surface Map</span><span>-></span></a>
+            <a href="/openapi.json"><span>OpenAPI JSON</span><span>-></span></a>
+            <a href="/mcp"><span>MCP Discovery</span><span>-></span></a>
+            <a href="/llms.txt"><span>LLM Discovery</span><span>-></span></a>
           </div>
         </article>
         <article class="intent-card">
