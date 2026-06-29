@@ -98,6 +98,16 @@ curl -X POST http://localhost:8787/mcp \
 
 Use `get_agent_workflow` when an agent needs the recommended sequence across health checks, trends, recommendations, graph, alternatives, score, compare, and trust policy before answering a user.
 
+## Get Atlas
+
+```sh
+curl -X POST http://localhost:8787/mcp \
+  -H "content-type: application/json" \
+  -d '{"jsonrpc":"2.0","id":43,"method":"tools/call","params":{"name":"get_atlas","arguments":{"ecosystem":"cloudflare","limit":5}}}'
+```
+
+Use `get_atlas` when an agent wants ecosystem maps, exploration paths, map nodes, edges, representative projects, and Atlas journey links without manually calling REST endpoints first.
+
 ## Find Alternatives
 
 ```sh

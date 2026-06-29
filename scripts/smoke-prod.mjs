@@ -70,6 +70,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.ok(body.tools.some((tool) => tool.name === "search_projects"), "MCP discovery should include search_projects");
     assert.ok(body.tools.some((tool) => tool.name === "get_trends"), "MCP discovery should include get_trends");
     assert.ok(body.tools.some((tool) => tool.name === "get_agent_workflow"), "MCP discovery should include get_agent_workflow");
+    assert.ok(body.tools.some((tool) => tool.name === "get_atlas"), "MCP discovery should include get_atlas");
     assert.ok(body.tools.some((tool) => tool.name === "git_top_grp_query"), "MCP discovery should include git_top_grp_query");
     return {
       tools: body.tools.length,

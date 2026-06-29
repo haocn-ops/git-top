@@ -8,6 +8,7 @@ import {
 } from "./project-search";
 import { buildAgentMap } from "./agent-map";
 import { buildAlternativesDecision, generateAlternativeMatches, toAlternativeMatchView } from "./alternatives";
+import { buildAtlasEcosystemView, findAtlasEcosystem, listAtlasEcosystems } from "./atlas-page";
 import type { ProjectKnowledgeResult } from "./knowledge-source";
 import { buildKnowledgeGraph, compareProjectKnowledge } from "./graph";
 import { normalizeGrpRequest, runGrpQuery } from "./grp";
@@ -209,6 +210,27 @@ const tools = [
           }
         },
         limit: { type: "number" },
+        require_d1: {
+          type: "boolean",
+          description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
+        }
+      }
+    }
+  },
+  {
+    name: "get_atlas",
+    description: "Return Git.Top Atlas ecosystem maps with stats, exploration paths, graph nodes, edges, representative projects, and next journey links.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ecosystem: {
+          type: "string",
+          description: "Optional Atlas ecosystem id such as cloudflare, agents, mcp, rag, or browser-ai. Omit to return all curated ecosystems."
+        },
+        limit: {
+          type: "number",
+          description: "Maximum projects per ecosystem."
+        },
         require_d1: {
           type: "boolean",
           description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
@@ -616,6 +638,35 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
         cloudflareReady: boolArg(constraints.cloudflare_ready),
         limit: numberArg(args.limit)
       }),
+      metadata: knowledge.metadata
+    };
+  }
+
+  if (name === "get_atlas") {
+    const knowledge = await requireKnowledgeSource(env, args);
+    if (isToolErrorResult(knowledge)) {
+      return knowledge;
+    }
+    const limit = numberArg(args.limit) ?? 8;
+    const ecosystemId = stringArg(args.ecosystem);
+    if (ecosystemId) {
+      const ecosystem = findAtlasEcosystem(ecosystemId);
+      if (!ecosystem) {
+        return {
+          toolError: {
+            code: -32602,
+            message: `Unknown Atlas ecosystem: ${ecosystemId}`
+          }
+        };
+      }
+      return {
+        ecosystem: buildAtlasEcosystemView(knowledge.projects, ecosystem, limit),
+        available_ecosystems: listAtlasEcosystems().map((item) => item.id),
+        metadata: knowledge.metadata
+      };
+    }
+    return {
+      ecosystems: listAtlasEcosystems().map((ecosystem) => buildAtlasEcosystemView(knowledge.projects, ecosystem, limit)),
       metadata: knowledge.metadata
     };
   }

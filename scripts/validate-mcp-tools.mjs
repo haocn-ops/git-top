@@ -21,6 +21,7 @@ async function testDiscovery() {
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "git_top_grp_query"));
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_trends"));
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_agent_workflow"));
+  assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_atlas"));
   assert.equal(getDiscovery.body.openapi_url, "https://git.top/openapi.json");
   assert.equal(getDiscovery.body.api_openapi_url, "https://git.top/api/openapi.json");
   assert.equal(getDiscovery.body.schema_url, "https://git.top/api/schema/project.v2");
@@ -28,6 +29,7 @@ async function testDiscovery() {
   assert.equal(getDiscovery.body.agent_map.positioning, "The Knowledge Graph of Open Source");
   assert.ok(getDiscovery.body.agent_map.surfaces.some((surface) => surface.concept === "Project graph"));
   assert.ok(getDiscovery.body.agent_map.surfaces.some((surface) => surface.mcp_tools.includes("compare_projects")));
+  assert.ok(getDiscovery.body.agent_map.surfaces.some((surface) => surface.concept === "Atlas ecosystem map" && surface.mcp_tools.includes("get_atlas")));
   assert.ok(getDiscovery.body.agent_map.surfaces.some((surface) => surface.concept === "Open source trends" && surface.mcp_tools.includes("get_trends")));
   assert.ok(Array.isArray(getDiscovery.body.agent_api.structured_post_endpoints));
   assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/project"));
@@ -76,6 +78,10 @@ async function testDiscovery() {
   const workflowTool = getDiscovery.body.tools.find((tool) => tool.name === "get_agent_workflow");
   assert.match(workflowTool.description, /workflow/);
   assert.equal(workflowTool.input_schema.properties.require_d1.type, "boolean");
+
+  const atlasTool = getDiscovery.body.tools.find((tool) => tool.name === "get_atlas");
+  assert.match(atlasTool.description, /Atlas/);
+  assert.equal(atlasTool.input_schema.properties.require_d1.type, "boolean");
 }
 
 async function testToolCalls() {
@@ -306,6 +312,25 @@ async function testToolCalls() {
   assert.ok(Array.isArray(workflow.result.trend_context.top_categories));
   assert.ok(workflow.result.trust_policy.production_check.includes("require_d1=true"));
   assertMetadata(workflow.result.metadata, "db_missing");
+
+  const atlas = await callTool("get_atlas", { ecosystem: "cloudflare", limit: 3 });
+  assert.equal(atlas.status, 200);
+  assert.equal(atlas.result.ecosystem.id, "cloudflare");
+  assert.ok(Array.isArray(atlas.result.ecosystem.projects));
+  assert.ok(atlas.result.ecosystem.projects.length <= 3);
+  assert.ok(Array.isArray(atlas.result.ecosystem.map.nodes));
+  assert.ok(Array.isArray(atlas.result.ecosystem.map.edges));
+  assert.ok(Array.isArray(atlas.result.ecosystem.exploration_paths));
+  assert.ok(Array.isArray(atlas.result.ecosystem.exploration_journeys));
+  assert.ok(atlas.result.available_ecosystems.includes("cloudflare"));
+  assertMetadata(atlas.result.metadata, "db_missing");
+
+  const allAtlas = await callTool("get_atlas", { limit: 2 });
+  assert.equal(allAtlas.status, 200);
+  assert.ok(Array.isArray(allAtlas.result.ecosystems));
+  assert.ok(allAtlas.result.ecosystems.length >= 5);
+  assert.ok(allAtlas.result.ecosystems[0].projects.length <= 2);
+  assertMetadata(allAtlas.result.metadata, "db_missing");
 }
 
 async function testGrpToolValidation() {

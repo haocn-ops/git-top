@@ -76,7 +76,7 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     concept: "Atlas ecosystem map",
     humanPage: "/atlas",
     rest: ["GET /api/atlas", "GET /api/atlas/:ecosystem"],
-    mcpTools: ["git_top_grp_query"],
+    mcpTools: ["get_atlas", "git_top_grp_query"],
     outputFields: ["ecosystems", "stats", "exploration_paths", "map.nodes", "map.edges"],
     trustFields: ["metadata.source", "stats.project_count", "exploration_paths"],
     recommendedUse: "Start from an ecosystem map before choosing a specific repository."
