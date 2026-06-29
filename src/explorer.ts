@@ -708,6 +708,7 @@ const html = String.raw`<!doctype html>
           <div class="intent-links">
             <a href="/compare/langchain-ai/langchain...run-llama/llama_index"><span>LangChain vs LlamaIndex</span><span>-></span></a>
             <a href="/compare/browser-use/browser-use...microsoft/playwright"><span>Browser Use vs Playwright</span><span>-></span></a>
+            <a href="/topics/project-comparison-guide"><span>Project Comparison Guide</span><span>-></span></a>
             <a href="/api/compare?repos=openai/openai-agents-python,vercel/ai"><span>OpenAI Agents SDK vs Vercel AI SDK</span><span>-></span></a>
             <a href="/api/compare?repos=langgenius/dify,langflow-ai/langflow"><span>Dify vs Langflow</span><span>-></span></a>
           </div>
@@ -717,6 +718,7 @@ const html = String.raw`<!doctype html>
           <p class="muted">Start from a known project and ask Git.Top for adjacent options.</p>
           <div class="intent-links">
             <a href="/alternatives"><span>Alternatives Home</span><span>-></span></a>
+            <a href="/topics/alternatives-engine-guide"><span>Alternatives Engine Guide</span><span>-></span></a>
             <a href="/topics/langchain-alternatives"><span>LangChain Alternatives Guide</span><span>-></span></a>
             <a href="/alternatives/langgenius/dify"><span>Dify Alternatives</span><span>-></span></a>
             <a href="/alternatives/langchain-ai/langchain"><span>LangChain Alternatives</span><span>-></span></a>
@@ -728,9 +730,51 @@ const html = String.raw`<!doctype html>
           <p class="muted">Move from intent to trend context, shortlist, graph, alternatives, score, compare, and trust checks.</p>
           <div class="intent-links">
             <a href="/workflow"><span>Agent Selection Workflow</span><span>-></span></a>
+            <a href="/topics/agent-workflow-guide"><span>Agent Workflow Guide</span><span>-></span></a>
             <a href="/workflow?intent=choose%20a%20Cloudflare-ready%20agent%20framework&amp;deployment=cloudflare&amp;category=agent_framework&amp;cloudflare_ready=true"><span>Cloudflare Agent Workflow</span><span>-></span></a>
             <a href="/workflow?intent=evaluate%20Claude%20Code%20alternatives&amp;project_id=claude-code&amp;deployment=local"><span>Claude Code Alternatives</span><span>-></span></a>
             <a href="/api/workflow?intent=choose%20a%20RAG%20framework&amp;category=rag_framework&amp;deployment=local"><span>Workflow JSON</span><span>-></span></a>
+          </div>
+        </article>
+        <article class="intent-card">
+          <div class="intent-card-top"><div class="feature-icon">SCR</div><div><p class="eyebrow">Trust the signal</p><h2>Score</h2></div></div>
+          <p class="muted">Read project quality, agent readiness, freshness, and risk before choosing.</p>
+          <div class="intent-links">
+            <a href="/topics/git-top-score-guide"><span>Git.Top Score Guide</span><span>-></span></a>
+            <a href="/score/cloudflare/agents"><span>Cloudflare Agents Score</span><span>-></span></a>
+            <a href="/score/langchain-ai/langchain"><span>LangChain Score</span><span>-></span></a>
+            <a href="/api/quality"><span>Quality API</span><span>-></span></a>
+          </div>
+        </article>
+        <article class="intent-card">
+          <div class="intent-card-top"><div class="feature-icon">TRU</div><div><p class="eyebrow">Check readiness</p><h2>Trust</h2></div></div>
+          <p class="muted">Inspect corpus coverage, sync freshness, governance, and low-confidence review queues.</p>
+          <div class="intent-links">
+            <a href="/topics/data-trust-guide"><span>Data Trust Guide</span><span>-></span></a>
+            <a href="/quality"><span>Quality Governance</span><span>-></span></a>
+            <a href="/coverage"><span>Corpus Coverage</span><span>-></span></a>
+            <a href="/status"><span>Status</span><span>-></span></a>
+          </div>
+        </article>
+        <article class="intent-card">
+          <div class="intent-card-top"><div class="feature-icon">ATL</div><div><p class="eyebrow">Map the ecosystem</p><h2>Atlas</h2></div></div>
+          <p class="muted">Navigate ecosystems as connected project maps instead of isolated lists.</p>
+          <div class="intent-links">
+            <a href="/atlas"><span>Atlas Home</span><span>-></span></a>
+            <a href="/topics/atlas-guide"><span>Atlas Guide</span><span>-></span></a>
+            <a href="/atlas/cloudflare"><span>Cloudflare Ecosystem</span><span>-></span></a>
+            <a href="/atlas/agents"><span>AI Agent Ecosystem</span><span>-></span></a>
+          </div>
+        </article>
+        <article class="intent-card">
+          <div class="intent-card-top"><div class="feature-icon">GRP</div><div><p class="eyebrow">See relationships</p><h2>Graph</h2></div></div>
+          <p class="muted">Follow project relationships, dependencies, and alternatives as connected knowledge.</p>
+          <div class="intent-links">
+            <a href="/graph"><span>Graph Home</span><span>-></span></a>
+            <a href="/topics/graph-guide"><span>Graph Guide</span><span>-></span></a>
+            <a href="/topics/project-graph-guide"><span>Project Graph Guide</span><span>-></span></a>
+            <a href="/graph/cloudflare-agents"><span>Cloudflare Agents</span><span>-></span></a>
+            <a href="/graph/browser-use/browser-use"><span>Browser Use</span><span>-></span></a>
           </div>
         </article>
         <article class="intent-card">
@@ -738,6 +782,7 @@ const html = String.raw`<!doctype html>
           <p class="muted">Turn a use case and constraints into an explainable shortlist.</p>
           <div class="intent-links">
             <a href="/recommend"><span>Recommendation Engine</span><span>-></span></a>
+            <a href="/topics/recommendation-guide"><span>Recommendation Guide</span><span>-></span></a>
             <a href="/recommend?use_case=build%20Cloudflare-ready%20AI%20agents&amp;deployment=cloudflare&amp;category=agent_framework&amp;cloudflare_ready=true"><span>Cloudflare Agents</span><span>-></span></a>
             <a href="/recommend?use_case=build%20browser%20automation%20agents&amp;deployment=docker&amp;category=browser_agent"><span>Browser Agents</span><span>-></span></a>
             <a href="/recommend?use_case=build%20RAG%20applications&amp;deployment=local&amp;category=rag_framework"><span>RAG Stack</span><span>-></span></a>

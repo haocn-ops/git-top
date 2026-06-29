@@ -280,6 +280,40 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
+  await check(context, "guide_head_requests", async () => {
+    const atlasGuide = await getHead(context, "/topics/atlas-guide");
+    const graphGuide = await getHead(context, "/topics/graph-guide");
+    const compareGuide = await getHead(context, "/topics/project-comparison-guide");
+    const recommendationGuide = await getHead(context, "/topics/recommendation-guide");
+    const projectGraphGuide = await getHead(context, "/topics/project-graph-guide");
+    const scoreGuide = await getHead(context, "/topics/git-top-score-guide");
+    const workflowGuide = await getHead(context, "/topics/agent-workflow-guide");
+    const alternativesGuide = await getHead(context, "/topics/alternatives-engine-guide");
+    const trustGuide = await getHead(context, "/topics/data-trust-guide");
+
+    assert.equal(atlasGuide.status, 200);
+    assert.equal(graphGuide.status, 200);
+    assert.equal(compareGuide.status, 200);
+    assert.equal(recommendationGuide.status, 200);
+    assert.equal(projectGraphGuide.status, 200);
+    assert.equal(scoreGuide.status, 200);
+    assert.equal(workflowGuide.status, 200);
+    assert.equal(alternativesGuide.status, 200);
+    assert.equal(trustGuide.status, 200);
+
+    return {
+      atlas: atlasGuide.status,
+      graph: graphGuide.status,
+      compare: compareGuide.status,
+      recommendation: recommendationGuide.status,
+      projectGraph: projectGraphGuide.status,
+      score: scoreGuide.status,
+      workflow: workflowGuide.status,
+      alternatives: alternativesGuide.status,
+      trust: trustGuide.status
+    };
+  });
+
   await check(context, "status_page", async () => {
     const { status, text } = await getText(context, "/status");
     assert.equal(status, 200);

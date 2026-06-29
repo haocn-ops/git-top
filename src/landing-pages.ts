@@ -289,6 +289,144 @@ const topicLandings: Record<
         body: "Use /api/quality, project-level quality_signal_confidence, and sync status together before treating a recommendation as high-confidence."
       }
     ]
+  },
+  "project-comparison-guide": {
+    title: "Project Comparison Guide",
+    subtitle: "A practical guide for comparing open-source projects by fit, deployment, maintenance, and quality signals.",
+    apiPath: "/compare",
+    sections: [
+      {
+        title: "What To Compare",
+        body: "Start with deployment targets, then inspect maintenance score, agent score, alternatives, and known tradeoffs before choosing a winner."
+      },
+      {
+        title: "Best Inputs",
+        body: "Use project pages, alternatives pages, and graph pages together so the comparison is grounded in actual project relationships instead of a raw star count."
+      }
+    ]
+  },
+  "atlas-guide": {
+    title: "Atlas Guide",
+    subtitle: "Explore open-source ecosystems as maps of projects, alternatives, dependencies, and journeys.",
+    apiPath: "/atlas",
+    sections: [
+      {
+        title: "How Atlas Works",
+        body: "Start from an ecosystem, inspect representative projects, then move through related projects, alternatives, compare, score, and search paths."
+      },
+      {
+        title: "When To Use It",
+        body: "Use Atlas when the user wants a map of a space such as Cloudflare, MCP, RAG, or AI agents rather than a single project recommendation."
+      }
+    ]
+  },
+  "graph-guide": {
+    title: "Graph Guide",
+    subtitle: "Learn how Git.Top project graphs connect related projects, alternatives, dependencies, and deployment targets.",
+    apiPath: "/graph",
+    sections: [
+      {
+        title: "Graph Shape",
+        body: "Each project graph starts from a project page and expands into related projects, alternatives, dependencies, and deployment paths."
+      },
+      {
+        title: "How To Read It",
+        body: "Use graph pages to see why a project is adjacent to another project, then move into compare or alternatives when the relationship is strong enough to evaluate a switch."
+      }
+    ]
+  },
+  "project-graph-guide": {
+    title: "Project Graph Guide",
+    subtitle: "A focused guide to Git.Top project graph pages, relationship groups, and graph-backed decision paths.",
+    apiPath: "/graph",
+    sections: [
+      {
+        title: "Relationship Groups",
+        body: "Project graphs expose related projects, alternatives, dependencies, and deployment targets so you can inspect the project in context."
+      },
+      {
+        title: "Next Step",
+        body: "When a graph shows a clear relationship, move into the project page, alternatives page, or compare page for a decision-ready view."
+      }
+    ]
+  },
+  "recommendation-guide": {
+    title: "Recommendation Guide",
+    subtitle: "Learn how Git.Top turns use cases and constraints into explainable project recommendations.",
+    apiPath: "/recommend",
+    sections: [
+      {
+        title: "What To Provide",
+        body: "Start with a concrete use case, then add deployment, category, language, and license constraints so the shortlist is actionable."
+      },
+      {
+        title: "What To Inspect",
+        body: "Read the returned reasons, fit profile, risk flags, and next actions before relying on the top recommendation."
+      }
+    ]
+  },
+  "git-top-score-guide": {
+    title: "Git.Top Score Guide",
+    subtitle: "Understand Git.Top Score, Agent Score, quality confidence, and the signals behind project selection.",
+    query: "quality score",
+    apiPath: "/score/cloudflare/agents",
+    sections: [
+      {
+        title: "What The Score Means",
+        body: "Git.Top Score summarizes maintenance, community, documentation, stability, adoption, deployment fit, and agent readability into a decision aid instead of a popularity counter."
+      },
+      {
+        title: "How To Use It",
+        body: "Inspect the score breakdown, confidence, freshness, and quality evidence before comparing projects or sending an agent-readable recommendation."
+      }
+    ]
+  },
+  "agent-workflow-guide": {
+    title: "Agent Workflow Guide",
+    subtitle: "A guide for turning an open-source selection task into trends, recommendations, graph checks, alternatives, scores, and comparisons.",
+    apiPath: "/workflow",
+    sections: [
+      {
+        title: "Workflow Shape",
+        body: "Start with an intent, add constraints, retrieve trends, build a shortlist, inspect graph context, compare alternatives, then apply trust policy."
+      },
+      {
+        title: "Agent Surface",
+        body: "Use /api/workflow or the get_agent_workflow MCP tool when an agent needs a repeatable path instead of a single endpoint answer."
+      }
+    ]
+  },
+  "alternatives-engine-guide": {
+    title: "Alternatives Engine Guide",
+    subtitle: "How Git.Top finds adjacent projects, replacement candidates, and comparable open-source tools.",
+    query: "alternatives",
+    apiPath: "/alternatives",
+    sections: [
+      {
+        title: "Matching Signals",
+        body: "The alternatives engine combines category overlap, use cases, deployment targets, graph relationships, generated alternatives, and quality signals."
+      },
+      {
+        title: "Decision Path",
+        body: "Use alternatives pages for discovery, then move into compare, score, graph, and project pages before recommending a replacement."
+      }
+    ]
+  },
+  "data-trust-guide": {
+    title: "Data Trust Guide",
+    subtitle: "Use Git.Top coverage, quality governance, sync status, and confidence signals before trusting project recommendations.",
+    query: "quality governance",
+    apiPath: "/quality",
+    sections: [
+      {
+        title: "Trust Checks",
+        body: "Check metadata source, corpus coverage, D1 availability, sync freshness, classification evidence, and quality signal confidence before making production decisions."
+      },
+      {
+        title: "Operational Use",
+        body: "Operators and agents can combine /status, /coverage, /quality, /quality/review, and get_quality_report to understand data readiness and risk."
+      }
+    ]
   }
 };
 
