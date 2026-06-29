@@ -8,7 +8,7 @@ This plan turns quality from an advisory report into an explicit release and ope
 
 ## Current Production State
 
-- Core local checks pass: TypeScript, focused tests, API validation, MCP validation, seed validation, eval quality, Next build, and Next smoke.
+- Core local checks pass: TypeScript, focused tests, API validation, MCP validation, seed validation, and eval quality.
 - The production quality check now passes the configured threshold: score `100`, minimum `90`.
 - The production quality endpoint reports `0` errors, `0` warnings, and `3` info-only `score_skew` observations.
 - The public V1 release gate now includes production quality before production smoke.

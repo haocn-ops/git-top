@@ -11,16 +11,16 @@ Current rating: 7.8/10.
 ## Strengths
 
 - Clear product position: a GitHub project knowledge layer for agents, not a generic leaderboard.
-- Cloudflare Worker + D1 is the authoritative runtime, with Next.js kept as a richer static preview and browsing layer.
+- Cloudflare Worker + D1 is the authoritative and only product runtime.
 - Public agent surfaces are broad: REST, MCP, GRP, OpenAPI, `llms.txt`, quality, status, coverage, and project pages.
 - Seed coverage has reached the public V1 target: 500 repositories across all 13 V1 categories.
-- Validation is mature: seed validation, generated knowledge validation, API/MCP route validation, focused tests, evaluation reports, local D1 integration, production smoke checks, and Next.js production builds.
+- Validation is mature: seed validation, generated knowledge validation, API/MCP route validation, focused tests, evaluation reports, local D1 integration, and production smoke checks.
 
 ## Key Risks
 
 - Data quality remains the product's highest-leverage risk. Real repository metadata changes, archived projects, renamed repositories, README drift, and ambiguous collection repositories require continuous correction.
 - Evaluation fixture maintenance is concentrated in `scripts/eval-fixtures.mjs`, which is large enough to make future tuning and review harder than it needs to be.
-- Worker pages and Next.js pages can drift unless the Worker remains the source of truth for API behavior, routing, and generated project knowledge.
+- Worker pages now own the product surface; future drift risk is mostly between API behavior and rendered HTML.
 - Low-confidence classification and collection review items still need human review before the corpus scales much further.
 - Commercial product shape is not yet defined beyond public API and discovery surfaces.
 
@@ -66,7 +66,7 @@ Goal: keep the Worker API and UI telling the same story.
 Actions:
 
 - Treat Worker routes as canonical for production behavior.
-- Keep Next.js pages focused on browsing and preview unless they are wired to the live Worker API.
+- Build new browsing, graph, atlas, alternatives, and score pages in the Worker route tree.
 - Avoid adding account, tenant, billing, or compliance UI until persistence and product behavior exist.
 
 ### Track 5: Product Growth

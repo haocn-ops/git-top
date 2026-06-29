@@ -6,6 +6,8 @@ const execFileAsync = promisify(execFile);
 
 const qualityReport = {
   score: 100,
+  release_score: 100,
+  data_trust_score: 82,
   risk_level: "medium",
   risk_summary: {
     level: "medium",
@@ -33,6 +35,8 @@ const { stdout } = await execFileAsync("node", ["scripts/check-quality.mjs", "--
 const summary = JSON.parse(stdout);
 
 assert.equal(summary.score, 100);
+assert.equal(summary.release_score, 100);
+assert.equal(summary.data_trust_score, 82);
 assert.equal(summary.source, "d1");
 assert.equal(summary.risk_level, "medium");
 assert.equal(summary.risk_reason_count, 1);

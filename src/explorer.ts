@@ -21,11 +21,11 @@ const html = String.raw`<!doctype html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Git.Top | GitHub Knowledge Layer for AI Agents</title>
-    <meta name="description" content="Agent-friendly open source project knowledge, semantic search, alternatives, deployment signals, and quality scores." />
+    <title>Git.Top | The Knowledge Graph of Open Source</title>
+    <meta name="description" content="Open-source project knowledge graph for discovery, comparisons, alternatives, ecosystems, scores, and agent-readable recommendations." />
     <link rel="canonical" href="https://git.top/" />
-    <meta property="og:title" content="Git.Top | GitHub Knowledge Layer for AI Agents" />
-    <meta property="og:description" content="Agent-friendly open source project knowledge, semantic search, alternatives, deployment signals, and quality scores." />
+    <meta property="og:title" content="Git.Top | The Knowledge Graph of Open Source" />
+    <meta property="og:description" content="Open-source project knowledge graph for discovery, comparisons, alternatives, ecosystems, scores, and agent-readable recommendations." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://git.top/" />
     <meta property="og:image" content="https://git.top/og.svg" />
@@ -67,7 +67,8 @@ const html = String.raw`<!doctype html>
       }
 
       button,
-      input {
+      input,
+      select {
         font: inherit;
       }
 
@@ -297,6 +298,57 @@ const html = String.raw`<!doctype html>
         padding-bottom: 2px;
       }
 
+      .intent-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 22px;
+      }
+
+      .intent-card {
+        display: grid;
+        align-content: start;
+        gap: 14px;
+        min-height: 330px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+        padding: 16px;
+      }
+
+      .intent-card-top {
+        display: grid;
+        grid-template-columns: 42px minmax(0, 1fr);
+        align-items: center;
+        gap: 12px;
+      }
+
+      .intent-links {
+        display: grid;
+        gap: 8px;
+        margin-top: auto;
+      }
+
+      .intent-links a {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-height: 34px;
+        border-top: 1px solid var(--line);
+        color: #33525a;
+        font-size: 14px;
+        font-weight: 900;
+        line-height: 1.25;
+        padding-top: 8px;
+      }
+
+      .intent-links a:first-child {
+        border-top: 0;
+        padding-top: 0;
+      }
+
       .category-chip {
         display: inline-flex;
         align-items: center;
@@ -434,7 +486,8 @@ const html = String.raw`<!doctype html>
         padding: 11px;
       }
 
-      .search-form input {
+      .search-form input,
+      .search-form select {
         flex: 1 1 320px;
         min-height: 40px;
         border: 1px solid var(--line-strong);
@@ -442,6 +495,65 @@ const html = String.raw`<!doctype html>
         background: #fff;
         color: var(--ink);
         padding: 9px 10px;
+      }
+
+      .filter-grid {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(130px, 1fr));
+        gap: 10px;
+        width: 100%;
+        margin-top: 10px;
+      }
+
+      .filter-field,
+      .checkbox-row {
+        display: grid;
+        gap: 5px;
+      }
+
+      .filter-field span,
+      .checkbox-row span,
+      .match-reasons span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .checkbox-row {
+        align-content: end;
+      }
+
+      .checkbox-row label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 40px;
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        background: #fff;
+        color: #40505a;
+        font-weight: 900;
+        padding: 8px 10px;
+      }
+
+      .checkbox-row input {
+        width: 18px;
+        height: 18px;
+      }
+
+      .match-reasons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+      }
+
+      .match-reasons span {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #f7faf9;
+        color: #40505a;
+        padding: 5px 8px;
       }
 
       .graph-section {
@@ -491,9 +603,11 @@ const html = String.raw`<!doctype html>
         }
 
         .project-card-grid,
+        .intent-grid,
         .agent-grid,
         .trust-grid,
-        .guide-strip {
+        .guide-strip,
+        .filter-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }
@@ -514,9 +628,11 @@ const html = String.raw`<!doctype html>
 
         .knowledge-grid,
         .project-card-grid,
+        .intent-grid,
         .agent-grid,
         .trust-grid,
-        .guide-strip {
+        .guide-strip,
+        .filter-grid {
           grid-template-columns: 1fr;
         }
       }
@@ -530,6 +646,7 @@ const html = String.raw`<!doctype html>
           <span>Git.Top</span>
         </a>
         <div class="nav-links">
+          <a href="/atlas">Atlas</a>
           <a href="/graph">Graph</a>
           <a href="/docs">Docs</a>
           <a href="/api/search?q=cloudflare%20agent%20framework">Agent API</a>
@@ -540,12 +657,13 @@ const html = String.raw`<!doctype html>
 
       <section class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">GitHub Knowledge Layer</p>
-          <h1>GitHub Knowledge Layer for AI Agents</h1>
-          <p class="hero-lede">Understand open source projects beyond stars. Git.Top turns GitHub repositories into structured knowledge agents can search, compare, evaluate, and deploy.</p>
+          <p class="eyebrow">Open Source Knowledge Graph</p>
+          <h1>The Knowledge Graph of Open Source</h1>
+          <p class="hero-lede">GitHub provides the code. Git.Top provides the knowledge: project meaning, alternatives, dependencies, ecosystems, scores, and agent-readable recommendations.</p>
           <div class="actions">
-            <a class="button primary" href="#projects">Explore Projects</a>
-            <a class="button secondary" href="/graph">Knowledge Graph</a>
+            <a class="button primary" href="/discover">Discover Projects</a>
+            <a class="button secondary" href="/graph">Explore Graph</a>
+            <a class="button secondary" href="/atlas">Open Atlas</a>
             <a class="button secondary" href="/docs">Docs</a>
             <a class="button secondary" href="/api/search?q=cloudflare%20agent%20framework">Agent API</a>
           </div>
@@ -561,28 +679,64 @@ const html = String.raw`<!doctype html>
             <div><span>Deploy</span><strong>Cloudflare, serverless</strong></div>
             <div><span>Quality Score</span><strong>82/100</strong></div>
             <div><span>Agent Score</span><strong>83/100</strong></div>
+            <div><span>Relations</span><strong>Alternatives, dependencies, related projects</strong></div>
           </div>
         </div>
       </section>
 
-      <section class="category-strip" aria-label="Trending categories">
-        <a class="category-chip" href="/api/search?q=AI%20Agents">AI Agents</a>
-        <a class="category-chip" href="/api/search?q=MCP%20Servers">MCP Servers</a>
-        <a class="category-chip" href="/api/search?q=AI%20IDEs">AI IDEs</a>
-        <a class="category-chip" href="/api/search?q=AI%20Browsers">AI Browsers</a>
-        <a class="category-chip" href="/api/search?q=AI%20Infrastructure">AI Infrastructure</a>
-        <a class="category-chip" href="/api/search?q=RAG%20Frameworks">RAG Frameworks</a>
-        <a class="category-chip" href="/api/search?q=LLM%20Applications">LLM Applications</a>
+      <section class="intent-grid" aria-label="Git.Top product entry points">
+        <article class="intent-card">
+          <div class="intent-card-top"><div class="feature-icon">DIS</div><div><p class="eyebrow">Find what is rising</p><h2>Discover</h2></div></div>
+          <p class="muted">Explore hot open-source categories by intent, not repo names.</p>
+          <div class="intent-links">
+            <a href="/topics/best-ai-agent-frameworks"><span>AI Agents</span><span>-></span></a>
+            <a href="/topics/best-mcp-servers"><span>MCP Servers</span><span>-></span></a>
+            <a href="/topics/open-source-rag-frameworks"><span>RAG</span><span>-></span></a>
+            <a href="/topics/browser-ai-automation"><span>Browser Automation</span><span>-></span></a>
+            <a href="/topics/ai-ide-coding-agents"><span>AI IDE</span><span>-></span></a>
+          </div>
+        </article>
+        <article class="intent-card">
+          <div class="intent-card-top"><div class="feature-icon">CMP</div><div><p class="eyebrow">Decide between projects</p><h2>Compare</h2></div></div>
+          <p class="muted">Compare open-source tools by deployability, maintenance, fit, and score.</p>
+          <div class="intent-links">
+            <a href="/compare/langchain-ai/langchain...run-llama/llama_index"><span>LangChain vs LlamaIndex</span><span>-></span></a>
+            <a href="/compare/browser-use/browser-use...microsoft/playwright"><span>Browser Use vs Playwright</span><span>-></span></a>
+            <a href="/api/compare?repos=openai/openai-agents-python,vercel/ai"><span>OpenAI Agents SDK vs Vercel AI SDK</span><span>-></span></a>
+            <a href="/api/compare?repos=langgenius/dify,langflow-ai/langflow"><span>Dify vs Langflow</span><span>-></span></a>
+          </div>
+        </article>
+        <article class="intent-card">
+          <div class="intent-card-top"><div class="feature-icon">ALT</div><div><p class="eyebrow">Find replacements</p><h2>Alternatives</h2></div></div>
+          <p class="muted">Start from a known project and ask Git.Top for adjacent options.</p>
+          <div class="intent-links">
+            <a href="/alternatives"><span>Alternatives Home</span><span>-></span></a>
+            <a href="/topics/langchain-alternatives"><span>LangChain Alternatives Guide</span><span>-></span></a>
+            <a href="/alternatives/langgenius/dify"><span>Dify Alternatives</span><span>-></span></a>
+            <a href="/alternatives/langchain-ai/langchain"><span>LangChain Alternatives</span><span>-></span></a>
+            <a href="/alternatives/cloudflare/agents"><span>Cloudflare Agents Alternatives</span><span>-></span></a>
+          </div>
+        </article>
+        <article class="intent-card">
+          <div class="intent-card-top"><div class="feature-icon">ECO</div><div><p class="eyebrow">Map the stack</p><h2>Ecosystems</h2></div></div>
+          <p class="muted">Explore project clusters, deployment targets, dependencies, and related tools.</p>
+          <div class="intent-links">
+            <a href="/atlas"><span>Atlas</span><span>-></span></a>
+            <a href="/atlas#cloudflare"><span>Cloudflare Ecosystem</span><span>-></span></a>
+            <a href="/atlas#agents"><span>AI Agent Ecosystem</span><span>-></span></a>
+            <a href="/atlas#mcp"><span>MCP Ecosystem</span><span>-></span></a>
+            <a href="/atlas#rag"><span>RAG Ecosystem</span><span>-></span></a>
+            <a href="/atlas#browser-ai"><span>Browser AI Ecosystem</span><span>-></span></a>
+          </div>
+        </article>
       </section>
 
-      <section class="guide-strip" aria-label="Git.Top guides">
-        <a href="/topics/best-mcp-servers">Best MCP Servers</a>
-        <a href="/topics/best-ai-agent-frameworks">Best AI Agent Frameworks</a>
-        <a href="/topics/cloudflare-ready-ai-projects">Cloudflare-ready AI Projects</a>
-        <a href="/topics/langchain-alternatives">LangChain Alternatives</a>
-        <a href="/topics/open-source-rag-frameworks">Open Source RAG Frameworks</a>
-        <a href="/topics/github-project-alternatives-api">Project Alternatives API</a>
-        <a href="/topics/open-source-quality-score-api">Quality Score API</a>
+      <section class="category-strip" aria-label="Trending categories">
+        <a class="category-chip" href="/api/search?q=AI%20Agents&ranking=browse">AI Agents</a>
+        <a class="category-chip" href="/api/search?q=MCP%20Servers&ranking=browse">MCP Servers</a>
+        <a class="category-chip" href="/api/search?q=RAG&ranking=browse">RAG</a>
+        <a class="category-chip" href="/api/search?q=Browser%20Automation&ranking=browse">Browser Automation</a>
+        <a class="category-chip" href="/api/search?q=AI%20IDE&ranking=browse">AI IDE</a>
       </section>
 
       <section id="projects">
@@ -603,6 +757,14 @@ const html = String.raw`<!doctype html>
         <h2>Search by intent, deployment target, and quality signals</h2>
         <form class="search-form" id="search-form">
           <input id="query" value="cloudflare agent framework" aria-label="Search query" />
+          <div class="filter-grid" aria-label="Project filters">
+            <label class="filter-field"><span>Category</span><select id="category-filter"><option value="">Any</option><option value="agent_framework">Agent framework</option><option value="mcp_server">MCP server</option><option value="rag_framework">RAG framework</option><option value="coding_agent">Coding agent</option><option value="browser_agent">Browser agent</option><option value="workflow_automation">Workflow automation</option><option value="llm_gateway">LLM gateway</option><option value="ai_observability">AI observability</option></select></label>
+            <label class="filter-field"><span>Deploy</span><select id="deployment-filter"><option value="">Any</option><option value="cloudflare">Cloudflare</option><option value="serverless">Serverless</option><option value="docker">Docker</option><option value="local">Local</option><option value="library_only">Library only</option><option value="kubernetes">Kubernetes</option><option value="vercel">Vercel</option></select></label>
+            <label class="filter-field"><span>Language</span><select id="language-filter"><option value="">Any</option><option value="TypeScript">TypeScript</option><option value="Python">Python</option><option value="Go">Go</option><option value="Rust">Rust</option><option value="JavaScript">JavaScript</option><option value="Java">Java</option><option value="C++">C++</option></select></label>
+            <label class="filter-field"><span>Type</span><select id="kind-filter"><option value="">Any</option><option value="project">Project</option><option value="collection">Collection</option></select></label>
+            <label class="filter-field"><span>Confidence</span><select id="confidence-filter"><option value="">Any</option><option value="medium">Medium+</option><option value="high">High</option></select></label>
+            <div class="checkbox-row"><span>Cloudflare</span><label><input id="cloudflare-filter" type="checkbox" /> Ready</label></div>
+          </div>
           <button class="button primary" type="submit">Search</button>
         </form>
       </section>
@@ -689,18 +851,36 @@ const html = String.raw`<!doctype html>
       const grid = document.querySelector("#project-grid");
       const form = document.querySelector("#search-form");
       const query = document.querySelector("#query");
+      const categoryFilter = document.querySelector("#category-filter");
+      const deploymentFilter = document.querySelector("#deployment-filter");
+      const languageFilter = document.querySelector("#language-filter");
+      const kindFilter = document.querySelector("#kind-filter");
+      const confidenceFilter = document.querySelector("#confidence-filter");
+      const cloudflareFilter = document.querySelector("#cloudflare-filter");
 
       form.addEventListener("submit", (event) => {
         event.preventDefault();
-        loadProjects(query.value.trim() || "agent");
+        loadProjects();
+      });
+      [categoryFilter, deploymentFilter, languageFilter, kindFilter, confidenceFilter, cloudflareFilter].forEach((control) => {
+        control.addEventListener("change", () => loadProjects());
       });
 
-      loadProjects("agent");
+      loadProjects();
 
-      async function loadProjects(q) {
+      async function loadProjects() {
+        const q = query.value.trim() || "agent";
+        const params = new URLSearchParams({ q, limit: "12" });
+        if (categoryFilter.value) params.set("category", categoryFilter.value);
+        if (deploymentFilter.value) params.set("deployment", deploymentFilter.value);
+        if (languageFilter.value) params.set("language", languageFilter.value);
+        if (kindFilter.value) params.set("project_kind", kindFilter.value);
+        if (confidenceFilter.value) params.set("min_confidence", confidenceFilter.value);
+        if (cloudflareFilter.checked) params.set("cloudflare_ready", "true");
+        if (categoryFilter.value || deploymentFilter.value) params.set("ranking", "browse");
         grid.innerHTML = '<div class="empty">Loading projects...</div>';
         try {
-          const response = await fetch("/api/search?q=" + encodeURIComponent(q) + "&limit=8", { headers: { accept: "application/json" } });
+          const response = await fetch("/api/search?" + params.toString(), { headers: { accept: "application/json" } });
           if (!response.ok) throw new Error("HTTP " + response.status);
           const data = await response.json();
           const projects = data.projects || [];
@@ -713,13 +893,43 @@ const html = String.raw`<!doctype html>
       function projectCard(item) {
         const alternative = item.alternatives?.[0]?.repo || "Discoverable";
         const deploy = (item.deployments || []).slice(0, 2).join(", ") || "Unknown";
+        const kind = item.project_kind === "collection" ? "collection" : "project";
+        const reasons = matchReasons(item).map((reason) => '<span>' + escapeHtml(reason) + '</span>').join("");
         return '<article class="project-card">' +
-          '<div class="project-card-top"><div><p class="eyebrow">' + escapeHtml((item.category || [])[0] || "project") + '</p><h3>' + escapeHtml(item.name) + '</h3></div><span class="status-pill">' + escapeHtml(String(item.agent_score || "-")) + '</span></div>' +
+          '<div class="project-card-top"><div><p class="eyebrow">' + escapeHtml((item.category || [])[0] || kind) + '</p><h3><a href="/projects/' + escapeHtml(item.repo) + '">' + escapeHtml(item.name) + '</a></h3></div><span class="status-pill">' + escapeHtml(String(item.agent_score || "-")) + '</span></div>' +
           '<p>' + escapeHtml(item.description || item.overview || "") + '</p>' +
+          '<div class="match-reasons">' + reasons + '</div>' +
           '<div class="signal-row"><span>Alternative</span><strong>' + escapeHtml(alternative) + '</strong></div>' +
           '<div class="signal-row"><span>Deploy</span><strong>' + escapeHtml(deploy) + '</strong></div>' +
           '<div class="score-pair"><div><span>Quality</span><strong>' + escapeHtml(String(item.quality_score || "-")) + '</strong></div><div><span>Agent</span><strong>' + escapeHtml(String(item.agent_score || "-")) + '</strong></div></div>' +
         '</article>';
+      }
+
+      function matchReasons(item) {
+        const reasons = [];
+        const category = (item.category || [])[0];
+        const deployments = item.deployments || [];
+        const classification = item.classification || {};
+        if (categoryFilter.value && category === categoryFilter.value) reasons.push("category match");
+        if (deploymentFilter.value && deployments.includes(deploymentFilter.value)) reasons.push("deployment match");
+        if (languageFilter.value && item.language === languageFilter.value) reasons.push("language match");
+        if (cloudflareFilter.checked && item.cloudflare_ready) reasons.push("Cloudflare ready");
+        if (kindFilter.value && item.project_kind === kindFilter.value) reasons.push(kindFilter.value);
+        if (confidenceFilter.value) reasons.push("confidence " + confidenceSummary(classification));
+        if (!reasons.length) {
+          reasons.push(category || "project");
+          if (deployments[0]) reasons.push(deployments[0]);
+          reasons.push(item.project_kind || "project");
+        }
+        return reasons.slice(0, 4);
+      }
+
+      function confidenceSummary(classification) {
+        const values = [classification.category, classification.deployment, classification.difficulty, classification.cloudflare_ready]
+          .map((signal) => signal?.confidence)
+          .filter(Boolean);
+        const high = values.filter((value) => value === "high").length;
+        return high + "/" + (values.length || 4) + " high";
       }
 
       function escapeHtml(value) {
@@ -742,18 +952,18 @@ function projectsHtml(): string {
     "https://git.top/og.svg?title=Git.Top%20Projects&subtitle=Agent-native%20GitHub%20project%20index";
 
   return html
-    .replace("<title>Git.Top | GitHub Knowledge Layer for AI Agents</title>", `<title>${title}</title>`)
+    .replace("<title>Git.Top | The Knowledge Graph of Open Source</title>", `<title>${title}</title>`)
     .replace(
-      '<meta name="description" content="Agent-friendly open source project knowledge, semantic search, alternatives, deployment signals, and quality scores." />',
+      '<meta name="description" content="Open-source project knowledge graph for discovery, comparisons, alternatives, ecosystems, scores, and agent-readable recommendations." />',
       `<meta name="description" content="${description}" />`
     )
     .replace('<link rel="canonical" href="https://git.top/" />', '<link rel="canonical" href="https://git.top/projects" />')
     .replace(
-      '<meta property="og:title" content="Git.Top | GitHub Knowledge Layer for AI Agents" />',
+      '<meta property="og:title" content="Git.Top | The Knowledge Graph of Open Source" />',
       `<meta property="og:title" content="${title}" />`
     )
     .replace(
-      '<meta property="og:description" content="Agent-friendly open source project knowledge, semantic search, alternatives, deployment signals, and quality scores." />',
+      '<meta property="og:description" content="Open-source project knowledge graph for discovery, comparisons, alternatives, ecosystems, scores, and agent-readable recommendations." />',
       `<meta property="og:description" content="${description}" />`
     )
     .replace('<meta property="og:url" content="https://git.top/" />', '<meta property="og:url" content="https://git.top/projects" />')

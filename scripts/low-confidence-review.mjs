@@ -51,6 +51,8 @@ function toMarkdown(report, projects) {
     `### \`${item.projectId}\``,
     "",
     `- Category: \`${item.category}\``,
+    `- Impact score: ${item.impactScore}`,
+    `- Impact factors: ${item.impactFactors.join(" ")}`,
     `- Reasons: ${item.reasons.length > 0 ? item.reasons.join(" ") : "No extra reason."}`,
     `- Suggested action: ${item.suggestedAction}`,
     "",
@@ -84,9 +86,9 @@ function toMarkdown(report, projects) {
     "",
     "Review these items before a release when changing classification, ranking, seed data, or generated Agent Card logic.",
     "",
-    "| Priority | Project | Category | Stars | Why | Action |",
-    "| --- | --- | --- | ---: | --- | --- |",
-    ...(checklistItems.length > 0 ? checklistItems : ["| none | none | none | 0 | No release-blocking review items. | none |"]),
+    "| Priority | Project | Category | Impact | Stars | Why | Action |",
+    "| --- | --- | --- | ---: | ---: | --- | --- |",
+    ...(checklistItems.length > 0 ? checklistItems : ["| none | none | none | 0 | 0 | No release-blocking review items. | none |"]),
     "",
     "## Collection Review Summary",
     "",
@@ -133,6 +135,9 @@ function escapeCell(value) {
 
 function buildReleaseChecklist(report, projectIndex) {
   return report.items.slice().sort((a, b) => {
+    if (b.impactScore !== a.impactScore) {
+      return b.impactScore - a.impactScore;
+    }
     const priority = priorityRank(reviewPriority(a)) - priorityRank(reviewPriority(b));
     if (priority !== 0) {
       return priority;
@@ -147,6 +152,7 @@ function buildReleaseChecklist(report, projectIndex) {
       priority,
       `\`${item.projectId}\``,
       `\`${item.category}\``,
+      item.impactScore,
       stars,
       escapeCell(item.reasons.join(" ")),
       escapeCell(item.suggestedAction)

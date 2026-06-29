@@ -11,13 +11,13 @@ Git.Top V1 uses the Cloudflare Worker as the authoritative public runtime.
 - Scheduled sync: Cloudflare Cron trigger in `wrangler.toml`
 - Database: Cloudflare D1 binding named `DB`
 
-The Next.js app remains part of the repository as a richer UI and static preview layer. It can render with bundled seed data or read the live Worker API when `NEXT_PUBLIC_GIT_TOP_API_BASE` is set. It is not the production source of truth for V1 routing, data loading, API behavior, MCP behavior, or sync behavior.
+The repository is Worker-only. The previous Next.js preview layer was removed to prevent split UI ownership and route drift.
 
 ## Why This Shape
 
 The core product is an agent-facing knowledge API. The Cloudflare Worker already owns the API, MCP, sync, and D1 data path, so it should be the V1 source of truth.
 
-Keeping the Worker authoritative avoids a split where agents call one surface while the UI tells a different story. The Next.js app can still be useful for browsing and presentation, but it should not define the canonical data behavior.
+Keeping the Worker as the single product surface avoids a split where agents call one surface while the UI tells a different story. Human pages, REST APIs, MCP tools, sync, and D1-backed knowledge data now share the same runtime.
 
 ## Local Development
 
@@ -34,14 +34,6 @@ The local Worker is expected at:
 ```txt
 http://localhost:8787
 ```
-
-Run the Next.js UI locally:
-
-```sh
-NEXT_PUBLIC_GIT_TOP_API_BASE=http://localhost:8787 pnpm next:dev
-```
-
-If `NEXT_PUBLIC_GIT_TOP_API_BASE` is not set, the Next.js UI uses bundled seed data and displays the fallback reason.
 
 ## Production Secrets
 
@@ -74,11 +66,14 @@ Primary routes:
 - `/explorer`
 - `/graph`
 - `/graph/:project`
+- `/atlas`
+- `/alternatives/:project`
+- `/score/:project`
 - `/projects/:owner/:repo`
 - `/api/*`
 - `/mcp`
 
-Prototype console pages in the Next.js app, such as users, tenants, settings, and reports, are redirected or kept out of primary navigation until backed by real persistence.
+Legacy console prototype routes such as users, tenants, settings, register, and reports redirect to supported Worker pages.
 
 ## Verification
 

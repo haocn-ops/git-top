@@ -22,9 +22,12 @@ if (!response.ok) {
 }
 
 const report = await response.json();
+const releaseScore = report.release_score ?? report.score;
 const summary = {
   target,
   score: report.score,
+  release_score: releaseScore,
+  data_trust_score: report.data_trust_score,
   project_count: report.project_count,
   issue_count: report.issue_count,
   error_count: report.error_count,
@@ -64,8 +67,8 @@ if (allowSeed) {
   process.exit(1);
 }
 
-if (report.score < minScore) {
-  console.error(`Quality check failed: score ${report.score} < ${minScore}.`);
+if (releaseScore < minScore) {
+  console.error(`Quality check failed: release score ${releaseScore} < ${minScore}.`);
   process.exit(1);
 }
 

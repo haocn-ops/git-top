@@ -1,8 +1,8 @@
 import { buildKnowledgeGraph } from "./graph";
 import { listProjectKnowledgeWithMeta } from "./knowledge-source";
-import { findAlternativesFromList, getProjectKnowledgeFromList } from "./project-search";
+import { findAlternativesFromList, findRelatedProjectsFromList, getProjectKnowledgeFromList } from "./project-search";
 import { toProjectKnowledgeView } from "./project-view";
-import type { Env } from "./types";
+import type { Env, ProjectKnowledge } from "./types";
 
 export async function renderProjectGraphPage(env: Env, id: string): Promise<Response | null> {
   const all = (await listProjectKnowledgeWithMeta(env)).projects;
@@ -14,8 +14,9 @@ export async function renderProjectGraphPage(env: Env, id: string): Promise<Resp
   const graph = buildKnowledgeGraph(all, project.project.id, 28);
   const view = toProjectKnowledgeView(project);
   const alternatives = findAlternativesFromList(all, project.project.id, 6).map(toProjectKnowledgeView);
+  const related = findRelatedProjectsFromList(all, project.project.id, 6).map(toProjectKnowledgeView);
 
-  return new Response(renderGraphHtml({ view, alternatives, graph }), {
+  return new Response(renderGraphHtml({ project, view, alternatives, related, graph }), {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "public, max-age=180"
@@ -25,11 +26,15 @@ export async function renderProjectGraphPage(env: Env, id: string): Promise<Resp
 
 function renderGraphHtml({
   view,
+  project,
   alternatives,
+  related,
   graph
 }: {
+  project: ProjectKnowledge;
   view: ReturnType<typeof toProjectKnowledgeView>;
   alternatives: Array<ReturnType<typeof toProjectKnowledgeView>>;
+  related: Array<ReturnType<typeof toProjectKnowledgeView>>;
   graph: ReturnType<typeof buildKnowledgeGraph>;
 }): string {
   const nodes = graph.nodes.slice(0, 22);
@@ -63,9 +68,10 @@ function renderGraphHtml({
       .lead { max-width:780px; font-size:18px; margin-top:12px; }
       .button { display:inline-flex; align-items:center; justify-content:center; min-height:36px; border:1px solid var(--line); border-radius:8px; background:var(--surface); font-weight:900; padding:8px 11px; }
       .button.primary { border-color:var(--teal); background:var(--teal); color:#fff; }
-      .layout { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:12px; margin-top:16px; }
+      .layout { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:12px; margin-top:16px; }
       .panel { border:1px solid var(--line); border-radius:8px; background:var(--surface); box-shadow:var(--shadow); padding:16px; }
       .graph-box { min-height:620px; overflow:hidden; }
+      .side-stack { display:grid; gap:12px; align-content:start; }
       svg { width:100%; height:auto; display:block; }
       .node-label { font-size:12px; font-weight:800; fill:#22313a; }
       .edge { stroke:#b7c5cc; stroke-width:1.6; }
@@ -80,14 +86,22 @@ function renderGraphHtml({
       .tag-list { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
       .tag-list span { border:1px solid var(--line); border-radius:999px; background:#f8fafb; color:#40505a; font-size:12px; font-weight:900; padding:6px 9px; }
       .three-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:12px; }
+      .stat-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:12px; }
+      .stat { border:1px solid var(--line); border-radius:8px; background:#fbfdfd; padding:10px; }
+      .stat span { display:block; color:var(--muted); font-size:12px; font-weight:900; }
+      .stat strong { display:block; margin-top:4px; font-size:18px; overflow-wrap:anywhere; }
+      .action-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; margin-top:12px; }
+      .action-grid a { border:1px solid var(--line); border-radius:8px; background:#fff; padding:10px; font-weight:900; color:#22313a; }
       @media (max-width:900px) { .layout,.three-grid { grid-template-columns:1fr; } .graph-box { min-height:auto; } }
+      @media (max-width:900px) { .stat-grid,.action-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+      @media (max-width:560px) { .stat-grid,.action-grid { grid-template-columns:1fr; } }
     </style>
   </head>
   <body>
     <div class="page">
       <nav class="nav">
         <a class="brand" href="/"><span class="brand-mark">G</span><span>Git.Top</span></a>
-        <div class="nav-links"><a href="/projects/${escapeAttr(view.repo)}">Project</a><a href="/api/graph?repo=${escapeAttr(view.repo)}">Graph API</a><a href="/mcp">MCP</a></div>
+        <div class="nav-links"><a href="/projects/${escapeAttr(view.repo)}">Project</a><a href="/alternatives/${escapeAttr(view.repo)}">Alternatives</a><a href="/api/graph?repo=${escapeAttr(view.repo)}">Graph API</a><a href="/mcp">MCP</a></div>
       </nav>
 
       <header class="header">
@@ -96,8 +110,41 @@ function renderGraphHtml({
           <h1>${escapeHtml(view.repo)}</h1>
           <p class="lead">A relationship view of alternatives, deployments, compatible protocols, dependencies, use cases, and categories.</p>
         </div>
-        <a class="button primary" href="/api/graph?repo=${escapeAttr(view.repo)}">JSON</a>
+        <div class="nav-links">
+          <a class="button primary" href="/api/graph?repo=${escapeAttr(view.repo)}">JSON</a>
+          <a class="button" href="/alternatives/${escapeAttr(view.repo)}">Alternatives</a>
+          <a class="button" href="/api/compare?repos=${escapeAttr(compareRepos(view, alternatives))}">Compare</a>
+        </div>
       </header>
+
+      <section class="panel" aria-label="Graph summary">
+        <p class="eyebrow">Graph Summary</p>
+        <h2>${escapeHtml(graph.summary ?? `${view.repo} relationship graph`)}</h2>
+        <div class="stat-grid">
+          <div class="stat"><span>Nodes</span><strong>${graph.graphStats.nodeCount}</strong></div>
+          <div class="stat"><span>Edges</span><strong>${graph.graphStats.edgeCount}</strong></div>
+          <div class="stat"><span>Projects</span><strong>${graph.graphStats.projectCount}</strong></div>
+          <div class="stat"><span>Dependencies</span><strong>${graph.graphStats.relationshipCounts.dependency}</strong></div>
+        </div>
+        <div class="action-grid">
+          ${(graph.nextActions ?? []).map((action) => `<a href="${escapeAttr(action.href)}">${escapeHtml(action.label)}</a>`).join("")}
+        </div>
+      </section>
+
+      <section class="three-grid">
+        <article class="panel">
+          <p class="eyebrow">Project Context</p>
+          <h2>${escapeHtml(view.name)}</h2>
+          <div class="list">
+            <div><strong>Maintainer</strong><span>${escapeHtml(project.project.owner)}</span></div>
+            <div><strong>License</strong><span>${escapeHtml(view.license ?? "Unknown")}</span></div>
+            <div><strong>Language</strong><span>${escapeHtml(view.language ?? "Unknown")}</span></div>
+            <div><strong>Recent activity</strong><span>${escapeHtml(recentActivityLabel(project.metrics.recentPushDays))}</span></div>
+          </div>
+        </article>
+        ${panel("Deployment Targets", view.deployments)}
+        ${panel("Dependencies", view.dependencies.length ? view.dependencies : ["LLM provider"])}
+      </section>
 
       <section class="layout">
         <article class="panel graph-box">
@@ -105,17 +152,23 @@ function renderGraphHtml({
           ${renderSvg(view.repo, ringNodes)}
         </article>
 
-        <aside class="panel">
-          <p class="eyebrow">Alternatives Network</p>
-          <h2>${escapeHtml(view.name)} alternatives</h2>
-          <div class="list">${alternatives.length ? alternatives.map((item) => `<div><strong>${escapeHtml(view.repo)} ↔ ${escapeHtml(item.repo)}</strong><span>${escapeHtml(item.overview)}</span></div>`).join("") : `<div><strong>No alternatives yet</strong><span>Git.Top will infer alternatives as the graph grows.</span></div>`}</div>
-        </aside>
+        <div class="side-stack">
+          <aside class="panel">
+            <div class="panel-heading"><div><p class="eyebrow">Related Network</p><h2>Adjacent projects</h2></div><a class="button" href="/api/related/${escapeAttr(view.repo)}">JSON</a></div>
+            <div class="list">${related.length ? related.map((item) => `<div><strong>${escapeHtml(view.repo)} ↔ ${escapeHtml(item.repo)}</strong><span>${escapeHtml(item.overview)}</span></div>`).join("") : `<div><strong>No related projects yet</strong><span>Git.Top will infer related projects as the graph grows.</span></div>`}</div>
+          </aside>
+
+          <aside class="panel">
+            <div class="panel-heading"><div><p class="eyebrow">Alternatives Network</p><h2>Replacement candidates</h2></div><a class="button" href="/api/alternatives/${escapeAttr(view.repo)}">JSON</a></div>
+            <div class="list">${alternatives.length ? alternatives.map((item) => `<div><strong>${escapeHtml(view.repo)} ↔ ${escapeHtml(item.repo)}</strong><span>${escapeHtml(item.overview)}</span></div>`).join("") : `<div><strong>No alternatives yet</strong><span>Git.Top will infer alternatives as the graph grows.</span></div>`}</div>
+          </aside>
+        </div>
       </section>
 
       <section class="three-grid">
-        ${panel("Deploy", view.deployments)}
-        ${panel("Compatible With", view.dependencies.length ? view.dependencies : ["LLM provider"])}
         ${panel("Use Cases", view.useCases)}
+        ${panel("Alternatives", alternatives.length ? alternatives.map((item) => item.repo) : ["No alternatives yet"])}
+        ${panel("Related Projects", related.length ? related.map((item) => item.repo) : ["No related projects yet"])}
       </section>
     </div>
   </body>
@@ -150,6 +203,26 @@ function renderSvg(focusRepo: string, nodes: Array<{ id: string; label: string; 
 
 function panel(title: string, items: string[]): string {
   return `<article class="panel"><p class="eyebrow">${escapeHtml(title)}</p><div class="tag-list">${items.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div></article>`;
+}
+
+function compareRepos(view: ReturnType<typeof toProjectKnowledgeView>, alternatives: Array<ReturnType<typeof toProjectKnowledgeView>>): string {
+  return [view.repo, ...alternatives.slice(0, 3).map((item) => item.repo)].join(",");
+}
+
+function recentActivityLabel(days: number | null): string {
+  if (days === null) {
+    return "Unknown recent push activity";
+  }
+  if (days <= 7) {
+    return "Active in the last week";
+  }
+  if (days <= 30) {
+    return "Active in the last month";
+  }
+  if (days <= 90) {
+    return "Active in the last quarter";
+  }
+  return `Last push ${days} days ago`;
 }
 
 function shortLabel(value: string, max: number): string {

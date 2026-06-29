@@ -14,11 +14,13 @@ export interface ProjectKnowledgeView {
   description: string;
   overview: string;
   alternatives: Array<{ repo: string; reason: string }>;
+  related: Array<{ repo: string; reason: string }>;
   dependencies: string[];
   deployments: string[];
   difficulty: string;
   cloudflareReady: boolean;
   useCases: string[];
+  notGoodFor: string[];
   classification?: ProjectKnowledge["agentCard"]["classification"];
   qualitySignals: {
     stars: number;
@@ -36,6 +38,7 @@ export interface ProjectKnowledgeView {
   };
   qualityScore: number;
   agentScore: number;
+  score: number;
   agentScoreBreakdown: {
     documentation: number;
     maintenance: number;
@@ -43,11 +46,22 @@ export interface ProjectKnowledgeView {
     popularity: number;
     community: number;
   };
+  gitTopScore: number;
+  gitTopScoreBreakdown: {
+    community: number;
+    maintenance: number;
+    documentation: number;
+    stability: number;
+    adoption: number;
+    agentReadability: number;
+  };
 }
 
 export function toProjectKnowledgeView(item: ProjectKnowledge): ProjectKnowledgeView {
   const qualityScore = item.metrics.gitScore;
   const agentScore = calculateAgentScore(item);
+  const gitTopScoreBreakdown = getGitTopScoreParts(item);
+  const gitTopScore = calculateGitTopScoreFromParts(gitTopScoreBreakdown);
 
   return {
     repo: item.project.fullName,
@@ -66,11 +80,13 @@ export function toProjectKnowledgeView(item: ProjectKnowledge): ProjectKnowledge
       repo: alternative.project_id,
       reason: alternative.reason
     })),
+    related: [],
     dependencies: inferDependencies(item),
     deployments: item.agentCard.deployment,
     difficulty: item.agentCard.difficulty,
     cloudflareReady: item.agentCard.cloudflareReady,
     useCases: item.agentCard.useCases,
+    notGoodFor: item.agentCard.notGoodFor,
     classification: withDefaultClassification(item.agentCard.classification),
     qualitySignals: {
       stars: item.project.stars,
@@ -82,8 +98,44 @@ export function toProjectKnowledgeView(item: ProjectKnowledge): ProjectKnowledge
     qualitySignalConfidence: withDefaultConfidence(item.metrics.signalConfidence),
     qualityScore,
     agentScore,
-    agentScoreBreakdown: getAgentScoreParts(item)
+    score: gitTopScore,
+    agentScoreBreakdown: getAgentScoreParts(item),
+    gitTopScore,
+    gitTopScoreBreakdown
   };
+}
+
+export function withRelatedProjects(
+  view: ProjectKnowledgeView,
+  related: ProjectKnowledge[],
+  sourceRepo = view.repo
+): ProjectKnowledgeView {
+  return {
+    ...view,
+    related: related.map((item) => ({
+      repo: item.project.id,
+      reason: relatedReason(view, toProjectKnowledgeView(item), sourceRepo)
+    }))
+  };
+}
+
+function relatedReason(source: ProjectKnowledgeView, target: ProjectKnowledgeView, sourceRepo: string): string {
+  const sharedCategory = source.category.find((category) => target.category.includes(category));
+  const sharedDeployment = source.deployments.find((deployment) => target.deployments.includes(deployment));
+  const sharedDependency = source.dependencies.find((dependency) => target.dependencies.includes(dependency));
+  if (sharedCategory && sharedDeployment) {
+    return `Related to ${sourceRepo} through ${sharedCategory.replaceAll("_", " ")} category and ${sharedDeployment} deployment.`;
+  }
+  if (sharedDependency) {
+    return `Related to ${sourceRepo} through shared ${sharedDependency} dependency context.`;
+  }
+  if (sharedCategory) {
+    return `Related to ${sourceRepo} through the ${sharedCategory.replaceAll("_", " ")} ecosystem.`;
+  }
+  if (sharedDeployment) {
+    return `Related to ${sourceRepo} through ${sharedDeployment} deployment fit.`;
+  }
+  return `Related to ${sourceRepo} through overlapping topics, use cases, or project signals.`;
 }
 
 function withDefaultClassification(
@@ -112,6 +164,21 @@ export function calculateAgentScore(item: ProjectKnowledge): number {
   return Math.round(parts.documentation * 0.22 + parts.maintenance * 0.24 + parts.deployment * 0.2 + parts.popularity * 0.18 + parts.community * 0.16);
 }
 
+export function calculateGitTopScore(item: ProjectKnowledge): number {
+  return calculateGitTopScoreFromParts(getGitTopScoreParts(item));
+}
+
+function calculateGitTopScoreFromParts(parts: ProjectKnowledgeView["gitTopScoreBreakdown"]): number {
+  return Math.round(
+    parts.community * 0.16 +
+      parts.maintenance * 0.2 +
+      parts.documentation * 0.16 +
+      parts.stability * 0.16 +
+      parts.adoption * 0.16 +
+      parts.agentReadability * 0.16
+  );
+}
+
 function getAgentScoreParts(item: ProjectKnowledge): ProjectKnowledgeView["agentScoreBreakdown"] {
   const documentation = item.agentCard.summaryForAgent.length > 80 ? 90 : 72;
   const maintenance = item.metrics.maintenanceScore;
@@ -126,6 +193,44 @@ function getAgentScoreParts(item: ProjectKnowledge): ProjectKnowledgeView["agent
     popularity,
     community
   };
+}
+
+function getGitTopScoreParts(item: ProjectKnowledge): ProjectKnowledgeView["gitTopScoreBreakdown"] {
+  const documentation = item.agentCard.summaryForAgent.length > 120 ? 92 : item.agentCard.summaryForAgent.length > 80 ? 84 : 68;
+  const maintenance = Math.round(item.metrics.maintenanceScore * 0.68 + Math.min(100, item.metrics.commits30d * 4) * 0.2 + Math.min(100, item.metrics.releases180d * 16) * 0.12);
+  const community = Math.min(100, Math.round(42 + item.metrics.contributors90d * 3 + Math.log10(Math.max(item.project.stars, 1)) * 10));
+  const stability = Math.min(
+    100,
+    Math.round(
+      45 +
+        Math.min(30, item.metrics.releases180d * 8) +
+        (item.metrics.recentPushDays !== null && item.metrics.recentPushDays <= 30 ? 15 : 0) +
+        (item.project.openIssues < 100 ? 10 : 0)
+    )
+  );
+  const adoption = Math.min(100, Math.round(Math.log10(Math.max(item.project.stars, 1)) * 22 + Math.log10(Math.max(item.project.forks, 1)) * 10));
+  const agentReadability = Math.min(
+    100,
+    48 +
+      (item.agentCard.useCases.length > 0 ? 12 : 0) +
+      (item.agentCard.notGoodFor.length > 0 ? 10 : 0) +
+      (item.agentCard.deployment.length > 0 ? 10 : 0) +
+      (inferDependencies(item).length > 0 ? 10 : 0) +
+      (item.agentCard.alternatives.length > 0 ? 10 : 0)
+  );
+
+  return {
+    community,
+    maintenance: clampScore(maintenance),
+    documentation: clampScore(documentation),
+    stability: clampScore(stability),
+    adoption: clampScore(adoption),
+    agentReadability: clampScore(agentReadability)
+  };
+}
+
+function clampScore(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value)));
 }
 
 function inferDependencies(item: ProjectKnowledge): string[] {

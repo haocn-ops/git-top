@@ -1,7 +1,7 @@
 const options = parseArgs(process.argv.slice(2));
 const baseUrl = normalizeBaseUrl(options.baseUrl ?? process.env.GIT_TOP_SYNC_BASE_URL ?? "https://git.top");
 const syncSecret = options.syncSecret ?? process.env.SYNC_SECRET;
-const limit = positiveInteger(options.limit ?? process.env.GIT_TOP_SYNC_LIMIT ?? 5, "limit");
+const limit = positiveInteger(options.limit ?? process.env.GIT_TOP_SYNC_LIMIT ?? 40, "limit");
 const rounds = positiveInteger(options.rounds ?? process.env.GIT_TOP_SYNC_ROUNDS ?? 1, "rounds");
 const timeoutMs = positiveInteger(options.timeoutMs ?? process.env.GIT_TOP_SYNC_TIMEOUT_MS ?? 30_000, "timeout-ms");
 const signalDepth = options.signalDepth ?? process.env.GIT_TOP_SYNC_SIGNAL_DEPTH ?? "lite";

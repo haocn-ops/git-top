@@ -1,9 +1,10 @@
 import { generateAlternatives } from "./alternatives";
 import { calculateAgentScore, toProjectKnowledgeView } from "./project-view";
+import { findRelatedProjectsFromList } from "./project-search";
 import type { ProjectKnowledge } from "./types";
 
 export type GraphNodeKind = "project" | "category" | "deployment" | "use_case" | "dependency";
-export type GraphEdgeKind = "alternative" | "category" | "deployment" | "use_case" | "dependency";
+export type GraphEdgeKind = "alternative" | "related" | "category" | "deployment" | "use_case" | "dependency";
 
 export interface KnowledgeGraphNode {
   id: string;
@@ -23,6 +24,34 @@ export interface KnowledgeGraphEdge {
 
 export interface ProjectGraph {
   focus?: string;
+  project?: {
+    repo: string;
+    name: string;
+    description: string;
+    maintainer: string;
+    license: string | null;
+    language: string | null;
+    recentActivity: string;
+  };
+  summary?: string;
+  graphStats: {
+    nodeCount: number;
+    edgeCount: number;
+    projectCount: number;
+    relationshipCounts: Record<GraphEdgeKind, number>;
+  };
+  nextActions?: Array<{
+    label: string;
+    href: string;
+    kind: "project" | "alternatives" | "related" | "score" | "compare";
+  }>;
+  relationshipGroups?: {
+    alternatives: Array<{ repo: string; reason: string }>;
+    related: Array<{ repo: string; reason: string }>;
+    dependencies: string[];
+    deploymentTargets: string[];
+    useCases: string[];
+  };
   nodes: KnowledgeGraphNode[];
   edges: KnowledgeGraphEdge[];
 }
@@ -45,6 +74,26 @@ export interface CompareResult {
   projects: CompareColumn[];
   winner: string | null;
   reasoning: string;
+  summary: string;
+  stats: {
+    candidateCount: number;
+    cloudflareReadyCount: number;
+    dockerReadyCount: number;
+    localReadyCount: number;
+    highestAgentScore: number | null;
+    highestQualityScore: number | null;
+  };
+  decisionMatrix: Array<{
+    repo: string;
+    strengths: string[];
+    tradeoffs: string[];
+    nextStep: string;
+  }>;
+  nextActions: Array<{
+    label: string;
+    href: string;
+    kind: "project" | "graph" | "alternatives" | "score" | "recommend";
+  }>;
   context: {
     deployment?: string;
   };
@@ -104,12 +153,41 @@ export function buildKnowledgeGraph(projects: ProjectKnowledge[], focusRepo?: st
         weight: 100
       });
     }
+
+    for (const related of findRelatedProjectsFromList(projects, item.project.id, 3)) {
+      addNode(nodes, {
+        id: related.project.id,
+        label: related.project.name,
+        kind: "project",
+        score: calculateAgentScore(related),
+        repo: related.project.id
+      });
+      edges.push({
+        source: item.project.id,
+        target: related.project.id,
+        kind: "related",
+        reason: relatedReason(item, related),
+        weight: 82
+      });
+    }
   }
 
+  const outputNodes = Array.from(nodes.values());
+  const outputEdges = dedupeEdges(edges);
+  const relationshipGroups = focus ? graphRelationshipGroups(focus, projects) : undefined;
   return {
     focus: focus?.project.id ?? focusRepo,
-    nodes: Array.from(nodes.values()),
-    edges: dedupeEdges(edges)
+    ...(focus
+      ? {
+          project: graphProjectContext(focus),
+          summary: graphSummary(focus, relationshipGroups, outputNodes, outputEdges),
+          nextActions: graphNextActions(focus)
+        }
+      : {}),
+    graphStats: graphStats(outputNodes, outputEdges),
+    ...(relationshipGroups ? { relationshipGroups } : {}),
+    nodes: outputNodes,
+    edges: outputEdges
   };
 }
 
@@ -139,6 +217,10 @@ export function compareProjectKnowledge(projects: ProjectKnowledge[], context: {
     projects: columns,
     winner,
     reasoning: winner ? buildCompareReason(winner, context) : "No comparable projects were found.",
+    summary: buildCompareSummary(columns, winner, context),
+    stats: compareStats(columns),
+    decisionMatrix: columns.map((column) => compareDecision(column, context, winner)),
+    nextActions: compareNextActions(columns, winner),
     context
   };
 }
@@ -172,12 +254,14 @@ function selectGraphProjects(projects: ProjectKnowledge[], focusRepo: string | u
   }
 
   const alternatives = new Set(alternativesFor(focus, projects).map((item) => item.project_id));
+  const related = new Set(findRelatedProjectsFromList(projects, focus.project.id, boundedLimit).map((item) => item.project.id));
   return [
     focus,
     ...projects.filter(
       (item) =>
         item.project.id !== focus.project.id &&
-        (alternatives.has(item.project.id) ||
+        (related.has(item.project.id) ||
+          alternatives.has(item.project.id) ||
           item.agentCard.category === focus.agentCard.category ||
           shared(item.agentCard.deployment, focus.agentCard.deployment))
     )
@@ -186,6 +270,80 @@ function selectGraphProjects(projects: ProjectKnowledge[], focusRepo: string | u
 
 function alternativesFor(item: ProjectKnowledge, projects: ProjectKnowledge[]) {
   return item.agentCard.alternatives.length > 0 ? item.agentCard.alternatives : generateAlternatives(item, projects, 4);
+}
+
+function graphProjectContext(item: ProjectKnowledge): NonNullable<ProjectGraph["project"]> {
+  return {
+    repo: item.project.id,
+    name: item.project.name,
+    description: item.project.description ?? item.agentCard.summaryForAgent,
+    maintainer: item.project.owner,
+    license: item.project.license,
+    language: item.project.language,
+    recentActivity: recentActivityLabel(item.metrics.recentPushDays)
+  };
+}
+
+function graphRelationshipGroups(item: ProjectKnowledge, projects: ProjectKnowledge[]): NonNullable<ProjectGraph["relationshipGroups"]> {
+  const view = toProjectKnowledgeView(item);
+  const alternatives = alternativesFor(item, projects).slice(0, 8);
+  const related = findRelatedProjectsFromList(projects, item.project.id, 8);
+  return {
+    alternatives: alternatives.map((alternative) => ({
+      repo: alternative.project_id,
+      reason: alternative.reason
+    })),
+    related: related.map((relatedProject) => ({
+      repo: relatedProject.project.id,
+      reason: relatedReason(item, relatedProject)
+    })),
+    dependencies: view.dependencies,
+    deploymentTargets: view.deployments,
+    useCases: view.useCases
+  };
+}
+
+function graphSummary(
+  item: ProjectKnowledge,
+  groups: NonNullable<ProjectGraph["relationshipGroups"]> | undefined,
+  nodes: KnowledgeGraphNode[],
+  edges: KnowledgeGraphEdge[]
+): string {
+  if (!groups) {
+    return `${item.project.id} graph includes ${nodes.length} nodes and ${edges.length} relationship edges.`;
+  }
+  return `${item.project.id} graph connects ${groups.alternatives.length} alternatives, ${groups.related.length} related projects, ${groups.dependencies.length} inferred dependencies, ${groups.deploymentTargets.length} deployment targets, and ${groups.useCases.length} use cases.`;
+}
+
+function graphStats(nodes: KnowledgeGraphNode[], edges: KnowledgeGraphEdge[]): ProjectGraph["graphStats"] {
+  const relationshipCounts = {
+    alternative: 0,
+    related: 0,
+    category: 0,
+    deployment: 0,
+    use_case: 0,
+    dependency: 0
+  } satisfies Record<GraphEdgeKind, number>;
+  for (const edge of edges) {
+    relationshipCounts[edge.kind] += 1;
+  }
+  return {
+    nodeCount: nodes.length,
+    edgeCount: edges.length,
+    projectCount: nodes.filter((node) => node.kind === "project").length,
+    relationshipCounts
+  };
+}
+
+function graphNextActions(item: ProjectKnowledge): NonNullable<ProjectGraph["nextActions"]> {
+  const repo = item.project.id;
+  return [
+    { label: "Open project knowledge", href: `/projects/${repo}`, kind: "project" },
+    { label: "Find alternatives", href: `/alternatives/${repo}`, kind: "alternatives" },
+    { label: "Explore related projects", href: `/api/related/${repo}`, kind: "related" },
+    { label: "Explain score", href: `/score/${repo}`, kind: "score" },
+    { label: "Compare shortlist", href: `/api/compare?repos=${repo}`, kind: "compare" }
+  ];
 }
 
 function findProjectByAlias(projects: ProjectKnowledge[], value: string): ProjectKnowledge | null {
@@ -242,13 +400,88 @@ function buildCompareReason(winner: string, context: { deployment?: string }): s
   return `${winner} has the strongest combined agent score and maintenance profile in this comparison.`;
 }
 
+function buildCompareSummary(columns: CompareColumn[], winner: string | null, context: { deployment?: string }): string {
+  if (!winner) {
+    return "No comparable indexed projects were found for this comparison.";
+  }
+  const deploymentContext = context.deployment ? ` with ${context.deployment} deployment preference` : "";
+  return `${winner} leads ${columns.length} compared projects${deploymentContext}. Review the decision matrix before treating it as the default recommendation.`;
+}
+
+function compareStats(columns: CompareColumn[]): CompareResult["stats"] {
+  return {
+    candidateCount: columns.length,
+    cloudflareReadyCount: columns.filter((column) => column.cloudflare).length,
+    dockerReadyCount: columns.filter((column) => column.docker).length,
+    localReadyCount: columns.filter((column) => column.local).length,
+    highestAgentScore: columns.length ? Math.max(...columns.map((column) => column.agentScore)) : null,
+    highestQualityScore: columns.length ? Math.max(...columns.map((column) => column.qualityScore)) : null
+  };
+}
+
+function compareDecision(column: CompareColumn, context: { deployment?: string }, winner: string | null): CompareResult["decisionMatrix"][number] {
+  const strengths: string[] = [];
+  const tradeoffs: string[] = [];
+  if (column.repo === winner) {
+    strengths.push("Leads this comparison context.");
+  }
+  if (column.agentScore >= 75) {
+    strengths.push(`Strong agent score at ${column.agentScore}/100.`);
+  }
+  if (column.qualityScore >= 70) {
+    strengths.push(`Strong quality score at ${column.qualityScore}/100.`);
+  }
+  if (context.deployment === "cloudflare" && column.cloudflare) {
+    strengths.push("Matches Cloudflare deployment preference.");
+  }
+  if (context.deployment === "docker" && column.docker) {
+    strengths.push("Matches Docker deployment preference.");
+  }
+  if (context.deployment === "local" && column.local) {
+    strengths.push("Matches local deployment preference.");
+  }
+  if (strengths.length === 0) {
+    strengths.push("Useful baseline candidate for comparison.");
+  }
+
+  if (context.deployment === "cloudflare" && !column.cloudflare) {
+    tradeoffs.push("No explicit Cloudflare deployment signal.");
+  }
+  if (column.maintenanceScore < 50) {
+    tradeoffs.push(`Maintenance score is ${column.maintenanceScore}/100.`);
+  }
+  if (column.bestFor.length === 0) {
+    tradeoffs.push("No structured best-fit use cases are indexed.");
+  }
+  return {
+    repo: column.repo,
+    strengths: strengths.slice(0, 3),
+    tradeoffs: tradeoffs.slice(0, 3),
+    nextStep: column.repo === winner ? "Inspect score and graph before adopting." : "Use as an alternative or fallback candidate."
+  };
+}
+
+function compareNextActions(columns: CompareColumn[], winner: string | null): CompareResult["nextActions"] {
+  const target = winner ?? columns[0]?.repo;
+  if (!target) {
+    return [{ label: "Get recommendations", href: "/api/recommend?limit=5", kind: "recommend" }];
+  }
+  return [
+    { label: "Open winning project", href: `/projects/${target}`, kind: "project" },
+    { label: "Inspect graph", href: `/graph/${target}`, kind: "graph" },
+    { label: "Find alternatives", href: `/alternatives/${target}`, kind: "alternatives" },
+    { label: "Explain score", href: `/score/${target}`, kind: "score" },
+    { label: "Get recommendations", href: `/api/recommend?limit=5`, kind: "recommend" }
+  ];
+}
+
 function addRelationship(
   nodes: Map<string, KnowledgeGraphNode>,
   edges: KnowledgeGraphEdge[],
   source: string,
   target: string,
   label: string,
-  kind: Exclude<GraphEdgeKind, "alternative">,
+  kind: Exclude<GraphEdgeKind, "alternative" | "related">,
   weight: number
 ): void {
   addNode(nodes, {
@@ -283,6 +516,37 @@ function dedupeEdges(edges: KnowledgeGraphEdge[]): KnowledgeGraphEdge[] {
 
 function repoName(repo: string): string {
   return repo.split("/").at(-1) ?? repo;
+}
+
+function relatedReason(source: ProjectKnowledge, target: ProjectKnowledge): string {
+  const sharedCategory = source.agentCard.category === target.agentCard.category ? source.agentCard.category.replaceAll("_", " ") : null;
+  const deployment = source.agentCard.deployment.find((item) => target.agentCard.deployment.includes(item));
+  if (sharedCategory && deployment) {
+    return `Shared ${sharedCategory} category and ${deployment} deployment context.`;
+  }
+  if (sharedCategory) {
+    return `Shared ${sharedCategory} ecosystem.`;
+  }
+  if (deployment) {
+    return `Shared ${deployment} deployment context.`;
+  }
+  return "Related through overlapping topics, dependencies, or use cases.";
+}
+
+function recentActivityLabel(days: number | null): string {
+  if (days === null) {
+    return "unknown";
+  }
+  if (days <= 7) {
+    return "active_last_week";
+  }
+  if (days <= 30) {
+    return "active_last_month";
+  }
+  if (days <= 90) {
+    return "active_last_quarter";
+  }
+  return "stale";
 }
 
 function slug(value: string): string {

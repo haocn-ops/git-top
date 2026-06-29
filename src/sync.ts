@@ -9,7 +9,8 @@ import type { Env, GithubRepository, Project, ProjectKnowledge, SyncFailure, Syn
 import { validateProjectKnowledge, ValidationError } from "./validation";
 
 export const defaultSyncLimit = 1;
-export const scheduledSyncLimit = 5;
+export const scheduledSyncLimit = 40;
+export const maxSyncLimit = 50;
 
 const lightweightSignalOptions = {
   maxCommitPages: 1,
@@ -186,7 +187,7 @@ function clampLimit(value: number | undefined): number {
   if (!value || !Number.isFinite(value)) {
     return defaultSyncLimit;
   }
-  return Math.max(1, Math.min(10, Math.trunc(value)));
+  return Math.max(1, Math.min(maxSyncLimit, Math.trunc(value)));
 }
 
 function clampOffset(value: number | undefined): number {

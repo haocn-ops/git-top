@@ -32,7 +32,7 @@ await check("project lookup exposes quality signal confidence", async () => {
   assert.equal(response.body.quality_signal_confidence.commits_30d, "complete");
 });
 
-await check("recommendations include reason and tradeoff fields", async () => {
+await check("recommendations include explainable ranking fields", async () => {
   const response = await request("/api/recommend?use_case=cloudflare%20agent%20framework&deployment=cloudflare&cloudflare_ready=true&limit=1");
   assert.equal(response.status, 200);
   assert.equal(response.body.metadata.source, "seed");
@@ -40,7 +40,13 @@ await check("recommendations include reason and tradeoff fields", async () => {
   const recommendation = response.body.recommendations[0];
   assert.equal(typeof recommendation.reason, "string");
   assert.ok(recommendation.reason.length > 0);
+  assert.ok(Array.isArray(recommendation.reasons));
+  assert.ok(recommendation.reasons.length > 0);
   assert.ok(Array.isArray(recommendation.tradeoffs));
+  assert.equal(recommendation.matched_constraints.deployment, "cloudflare");
+  assert.equal(recommendation.matched_constraints.cloudflare_ready, true);
+  assert.equal(typeof recommendation.ranking_signals.use_case_match, "number");
+  assert.ok(["high", "medium", "low"].includes(recommendation.confidence));
   assert.ok(recommendation.agent_card.summary_for_agent.length > 0);
   assert.ok(Array.isArray(recommendation.agent_card.not_good_for));
 });
@@ -49,6 +55,10 @@ await check("quality report exposes score and risk explanation", async () => {
   const response = await request("/api/quality", mockD1Env());
   assert.equal(response.status, 200);
   assert.equal(response.body.metadata.source, "d1");
+  assert.equal(response.body.score, response.body.release_score);
+  assert.ok(typeof response.body.data_trust_score === "number");
+  assert.ok(response.body.score_summary.release_score_meaning.includes("Release gate score"));
+  assert.ok(response.body.score_summary.risk_level_meaning.includes("Risk level"));
   assert.ok(["low", "medium", "high"].includes(response.body.risk_level));
   assert.equal(response.body.risk_summary.level, response.body.risk_level);
   assert.ok(Array.isArray(response.body.risk_summary.reasons));

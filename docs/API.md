@@ -44,6 +44,15 @@ curl "http://localhost:8787/api/search?q=cloudflare%20agent%20framework&require_
 
 Git.Top exposes two separate scores because project popularity and agent usefulness are related but not identical.
 
+`git_top_score` is the main open-source knowledge score. It is calculated from:
+
+- 16% community
+- 20% maintenance
+- 16% documentation
+- 16% stability
+- 16% adoption
+- 16% agent readability
+
 `quality_score` is the repository activity score. It is calculated from:
 
 - 40% 30-day star movement
@@ -61,6 +70,8 @@ Git.Top exposes two separate scores because project popularity and agent usefuln
 - 16% community activity
 
 Agents should inspect `quality_signal_confidence` before treating score inputs as complete. Star movement may be snapshot-backed or estimated; commit, release, and contributor counts may be complete, partial, or unknown depending on GitHub API collection depth.
+
+Project lookup responses also expose `score` as a backwards-compatible alias for `git_top_score`.
 
 Project records include `project.synced_at`, and metric records include `metrics.calculated_at`. Use these fields with endpoint `metadata.generated_at` and `/api/sync/status` when freshness matters.
 
@@ -124,6 +135,8 @@ Supported filters:
 - `deployment`
 - `difficulty`
 - `language`
+- `project_kind`: `project` or `collection`
+- `min_confidence`: `low`, `medium`, or `high`; requires all recorded classification signals to meet the threshold
 - `cloudflare_ready`
 - `ranking`: optional. Use `browse` for broad category/deployment discovery with larger result limits. Omit it for default exact-intent search ranking.
 - `require_d1`: optional boolean. Use `true` when seed fallback must fail closed.
@@ -147,6 +160,14 @@ curl "http://localhost:8787/api/search?q=agent%20framework&category=agent_framew
 curl http://localhost:8787/api/project/cloudflare/agents
 ```
 
+Structured POST body:
+
+```sh
+curl -X POST "http://localhost:8787/api/project" \
+  -H "content-type: application/json" \
+  -d '{"project_id":"cloudflare/agents","related_limit":8}'
+```
+
 The response includes a compact project view, full `knowledge`, classification evidence, quality signal confidence, and metadata.
 
 ## Trending
@@ -167,14 +188,36 @@ curl "http://localhost:8787/api/trending?category=mcp_server&limit=10"
 curl "http://localhost:8787/api/recommend?use_case=build%20a%20browser%20automation%20agent&deployment=docker&limit=5"
 ```
 
+Structured POST body:
+
+```sh
+curl -X POST "http://localhost:8787/api/recommend" \
+  -H "content-type: application/json" \
+  -d '{"use_case":"build Cloudflare-ready agent workflows","constraints":{"deployment":"cloudflare","category":"agent_framework","license":"MIT","cloudflare_ready":true},"limit":5}'
+```
+
 Useful filters:
 
 - `use_case`
 - `deployment`
+- `category`
+- `license`
 - `difficulty`
 - `language`
 - `cloudflare_ready`
 - `limit`
+
+Recommendation items include both human and machine-readable explanation fields:
+
+- `reason`: backward-compatible one-line explanation.
+- `reasons`: ranked explanation sentences.
+- `decision_summary`: short adoption-oriented summary for the candidate.
+- `matched_constraints`
+- `unmatched_constraints`
+- `ranking_signals`: use-case, community, maintenance, readiness, and license-fit signals.
+- `confidence`: `high`, `medium`, or `low`.
+- `tradeoffs`
+- `next_actions`: project, graph, alternatives, score, and compare links for follow-up decisions.
 
 ## Compare
 
@@ -188,17 +231,97 @@ With deployment preference:
 curl "http://localhost:8787/api/compare?repos=cloudflare/agents,langchain-ai/langchain&deployment=cloudflare"
 ```
 
+Structured POST body:
+
+```sh
+curl -X POST "http://localhost:8787/api/compare" \
+  -H "content-type: application/json" \
+  -d '{"project_ids":["cloudflare/agents","langchain-ai/langchain"],"deployment":"cloudflare"}'
+```
+
+Compare responses include `summary`, `stats`, `decision_matrix`, `next_actions`, ordered `projects`, `winner`, `reasoning`, and source metadata. Use them when an agent needs to justify why one candidate leads a shortlist.
+
 ## Alternatives
 
 ```sh
 curl http://localhost:8787/api/alternatives/langchain-ai/langchain
 ```
 
+Structured POST body:
+
+```sh
+curl -X POST "http://localhost:8787/api/alternatives" \
+  -H "content-type: application/json" \
+  -d '{"project_id":"langchain-ai/langchain","limit":12}'
+```
+
+Use alternatives when you need replacement candidates for the same job. The response includes:
+
+- `project`: source project view.
+- `summary`: short decision summary for the alternatives set.
+- `stats`: candidate count, explicit match count, Cloudflare-ready count, average similarity, and top candidate.
+- `next_actions`: compare, graph, score, project, and recommendation follow-up links.
+- `comparison_links`: direct compare, graph, project, and score links for the source project.
+- `alternatives`: backward-compatible project list.
+- `alternative_matches`: enriched alternatives with `similarity_score`, `alternative_reason`, and `match_signals`.
+
+## Related Projects
+
+```sh
+curl http://localhost:8787/api/related/cloudflare/agents
+```
+
+Structured POST body:
+
+```sh
+curl -X POST "http://localhost:8787/api/related" \
+  -H "content-type: application/json" \
+  -d '{"project_id":"cloudflare/agents","limit":8}'
+```
+
+Use related projects when you need adjacent ecosystem context: shared category, deployment target, dependency context, topics, or use cases. Project lookup responses also include a compact `related` array.
+
+## Project Score
+
+```sh
+curl http://localhost:8787/api/score/cloudflare/agents
+```
+
+Structured POST body:
+
+```sh
+curl -X POST "http://localhost:8787/api/score" \
+  -H "content-type: application/json" \
+  -d '{"project_id":"cloudflare/agents"}'
+```
+
+Use score explanations when an agent or UI needs to explain why a project has a specific Git.Top Score. The response includes weighted `dimensions`, total `git_top_score`, `strongest_dimension`, `weakest_dimension`, `adoption_guidance`, `risk_flags`, `next_actions`, related quality and agent scores, evidence, and links.
+
 ## Graph
 
 ```sh
 curl "http://localhost:8787/api/graph?repo=cloudflare/agents&limit=24"
+curl "http://localhost:8787/api/graph/cloudflare/agents?limit=24"
 ```
+
+Structured POST body:
+
+```sh
+curl -X POST "http://localhost:8787/api/graph" \
+  -H "content-type: application/json" \
+  -d '{"project_id":"cloudflare/agents","limit":24}'
+```
+
+Use graph responses when you need a project relationship model. Focused responses include `summary`, `graph_stats`, `next_actions`, `relationship_groups`, `nodes`, and `edges` across alternatives, related projects, dependencies, deployment targets, and use cases.
+
+## Atlas
+
+```sh
+curl "http://localhost:8787/api/atlas?limit=6"
+curl "http://localhost:8787/api/atlas/cloudflare?limit=8"
+```
+
+Use Atlas when you need an ecosystem-level map before choosing a project. The response groups representative projects with `stats`, `exploration_paths`, ecosystem `map.nodes`, `map.edges`, curated concept nodes, and direct links to the page, search API, and graph API.
 
 ## Quality
 
@@ -210,7 +333,10 @@ Use this endpoint to inspect data quality before treating recommendations as hig
 
 Important quality fields:
 
-- `score`: backward-compatible release-gate score based on errors and warnings.
+- `score`: backward-compatible alias for `release_score`.
+- `release_score`: release-gate score based on errors and warnings. Info observations do not reduce it.
+- `data_trust_score`: corpus trust score based on low-confidence classification, collection review load, stale sync, and stale collection metadata.
+- `score_summary`: machine-readable explanation of how to read `release_score`, `data_trust_score`, and `risk_level` together.
 - `risk_level`: `low`, `medium`, or `high` data-quality risk based on confidence, collection review load, and stale data.
 - `risk_summary`: machine-readable reasons and rates behind `risk_level`.
 - `coverage.covered_categories`
@@ -224,7 +350,7 @@ Important quality fields:
 - `coverage.collection_review_count`
 - `metadata.source`
 
-Collection coverage is reported separately from the release quality score. Use these fields to review resource hubs, awesome lists, cookbooks, and starter collections for scope and freshness without penalizing executable-project quality.
+Collection coverage is reported separately from the release score. A response can have a high `release_score` and a lower `data_trust_score` when the deployable API surface is healthy but the corpus still has review backlog. Use these fields to review resource hubs, awesome lists, cookbooks, and starter collections for scope and freshness without penalizing executable-project release health.
 
 ### Quality Review Queue
 

@@ -49,9 +49,13 @@ async function testSearchAndProjectRoutes() {
   assert.ok(search.body.search.known_filter_values.category.includes("agent_framework"));
   assertMetadata(search.body.metadata, "db_missing");
 
-  const browseSearch = await getJson("/api/search?q=agent%20framework&category=agent_framework&deployment=cloudflare&ranking=browse&limit=8");
+  const browseSearch = await getJson("/api/search?q=agent%20framework&category=agent_framework&deployment=cloudflare&project_kind=project&min_confidence=low&ranking=browse&limit=8");
   assert.equal(browseSearch.status, 200);
   assert.equal(browseSearch.body.query.ranking, "browse");
+  assert.equal(browseSearch.body.search.applied_filters.project_kind, "project");
+  assert.equal(browseSearch.body.search.applied_filters.min_confidence, "low");
+  assert.deepEqual(browseSearch.body.search.known_filter_values.project_kind, ["project", "collection"]);
+  assert.deepEqual(browseSearch.body.search.known_filter_values.min_confidence, ["low", "medium", "high"]);
   assert.ok(browseSearch.body.projects.length > 0, "browse search should return seed projects");
   assert.ok(browseSearch.body.projects.length <= 8, "browse search should honor the limit");
   assertMetadata(browseSearch.body.metadata, "db_missing");
@@ -70,6 +74,13 @@ async function testSearchAndProjectRoutes() {
   assert.equal(project.status, 200);
   assert.equal(project.body.repo, "cloudflare/agents");
   assert.equal(project.body.knowledge.project.full_name, "cloudflare/agents");
+  assert.equal(project.body.score, project.body.git_top_score);
+  assert.ok(typeof project.body.git_top_score === "number");
+  assert.ok(project.body.git_top_score_breakdown && typeof project.body.git_top_score_breakdown === "object");
+  assert.ok(Array.isArray(project.body.related), "project response should include related projects");
+  assert.ok(project.body.related.length > 0, "seed project should include related project candidates");
+  assert.ok(typeof project.body.related[0].repo === "string");
+  assert.ok(typeof project.body.related[0].reason === "string");
   assert.equal(project.body.classification.category.confidence, "low");
   assert.equal(project.body.quality_signal_confidence.stars_30d_delta, "estimated");
   assertMetadata(project.body.metadata, "db_missing");
@@ -77,6 +88,21 @@ async function testSearchAndProjectRoutes() {
   const encodedProject = await getJson(`/api/project/${encodeURIComponent("cloudflare/agents")}`);
   assert.equal(encodedProject.status, 200);
   assert.equal(encodedProject.body.repo, "cloudflare/agents");
+  assert.ok(Array.isArray(encodedProject.body.related));
+
+  const postProject = await request("/api/project", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      project_id: "cloudflare/agents",
+      related_limit: 3
+    })
+  });
+  assert.equal(postProject.status, 200);
+  assert.equal(postProject.body.repo, "cloudflare/agents");
+  assert.ok(Array.isArray(postProject.body.related));
+  assert.ok(postProject.body.related.length <= 3);
+  assertMetadata(postProject.body.metadata, "db_missing");
 
   const missing = await getJson("/api/project/not-a-real/project");
   assert.equal(missing.status, 404);
@@ -88,7 +114,46 @@ async function testRecommendationAndCompareRoutes() {
   assert.equal(recommend.status, 200);
   assert.ok(Array.isArray(recommend.body.recommendations));
   assert.ok(recommend.body.recommendations.length > 0, "recommend should return seed recommendations");
+  assert.ok(Array.isArray(recommend.body.recommendations[0].reasons));
+  assert.ok(typeof recommend.body.recommendations[0].decision_summary === "string");
+  assert.ok(Array.isArray(recommend.body.recommendations[0].next_actions));
+  assert.ok(recommend.body.recommendations[0].next_actions.some((action) => action.kind === "graph"));
+  assert.ok(typeof recommend.body.recommendations[0].matched_constraints === "object");
+  assert.ok(typeof recommend.body.recommendations[0].ranking_signals.use_case_match === "number");
+  assert.ok(["high", "medium", "low"].includes(recommend.body.recommendations[0].confidence));
   assertMetadata(recommend.body.metadata, "db_missing");
+
+  const filteredRecommend = await getJson("/api/recommend?category=agent_framework&license=MIT&limit=3");
+  assert.equal(filteredRecommend.status, 200);
+  assert.ok(Array.isArray(filteredRecommend.body.recommendations));
+  assert.ok(filteredRecommend.body.recommendations.length > 0);
+  assert.equal(filteredRecommend.body.recommendations[0].matched_constraints.category, "agent_framework");
+  assert.ok(filteredRecommend.body.recommendations[0].ranking_signals.license_fit >= 0);
+  assertMetadata(filteredRecommend.body.metadata, "db_missing");
+
+  const postRecommend = await request("/api/recommend", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      use_case: "build Cloudflare-ready agent workflows",
+      constraints: {
+        deployment: "cloudflare",
+        category: "agent_framework",
+        license: "MIT",
+        cloudflare_ready: true
+      },
+      limit: 2
+    })
+  });
+  assert.equal(postRecommend.status, 200);
+  assert.equal(postRecommend.body.query.deployment, "cloudflare");
+  assert.equal(postRecommend.body.query.category, "agent_framework");
+  assert.equal(postRecommend.body.query.cloudflare_ready, true);
+  assert.ok(postRecommend.body.recommendations.length > 0);
+  assert.ok(postRecommend.body.recommendations.length <= 2);
+  assert.ok(typeof postRecommend.body.recommendations[0].decision_summary === "string");
+  assert.ok(postRecommend.body.recommendations[0].next_actions.some((action) => action.kind === "score"));
+  assertMetadata(postRecommend.body.metadata, "db_missing");
 
   const compare = await getJson("/api/compare?repos=cloudflare/agents,run-llama/llama_index&deployment=cloudflare");
   assert.equal(compare.status, 200);
@@ -97,19 +162,213 @@ async function testRecommendationAndCompareRoutes() {
   assert.deepEqual(compare.body.requested_repos, ["cloudflare/agents", "run-llama/llama_index"]);
   assert.equal(compare.body.order, "input");
   assert.equal(compare.body.context.deployment, "cloudflare");
+  assert.ok(typeof compare.body.summary === "string");
+  assert.ok(typeof compare.body.stats.candidate_count === "number");
+  assert.ok(Array.isArray(compare.body.decision_matrix));
+  assert.ok(compare.body.decision_matrix.some((item) => item.repo === "cloudflare/agents"));
+  assert.ok(compare.body.next_actions.some((action) => action.kind === "graph"));
   assertMetadata(compare.body.metadata, "db_missing");
+
+  const postCompare = await request("/api/compare", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      project_ids: ["cloudflare/agents", "run-llama/llama_index"],
+      deployment: "cloudflare"
+    })
+  });
+  assert.equal(postCompare.status, 200);
+  assert.deepEqual(postCompare.body.requested_repos, ["cloudflare/agents", "run-llama/llama_index"]);
+  assert.equal(postCompare.body.order, "input");
+  assert.equal(postCompare.body.context.deployment, "cloudflare");
+  assert.ok(postCompare.body.projects.length >= 1);
+  assert.ok(typeof postCompare.body.summary === "string");
+  assert.ok(typeof postCompare.body.stats.highest_agent_score === "number");
+  assert.ok(postCompare.body.next_actions.some((action) => action.kind === "score"));
+  assertMetadata(postCompare.body.metadata, "db_missing");
 }
 
 async function testGraphAndQualityRoutes() {
+  const alternatives = await getJson("/api/alternatives/cloudflare/agents?limit=4");
+  assert.equal(alternatives.status, 200);
+  assert.equal(alternatives.body.project.repo, "cloudflare/agents");
+  assert.ok(typeof alternatives.body.summary === "string");
+  assert.ok(typeof alternatives.body.stats.candidate_count === "number");
+  assert.ok(typeof alternatives.body.stats.average_similarity === "number" || alternatives.body.stats.average_similarity === null);
+  assert.ok(Array.isArray(alternatives.body.next_actions));
+  assert.ok(alternatives.body.next_actions.some((action) => action.kind === "compare"));
+  assert.ok(alternatives.body.comparison_links.compare.includes("/api/compare"));
+  assert.ok(Array.isArray(alternatives.body.alternatives));
+  assert.ok(Array.isArray(alternatives.body.alternative_matches));
+  assert.ok(alternatives.body.alternative_matches.length > 0, "alternatives endpoint should return enriched matches");
+  assert.ok(alternatives.body.alternative_matches.length <= 4, "alternatives endpoint should honor limit");
+  assert.ok(typeof alternatives.body.alternative_matches[0].similarity_score === "number");
+  assert.ok(typeof alternatives.body.alternative_matches[0].alternative_reason === "string");
+  assert.ok(alternatives.body.alternative_matches[0].match_signals && typeof alternatives.body.alternative_matches[0].match_signals === "object");
+  assertMetadata(alternatives.body.metadata, "db_missing");
+
+  const postAlternatives = await request("/api/alternatives", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      project_id: "cloudflare/agents",
+      limit: 3
+    })
+  });
+  assert.equal(postAlternatives.status, 200);
+  assert.equal(postAlternatives.body.project.repo, "cloudflare/agents");
+  assert.ok(Array.isArray(postAlternatives.body.alternative_matches));
+  assert.ok(postAlternatives.body.alternative_matches.length > 0);
+  assert.ok(postAlternatives.body.alternative_matches.length <= 3);
+  assert.ok(typeof postAlternatives.body.summary === "string");
+  assert.ok(postAlternatives.body.next_actions.some((action) => action.kind === "score"));
+  assertMetadata(postAlternatives.body.metadata, "db_missing");
+
   const graph = await getJson("/api/graph?repo=cloudflare/agents&limit=8");
   assert.equal(graph.status, 200);
   assert.equal(graph.body.focus, "cloudflare/agents");
   assert.ok(graph.body.nodes.length > 0);
+  assert.ok(graph.body.edges.some((edge) => edge.kind === "related"), "graph should include related project edges");
+  assert.equal(graph.body.project.repo, "cloudflare/agents");
+  assert.ok(graph.body.project.maintainer);
+  assert.ok(typeof graph.body.summary === "string");
+  assert.ok(typeof graph.body.graph_stats.node_count === "number");
+  assert.ok(typeof graph.body.graph_stats.relationship_counts.dependency === "number");
+  assert.ok(Array.isArray(graph.body.next_actions));
+  assert.ok(graph.body.next_actions.some((action) => action.kind === "alternatives"));
+  assert.ok(Array.isArray(graph.body.relationship_groups.alternatives));
+  assert.ok(Array.isArray(graph.body.relationship_groups.related));
+  assert.ok(Array.isArray(graph.body.relationship_groups.dependencies));
+  assert.ok(Array.isArray(graph.body.relationship_groups.deployment_targets));
+  assert.ok(graph.body.relationship_groups.deployment_targets.includes("cloudflare"));
   assertMetadata(graph.body.metadata, "db_missing");
+
+  const postGraph = await request("/api/graph", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      project_id: "cloudflare/agents",
+      limit: 8
+    })
+  });
+  assert.equal(postGraph.status, 200);
+  assert.equal(postGraph.body.focus, "cloudflare/agents");
+  assert.equal(postGraph.body.project.repo, "cloudflare/agents");
+  assert.ok(postGraph.body.nodes.length > 0);
+  assert.ok(typeof postGraph.body.summary === "string");
+  assert.ok(typeof postGraph.body.graph_stats.edge_count === "number");
+  assert.ok(postGraph.body.next_actions.some((action) => action.kind === "score"));
+  assert.ok(Array.isArray(postGraph.body.relationship_groups.alternatives));
+  assertMetadata(postGraph.body.metadata, "db_missing");
+
+  const atlas = await getJson("/api/atlas?limit=3");
+  assert.equal(atlas.status, 200);
+  assert.ok(Array.isArray(atlas.body.ecosystems));
+  assert.ok(atlas.body.ecosystems.length > 0, "atlas should return ecosystem maps");
+  assert.ok(atlas.body.ecosystems[0].projects.length <= 3, "atlas should honor per-ecosystem limit");
+  assert.ok(Array.isArray(atlas.body.ecosystems[0].map.nodes));
+  assert.ok(Array.isArray(atlas.body.ecosystems[0].map.edges));
+  assert.ok(typeof atlas.body.ecosystems[0].stats.project_count === "number");
+  assert.ok(typeof atlas.body.ecosystems[0].stats.edge_count === "number");
+  assert.ok(Array.isArray(atlas.body.ecosystems[0].exploration_paths));
+  assert.ok(atlas.body.ecosystems[0].exploration_paths.some((path) => path.kind === "graph"));
+  assert.ok(typeof atlas.body.ecosystems[0].links.page === "string");
+  assertMetadata(atlas.body.metadata, "db_missing");
+
+  const atlasCloudflare = await getJson("/api/atlas/cloudflare?limit=4");
+  assert.equal(atlasCloudflare.status, 200);
+  assert.equal(atlasCloudflare.body.ecosystem.id, "cloudflare");
+  assert.ok(atlasCloudflare.body.ecosystem.projects.length > 0, "cloudflare atlas should include projects");
+  assert.ok(atlasCloudflare.body.ecosystem.projects.length <= 4);
+  assert.ok(atlasCloudflare.body.ecosystem.map.nodes.some((node) => node.kind === "ecosystem"));
+  assert.ok(atlasCloudflare.body.ecosystem.map.nodes.some((node) => node.kind === "project"));
+  assert.ok(atlasCloudflare.body.ecosystem.map.edges.some((edge) => edge.kind === "contains_project"));
+  assert.ok(atlasCloudflare.body.ecosystem.stats.concept_count > 0);
+  assert.ok(atlasCloudflare.body.ecosystem.exploration_paths.some((path) => path.kind === "alternatives"));
+  assert.ok(atlasCloudflare.body.ecosystem.links.graph.includes("/api/graph/"));
+  assertMetadata(atlasCloudflare.body.metadata, "db_missing");
+
+  const missingAtlas = await getJson("/api/atlas/not-real");
+  assert.equal(missingAtlas.status, 404);
+  assert.equal(missingAtlas.body.error.code, "atlas_ecosystem_not_found");
+
+  const pathGraph = await getJson("/api/graph/cloudflare/agents?limit=8");
+  assert.equal(pathGraph.status, 200);
+  assert.equal(pathGraph.body.focus, "cloudflare/agents");
+  assert.ok(pathGraph.body.nodes.length > 0);
+  assert.equal(pathGraph.body.project.repo, "cloudflare/agents");
+  assert.ok(Array.isArray(pathGraph.body.relationship_groups.use_cases));
+  assertMetadata(pathGraph.body.metadata, "db_missing");
+
+  const related = await getJson("/api/related/cloudflare/agents?limit=4");
+  assert.equal(related.status, 200);
+  assert.ok(Array.isArray(related.body.related));
+  assert.ok(related.body.related.length > 0, "related endpoint should return seed related projects");
+  assert.ok(related.body.related.length <= 4, "related endpoint should honor limit");
+  assertMetadata(related.body.metadata, "db_missing");
+
+  const postRelated = await request("/api/related", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      project_id: "cloudflare/agents",
+      limit: 3
+    })
+  });
+  assert.equal(postRelated.status, 200);
+  assert.equal(postRelated.body.project.repo, "cloudflare/agents");
+  assert.ok(Array.isArray(postRelated.body.related));
+  assert.ok(postRelated.body.related.length > 0, "structured related endpoint should return seed related projects");
+  assert.ok(postRelated.body.related.length <= 3, "structured related endpoint should honor limit");
+  assertMetadata(postRelated.body.metadata, "db_missing");
+
+  const score = await getJson("/api/score/cloudflare/agents");
+  assert.equal(score.status, 200);
+  assert.equal(score.body.project.repo, "cloudflare/agents");
+  assert.equal(score.body.score, score.body.git_top_score);
+  assert.ok(Array.isArray(score.body.dimensions));
+  assert.equal(score.body.dimensions.length, 6);
+  assert.ok(typeof score.body.dimensions[0].contribution === "number");
+  assert.ok(typeof score.body.summary === "string");
+  assert.ok(score.body.strongest_dimension.key);
+  assert.ok(score.body.weakest_dimension.key);
+  assert.ok(typeof score.body.adoption_guidance === "string");
+  assert.ok(Array.isArray(score.body.risk_flags));
+  assert.ok(Array.isArray(score.body.next_actions));
+  assert.ok(score.body.next_actions.some((action) => action.kind === "alternatives"));
+  assert.ok(score.body.links.compare_api.includes("/api/compare"));
+  assert.ok(score.body.related_scores && typeof score.body.related_scores.agent_score === "number");
+  assertMetadata(score.body.metadata, "db_missing");
+
+  const postScore = await request("/api/score", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      project_id: "cloudflare/agents"
+    })
+  });
+  assert.equal(postScore.status, 200);
+  assert.equal(postScore.body.project.repo, "cloudflare/agents");
+  assert.equal(postScore.body.score, postScore.body.git_top_score);
+  assert.ok(Array.isArray(postScore.body.dimensions));
+  assert.equal(postScore.body.dimensions.length, 6);
+  assert.ok(typeof postScore.body.adoption_guidance === "string");
+  assert.ok(postScore.body.next_actions.some((action) => action.kind === "graph"));
+  assertMetadata(postScore.body.metadata, "db_missing");
+
+  const missingScore = await getJson("/api/score/not-real/project");
+  assert.equal(missingScore.status, 404);
+  assert.equal(missingScore.body.error.code, "project_not_found");
 
   const quality = await getJson("/api/quality");
   assert.equal(quality.status, 200);
   assert.ok(typeof quality.body.score === "number");
+  assert.equal(quality.body.score, quality.body.release_score);
+  assert.ok(typeof quality.body.git_top_score === "number" || quality.body.git_top_score === undefined);
+  assert.ok(typeof quality.body.release_score === "number");
+  assert.ok(typeof quality.body.data_trust_score === "number");
+  assert.ok(quality.body.score_summary.release_score_meaning.includes("Release gate score"));
+  assert.ok(quality.body.score_summary.data_trust_score_meaning.includes("Corpus trust score"));
   assert.ok(["low", "medium", "high"].includes(quality.body.risk_level));
   assert.equal(quality.body.risk_summary.level, quality.body.risk_level);
   assert.ok(Array.isArray(quality.body.risk_summary.reasons));
@@ -131,6 +390,10 @@ async function testGraphAndQualityRoutes() {
   assert.ok(typeof review.body.low_signal_count === "number");
   assert.ok(typeof review.body.medium_signal_count === "number");
   assert.ok(Array.isArray(review.body.items));
+  if (review.body.items.length > 0) {
+    assert.ok(typeof review.body.items[0].impact_score === "number");
+    assert.ok(Array.isArray(review.body.items[0].impact_factors));
+  }
   assert.ok(review.body.category_counts && typeof review.body.category_counts === "object");
   assertMetadata(review.body.metadata, "db_missing");
 }
@@ -163,7 +426,34 @@ async function testOpenApiDocument() {
   assert.equal(openapi.body.openapi, "3.1.0");
   assert.ok(openapi.body.paths["/api/quality"], "OpenAPI should document quality report endpoint");
   assert.ok(openapi.body.paths["/api/quality/review"], "OpenAPI should document quality review endpoint");
+  assert.ok(openapi.body.paths["/api/related/{owner}/{repo}"], "OpenAPI should document related projects endpoint");
+  assert.ok(openapi.body.paths["/api/related"].post, "OpenAPI should document structured related projects POST endpoint");
+  assert.ok(openapi.body.paths["/api/score/{owner}/{repo}"], "OpenAPI should document score explanation endpoint");
+  assert.ok(openapi.body.paths["/api/score"].post, "OpenAPI should document structured score POST endpoint");
+  assert.ok(openapi.body.paths["/api/graph/{owner}/{repo}"], "OpenAPI should document path graph endpoint");
+  assert.ok(openapi.body.paths["/api/atlas"], "OpenAPI should document Atlas endpoint");
+  assert.ok(openapi.body.paths["/api/atlas/{ecosystem}"], "OpenAPI should document Atlas ecosystem endpoint");
+  assert.ok(openapi.body.paths["/api/project"].post, "OpenAPI should document structured project POST endpoint");
+  assert.ok(openapi.body.paths["/api/recommend"].post, "OpenAPI should document structured recommend POST endpoint");
+  assert.ok(openapi.body.paths["/api/compare"].post, "OpenAPI should document structured compare POST endpoint");
+  assert.ok(openapi.body.paths["/api/alternatives"].post, "OpenAPI should document structured alternatives POST endpoint");
+  assert.ok(openapi.body.paths["/api/related"].post, "OpenAPI should document structured related POST endpoint");
+  assert.ok(openapi.body.paths["/api/score"].post, "OpenAPI should document structured score POST endpoint");
+  assert.ok(openapi.body.paths["/api/graph"].post, "OpenAPI should document structured graph POST endpoint");
+  assert.ok(openapi.body.components.schemas.ProjectLookupRequest, "OpenAPI should include ProjectLookupRequest schema");
+  assert.ok(openapi.body.components.schemas.RecommendationRequest, "OpenAPI should include RecommendationRequest schema");
+  assert.ok(openapi.body.components.schemas.CompareRequest, "OpenAPI should include CompareRequest schema");
+  assert.ok(openapi.body.components.schemas.AlternativesRequest, "OpenAPI should include AlternativesRequest schema");
+  assert.ok(openapi.body.components.schemas.RelatedRequest, "OpenAPI should include RelatedRequest schema");
+  assert.ok(openapi.body.components.schemas.ScoreRequest, "OpenAPI should include ScoreRequest schema");
+  assert.ok(openapi.body.components.schemas.GraphRequest, "OpenAPI should include GraphRequest schema");
   assert.ok(openapi.body.paths["/api/admin/classification-overrides"], "OpenAPI should document classification override endpoint");
+  const searchParameterNames = openapi.body.paths["/api/search"].get.parameters.map((item) => item.name);
+  assert.ok(searchParameterNames.includes("project_kind"));
+  assert.ok(searchParameterNames.includes("min_confidence"));
+  const recommendParameterNames = openapi.body.paths["/api/recommend"].get.parameters.map((item) => item.name);
+  assert.ok(recommendParameterNames.includes("category"));
+  assert.ok(recommendParameterNames.includes("license"));
   assert.deepEqual(openapi.body.paths["/api/admin/classification-overrides"], openApiDocument.paths["/api/admin/classification-overrides"]);
   assert.equal(openapi.body.components.securitySchemes.syncSecret.scheme, "bearer");
   assert.deepEqual(openapi.body.paths["/api/quality/review"], openApiDocument.paths["/api/quality/review"]);
@@ -185,6 +475,102 @@ async function testMethodAndBodyValidation() {
   });
   assert.equal(grpInvalidJson.status, 400);
   assert.equal(grpInvalidJson.body.error.code, "invalid_json");
+
+  const recommendInvalidJson = await request("/api/recommend", {
+    method: "POST",
+    body: "{",
+    headers: { "content-type": "application/json" }
+  });
+  assert.equal(recommendInvalidJson.status, 400);
+  assert.equal(recommendInvalidJson.body.error.code, "invalid_json");
+
+  const recommendInvalidBody = await request("/api/recommend", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ cloudflare_ready: "yes" })
+  });
+  assert.equal(recommendInvalidBody.status, 400);
+  assert.equal(recommendInvalidBody.body.error.code, "invalid_recommendation_request");
+
+  const compareInvalidJson = await request("/api/compare", {
+    method: "POST",
+    body: "{",
+    headers: { "content-type": "application/json" }
+  });
+  assert.equal(compareInvalidJson.status, 400);
+  assert.equal(compareInvalidJson.body.error.code, "invalid_json");
+
+  const compareInvalidBody = await request("/api/compare", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ project_ids: [1, 2] })
+  });
+  assert.equal(compareInvalidBody.status, 400);
+  assert.equal(compareInvalidBody.body.error.code, "invalid_compare_request");
+
+  const alternativesInvalidJson = await request("/api/alternatives", {
+    method: "POST",
+    body: "{",
+    headers: { "content-type": "application/json" }
+  });
+  assert.equal(alternativesInvalidJson.status, 400);
+  assert.equal(alternativesInvalidJson.body.error.code, "invalid_json");
+
+  const alternativesInvalidBody = await request("/api/alternatives", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ limit: "3" })
+  });
+  assert.equal(alternativesInvalidBody.status, 400);
+  assert.equal(alternativesInvalidBody.body.error.code, "invalid_alternatives_request");
+
+  const projectInvalidJson = await request("/api/project", {
+    method: "POST",
+    body: "{",
+    headers: { "content-type": "application/json" }
+  });
+  assert.equal(projectInvalidJson.status, 400);
+  assert.equal(projectInvalidJson.body.error.code, "invalid_json");
+
+  const projectInvalidBody = await request("/api/project", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ related_limit: "3" })
+  });
+  assert.equal(projectInvalidBody.status, 400);
+  assert.equal(projectInvalidBody.body.error.code, "invalid_project_request");
+
+  const relatedInvalidBody = await request("/api/related", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ limit: "3" })
+  });
+  assert.equal(relatedInvalidBody.status, 400);
+  assert.equal(relatedInvalidBody.body.error.code, "invalid_project_request");
+
+  const scoreInvalidBody = await request("/api/score", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({})
+  });
+  assert.equal(scoreInvalidBody.status, 400);
+  assert.equal(scoreInvalidBody.body.error.code, "invalid_project_request");
+
+  const graphInvalidJson = await request("/api/graph", {
+    method: "POST",
+    body: "{",
+    headers: { "content-type": "application/json" }
+  });
+  assert.equal(graphInvalidJson.status, 400);
+  assert.equal(graphInvalidJson.body.error.code, "invalid_json");
+
+  const graphInvalidBody = await request("/api/graph", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ limit: "8" })
+  });
+  assert.equal(graphInvalidBody.status, 400);
+  assert.equal(graphInvalidBody.body.error.code, "invalid_graph_request");
 
   const adminSync = await request("/api/admin/sync", { method: "POST" });
   assert.equal(adminSync.status, 401);
@@ -248,6 +634,8 @@ async function testMockD1Source() {
   assert.equal(project.status, 200);
   assert.equal(project.body.repo, mockD1ProjectId);
   assert.equal(project.body.project_kind, "project");
+  assert.ok(typeof project.body.git_top_score === "number");
+  assert.ok(Array.isArray(project.body.related));
   assert.equal(project.body.knowledge.project.full_name, mockD1ProjectId);
   assert.equal(project.body.knowledge.agent_card.project_kind, "project");
   assert.equal(project.body.quality_signal_confidence.stars_30d_delta, "snapshot");

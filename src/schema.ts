@@ -189,8 +189,11 @@ export const projectV2JsonSchema = {
     "tags",
     "description",
     "alternatives",
+    "related",
     "dependencies",
     "deployments",
+    "score",
+    "git_top_score",
     "quality_score",
     "agent_score"
   ],
@@ -203,7 +206,19 @@ export const projectV2JsonSchema = {
     tags: { type: "array", items: { type: "string" } },
     description: { type: "string" },
     overview: { type: "string" },
+    score: { type: "integer", minimum: 0, maximum: 100 },
     alternatives: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["repo", "reason"],
+        properties: {
+          repo: { type: "string" },
+          reason: { type: "string" }
+        }
+      }
+    },
+    related: {
       type: "array",
       items: {
         type: "object",
@@ -244,6 +259,18 @@ export const projectV2JsonSchema = {
         commits_30d: { type: "string", enum: ["complete", "partial", "unknown"] },
         releases_180d: { type: "string", enum: ["complete", "partial", "unknown"] },
         contributors_90d: { type: "string", enum: ["complete", "partial", "unknown"] }
+      }
+    },
+    git_top_score: { type: "integer", minimum: 0, maximum: 100 },
+    git_top_score_breakdown: {
+      type: "object",
+      properties: {
+        community: { type: "integer", minimum: 0, maximum: 100 },
+        maintenance: { type: "integer", minimum: 0, maximum: 100 },
+        documentation: { type: "integer", minimum: 0, maximum: 100 },
+        stability: { type: "integer", minimum: 0, maximum: 100 },
+        adoption: { type: "integer", minimum: 0, maximum: 100 },
+        agent_readability: { type: "integer", minimum: 0, maximum: 100 }
       }
     },
     quality_score: { type: "integer", minimum: 0, maximum: 100 },

@@ -22,6 +22,16 @@ async function testDiscovery() {
   assert.equal(getDiscovery.body.openapi_url, "https://git.top/openapi.json");
   assert.equal(getDiscovery.body.api_openapi_url, "https://git.top/api/openapi.json");
   assert.equal(getDiscovery.body.schema_url, "https://git.top/api/schema/project.v2");
+  assert.ok(Array.isArray(getDiscovery.body.agent_api.structured_post_endpoints));
+  assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/project"));
+  assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/recommend"));
+  assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/compare"));
+  assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/alternatives"));
+  assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/related"));
+  assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/score"));
+  assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/graph"));
+  assert.ok(getDiscovery.body.quickstart.some((item) => item.includes("structured POST")));
+  assert.equal(getDiscovery.body.examples.structured_recommend.url, "https://git.top/api/recommend");
 
   const rpcDiscovery = await rpc("tools/list", {});
   assert.equal(rpcDiscovery.status, 200);
@@ -75,6 +85,8 @@ async function testToolCalls() {
   assert.equal(project.status, 200);
   assert.equal(project.result.project_id, "cloudflare/agents");
   assert.equal(project.result.project.repo, "cloudflare/agents");
+  assert.ok(Array.isArray(project.result.project.related));
+  assert.ok(project.result.project.related.length > 0);
   assert.equal(project.result.project.classification.category.confidence, "low");
   assertMetadata(project.result.metadata, "db_missing");
 
@@ -103,19 +115,53 @@ async function testToolCalls() {
 
   const quality = await callTool("get_quality_score", { project_id: "cloudflare/agents" });
   assert.equal(quality.status, 200);
+  assert.ok(typeof quality.result.git_top_score === "number");
   assert.ok(typeof quality.result.quality_score === "number");
   assert.ok(typeof quality.result.agent_score === "number");
+  assert.ok(quality.result.git_top_score_breakdown && typeof quality.result.git_top_score_breakdown === "object");
+  assert.ok(quality.result.score_explanation);
+  assert.equal(quality.result.score_explanation.project.repo, "cloudflare/agents");
+  assert.ok(Array.isArray(quality.result.score_explanation.dimensions));
+  assert.equal(quality.result.score_explanation.dimensions.length, 6);
+  assert.ok(typeof quality.result.score_explanation.summary === "string");
+  assert.ok(typeof quality.result.score_explanation.adoption_guidance === "string");
+  assert.ok(Array.isArray(quality.result.score_explanation.risk_flags));
+  assert.ok(quality.result.score_explanation.next_actions.some((action) => action.kind === "compare"));
   assertMetadata(quality.result.metadata, "db_missing");
 
   const alternatives = await callTool("get_alternatives", { project_id: "cloudflare/agents", limit: 3 });
   assert.equal(alternatives.status, 200);
+  assert.equal(alternatives.result.project.repo, "cloudflare/agents");
+  assert.ok(typeof alternatives.result.summary === "string");
+  assert.ok(typeof alternatives.result.stats.candidate_count === "number");
+  assert.ok(Array.isArray(alternatives.result.next_actions));
+  assert.ok(alternatives.result.next_actions.some((action) => action.kind === "graph"));
+  assert.ok(alternatives.result.comparison_links.compare.includes("/api/compare"));
   assert.ok(Array.isArray(alternatives.result.alternatives));
+  assert.ok(Array.isArray(alternatives.result.alternative_matches));
+  assert.ok(alternatives.result.alternative_matches.length > 0);
+  assert.ok(alternatives.result.alternative_matches.length <= 3);
+  assert.ok(typeof alternatives.result.alternative_matches[0].similarity_score === "number");
+  assert.ok(typeof alternatives.result.alternative_matches[0].alternative_reason === "string");
   assertMetadata(alternatives.result.metadata, "db_missing");
+
+  const related = await callTool("get_related_projects", { project_id: "cloudflare/agents", limit: 3 });
+  assert.equal(related.status, 200);
+  assert.ok(Array.isArray(related.result.related));
+  assert.ok(related.result.related.length > 0);
+  assert.ok(related.result.related.length <= 3);
+  assertMetadata(related.result.metadata, "db_missing");
 
   const graph = await callTool("get_project_graph", { project_id: "cloudflare/agents", limit: 8 });
   assert.equal(graph.status, 200);
   assert.equal(graph.result.graph.focus, "cloudflare/agents");
   assert.ok(graph.result.graph.nodes.length > 0);
+  assert.equal(graph.result.graph.project.repo, "cloudflare/agents");
+  assert.ok(typeof graph.result.graph.summary === "string");
+  assert.ok(typeof graph.result.graph.graph_stats.node_count === "number");
+  assert.ok(graph.result.graph.next_actions.some((action) => action.kind === "project"));
+  assert.ok(Array.isArray(graph.result.graph.relationship_groups.alternatives));
+  assert.ok(Array.isArray(graph.result.graph.relationship_groups.deployment_targets));
   assertMetadata(graph.result.metadata, "db_missing");
 
   const compare = await callTool("compare_projects", {
@@ -128,7 +174,32 @@ async function testToolCalls() {
   assert.deepEqual(compare.result.requested_project_ids, ["cloudflare/agents", "run-llama/llama_index"]);
   assert.equal(compare.result.order, "input");
   assert.equal(compare.result.context.deployment, "cloudflare");
+  assert.ok(typeof compare.result.summary === "string");
+  assert.ok(typeof compare.result.stats.candidate_count === "number");
+  assert.ok(Array.isArray(compare.result.decision_matrix));
+  assert.ok(compare.result.next_actions.some((action) => action.kind === "alternatives"));
   assertMetadata(compare.result.metadata, "db_missing");
+
+  const recommend = await callTool("recommend_project", {
+    use_case: "build agent workflows",
+    constraints: {
+      category: "agent_framework",
+      license: "MIT",
+      deployment: "cloudflare"
+    },
+    limit: 3
+  });
+  assert.equal(recommend.status, 200);
+  assert.ok(Array.isArray(recommend.result.recommendations));
+  assert.ok(recommend.result.recommendations.length > 0);
+  assert.ok(Array.isArray(recommend.result.recommendations[0].reasons));
+  assert.ok(typeof recommend.result.recommendations[0].decision_summary === "string");
+  assert.ok(Array.isArray(recommend.result.recommendations[0].next_actions));
+  assert.ok(recommend.result.recommendations[0].next_actions.some((action) => action.kind === "alternatives"));
+  assert.equal(recommend.result.recommendations[0].matched_constraints.category, "agent_framework");
+  assert.ok(typeof recommend.result.recommendations[0].ranking_signals.use_case_match === "number");
+  assert.ok(["high", "medium", "low"].includes(recommend.result.recommendations[0].confidence));
+  assertMetadata(recommend.result.metadata, "db_missing");
 }
 
 async function testGrpToolValidation() {

@@ -1,6 +1,6 @@
 import { compareProjectKnowledge, buildKnowledgeGraph } from "./graph";
 import { listProjectKnowledgeWithMeta } from "./knowledge-source";
-import { findAlternativesFromList, getProjectKnowledgeFromList } from "./project-search";
+import { findAlternativesFromList, findRelatedProjectsFromList, getProjectKnowledgeFromList } from "./project-search";
 import { toProjectKnowledgeView } from "./project-view";
 import type { ClassificationSignal, Env } from "./types";
 
@@ -14,6 +14,7 @@ export async function renderProjectPage(env: Env, id: string): Promise<Response 
   const view = toProjectKnowledgeView(project);
   const alternativeProjects = findAlternativesFromList(projects, project.project.id, 5);
   const alternatives = alternativeProjects.map(toProjectKnowledgeView);
+  const related = findRelatedProjectsFromList(projects, project.project.id, 6).map(toProjectKnowledgeView);
   const compare = compareProjectKnowledge([project, ...alternativeProjects.slice(0, 3)], {
     deployment: view.deployments.includes("cloudflare") ? "cloudflare" : undefined
   });
@@ -23,6 +24,7 @@ export async function renderProjectPage(env: Env, id: string): Promise<Response 
     renderHtml({
       view,
       alternatives,
+      related,
       compare,
       graphNodes: graph.nodes.length,
       graphEdges: graph.edges.length,
@@ -41,6 +43,7 @@ export async function renderProjectPage(env: Env, id: string): Promise<Response 
 function renderHtml({
   view,
   alternatives,
+  related,
   compare,
   graphNodes,
   graphEdges,
@@ -49,6 +52,7 @@ function renderHtml({
 }: {
   view: ReturnType<typeof toProjectKnowledgeView>;
   alternatives: Array<ReturnType<typeof toProjectKnowledgeView>>;
+  related: Array<ReturnType<typeof toProjectKnowledgeView>>;
   compare: ReturnType<typeof compareProjectKnowledge>;
   graphNodes: number;
   graphEdges: number;
@@ -114,12 +118,13 @@ function renderHtml({
       .compare-head { border-top:0; color:var(--muted); font-size:12px; font-weight:900; text-transform:uppercase; }
       .table-wrap { overflow-x:auto; }
       .trust-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-top:14px; }
+      .decision-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:14px; }
       .evidence-list { display:grid; gap:9px; margin-top:12px; }
       .evidence-list div { border-top:1px solid var(--line); padding-top:9px; }
       .evidence-list div:first-child { border-top:0; padding-top:0; }
       .evidence-list span { color:var(--muted); }
       @media (max-width:900px) { .score-grid,.section-grid,.three-grid,.facts { grid-template-columns:1fr; } }
-      @media (max-width:900px) { .trust-grid { grid-template-columns:1fr; } }
+      @media (max-width:900px) { .trust-grid,.decision-grid { grid-template-columns:1fr; } }
     </style>
   </head>
   <body>
@@ -145,15 +150,25 @@ function renderHtml({
           ${view.homepageUrl ? `<a class="button" href="${escapeAttr(view.homepageUrl)}">Homepage</a>` : ""}
           <a class="button" href="/api/project/${escapeAttr(view.repo)}">Project JSON</a>
           <a class="button" href="/graph/${escapeAttr(view.repo)}">Graph</a>
+          <a class="button" href="/score/${escapeAttr(view.repo)}">Score</a>
         </div>
       </header>
 
       <section class="score-grid">
+        ${metric("Git.Top Score", `${view.gitTopScore}/100`)}
         ${metric("Agent Score", `${view.agentScore}/100`)}
-        ${metric("Documentation", view.agentScoreBreakdown.documentation)}
-        ${metric("Maintenance", view.agentScoreBreakdown.maintenance)}
-        ${metric("Deployment", view.agentScoreBreakdown.deployment)}
+        ${metric("Maintenance", view.gitTopScoreBreakdown.maintenance)}
+        ${metric("Stability", view.gitTopScoreBreakdown.stability)}
         ${metric("Quality", `${view.qualityScore}/100`)}
+      </section>
+
+      <section class="decision-grid" aria-label="Decision summary">
+        ${decisionCard("Best Use", bestUseCase(view), "Primary situation where this project is a good shortlist candidate.")}
+        ${decisionCard("Watch Out", primaryCaveat(view), "Main reason to compare alternatives before adopting it.")}
+        ${decisionCard("Deployment Fit", deploymentFit(view), cloudflareReadinessDescription(view))}
+        ${decisionCard("Best Alternative", alternativeDistinction(alternatives), "Compare this option when the target stack or language preference differs.")}
+        ${decisionCard("Confidence", classificationConfidenceSummary(view), "Classification evidence and quality signal confidence should be checked before production recommendations.")}
+        ${decisionCard("Freshness", freshnessSummary(syncedAt, metricsAt), "Repository and metric timestamps for this knowledge record.")}
       </section>
 
       <section class="trust-grid">
@@ -169,7 +184,7 @@ function renderHtml({
           <p class="eyebrow">Scoring</p>
           <h2>Quality and agent score are separate</h2>
           <p class="muted">Quality score weights star movement, commits, releases, contributors, and issue response. Agent score weights documentation, maintenance, deployment, popularity, and community.</p>
-          <div class="tag-list"><a class="button" href="/docs#scoring">Methodology</a></div>
+          <div class="tag-list"><a class="button" href="/score/${escapeAttr(view.repo)}">Why this score</a><a class="button" href="/docs#scoring">Methodology</a></div>
         </article>
         <article class="panel">
           <p class="eyebrow">Confidence</p>
@@ -218,6 +233,11 @@ function renderHtml({
         </aside>
       </section>
 
+      <section class="panel" style="margin-top:14px">
+        <div class="panel-heading"><div><p class="eyebrow">Related Projects</p><h2>Adjacent ecosystem projects</h2></div><a class="button" href="/api/related/${escapeAttr(view.repo)}">JSON</a></div>
+        <div class="list">${related.length ? related.map((item) => `<div><strong>${escapeHtml(item.repo)}</strong><span>${escapeHtml(relatedSummary(view, item))}</span></div>`).join("") : `<div><strong>No related projects yet</strong><span>Git.Top will infer related projects from categories, deployments, dependencies, topics, and use cases.</span></div>`}</div>
+      </section>
+
       <section class="three-grid">
         ${panel("Deploy", "Supported deployment paths", view.deployments)}
         ${panel("Compatible With", "Inferred dependencies and protocols", view.dependencies.length ? view.dependencies : ["LLM provider"])}
@@ -253,6 +273,74 @@ function fact(label: string, value: string): string {
 
 function panel(eyebrow: string, title: string, items: string[]): string {
   return `<article class="panel"><p class="eyebrow">${escapeHtml(eyebrow)}</p><h2>${escapeHtml(title)}</h2><div class="tag-list">${items.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div></article>`;
+}
+
+function decisionCard(label: string, title: string, note: string): string {
+  return `<article class="panel"><p class="eyebrow">${escapeHtml(label)}</p><h2>${escapeHtml(title)}</h2><p class="muted">${escapeHtml(note)}</p></article>`;
+}
+
+function bestUseCase(view: ReturnType<typeof toProjectKnowledgeView>): string {
+  return view.useCases[0] ?? view.overview;
+}
+
+function primaryCaveat(view: ReturnType<typeof toProjectKnowledgeView>): string {
+  return view.notGoodFor[0] ?? (view.projectKind === "collection" ? "Treat collection items as discovery inputs, not direct production dependencies." : "Confirm deployment, maintenance, and license fit before adoption.");
+}
+
+function deploymentFit(view: ReturnType<typeof toProjectKnowledgeView>): string {
+  const targets = view.deployments.slice(0, 3).join(", ") || "Unknown";
+  return view.cloudflareReady ? `${targets}; Cloudflare-ready` : targets;
+}
+
+function alternativeDistinction(alternatives: Array<ReturnType<typeof toProjectKnowledgeView>>): string {
+  const alternative = alternatives[0];
+  if (!alternative) {
+    return "No strong alternative yet";
+  }
+  const deploy = alternative.deployments.slice(0, 2).join(", ") || "deployment differs";
+  return `${alternative.repo}: ${deploy}`;
+}
+
+function relatedSummary(
+  source: ReturnType<typeof toProjectKnowledgeView>,
+  target: ReturnType<typeof toProjectKnowledgeView>
+): string {
+  const sharedCategory = source.category.find((category) => target.category.includes(category));
+  const sharedDeployment = source.deployments.find((deployment) => target.deployments.includes(deployment));
+  const sharedDependency = source.dependencies.find((dependency) => target.dependencies.includes(dependency));
+  if (sharedCategory && sharedDeployment) {
+    return `${target.overview} Shared ${sharedCategory.replaceAll("_", " ")} category and ${sharedDeployment} deployment context.`;
+  }
+  if (sharedDependency) {
+    return `${target.overview} Shared ${sharedDependency} dependency context.`;
+  }
+  if (sharedCategory) {
+    return `${target.overview} Same ${sharedCategory.replaceAll("_", " ")} ecosystem.`;
+  }
+  if (sharedDeployment) {
+    return `${target.overview} Related through ${sharedDeployment} deployment fit.`;
+  }
+  return target.overview;
+}
+
+function classificationConfidenceSummary(view: ReturnType<typeof toProjectKnowledgeView>): string {
+  const signals = Object.values(view.classification ?? {});
+  const highCount = signals.filter((signal) => signal?.confidence === "high").length;
+  const total = signals.length || 4;
+  const quality = Object.values(view.qualitySignalConfidence ?? {}).filter((value) => value === "complete" || value === "snapshot").length;
+  return `${highCount}/${total} classification signals high; ${quality} quality signals complete or snapshot`;
+}
+
+function freshnessSummary(syncedAt: string, metricsAt: string): string {
+  return `Repo ${formatDate(syncedAt)}; metrics ${formatDate(metricsAt)}`;
+}
+
+function formatDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toISOString().slice(0, 10);
 }
 
 function projectKindLabel(view: ReturnType<typeof toProjectKnowledgeView>): string {

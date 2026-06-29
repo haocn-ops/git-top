@@ -138,6 +138,8 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quality<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/coverage<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quality\/review<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/browser-ai-automation<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/ai-ide-coding-agents<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/projects\/cloudflare\/agents<\/loc>/);
 
     const llms = await getText(context, "/llms.txt");
@@ -295,11 +297,16 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(text, /Open review JSON/);
     assert.match(text, /Override workflow/);
     assert.match(text, /Review items/);
+    assert.match(text, /Impact/);
 
     const { status: apiStatus, body } = await getJson(context, "/api/quality/review");
     assert.equal(apiStatus, 200);
     assert.ok(Number.isFinite(body.review_count), "review_count should be numeric");
     assert.ok(Array.isArray(body.items), "review API should include items");
+    if (body.items.length > 0) {
+      assert.ok(Number.isFinite(body.items[0].impact_score), "review items should include impact_score");
+      assert.ok(Array.isArray(body.items[0].impact_factors), "review items should include impact_factors");
+    }
 
     return {
       reviewCount: body.review_count,

@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { generateAgentCard } from "../src/cards.ts";
 import { classifyRepository } from "../src/classification.ts";
+import { reviewedCollectionPolicy } from "../src/collection-policy.ts";
 import { seedProjects } from "../src/seed.ts";
 import { validateProjectKnowledge } from "../src/validation.ts";
 import {
@@ -11,7 +12,15 @@ import {
 
 const seedRepositories = JSON.parse(await readFile(new URL("../data/seed-repositories.json", import.meta.url), "utf8"));
 const qualityBurnDownProjects = new Map([
+  ["a2aproject/a2a", "agent_framework"],
+  ["ag2ai/ag2", "agent_framework"],
   ["apache/answer", "ai_app_template"],
+  ["agentscope-ai/agentscope", "agent_framework"],
+  ["arize-ai/openinference", "ai_observability"],
+  ["bentoml/bentoml", "local_llm_runtime"],
+  ["copilotkit/aimock", "ai_app_template"],
+  ["guardrails-ai/guardrails_pii", "prompt_tooling"],
+  ["kserve/kserve", "local_llm_runtime"],
   ["mlc-ai/mlc-llm", "local_llm_runtime"],
   ["milvus-io/milvus-sdk-java", "vector_database"],
   ["builderio/gpt-crawler", "ai_app_template"],
@@ -26,9 +35,15 @@ const qualityBurnDownProjects = new Map([
   ["dagster-io/dagster-open-platform", "workflow_automation"],
   ["supermemoryai/opensearch-ai", "rag_framework"],
   ["firecrawl/open-researcher", "browser_agent"],
+  ["openai/openai-structured-outputs-samples", "prompt_tooling"],
   ["qdrant/page-search", "vector_database"],
+  ["qdrant/n8n-nodes-qdrant", "vector_database"],
   ["weaviate/retrieve-dspy", "rag_framework"],
-  ["flowiseai/flowisepy", "workflow_automation"]
+  ["flowiseai/flowisepy", "workflow_automation"],
+  ["supermemoryai/supermemory-mcp", "mcp_server"],
+  ["triggerdotdev/trigger.dev", "workflow_automation"],
+  ["vllm-project/semantic-router", "prompt_tooling"],
+  ["vllm-project/vllm-omni", "local_llm_runtime"]
 ]);
 
 for (const project of seedProjects) {
@@ -62,6 +77,9 @@ for (const fixture of generatedKnowledgeFixtures) {
 
 }
 
+testProjectKindDetection();
+testCollectionPolicyLookup();
+
 const generatedKnowledge = buildGeneratedKnowledgeFixturesForSeed(seedRepositories, generatedKnowledgeNow);
 for (const { knowledge } of generatedKnowledge) {
   validateProjectKnowledge(knowledge);
@@ -72,6 +90,90 @@ for (const { knowledge } of generatedKnowledge) {
 }
 
 console.log(`Validated ${seedProjects.length} seed projects and ${generatedKnowledge.length} generated knowledge fixtures.`);
+
+function testProjectKindDetection() {
+  const langchain = generateAgentCard(
+    mockRepo("langchain-ai/langchain", "Build context-aware reasoning applications", ["agents", "llm", "rag"]),
+    mockSignals("Includes cookbook examples, integrations, and templates inside the project documentation."),
+    generatedKnowledgeNow
+  );
+  assertEqual(langchain.projectKind, "project", "langchain-ai/langchain projectKind");
+
+  const a2a = generateAgentCard(
+    mockRepo("a2aproject/A2A", "Agent framework protocol for agent-to-agent workflows", ["agent-framework", "agents", "protocol"]),
+    mockSignals("Agent framework protocol for agent-to-agent workflows."),
+    generatedKnowledgeNow
+  );
+  assertEqual(a2a.projectKind, "project", "a2aproject/A2A projectKind");
+  assertEqual(a2a.category, "agent_framework", "a2aproject/A2A category");
+
+  const openinference = generateAgentCard(
+    mockRepo("Arize-ai/openinference", "AI observability tracing instrumentation", ["observability", "tracing", "monitoring"]),
+    mockSignals("AI observability tracing instrumentation."),
+    generatedKnowledgeNow
+  );
+  assertEqual(openinference.projectKind, "project", "Arize-ai/openinference projectKind");
+  assertEqual(openinference.category, "ai_observability", "Arize-ai/openinference category");
+
+  const awesome = generateAgentCard(
+    mockRepo("punkpeye/awesome-mcp-servers", "A curated list of MCP servers", ["awesome", "mcp", "servers"]),
+    mockSignals("Curated resource collection for Model Context Protocol servers."),
+    generatedKnowledgeNow
+  );
+  assertEqual(awesome.projectKind, "collection", "punkpeye/awesome-mcp-servers projectKind");
+
+  const cookbook = generateAgentCard(
+    mockRepo("openai/openai-cookbook", "Examples and guides for building with OpenAI", ["cookbook", "examples", "openai"]),
+    mockSignals("Cookbook examples for AI applications."),
+    generatedKnowledgeNow
+  );
+  assertEqual(cookbook.projectKind, "collection", "openai/openai-cookbook projectKind");
+}
+
+function testCollectionPolicyLookup() {
+  if (!reviewedCollectionPolicy("Giskard-AI/awesome-ai-safety")) {
+    throw new Error("reviewed collection policy lookup should be case-insensitive");
+  }
+}
+
+function mockRepo(fullName, description, topics) {
+  const [owner, name] = fullName.split("/");
+  return {
+    id: 1,
+    name,
+    full_name: fullName,
+    owner: { login: owner },
+    html_url: `https://github.com/${fullName}`,
+    homepage: null,
+    description,
+    language: "TypeScript",
+    topics,
+    license: { spdx_id: "MIT" },
+    stargazers_count: 10000,
+    forks_count: 100,
+    open_issues_count: 10,
+    default_branch: "main",
+    created_at: "2025-01-01T00:00:00Z",
+    updated_at: "2026-06-20T00:00:00Z",
+    pushed_at: "2026-06-20T00:00:00Z"
+  };
+}
+
+function mockSignals(readmeText) {
+  return {
+    readmeText,
+    files: ["package.json"],
+    commits30d: 5,
+    releases180d: 1,
+    contributors90d: 4,
+    issueFirstResponseMedianHours: null,
+    signalConfidence: {
+      commits30d: "complete",
+      releases180d: "complete",
+      contributors90d: "complete"
+    }
+  };
+}
 
 function assertClassificationEvidence(subject, label) {
   for (const key of ["category", "deployment", "difficulty", "cloudflareReady"]) {

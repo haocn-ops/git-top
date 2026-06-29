@@ -1,4 +1,5 @@
-import type { AgentCard, Project, ProjectKnowledge, ProjectMetrics } from "./types";
+import { generateAlternativeMatches } from "./alternatives";
+import type { AgentCard, ClassificationSignal, Project, ProjectKnowledge, ProjectMetrics, ProjectKind } from "./types";
 
 export interface ProjectFilters {
   q?: string;
@@ -7,6 +8,8 @@ export interface ProjectFilters {
   difficulty?: string;
   cloudflareReady?: boolean;
   language?: string;
+  projectKind?: ProjectKind | string;
+  minConfidence?: ClassificationSignal["confidence"] | string;
   ranking?: string;
   limit?: number;
 }
@@ -16,6 +19,8 @@ export interface RecommendationQuery {
   deployment?: string;
   difficulty?: string;
   language?: string;
+  category?: string;
+  license?: string;
   cloudflareReady?: boolean;
   limit?: number;
 }
@@ -24,7 +29,24 @@ export interface Recommendation {
   project_id: string;
   score: number;
   reason: string;
+  reasons: string[];
+  decision_summary: string;
   tradeoffs: string[];
+  next_actions: Array<{
+    label: string;
+    href: string;
+    kind: "project" | "graph" | "alternatives" | "score" | "compare";
+  }>;
+  matched_constraints: Record<string, string | boolean>;
+  unmatched_constraints: Record<string, string | boolean>;
+  ranking_signals: {
+    use_case_match: number;
+    community: number;
+    maintenance: number;
+    readiness: number;
+    license_fit: number;
+  };
+  confidence: "high" | "medium" | "low";
   project: Project;
   agent_card: AgentCard;
   metrics: ProjectMetrics;
@@ -37,6 +59,8 @@ export interface SearchResultContext {
     deployment: string[];
     difficulty: string[];
     language: string[];
+    project_kind: ProjectKind[];
+    min_confidence: ClassificationSignal["confidence"][];
     cloudflare_ready: boolean[];
   };
   empty_reason?: string;
@@ -82,6 +106,12 @@ export function searchProjectList(projects: ProjectKnowledge[], filters: Project
         return null;
       }
       if (filters.language && normalize(item.project.language) !== normalize(filters.language)) {
+        return null;
+      }
+      if (filters.projectKind && (item.agentCard.projectKind ?? "project") !== filters.projectKind) {
+        return null;
+      }
+      if (filters.minConfidence && !meetsMinimumClassificationConfidence(item, filters.minConfidence)) {
         return null;
       }
       if (!query) {
@@ -130,6 +160,12 @@ export function describeSearchResult(projects: ProjectKnowledge[], filters: Proj
   if (filters.language) {
     appliedFilters.language = filters.language;
   }
+  if (filters.projectKind) {
+    appliedFilters.project_kind = filters.projectKind;
+  }
+  if (filters.minConfidence) {
+    appliedFilters.min_confidence = filters.minConfidence;
+  }
   if (typeof filters.cloudflareReady === "boolean") {
     appliedFilters.cloudflare_ready = filters.cloudflareReady;
   }
@@ -139,6 +175,8 @@ export function describeSearchResult(projects: ProjectKnowledge[], filters: Proj
     deployment: sortedUnique(projects.flatMap((item) => item.agentCard.deployment)),
     difficulty: sortedUnique(projects.map((item) => item.agentCard.difficulty)),
     language: sortedUnique(projects.map((item) => item.project.language).filter((value): value is string => Boolean(value))),
+    project_kind: ["project", "collection"] as ProjectKind[],
+    min_confidence: ["low", "medium", "high"] as ClassificationSignal["confidence"][],
     cloudflare_ready: [false, true]
   };
 
@@ -166,6 +204,14 @@ export function describeSearchResult(projects: ProjectKnowledge[], filters: Proj
     const nearest = nearestFilterValue(filters.language, knownFilterValues.language);
     suggestions.push(nearest ? `Unknown language '${filters.language}'. Try language='${nearest}'.` : `Unknown language '${filters.language}'.`);
   }
+  if (filters.projectKind && !knownFilterValues.project_kind.includes(filters.projectKind as ProjectKind)) {
+    const nearest = nearestFilterValue(filters.projectKind, knownFilterValues.project_kind);
+    suggestions.push(nearest ? `Unknown project_kind '${filters.projectKind}'. Try project_kind='${nearest}'.` : `Unknown project_kind '${filters.projectKind}'.`);
+  }
+  if (filters.minConfidence && !knownFilterValues.min_confidence.includes(filters.minConfidence as ClassificationSignal["confidence"])) {
+    const nearest = nearestFilterValue(filters.minConfidence, knownFilterValues.min_confidence);
+    suggestions.push(nearest ? `Unknown min_confidence '${filters.minConfidence}'. Try min_confidence='${nearest}'.` : `Unknown min_confidence '${filters.minConfidence}'.`);
+  }
   if (Object.keys(appliedFilters).length > 1) {
     suggestions.push("Relax one filter at a time, or use ranking='browse' for broad category/deployment discovery.");
   }
@@ -192,6 +238,7 @@ export function recommendProjectList(projects: ProjectKnowledge[], query: Recomm
   const limit = clampLimit(query.limit, 5);
   const useCase = normalize(query.useCase);
   const candidates = searchProjectList(projects, {
+    category: query.category,
     deployment: query.deployment,
     difficulty: query.difficulty,
     language: query.language,
@@ -206,21 +253,42 @@ export function recommendProjectList(projects: ProjectKnowledge[], query: Recomm
           item.project.description,
           item.project.topics.join(" "),
           item.agentCard.category,
+          item.project.license,
           item.agentCard.useCases.join(" "),
           item.agentCard.summaryForAgent
         ].join(" ")
       );
 
       const useCaseScore = useCase ? keywordOverlapScore(useCase, text) : 20;
+      const readiness = readinessBoost(item, query);
+      const licenseFit = licenseFitBoost(item, query);
+      const rankingSignals = {
+        use_case_match: useCaseScore,
+        community: item.metrics.gitScore,
+        maintenance: item.metrics.maintenanceScore,
+        readiness,
+        license_fit: licenseFit
+      };
       const score = Math.round(
-        useCaseScore * 0.45 + item.metrics.gitScore * 0.3 + item.metrics.maintenanceScore * 0.2 + readinessBoost(item, query) * 0.05
+        useCaseScore * 0.4 + item.metrics.gitScore * 0.25 + item.metrics.maintenanceScore * 0.2 + readiness * 0.05 + licenseFit * 0.1
       );
+      const matchedConstraints = recommendationMatchedConstraints(item, query);
+      const unmatchedConstraints = recommendationUnmatchedConstraints(item, query);
+      const reasons = buildRecommendationReasons(item, query, rankingSignals, matchedConstraints, unmatchedConstraints);
+      const tradeoffs = buildRecommendationTradeoffs(item, query, unmatchedConstraints);
 
       return {
         project_id: item.project.id,
         score,
-        reason: buildRecommendationReason(item, query),
-        tradeoffs: item.agentCard.notGoodFor.slice(0, 2),
+        reason: reasons.join(" "),
+        reasons,
+        decision_summary: buildRecommendationDecisionSummary(item, score, query, matchedConstraints, unmatchedConstraints),
+        tradeoffs,
+        next_actions: buildRecommendationNextActions(item),
+        matched_constraints: matchedConstraints,
+        unmatched_constraints: unmatchedConstraints,
+        ranking_signals: rankingSignals,
+        confidence: recommendationConfidence(rankingSignals, matchedConstraints, unmatchedConstraints, query),
         project: item.project,
         agent_card: item.agentCard,
         metrics: item.metrics
@@ -235,28 +303,58 @@ export function findAlternativesFromList(projects: ProjectKnowledge[], id: strin
   if (!project) {
     return [];
   }
+  return generateAlternativeMatches(project, projects, clampLimit(limit, 5)).map((match) => match.project);
+}
 
-  const explicit = new Set(project.agentCard.alternatives.map((item) => item.project_id));
+export function findRelatedProjectsFromList(projects: ProjectKnowledge[], id: string, limit = 8): ProjectKnowledge[] {
+  const project = getProjectKnowledgeFromList(projects, id);
+  if (!project) {
+    return [];
+  }
+  const alternativeIds = new Set(project.agentCard.alternatives.map((item) => item.project_id.toLowerCase()));
+  const projectText = projectRelationText(project);
 
   return projects
     .filter((item) => item.project.id !== project.project.id)
-    .map((item) => ({
-      item,
-      score:
-        (explicit.has(item.project.id) ? 100 : 0) +
-        (item.agentCard.category === project.agentCard.category ? 50 : 0) +
-        sharedCount(item.agentCard.useCases, project.agentCard.useCases) * 10 +
-        item.metrics.gitScore * 0.2
-    }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, clampLimit(limit, 5))
+    .map((item) => {
+      const sameCategory = item.agentCard.category === project.agentCard.category ? 34 : 0;
+      const sharedDeployments = sharedCount(item.agentCard.deployment, project.agentCard.deployment) * 13;
+      const sharedTopics = sharedCount(item.project.topics, project.project.topics) * 9;
+      const sharedUseCases = sharedCount(item.agentCard.useCases, project.agentCard.useCases) * 8;
+      const dependencyOverlap = sharedCount(inferredDependencyTerms(item), inferredDependencyTerms(project)) * 12;
+      const textOverlap = keywordOverlapScore(projectText, projectRelationText(item)) * 0.12;
+      const explicitAlternativePenalty = alternativeIds.has(item.project.id.toLowerCase()) ? -24 : 0;
+      const qualityBoost = item.metrics.gitScore * 0.12 + item.metrics.maintenanceScore * 0.08;
+      return {
+        item,
+        score: sameCategory + sharedDeployments + sharedTopics + sharedUseCases + dependencyOverlap + textOverlap + explicitAlternativePenalty + qualityBoost
+      };
+    })
+    .filter((entry) => entry.score > 10)
+    .sort((a, b) => b.score - a.score || byGitScore(a.item, b.item))
+    .slice(0, clampLimit(limit, 8))
     .map(({ item }) => item);
 }
 
-function buildRecommendationReason(item: ProjectKnowledge, query: RecommendationQuery): string {
+function buildRecommendationReasons(
+  item: ProjectKnowledge,
+  query: RecommendationQuery,
+  rankingSignals: Recommendation["ranking_signals"],
+  matchedConstraints: Recommendation["matched_constraints"],
+  unmatchedConstraints: Recommendation["unmatched_constraints"]
+): string[] {
   const parts = [item.agentCard.summaryForAgent];
+  if (query.useCase) {
+    parts.push(`Use-case match is ${rankingSignals.use_case_match}/100 for "${query.useCase}".`);
+  }
   if (query.deployment && item.agentCard.deployment.includes(query.deployment as never)) {
     parts.push(`It matches the requested ${query.deployment} deployment target.`);
+  }
+  if (query.category && item.agentCard.category === query.category) {
+    parts.push(`It is classified as ${query.category}.`);
+  }
+  if (query.license && matchedConstraints.license) {
+    parts.push(`Its license matches ${query.license}.`);
   }
   if (query.cloudflareReady && item.agentCard.cloudflareReady) {
     parts.push("It is marked Cloudflare-ready.");
@@ -264,7 +362,153 @@ function buildRecommendationReason(item: ProjectKnowledge, query: Recommendation
   if (query.difficulty && item.agentCard.difficulty === query.difficulty) {
     parts.push(`Its difficulty is ${query.difficulty}.`);
   }
-  return parts.join(" ");
+  if (Object.keys(unmatchedConstraints).length > 0) {
+    parts.push(`Unmatched constraints: ${Object.keys(unmatchedConstraints).join(", ")}.`);
+  }
+  parts.push(`Ranking signals: community ${rankingSignals.community}/100, maintenance ${rankingSignals.maintenance}/100.`);
+  return parts;
+}
+
+function buildRecommendationDecisionSummary(
+  item: ProjectKnowledge,
+  score: number,
+  query: RecommendationQuery,
+  matchedConstraints: Recommendation["matched_constraints"],
+  unmatchedConstraints: Recommendation["unmatched_constraints"]
+): string {
+  const matched = Object.keys(matchedConstraints);
+  const unmatched = Object.keys(unmatchedConstraints);
+  const context = query.useCase ? ` for "${query.useCase}"` : "";
+  if (unmatched.length === 0 && matched.length > 0) {
+    return `${item.project.fullName} is a strong candidate${context}: recommendation score ${score}/100 with matched ${matched.join(", ")} constraints.`;
+  }
+  if (unmatched.length > 0) {
+    return `${item.project.fullName} is a conditional candidate${context}: recommendation score ${score}/100, but review ${unmatched.join(", ")} before adopting.`;
+  }
+  return `${item.project.fullName} is ranked by Git.Top fit signals${context}: recommendation score ${score}/100.`;
+}
+
+function buildRecommendationNextActions(item: ProjectKnowledge): Recommendation["next_actions"] {
+  const repo = item.project.id;
+  return [
+    { label: "Open project knowledge", href: `/projects/${repo}`, kind: "project" },
+    { label: "Inspect graph", href: `/graph/${repo}`, kind: "graph" },
+    { label: "Find alternatives", href: `/alternatives/${repo}`, kind: "alternatives" },
+    { label: "Explain score", href: `/score/${repo}`, kind: "score" },
+    { label: "Compare shortlist", href: `/compare/${repo}`, kind: "compare" }
+  ];
+}
+
+function recommendationMatchedConstraints(item: ProjectKnowledge, query: RecommendationQuery): Record<string, string | boolean> {
+  const matched: Record<string, string | boolean> = {};
+  if (query.deployment && item.agentCard.deployment.includes(query.deployment as never)) {
+    matched.deployment = query.deployment;
+  }
+  if (query.category && item.agentCard.category === query.category) {
+    matched.category = query.category;
+  }
+  if (query.difficulty && item.agentCard.difficulty === query.difficulty) {
+    matched.difficulty = query.difficulty;
+  }
+  if (query.language && normalize(item.project.language) === normalize(query.language)) {
+    matched.language = item.project.language ?? query.language;
+  }
+  if (typeof query.cloudflareReady === "boolean" && item.agentCard.cloudflareReady === query.cloudflareReady) {
+    matched.cloudflare_ready = query.cloudflareReady;
+  }
+  if (query.license && licenseFitBoost(item, query) === 100) {
+    matched.license = item.project.license ?? query.license;
+  }
+  return matched;
+}
+
+function recommendationUnmatchedConstraints(item: ProjectKnowledge, query: RecommendationQuery): Record<string, string | boolean> {
+  const unmatched: Record<string, string | boolean> = {};
+  if (query.deployment && !item.agentCard.deployment.includes(query.deployment as never)) {
+    unmatched.deployment = query.deployment;
+  }
+  if (query.category && item.agentCard.category !== query.category) {
+    unmatched.category = query.category;
+  }
+  if (query.difficulty && item.agentCard.difficulty !== query.difficulty) {
+    unmatched.difficulty = query.difficulty;
+  }
+  if (query.language && normalize(item.project.language) !== normalize(query.language)) {
+    unmatched.language = query.language;
+  }
+  if (typeof query.cloudflareReady === "boolean" && item.agentCard.cloudflareReady !== query.cloudflareReady) {
+    unmatched.cloudflare_ready = query.cloudflareReady;
+  }
+  if (query.license && licenseFitBoost(item, query) !== 100) {
+    unmatched.license = query.license;
+  }
+  return unmatched;
+}
+
+function buildRecommendationTradeoffs(
+  item: ProjectKnowledge,
+  query: RecommendationQuery,
+  unmatchedConstraints: Recommendation["unmatched_constraints"]
+): string[] {
+  const tradeoffs = [...item.agentCard.notGoodFor.slice(0, 2)];
+  if (query.license && unmatchedConstraints.license) {
+    tradeoffs.push(`License is ${item.project.license ?? "unknown"}, not an exact ${query.license} match.`);
+  }
+  if (query.deployment && unmatchedConstraints.deployment) {
+    tradeoffs.push(`Deployment targets do not explicitly include ${query.deployment}.`);
+  }
+  if (query.useCase && item.agentCard.useCases.length === 0) {
+    tradeoffs.push("No structured use cases are available for this project yet.");
+  }
+  return sortedUnique(tradeoffs).slice(0, 4);
+}
+
+function recommendationConfidence(
+  rankingSignals: Recommendation["ranking_signals"],
+  matchedConstraints: Recommendation["matched_constraints"],
+  unmatchedConstraints: Recommendation["unmatched_constraints"],
+  query: RecommendationQuery
+): Recommendation["confidence"] {
+  const requestedConstraintCount = [query.deployment, query.category, query.difficulty, query.language, query.license, typeof query.cloudflareReady === "boolean" ? query.cloudflareReady : undefined].filter(
+    (value) => value !== undefined && value !== null && value !== ""
+  ).length;
+  const unmatchedCount = Object.keys(unmatchedConstraints).length;
+  if (unmatchedCount > 0) {
+    return unmatchedCount >= Math.max(1, requestedConstraintCount) ? "low" : "medium";
+  }
+  if (rankingSignals.use_case_match >= 60 || Object.keys(matchedConstraints).length >= Math.max(1, requestedConstraintCount)) {
+    return "high";
+  }
+  if (rankingSignals.community >= 60 && rankingSignals.maintenance >= 50) {
+    return "medium";
+  }
+  return "low";
+}
+
+function projectRelationText(item: ProjectKnowledge): string {
+  return normalize(
+    [
+      item.project.name,
+      item.project.fullName,
+      item.project.description,
+      item.project.topics.join(" "),
+      item.agentCard.category,
+      item.agentCard.deployment.join(" "),
+      item.agentCard.useCases.join(" "),
+      item.agentCard.summaryForAgent
+    ].join(" ")
+  );
+}
+
+function inferredDependencyTerms(item: ProjectKnowledge): string[] {
+  const text = projectRelationText(item);
+  const dependencies: string[] = [];
+  if (text.includes("mcp")) dependencies.push("mcp");
+  if (text.includes("cloudflare") || text.includes("workers")) dependencies.push("cloudflare-workers");
+  if (text.includes("rag") || text.includes("retrieval")) dependencies.push("vector-database");
+  if (text.includes("browser") || text.includes("playwright") || text.includes("chromium")) dependencies.push("browser-automation");
+  if (text.includes("llm") || text.includes("agent")) dependencies.push("llm-provider");
+  return dependencies;
 }
 
 function readinessBoost(item: ProjectKnowledge, query: RecommendationQuery): number {
@@ -276,6 +520,18 @@ function readinessBoost(item: ProjectKnowledge, query: RecommendationQuery): num
     score += 40;
   }
   return Math.min(100, score);
+}
+
+function licenseFitBoost(item: ProjectKnowledge, query: RecommendationQuery): number {
+  if (!query.license) {
+    return 0;
+  }
+  const projectLicense = normalize(item.project.license);
+  const requested = normalize(query.license);
+  if (!projectLicense || !requested) {
+    return 0;
+  }
+  return projectLicense.includes(requested) || requested.includes(projectLicense) ? 100 : 0;
 }
 
 function keywordOverlapScore(query: string, text: string): number {
@@ -308,7 +564,18 @@ function queryMatchScore(query: string, words: string[], haystack: string, item:
 function specificIntentBoost(words: string[], item: ProjectKnowledge): number {
   const identityText = normalize([item.project.owner, item.project.name, item.project.fullName, item.project.topics.join(" ")].join(" "));
   const specificHits = words.filter((word) => !specificIntentStopWords.has(word) && identityText.includes(word)).length;
-  return specificHits * 480;
+  return specificHits * 480 + ownerProjectPairBoost(words, item);
+}
+
+function ownerProjectPairBoost(words: string[], item: ProjectKnowledge): number {
+  const owner = normalize(item.project.owner);
+  if (!words.includes(owner)) {
+    return 0;
+  }
+
+  const projectTokens = queryTokens(item.project.name);
+  const matchesProjectName = projectTokens.some((token) => words.some((word) => token === word || token.replace(/s$/, "") === word || token.includes(word)));
+  return matchesProjectName ? 900 : 0;
 }
 
 function collectionIntentBoost(words: string[], item: ProjectKnowledge): number {
@@ -351,7 +618,7 @@ function browseModeQueryScore(query: string, words: string[], haystack: string, 
 }
 
 function isBrowseRankingQuery(filters: ProjectFilters, words: string[], limit: number): boolean {
-  if (limit < 8 || filters.difficulty || filters.language || typeof filters.cloudflareReady === "boolean") {
+  if (limit < 8 || filters.difficulty || filters.language || filters.projectKind || filters.minConfidence || typeof filters.cloudflareReady === "boolean") {
     return false;
   }
   if (!filters.category && !filters.deployment) {
@@ -385,6 +652,35 @@ function nearestFilterValue(value: string, knownValues: string[]): string | null
 
 function isSearchHit(value: { item: ProjectKnowledge; score: number } | null): value is { item: ProjectKnowledge; score: number } {
   return value !== null;
+}
+
+function meetsMinimumClassificationConfidence(item: ProjectKnowledge, confidence: string): boolean {
+  const minimum = confidenceRank(confidence);
+  if (minimum === null) {
+    return false;
+  }
+
+  const classification = item.agentCard.classification;
+  const signals = [classification?.category, classification?.deployment, classification?.difficulty, classification?.cloudflareReady].filter(
+    (signal): signal is ClassificationSignal => Boolean(signal)
+  );
+  if (signals.length === 0) {
+    return minimum <= 1;
+  }
+  return signals.every((signal) => (confidenceRank(signal.confidence) ?? 0) >= minimum);
+}
+
+function confidenceRank(confidence: string): number | null {
+  if (confidence === "low") {
+    return 1;
+  }
+  if (confidence === "medium") {
+    return 2;
+  }
+  if (confidence === "high") {
+    return 3;
+  }
+  return null;
 }
 
 const broadProbeWords = new Set([

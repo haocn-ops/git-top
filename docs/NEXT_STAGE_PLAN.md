@@ -9,8 +9,8 @@ Git.Top is a public V1 baseline for an agent-native GitHub knowledge layer. It h
 - Agent Card generation.
 - REST APIs for search, recommendation, comparison, alternatives, quality, graph, and GRP.
 - MCP tools for agent runtimes.
-- Next.js pages that can use seed data or a live Worker API.
-- Validation scripts for seed data, generated knowledge, DB mapping, core logic, API routes, MCP tools, TypeScript, production Next builds, local D1 integration, and production smoke checks.
+- Worker-rendered HTML pages for the product UI.
+- Validation scripts for seed data, generated knowledge, DB mapping, core logic, API routes, MCP tools, TypeScript, local D1 integration, and production smoke checks.
 - A public production deployment at `https://git.top`.
 
 The next stage moved Git.Top from a validated prototype to a public V1 that agents can depend on. Remaining work is growth and hardening, not a blocker for the V1 baseline.
@@ -47,8 +47,8 @@ Decisions:
 - `https://git.top` is the public product surface.
 - `https://git.top/api/*` is the stable REST API surface.
 - `https://git.top/mcp` is the stable MCP endpoint.
-- The Next.js app remains a richer UI and static preview layer. It reads seed data by default and can read the live Worker API through `NEXT_PUBLIC_GIT_TOP_API_BASE`.
-- Console prototype pages such as users, tenants, settings, and reports should stay out of primary navigation until they are backed by real persistence.
+- The Worker is the only product UI and API runtime.
+- Console prototype routes such as users, tenants, settings, register, and reports redirect to supported Worker pages until backed by real persistence.
 
 Deliverables:
 
@@ -187,7 +187,7 @@ Next evaluation target:
 
 - Full-seed evaluation no longer depends on synthetic project knowledge, and collection/resource-hub projects now have regression coverage.
 - Agent Cards now expose V1-compatible `project_kind` and `collection_metadata` fields so resource hubs can be represented without changing category semantics.
-- Collection metadata is now visible in the Next.js project list/detail UI, preserved across live API view-to-knowledge conversion, described in MCP tool discovery, and covered by MCP mocked-D1 regression checks.
+- Collection metadata is visible in Worker project pages, described in MCP tool discovery, and covered by MCP mocked-D1 regression checks.
 - Ambiguous repository-name regressions now cover memory/RAG (`mem0ai/mem0`), structured output (`dottxt-ai/outlines`), and observability (`pydantic/logfire`) queries.
 - Cloudflare-readiness regression now tracks a dedicated readiness accuracy metric and covers false positives where Cloudflare Workers is mentioned but Python, filesystem, Docker daemon, or Postgres blockers prevent direct Workers readiness.
 - Cloudflare readiness evidence now separates positive signals (`Cloudflare signal: ...`) from blockers (`Runtime blocker: ...`) and regression validation requires both sides for Cloudflare-mentioned projects.

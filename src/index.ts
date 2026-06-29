@@ -1,10 +1,19 @@
 import { handleApi } from "./api";
+import { renderAtlasEcosystemPage, renderAtlasPage } from "./atlas-page";
 import { renderBadge, renderOgImage } from "./assets";
 import { renderExplorer, renderGraph } from "./explorer";
 import { renderProjectGraphPage } from "./graph-page";
 import { errorJson } from "./http";
 import { renderIntegrationsPage } from "./integrations-page";
-import { renderCollectionLandingPage, renderCompareLandingPage, renderTopicLandingPage } from "./landing-pages";
+import {
+  renderAlternativesIndexPage,
+  renderAlternativesLandingPage,
+  renderCollectionLandingPage,
+  renderCompareIndexPage,
+  renderCompareLandingPage,
+  renderDiscoverPage,
+  renderTopicLandingPage
+} from "./landing-pages";
 import { handleMcp } from "./mcp";
 import { openApiDocument } from "./openapi";
 import { renderOperationsPage } from "./operations-page";
@@ -12,6 +21,7 @@ import { renderCoveragePage } from "./coverage-page";
 import { renderProjectPage } from "./project-page";
 import { renderQualityPage } from "./quality-page";
 import { renderQualityReviewPage } from "./quality-review-page";
+import { renderProjectScorePage } from "./score-page";
 import { renderStatusPage } from "./status-page";
 import {
   canonicalHostRedirect,
@@ -99,6 +109,18 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
     return renderIntegrationsPage();
   }
 
+  if (url.pathname === "/atlas") {
+    return renderAtlasPage(env);
+  }
+
+  const atlasEcosystemMatch = url.pathname.match(/^\/atlas\/([^/]+)$/);
+  if (atlasEcosystemMatch) {
+    const response = await renderAtlasEcosystemPage(env, decodeURIComponent(atlasEcosystemMatch[1]));
+    if (response) {
+      return response;
+    }
+  }
+
   if (url.pathname === "/openapi.json") {
     return new Response(JSON.stringify(openApiDocument, null, 2), {
       headers: {
@@ -135,6 +157,18 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
     }
   }
 
+  if (url.pathname === "/alternatives") {
+    return renderAlternativesIndexPage(env);
+  }
+
+  const alternativesLanding = url.pathname.match(/^\/alternatives\/(.+)$/);
+  if (alternativesLanding) {
+    const response = await renderAlternativesLandingPage(env, alternativesLanding[1]);
+    if (response) {
+      return response;
+    }
+  }
+
   const topicLanding = url.pathname.match(/^\/topics\/([^/]+)$/);
   if (topicLanding) {
     const response = await renderTopicLandingPage(env, decodeURIComponent(topicLanding[1]));
@@ -151,6 +185,14 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
     return renderExplorer({ page: "projects" });
   }
 
+  if (url.pathname === "/discover") {
+    return renderDiscoverPage(env);
+  }
+
+  if (url.pathname === "/compare") {
+    return renderCompareIndexPage(env);
+  }
+
   if (url.pathname === "/graph") {
     return renderGraph();
   }
@@ -158,6 +200,14 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
   const graphProjectId = graphProjectIdFromPath(url.pathname);
   if (graphProjectId) {
     const response = await renderProjectGraphPage(env, graphProjectId);
+    if (response) {
+      return response;
+    }
+  }
+
+  const scoreProjectId = prefixedProjectIdFromPath(url.pathname, "score");
+  if (scoreProjectId) {
+    const response = await renderProjectScorePage(env, scoreProjectId);
     if (response) {
       return response;
     }
@@ -227,6 +277,16 @@ function graphProjectIdFromPath(pathname: string): string | null {
   return slugMatch ? decodeURIComponent(slugMatch[1]) : null;
 }
 
+function prefixedProjectIdFromPath(pathname: string, prefix: string): string | null {
+  const ownerRepoMatch = pathname.match(new RegExp(`^/${prefix}/([^/]+)/([^/]+)$`));
+  if (ownerRepoMatch) {
+    return `${decodeURIComponent(ownerRepoMatch[1])}/${decodeURIComponent(ownerRepoMatch[2])}`;
+  }
+
+  const slugMatch = pathname.match(new RegExp(`^/${prefix}/([^/]+)$`));
+  return slugMatch ? decodeURIComponent(slugMatch[1]) : null;
+}
+
 function projectIdFromPath(pathname: string): string | null {
   const projectMatch = pathname.match(/^\/projects\/([^/]+)\/([^/]+)$/);
   if (projectMatch) {
@@ -240,7 +300,7 @@ function projectIdFromPath(pathname: string): string | null {
 
   const slug = decodeURIComponent(shortMatch[1]);
   if (
-    ["api", "mcp", "graph", "explorer", "docs", "api-docs", "quality", "coverage", "status", "operations", "integrations", "categories", "deployments", "compare", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "favicon.ico"].includes(
+    ["api", "mcp", "graph", "atlas", "score", "explorer", "discover", "docs", "api-docs", "quality", "coverage", "status", "operations", "integrations", "categories", "deployments", "compare", "alternatives", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "favicon.ico"].includes(
       slug
     )
   ) {

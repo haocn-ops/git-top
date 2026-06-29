@@ -14,7 +14,7 @@ Git.Top is a solid public V1 baseline: the Worker API is authoritative, D1-backe
    The current D1 read path is intentionally simple and capped at 500 knowledge-ready rows. Before expanding beyond the V1 seed size, add pagination or a dedicated search/ranking pipeline.
 
 4. Runtime/UI consolidation.
-   The Worker is the production authority while Next.js is a richer static UI and preview layer. Keep this explicit, or choose one UI path as primary before adding more product surface.
+   The Worker is now the single production UI/API runtime. The previous Next.js preview layer has been removed to avoid split surface maintenance.
 
 5. Module boundaries.
    `src/db.ts` and `src/grp.ts` are large enough that future changes should extract query, mapping, sync-state, override, and reasoning submodules.
@@ -95,21 +95,21 @@ Acceptance criteria:
 
 ## Phase 4: UI Runtime Decision
 
-Status: complete for V1 documentation; revisit only if the deployment model changes.
+Status: complete; the repository is Worker-only.
 
-Goal: prevent Worker-rendered pages and Next.js pages from drifting into two different products.
+Goal: keep Worker-rendered pages as the single product surface.
 
 Deliverables:
 
-- Declare the production UI path in deployment docs.
-- If Worker UI remains primary, keep Next pages as preview/static examples and avoid adding unsupported console features.
-- If Next UI becomes primary, route production UI through it and keep Worker focused on API/MCP/sync.
+- Declare the Worker-only production UI path in deployment docs.
+- Implement new human pages in the Worker route tree.
+- Keep API, MCP, sync, and human pages in the same runtime.
 
 Completion notes:
 
-- Deployment docs now explicitly state that the Worker owns V1 routing, data loading, API, MCP, and sync behavior.
-- The Next.js app is documented as a richer static preview layer, not the production source of truth.
-- Prototype console pages stay redirected or out of primary navigation until backed by real persistence.
+- Deployment docs now explicitly state that the Worker owns routing, data loading, API, MCP, sync behavior, and human pages.
+- The Next.js preview layer has been removed.
+- Prototype console routes stay redirected until backed by real persistence.
 
 Acceptance criteria:
 

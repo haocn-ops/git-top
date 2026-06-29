@@ -1,4 +1,5 @@
 import { classifyRepository } from "./classification";
+import { reviewedCollectionPolicy } from "./collection-policy";
 import type { AgentCard, Category, CollectionMetadata, Deployment, GithubRepoSignals, GithubRepository } from "./types";
 
 export function generateAgentCard(repo: GithubRepository, signals: GithubRepoSignals, now: string): AgentCard {
@@ -85,9 +86,24 @@ function buildSummary(
 }
 
 function detectProjectKind(repo: GithubRepository, signals: GithubRepoSignals): AgentCard["projectKind"] {
-  const corpus = [repo.full_name, repo.name, repo.description, ...(repo.topics ?? []), signals.readmeText].join(" ").toLowerCase();
-  const collectionSignals = ["awesome", "cookbook", "resource collection", "starter collection", "directory", "course"];
-  return collectionSignals.some((signal) => corpus.includes(signal)) ? "collection" : "project";
+  if (reviewedCollectionPolicy(repo.full_name)) {
+    return "collection";
+  }
+
+  const identityCorpus = [repo.full_name, repo.name, repo.description, ...(repo.topics ?? [])].join(" ").toLowerCase();
+  const readmeCorpus = signals.readmeText.toLowerCase();
+
+  if (hasAny(identityCorpus, ["awesome", "cookbook", "cookbooks", "recipes"])) {
+    return "collection";
+  }
+  if (hasAny(identityCorpus, ["resource collection", "starter collection", "template collection", "server directory", "resource hub"])) {
+    return "collection";
+  }
+  if (hasAny(readmeCorpus, ["awesome list", "curated list", "resource collection", "starter collection", "template collection"])) {
+    return "collection";
+  }
+
+  return "project";
 }
 
 function buildCollectionMetadata(repo: GithubRepository, signals: GithubRepoSignals): CollectionMetadata {

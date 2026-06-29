@@ -3,11 +3,10 @@ import { generateAlternatives, generateAlternativesForAll } from "../src/alterna
 import { searchProjectList } from "../src/project-search.ts";
 import { normalizeGrpRequest, runGrpQuery } from "../src/grp.ts";
 import worker from "../src/index.ts";
-import { getProjectDetailData } from "../src/next-data.ts";
 import { buildQualityReport } from "../src/quality.ts";
 import { calculateMetrics } from "../src/scoring.ts";
 import { seedProjects } from "../src/seed.ts";
-import { defaultSyncLimit, scheduledSyncLimit, selectRepositoryBatch } from "../src/sync.ts";
+import { defaultSyncLimit, maxSyncLimit, scheduledSyncLimit, selectRepositoryBatch } from "../src/sync.ts";
 
 await testScoring();
 await testQualityInfoIssuesDoNotLowerScore();
@@ -16,11 +15,16 @@ await testLegacyConsoleRedirects();
 await testCoverageRoute();
 await testStatusRoute();
 await testIntegrationsRoute();
+await testDiscoverRoute();
+await testAlternativesRoute();
+await testAtlasRoute();
+await testCompareRoute();
 await testSyncBatchSelection();
-await testNextProjectDetailLookup();
+await testWorkerProjectSlugLookup();
 await testBrowseRanking();
 await testBrowseRankingBroadVocabulary();
 await testSpecificIntentRanking();
+await testFlagshipCloudflareQuery();
 await testAlternatives();
 await testGrpNormalization();
 await testGrpQueries();
@@ -37,11 +41,39 @@ async function testLegacyConsoleRedirects() {
   const projectsText = await projects.text();
   assert.match(projectsText, /<link rel="canonical" href="https:\/\/git\.top\/projects"/);
   assert.match(projectsText, /Git\.Top Projects \| Agent-Native GitHub Project Index/);
+  assert.match(projectsText, /id="language-filter"/);
 
   const docs = await worker.fetch(new Request("https://git.top/docs"), {});
   assert.equal(docs.status, 200);
   const docsText = await docs.text();
   assert.match(docsText, /<link rel="canonical" href="https:\/\/git\.top\/docs"/);
+
+  const llms = await worker.fetch(new Request("https://git.top/llms.txt"), {});
+  assert.equal(llms.status, 200);
+  const llmsText = await llms.text();
+  assert.match(llmsText, /Full agent documentation: https:\/\/git\.top\/llms-full\.txt/);
+
+  const llmsFull = await worker.fetch(new Request("https://git.top/llms-full.txt"), {});
+  assert.equal(llmsFull.status, 200);
+  const llmsFullText = await llmsFull.text();
+  assert.match(llmsFullText, /POST \/api\/project/);
+  assert.match(llmsFullText, /POST \/api\/recommend/);
+  assert.match(llmsFullText, /POST \/api\/compare/);
+  assert.match(llmsFullText, /POST \/api\/alternatives/);
+  assert.match(llmsFullText, /POST \/api\/related/);
+  assert.match(llmsFullText, /POST \/api\/score/);
+  assert.match(llmsFullText, /POST \/api\/graph/);
+  assert.match(llmsFullText, /GET \/api\/atlas\?limit=6/);
+  assert.match(llmsFullText, /exploration_paths/);
+  assert.match(llmsFullText, /decision_summary/);
+  assert.match(llmsFullText, /next_actions/);
+  assert.match(llmsFullText, /graph_stats/);
+  assert.match(llmsFullText, /relationship_groups/);
+  assert.match(llmsFullText, /comparison_links/);
+  assert.match(llmsFullText, /alternative_matches/);
+  assert.match(llmsFullText, /adoption_guidance/);
+  assert.match(llmsFullText, /risk_flags/);
+  assert.match(llmsFullText, /decision_matrix/);
 
   const reports = await worker.fetch(new Request("https://git.top/reports"), {});
   assert.equal(reports.status, 302);
@@ -94,6 +126,108 @@ async function testIntegrationsRoute() {
   assert.match(text, /Use Git.Top as project intelligence/);
   assert.match(text, /Production Checklist/);
   assert.match(text, /REST, MCP, and GRP/);
+}
+
+async function testDiscoverRoute() {
+  const home = await worker.fetch(new Request("https://git.top/"), {});
+  const homeText = await home.text();
+  assert.equal(home.status, 200);
+  assert.match(homeText, /href="\/discover"/);
+  assert.match(homeText, /href="\/topics\/browser-ai-automation"/);
+  assert.match(homeText, /href="\/topics\/ai-ide-coding-agents"/);
+
+  const response = await worker.fetch(new Request("https://git.top/discover"), {});
+  const text = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(text, /Discover Open Source Projects/);
+  assert.match(text, /AI Agents/);
+  assert.match(text, /MCP Servers/);
+  assert.match(text, /Browser Automation/);
+  assert.match(text, /AI IDE/);
+  assert.match(text, /\/api\/trending\?limit=12/);
+  assert.match(text, /\/api\/search\?q=agent%20framework/);
+
+  const browserTopic = await worker.fetch(new Request("https://git.top/topics/browser-ai-automation"), {});
+  const browserTopicText = await browserTopic.text();
+  assert.equal(browserTopic.status, 200);
+  assert.match(browserTopicText, /Browser AI Automation Projects/);
+  assert.match(browserTopicText, /What To Inspect/);
+
+  const ideTopic = await worker.fetch(new Request("https://git.top/topics/ai-ide-coding-agents"), {});
+  const ideTopicText = await ideTopic.text();
+  assert.equal(ideTopic.status, 200);
+  assert.match(ideTopicText, /AI IDE and Coding Agent Projects/);
+  assert.match(ideTopicText, /What To Compare/);
+}
+
+async function testAlternativesRoute() {
+  const home = await worker.fetch(new Request("https://git.top/"), {});
+  const homeText = await home.text();
+  assert.equal(home.status, 200);
+  assert.match(homeText, /href="\/alternatives"/);
+
+  const response = await worker.fetch(new Request("https://git.top/alternatives"), {});
+  const text = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(text, /Open Source Alternatives/);
+  assert.match(text, /Find open-source alternatives/);
+  assert.match(text, /LangChain Alternatives/);
+  assert.match(text, /Dify Alternatives/);
+  assert.match(text, /\/api\/alternatives\/cloudflare\/agents\?limit=12/);
+
+  const detail = await worker.fetch(new Request("https://git.top/alternatives/cloudflare/agents"), {});
+  const detailText = await detail.text();
+  assert.equal(detail.status, 200);
+  assert.match(detailText, /Alternatives Engine/);
+  assert.match(detailText, /Decision Summary/);
+  assert.match(detailText, /Avg similarity/);
+  assert.match(detailText, /Compare shortlist/);
+}
+
+async function testAtlasRoute() {
+  const response = await worker.fetch(new Request("https://git.top/atlas"), {});
+  const text = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(text, /Atlas Beta/);
+  assert.match(text, /Open-source ecosystems as a map/);
+  assert.match(text, /Cloudflare/);
+  assert.match(text, /Projects/);
+  assert.match(text, /Alternatives/);
+  assert.match(text, /Score/);
+  assert.match(text, /Avg Git\.Top Score/);
+  assert.match(text, /Discover Projects/);
+  assert.match(text, /Compare Options/);
+  assert.match(text, /href="\/atlas\/cloudflare"/);
+
+  const cloudflare = await worker.fetch(new Request("https://git.top/atlas/cloudflare"), {});
+  const cloudflareText = await cloudflare.text();
+  assert.equal(cloudflare.status, 200);
+  assert.match(cloudflareText, /Cloudflare Ecosystem/);
+  assert.match(cloudflareText, /All Ecosystems/);
+  assert.match(cloudflareText, /Atlas JSON/);
+  assert.match(cloudflareText, /href="\/api\/search\?q=cloudflare%20workers%20agents&amp;ranking=browse&amp;limit=12"/);
+
+  const missing = await worker.fetch(new Request("https://git.top/atlas/not-real"), {});
+  assert.equal(missing.status, 404);
+}
+
+async function testCompareRoute() {
+  const response = await worker.fetch(new Request("https://git.top/compare"), {});
+  const text = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(text, /Open Source Project Comparisons/);
+  assert.match(text, /Compare open-source projects by fit/);
+  assert.match(text, /Cloudflare Agents vs LangChain/);
+  assert.match(text, /\/api\/compare\?repos=/);
+
+  const detail = await worker.fetch(new Request("https://git.top/compare/cloudflare-agents...langchain-ai-langchain"), {});
+  const detailText = await detail.text();
+  assert.equal(detail.status, 200);
+  assert.match(detailText, /Project Comparison/);
+  assert.match(detailText, /Compare JSON|Open JSON/);
+  assert.match(detailText, /Decision Matrix/);
+  assert.match(detailText, /Top Agent/);
+  assert.match(detailText, /Inspect graph/);
 }
 
 async function testScoring() {
@@ -165,6 +299,9 @@ async function testQualityInfoIssuesDoNotLowerScore() {
   assert.equal(report.warningCount, 0);
   assert.ok(report.issues.some((issue) => issue.severity === "info" && issue.code === "score_skew"));
   assert.equal(report.score, 100, "info-only quality observations should not lower the release score");
+  assert.equal(report.releaseScore, 100);
+  assert.equal(report.scoreSummary.releaseScoreMeaning.includes("Release gate score"), true);
+  assert.equal(typeof report.dataTrustScore, "number");
 }
 
 async function testQualityCollectionCoverage() {
@@ -220,7 +357,8 @@ async function testQualityCollectionCoverage() {
 
 async function testSyncBatchSelection() {
   assert.equal(defaultSyncLimit, 1, "manual sync without a limit should stay conservative by default");
-  assert.equal(scheduledSyncLimit, 5, "scheduled sync should make steady progress with lightweight signals");
+  assert.equal(maxSyncLimit, 50, "admin and catch-up syncs should allow bounded larger batches");
+  assert.equal(scheduledSyncLimit, 40, "scheduled sync should cover a 500-project corpus within roughly one week");
 
   const repositories = ["a/a", "b/b", "c/c", "d/d", "e/e"];
   assert.deepEqual(selectRepositoryBatch(repositories, 1, 3), ["b/b", "c/c", "d/d"]);
@@ -229,13 +367,37 @@ async function testSyncBatchSelection() {
   assert.deepEqual(selectRepositoryBatch([], 0, 5), []);
 }
 
-async function testNextProjectDetailLookup() {
-  const detail = await getProjectDetailData("cloudflare-agents");
-  assert.ok(detail, "graph slug should resolve to the matching seed project");
-  assert.equal(detail.view.repo, "cloudflare/agents");
+async function testWorkerProjectSlugLookup() {
+  const graph = await worker.fetch(new Request("https://git.top/graph/cloudflare-agents"), {});
+  assert.equal(graph.status, 200, "graph slug should resolve to the matching seed project");
+  const graphText = await graph.text();
+  assert.match(graphText, /cloudflare\/agents/);
+  assert.match(graphText, /Project Context/);
+  assert.match(graphText, /Maintainer/);
+  assert.match(graphText, /License/);
+  assert.match(graphText, /Deployment Targets/);
+  assert.match(graphText, /Dependencies/);
+  assert.match(graphText, /Graph Summary/);
+  assert.match(graphText, /Open project knowledge/);
+  assert.match(graphText, /Related Network/);
+  assert.match(graphText, /Alternatives Network/);
+  assert.match(graphText, /href="\/alternatives\/cloudflare\/agents"/);
+  assert.match(graphText, /href="\/api\/compare\?repos=/);
 
-  const missing = await getProjectDetailData("not-a-real-project");
-  assert.equal(missing, null, "missing project detail should not silently fall back to the first project");
+  const project = await worker.fetch(new Request("https://git.top/projects/cloudflare/agents"), {});
+  assert.equal(project.status, 200, "owner/repo project route should resolve through the Worker surface");
+  assert.match(await project.text(), /Project Knowledge/);
+
+  const score = await worker.fetch(new Request("https://git.top/score/cloudflare-agents"), {});
+  assert.equal(score.status, 200, "score slug should resolve to the matching seed project");
+  const scoreText = await score.text();
+  assert.match(scoreText, /Project Score/);
+  assert.match(scoreText, /Adoption Guidance/);
+  assert.match(scoreText, /Risk Flags/);
+  assert.match(scoreText, /Score JSON/);
+
+  const missing = await worker.fetch(new Request("https://git.top/not-a-real-project"), {});
+  assert.equal(missing.status, 404, "missing project detail should not silently fall back to the first project");
 }
 
 async function testBrowseRanking() {
@@ -348,6 +510,21 @@ async function testSpecificIntentRanking() {
   assert.equal(results[0].project.id, githubMcp.project.id, "specific owner/topic intent should outrank generic high-quality browse candidates");
 }
 
+async function testFlagshipCloudflareQuery() {
+  const results = searchProjectList(seedProjects, {
+    q: "cloudflare agent framework",
+    deployment: "cloudflare",
+    cloudflareReady: true,
+    limit: 3
+  });
+
+  assert.equal(results[0]?.project.id, "cloudflare/agents", "flagship Cloudflare agent query should rank cloudflare/agents first");
+  assert.ok(results.some((item) => item.project.id === "cloudflare/agents"), "flagship Cloudflare agent query should include cloudflare/agents");
+  const cloudflareAgents = results.find((item) => item.project.id === "cloudflare/agents");
+  assert.equal(cloudflareAgents?.agentCard.category, "agent_framework");
+  assert.equal(cloudflareAgents?.agentCard.cloudflareReady, true);
+}
+
 async function testAlternatives() {
   const cloudflare = seedProjects.find((item) => item.project.id === "cloudflare/agents");
   assert.ok(cloudflare, "seed should include cloudflare/agents");
@@ -422,7 +599,7 @@ async function testGrpQueries() {
 
 function makeSearchFixture(id, overrides) {
   const [owner, name] = id.split("/");
-  const now = "2026-06-20T00:00:00Z";
+  const now = new Date().toISOString();
   return {
     project: {
       id,

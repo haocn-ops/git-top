@@ -92,7 +92,7 @@ function renderHtml(
       <header class="hero">
         <p class="eyebrow">Quality Governance</p>
         <h1>Data trust, coverage, and review risk for Git.Top recommendations.</h1>
-        <p class="lead">Use this page before treating a project recommendation as high-confidence. The release score, risk layer, coverage metrics, and issue list are generated from the same knowledge source used by search, MCP, and project pages.</p>
+        <p class="lead">Use this page before treating a project recommendation as high-confidence. Release health and data trust are separate: a deployment can have no blocking quality issues while the corpus still carries review risk.</p>
         <div class="actions">
           <a class="button primary" href="/api/quality">Open quality JSON</a>
           <a class="button" href="/coverage">Corpus coverage</a>
@@ -103,16 +103,17 @@ function renderHtml(
       </header>
 
       <section class="metrics">
-        ${metric("Release score", `${report.score}/100`, "Warnings and errors reduce this gate score; info observations stay visible without lowering it.")}
+        ${metric("Release score", `${report.releaseScore}/100`, "Warnings and errors reduce this gate score; info observations stay visible without lowering it.")}
+        ${metric("Data trust", `${report.dataTrustScore}/100`, "Low-confidence classification, collection review load, stale sync, and stale collection metadata reduce this corpus trust score.")}
         ${metric("Risk level", report.riskLevel.toUpperCase(), "Risk summarizes classification confidence, collection review load, and stale data.")}
         ${metric("Projects", report.projectCount, `${metadata.source} / ${metadata.reason}`)}
-        ${metric("Issues", report.issueCount, `${report.errorCount} errors / ${report.warningCount} warnings`)}
       </section>
 
       <section class="two">
         <article class="panel">
           <p class="eyebrow">Risk Summary</p>
           <h2 class="risk-${escapeAttr(report.riskLevel)}">${escapeHtml(report.riskLevel.toUpperCase())}</h2>
+          <p class="muted">${escapeHtml(report.scoreSummary.riskLevelMeaning)}</p>
           <div class="rows">
             ${report.riskSummary.reasons.map((reason) => `<div class="row"><strong>${escapeHtml(reason)}</strong></div>`).join("")}
           </div>

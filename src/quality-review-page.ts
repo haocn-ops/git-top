@@ -18,6 +18,7 @@ function renderHtml(
   metadata: { source: string; reason: string; projectCount: number; generatedAt: string }
 ): string {
   const items = report.items.slice(0, 30);
+  const topImpact = items[0]?.impactScore ?? 0;
   return String.raw`<!doctype html>
 <html lang="en">
   <head>
@@ -69,9 +70,10 @@ function renderHtml(
       .row { display:grid; gap:4px; border-top:1px solid var(--line); padding-top:8px; }
       .row:first-child { border-top:0; padding-top:0; }
       .row span { color:var(--muted); line-height:1.5; }
-      .signal { display:inline-flex; min-height:28px; align-items:center; border:1px solid var(--line); border-radius:999px; background:#f8fafb; color:#40505a; font-size:12px; font-weight:900; padding:5px 8px; }
+      .signal,.impact { display:inline-flex; min-height:28px; align-items:center; border:1px solid var(--line); border-radius:999px; background:#f8fafb; color:#40505a; font-size:12px; font-weight:900; padding:5px 8px; }
       .signal.low { border-color:#f3b8b5; background:#fff4f3; color:var(--red); }
       .signal.medium { border-color:#e7cf9a; background:#fff9ea; color:var(--amber); }
+      .impact { border-color:#b7dfcc; background:#eefaf4; color:var(--teal-dark); }
       .category-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
       @media (max-width:900px) { .metrics,.two,.category-grid { grid-template-columns:1fr; } }
     </style>
@@ -86,7 +88,7 @@ function renderHtml(
       <header class="hero">
         <p class="eyebrow">Review Queue</p>
         <h1>Low-confidence classification and collection governance.</h1>
-        <p class="lead">This queue highlights projects that need manual review before Git.Top treats their category, deployment, Cloudflare readiness, or collection semantics as high-confidence.</p>
+        <p class="lead">This queue highlights projects that need manual review before Git.Top treats their category, deployment, Cloudflare readiness, or collection semantics as high-confidence. Items are ordered by user-visible impact.</p>
         <div class="actions">
           <a class="button primary" href="/api/quality/review">Open review JSON</a>
           <a class="button" href="/docs#governance">Override workflow</a>
@@ -99,7 +101,7 @@ function renderHtml(
         ${metric("Projects", report.projectCount, `${metadata.source} / ${metadata.reason}`)}
         ${metric("Review items", report.reviewCount, "Projects currently needing classification, collection, or signal review.")}
         ${metric("Low signals", report.lowSignalCount, "Low-confidence classification signals across the review queue.")}
-        ${metric("Medium signals", report.mediumSignalCount, "Medium-confidence signals kept visible for context.")}
+        ${metric("Top impact", topImpact, "Highest current impact score in the review queue.")}
       </section>
 
       <section class="two">
@@ -107,6 +109,7 @@ function renderHtml(
           <p class="eyebrow">Review Instructions</p>
           <h2>How to use this queue</h2>
           <div class="rows">
+            <div class="row"><strong>Start with high-impact items.</strong><span>Impact score weights docs/example visibility, high-intent categories, Cloudflare readiness, stars, quality score, and collection review needs.</span></div>
             <div class="row"><strong>Prioritize low-confidence categories and Cloudflare readiness.</strong><span>These can directly change project recommendations and deployment-fit answers.</span></div>
             <div class="row"><strong>Review collections separately from runtime projects.</strong><span>Collections are useful for discovery, but should not be presented as direct implementation choices without context.</span></div>
             <div class="row"><strong>Use overrides for high-traffic ambiguous projects.</strong><span>Reviewed corrections should go through the <a href="/docs#governance">classification override workflow</a> instead of being hidden in page copy.</span></div>
@@ -141,10 +144,11 @@ function reviewItem(item: LowConfidenceReviewReport["items"][number]): string {
   return `<article class="item">
     <div class="item-head">
       <div><p class="eyebrow">${escapeHtml(label(item.category))}</p><h2><a href="/projects/${escapeAttr(item.projectId)}">${escapeHtml(item.projectId)}</a></h2></div>
-      <a class="button" href="/api/project/${escapeAttr(item.projectId)}">Project JSON</a>
+      <div class="actions"><span class="impact">Impact ${escapeHtml(item.impactScore)}</span><a class="button" href="/api/project/${escapeAttr(item.projectId)}">Project JSON</a></div>
     </div>
     <div class="pills">${item.classificationSignals.map(signalPill).join("")}</div>
     <div class="rows">
+      <div class="row"><strong>Impact factors</strong><span>${escapeHtml(item.impactFactors.join(" "))}</span></div>
       <div class="row"><strong>Reasons</strong><span>${escapeHtml(item.reasons.join(" "))}</span></div>
       <div class="row"><strong>Suggested action</strong><span>${escapeHtml(item.suggestedAction)}</span></div>
     </div>

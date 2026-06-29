@@ -1,15 +1,18 @@
 import {
   describeSearchResult,
   findAlternativesFromList,
+  findRelatedProjectsFromList,
   getProjectKnowledgeFromList,
   recommendProjectList,
   searchProjectList
 } from "./project-search";
+import { buildAlternativesDecision, generateAlternativeMatches, toAlternativeMatchView } from "./alternatives";
 import type { ProjectKnowledgeResult } from "./knowledge-source";
 import { buildKnowledgeGraph, compareProjectKnowledge } from "./graph";
 import { normalizeGrpRequest, runGrpQuery } from "./grp";
 import { errorJson, json, rawJson, stringifyApiJson } from "./http";
-import { toProjectKnowledgeView } from "./project-view";
+import { toProjectKnowledgeView, withRelatedProjects } from "./project-view";
+import { buildProjectScoreExplanation } from "./score";
 import { getKnowledgeForSourcePolicy } from "./source-policy";
 import type { Env, ProjectKnowledge } from "./types";
 
@@ -92,6 +95,22 @@ const tools = [
     }
   },
   {
+    name: "get_related_projects",
+    description: "Find adjacent projects connected by category, deployment, dependencies, topics, or use cases. Use this for ecosystem exploration rather than direct replacements.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_id: { type: "string" },
+        limit: { type: "number" },
+        require_d1: {
+          type: "boolean",
+          description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
+        }
+      },
+      required: ["project_id"]
+    }
+  },
+  {
     name: "get_deployment",
     description: "Return deployment options and Cloudflare readiness for a project.",
     inputSchema: {
@@ -132,6 +151,8 @@ const tools = [
           type: "object",
           properties: {
             deployment: { type: "string" },
+            category: { type: "string" },
+            license: { type: "string" },
             difficulty: { type: "string" },
             language: { type: "string" },
             cloudflare_ready: { type: "boolean" }
@@ -283,8 +304,60 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
       schemaUrl: "https://git.top/api/schema/project.v2",
       healthUrl: "https://git.top/api/health",
       qualityUrl: "https://git.top/api/quality",
+      agentApi: {
+        openapiUrl: "https://git.top/api/openapi.json",
+        structuredPostEndpoints: [
+          {
+            path: "/api/project",
+            method: "POST",
+            description: "Fetch one project knowledge record with related projects, scores, evidence, and metadata.",
+            bodyExample: { project_id: "cloudflare/agents", related_limit: 8 }
+          },
+          {
+            path: "/api/recommend",
+            method: "POST",
+            description: "Recommend projects from a use case and structured constraints.",
+            bodyExample: {
+              use_case: "build Cloudflare-ready agent workflows",
+              constraints: { deployment: "cloudflare", category: "agent_framework", license: "MIT", cloudflare_ready: true },
+              limit: 5
+            }
+          },
+          {
+            path: "/api/compare",
+            method: "POST",
+            description: "Compare a shortlist of projects by deployment fit, maintenance, quality, and agent score.",
+            bodyExample: { project_ids: ["cloudflare/agents", "langchain-ai/langchain"], deployment: "cloudflare" }
+          },
+          {
+            path: "/api/alternatives",
+            method: "POST",
+            description: "Find alternatives for a known project with similarity scores and match signals.",
+            bodyExample: { project_id: "langchain-ai/langchain", limit: 12 }
+          },
+          {
+            path: "/api/related",
+            method: "POST",
+            description: "Find adjacent ecosystem projects connected by category, deployment, dependency, topics, or use cases.",
+            bodyExample: { project_id: "cloudflare/agents", limit: 8 }
+          },
+          {
+            path: "/api/score",
+            method: "POST",
+            description: "Explain a project's Git.Top Score with weighted dimensions, evidence, and related scores.",
+            bodyExample: { project_id: "cloudflare/agents" }
+          },
+          {
+            path: "/api/graph",
+            method: "POST",
+            description: "Fetch a project knowledge graph with grouped alternatives, related projects, dependencies, deployments, and use cases.",
+            bodyExample: { project_id: "cloudflare/agents", limit: 24 }
+          }
+        ]
+      },
       quickstart: [
         "GET /api/health and verify metadata.source is d1 for production recommendations.",
+        "Use structured POST endpoints under agent_api.structured_post_endpoints for project, recommendation, comparison, alternatives, and graph requests.",
         "Call tools/list to inspect available MCP tools.",
         "Call search_projects with query, category, deployment, and limit.",
         "Call get_project or compare_projects before presenting a final recommendation.",
@@ -307,6 +380,19 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
               query: "cloudflare agent framework",
               limit: 5
             }
+          }
+        },
+        structuredRecommend: {
+          method: "POST",
+          url: "https://git.top/api/recommend",
+          body: {
+            use_case: "build Cloudflare-ready agent workflows",
+            constraints: {
+              deployment: "cloudflare",
+              category: "agent_framework",
+              cloudflare_ready: true
+            },
+            limit: 5
           }
         }
       },
@@ -401,9 +487,10 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
     }
     const projectId = projectIdArg(args);
     const project = getProjectKnowledgeFromList(knowledge.projects, projectId);
+    const related = project ? findRelatedProjectsFromList(knowledge.projects, project.project.id, 8) : [];
     return {
       project_id: projectId || null,
-      project: project ? toProjectKnowledgeView(project) : null,
+      project: project ? withRelatedProjects(toProjectKnowledgeView(project), related) : null,
       metadata: knowledge.metadata
     };
   }
@@ -420,6 +507,8 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
         deployment: stringArg(constraints.deployment),
         difficulty: stringArg(constraints.difficulty),
         language: stringArg(constraints.language),
+        category: stringArg(constraints.category),
+        license: stringArg(constraints.license),
         cloudflareReady: boolArg(constraints.cloudflare_ready),
         limit: numberArg(args.limit)
       }),
@@ -432,10 +521,28 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
     if (isToolErrorResult(knowledge)) {
       return knowledge;
     }
+    const project = getProjectKnowledgeFromList(knowledge.projects, stringArg(args.project_id) ?? "");
+    const matches = project ? generateAlternativeMatches(project, knowledge.projects, numberArg(args.limit) ?? 5) : [];
+    const decision = project ? buildAlternativesDecision(project, matches) : null;
     return {
-      alternatives: findAlternativesFromList(knowledge.projects, stringArg(args.project_id) ?? "", numberArg(args.limit)).map(
-        toProjectKnowledgeView
-      ),
+      project: project ? toProjectKnowledgeView(project) : null,
+      summary: decision?.summary ?? null,
+      stats: decision?.stats ?? null,
+      nextActions: decision?.nextActions ?? [],
+      comparisonLinks: decision?.comparisonLinks ?? null,
+      alternatives: matches.map((match) => toProjectKnowledgeView(match.project)),
+      alternativeMatches: matches.map(toAlternativeMatchView),
+      metadata: knowledge.metadata
+    };
+  }
+
+  if (name === "get_related_projects") {
+    const knowledge = await requireKnowledgeSource(env, args);
+    if (isToolErrorResult(knowledge)) {
+      return knowledge;
+    }
+    return {
+      related: findRelatedProjectsFromList(knowledge.projects, stringArg(args.project_id) ?? "", numberArg(args.limit)).map(toProjectKnowledgeView),
       metadata: knowledge.metadata
     };
   }
@@ -475,11 +582,17 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
     }
     const project = getProjectKnowledgeFromList(knowledge.projects, stringArg(args.project_id) ?? "");
     const view = project ? toProjectKnowledgeView(project) : null;
+    const scoreExplanation = project ? buildProjectScoreExplanation(project) : null;
     return {
       project_id: stringArg(args.project_id),
+      git_top_score: view?.gitTopScore ?? null,
+      git_top_score_breakdown: view?.gitTopScoreBreakdown ?? null,
+      score_explanation: scoreExplanation,
       quality_score: view?.qualityScore ?? null,
       agent_score: view?.agentScore ?? null,
       quality_signals: view?.qualitySignals ?? null,
+      agent_score_breakdown: view?.agentScoreBreakdown ?? null,
+      score_page: view ? `https://git.top/score/${view.repo}` : null,
       metadata: knowledge.metadata
     };
   }

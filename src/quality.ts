@@ -12,6 +12,9 @@ export interface QualityIssue {
 
 export interface QualityReport {
   score: number;
+  releaseScore: number;
+  dataTrustScore: number;
+  scoreSummary: QualityScoreSummary;
   riskLevel: QualityRiskLevel;
   riskSummary: QualityRiskSummary;
   projectCount: number;
@@ -21,6 +24,12 @@ export interface QualityReport {
   categoryDistribution: Record<Category, number>;
   coverage: QualityCoverage;
   issues: QualityIssue[];
+}
+
+export interface QualityScoreSummary {
+  releaseScoreMeaning: string;
+  dataTrustScoreMeaning: string;
+  riskLevelMeaning: string;
 }
 
 export type QualityRiskLevel = "low" | "medium" | "high";
@@ -37,6 +46,8 @@ export interface QualityRiskSummary {
 export interface LowConfidenceReviewItem {
   projectId: string;
   category: Category;
+  impactScore: number;
+  impactFactors: string[];
   classificationSignals: Array<{
     field: "category" | "deployment" | "difficulty" | "cloudflareReady";
     confidence: "high" | "medium" | "low";
@@ -74,6 +85,18 @@ const categories: Category[] = [
 const classificationFields = ["category", "deployment", "difficulty", "cloudflareReady"] as const;
 const collectionScopes = ["awesome_list", "cookbook", "starter_collection", "integration_collection", "resource_hub"] as const;
 const collectionFreshnessValues = ["active", "stale", "unknown"] as const;
+const highIntentCategories = new Set<Category>(["agent_framework", "mcp_server", "rag_framework", "coding_agent", "browser_agent", "ai_app_template"]);
+const highVisibilityProjectIds = new Set([
+  "cloudflare/agents",
+  "cloudflare/mcp-server-cloudflare",
+  "github/github-mcp-server",
+  "langchain-ai/langchain",
+  "langchain-ai/langgraph",
+  "modelcontextprotocol/servers",
+  "openai/openai-agents-python",
+  "run-llama/llama_index",
+  "vercel/ai"
+]);
 
 export interface QualityCoverage {
   categoryCoverage: Record<Category, number>;
@@ -104,9 +127,18 @@ export function buildQualityReport(projects: ProjectKnowledge[]): QualityReport 
   const coverage = buildCoverage(projects, distribution);
   const riskSummary = buildRiskSummary(coverage, projects.length);
   const penalty = errorCount * 10 + warningCount * 4;
+  const releaseScore = Math.max(0, Math.min(100, 100 - penalty));
+  const dataTrustScore = buildDataTrustScore(coverage, projects.length);
 
   return {
-    score: Math.max(0, Math.min(100, 100 - penalty)),
+    score: releaseScore,
+    releaseScore,
+    dataTrustScore,
+    scoreSummary: {
+      releaseScoreMeaning: "Release gate score. Errors and warnings reduce this score; info observations stay visible without lowering it.",
+      dataTrustScoreMeaning: "Corpus trust score. Low-confidence classification, collection review load, stale project sync, and stale collection metadata reduce this score.",
+      riskLevelMeaning: "Risk level is derived from corpus confidence thresholds and may be high even when the release gate has no blocking issues."
+    },
     riskLevel: riskSummary.level,
     riskSummary,
     projectCount: projects.length,
@@ -119,11 +151,22 @@ export function buildQualityReport(projects: ProjectKnowledge[]): QualityReport 
   };
 }
 
+function buildDataTrustScore(coverage: QualityCoverage, projectCount: number): number {
+  const collectionReviewRate = rate(coverage.collectionReviewCount, projectCount);
+  const staleCollectionRate = rate(coverage.staleCollectionCount, Math.max(coverage.collectionCount, 1));
+  const penalty =
+    coverage.lowConfidenceClassificationRate * 40 +
+    collectionReviewRate * 30 +
+    coverage.staleProjectRate * 20 +
+    staleCollectionRate * 10;
+  return Math.max(0, Math.min(100, Math.round(100 - penalty)));
+}
+
 export function buildLowConfidenceReviewReport(projects: ProjectKnowledge[]): LowConfidenceReviewReport {
   const items = projects
     .map(reviewItem)
     .filter((item): item is LowConfidenceReviewItem => item !== null)
-    .sort((a, b) => b.reasons.length - a.reasons.length || a.projectId.localeCompare(b.projectId));
+    .sort((a, b) => b.impactScore - a.impactScore || b.reasons.length - a.reasons.length || a.projectId.localeCompare(b.projectId));
   const categoryCounts = Object.fromEntries(categories.map((category) => [category, 0])) as Record<Category, number>;
   for (const item of items) {
     categoryCounts[item.category] += 1;
@@ -162,9 +205,62 @@ function reviewItem(item: ProjectKnowledge): LowConfidenceReviewItem | null {
   return {
     projectId: item.project.id,
     category: item.agentCard.category,
+    ...reviewImpact(item, reasons),
     classificationSignals: nonHighSignals,
     reasons,
     suggestedAction: suggestedReviewAction(item, signals, reasons)
+  };
+}
+
+function reviewImpact(item: ProjectKnowledge, reasons: string[]): Pick<LowConfidenceReviewItem, "impactScore" | "impactFactors"> {
+  let score = 0;
+  const factors: string[] = [];
+
+  if (highVisibilityProjectIds.has(item.project.id.toLowerCase())) {
+    score += 50;
+    factors.push("Referenced in product examples or docs.");
+  }
+  if (highIntentCategories.has(item.agentCard.category)) {
+    score += 20;
+    factors.push("High-intent agent selection category.");
+  }
+  if (item.agentCard.cloudflareReady) {
+    score += 18;
+    factors.push("Cloudflare-ready answer surface.");
+  }
+  if (item.project.stars >= 50000) {
+    score += 25;
+    factors.push("Very high-star project.");
+  } else if (item.project.stars >= 10000) {
+    score += 16;
+    factors.push("High-star project.");
+  } else if (item.project.stars >= 1000) {
+    score += 8;
+    factors.push("Visible project by stars.");
+  }
+  if (item.metrics.gitScore >= 80) {
+    score += 14;
+    factors.push("High quality-score candidate.");
+  } else if (item.metrics.gitScore >= 65) {
+    score += 8;
+    factors.push("Mid quality-score candidate.");
+  }
+  if (item.agentCard.projectKind === "collection" && !isReviewedCollection(item)) {
+    score += 12;
+    factors.push("Collection semantics need review.");
+  }
+  if (reasons.some((reason) => reason.includes("low-confidence"))) {
+    score += 10;
+    factors.push("Low-confidence classification evidence.");
+  }
+  if (reasons.some((reason) => reason.includes("Cloudflare-ready"))) {
+    score += 10;
+    factors.push("Cloudflare readiness ambiguity.");
+  }
+
+  return {
+    impactScore: score,
+    impactFactors: factors.length ? factors : ["Lower user-visible impact."]
   };
 }
 
@@ -271,7 +367,7 @@ function checkProject(item: ProjectKnowledge, projectIndex: Map<string, ProjectK
   }
 
   if (Date.now() - Date.parse(item.project.syncedAt) > 7 * 24 * 60 * 60 * 1000) {
-    issues.push(issue(projectId, "warning", "stale_sync", "Project has not been synced in over 7 days."));
+    issues.push(issue(projectId, "info", "stale_sync", "Project has not been synced in over 7 days."));
   }
 
   if (item.project.stars > 10000 && item.agentCard.alternatives.length === 0) {
@@ -318,7 +414,11 @@ function hasReviewedCategoryEvidence(item: ProjectKnowledge): boolean {
   const evidence = item.agentCard.classification?.category?.evidence ?? [];
   return evidence.some((entry) => {
     const normalized = normalize(entry);
-    return normalized.includes("manual quality burn-down override") || normalized.includes("curated category override");
+    return (
+      normalized.includes("manual quality burn-down override") ||
+      normalized.includes("manual product trust override") ||
+      normalized.includes("curated category override")
+    );
   });
 }
 

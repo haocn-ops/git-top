@@ -1,4 +1,9 @@
-import { curatedCategoryEvidence, inferCuratedCategory } from "./category-hints";
+import {
+  curatedCategoryEvidence,
+  curatedCloudflareReadyEvidence,
+  inferCuratedCategory,
+  inferCuratedCloudflareReady
+} from "./category-hints";
 import type { AgentCard, Category, Deployment, Difficulty, GithubRepoSignals, GithubRepository } from "./types";
 
 export interface ClassificationResult {
@@ -14,7 +19,7 @@ export function classifyRepository(repo: GithubRepository, signals: GithubRepoSi
   const corpus = normalize([metadataCorpus, signals.readmeText, signals.files.join(" ")].join(" "));
   const category = inferCuratedCategory(repo.full_name) ?? detectCategory(corpus, metadataCorpus);
   const deployment = detectDeployment(corpus, signals.files);
-  const cloudflareReady = deployment.includes("cloudflare") && !hasRuntimeBlockers(corpus);
+  const cloudflareReady = inferCuratedCloudflareReady(repo.full_name) ?? (deployment.includes("cloudflare") && !hasRuntimeBlockers(corpus));
   const difficulty = detectDifficulty(repo, signals, deployment);
   const classification = buildClassification(repo, signals, corpus, metadataCorpus, category, deployment, difficulty, cloudflareReady);
 
@@ -40,7 +45,7 @@ function buildClassification(
   const categoryEvidence = evidenceForCategory(category, corpus, metadataCorpus, repo.full_name);
   const deploymentEvidence = evidenceForDeployment(deployment, corpus, signals.files);
   const difficultyEvidence = evidenceForDifficulty(repo, signals, deployment, difficulty);
-  const cloudflareEvidence = evidenceForCloudflareReady(corpus, deployment, cloudflareReady);
+  const cloudflareEvidence = evidenceForCloudflareReady(corpus, deployment, cloudflareReady, repo.full_name);
 
   return {
     category: {
@@ -254,8 +259,8 @@ function evidenceForDifficulty(repo: GithubRepository, signals: GithubRepoSignal
   return ["No strong beginner or advanced signal found; defaulting to intermediate."];
 }
 
-function evidenceForCloudflareReady(corpus: string, deployment: Deployment[], cloudflareReady: boolean): string[] {
-  const evidence: string[] = [];
+function evidenceForCloudflareReady(corpus: string, deployment: Deployment[], cloudflareReady: boolean, projectId?: string): string[] {
+  const evidence: string[] = projectId ? curatedCloudflareReadyEvidence(projectId, cloudflareReady) : [];
   if (deployment.includes("cloudflare")) {
     evidence.push(`Cloudflare signal: ${cloudflareSignals(corpus).join(", ") || "deployment metadata"}.`);
   }
