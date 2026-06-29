@@ -12,6 +12,7 @@ await testWorkflowRoute();
 await testGraphAndQualityRoutes();
 await testQuickstartRoute();
 await testRecipesRoute();
+await testJourneysRoute();
 await testRoadmapRoute();
 await testSchemaRoutes();
 await testOpenApiDocument();
@@ -345,6 +346,27 @@ async function testRecipesRoute() {
   assert.equal(postRecipes.body.error.code, "method_not_allowed");
 }
 
+async function testJourneysRoute() {
+  const journeys = await getJson("/api/journeys?limit=3");
+  assert.equal(journeys.status, 200);
+  assert.equal(journeys.body.positioning, "The Knowledge Graph of Open Source");
+  assert.equal(journeys.body.name, "Git.Top Atlas Journeys");
+  assert.ok(Array.isArray(journeys.body.journeys));
+  assert.ok(journeys.body.journeys.length > 0, "journeys should expose ecosystem exploration routes");
+  assert.ok(journeys.body.stats.ecosystem_count >= 5);
+  assert.equal(journeys.body.stats.journey_count, journeys.body.journeys.length);
+  assert.ok(journeys.body.stats.step_count >= journeys.body.journeys.length);
+  assert.ok(journeys.body.journeys.some((journey) => journey.ecosystem_id === "cloudflare"));
+  assert.ok(journeys.body.journeys.some((journey) => journey.steps.some((step) => step.href === "/api/agent-map")));
+  assert.ok(journeys.body.journeys.every((journey) => journey.page_href.startsWith("/atlas/")));
+  assert.ok(journeys.body.journeys.every((journey) => journey.api_href.includes("/api/atlas/")));
+  assertMetadata(journeys.body.metadata, "db_missing");
+
+  const postJourneys = await request("/api/journeys", { method: "POST" });
+  assert.equal(postJourneys.status, 405);
+  assert.equal(postJourneys.body.error.code, "method_not_allowed");
+}
+
 async function testGraphAndQualityRoutes() {
   const alternatives = await getJson("/api/alternatives/cloudflare/agents?limit=4");
   assert.equal(alternatives.status, 200);
@@ -674,6 +696,7 @@ async function testOpenApiDocument() {
   assert.ok(openapi.body.paths["/api/agent-map"], "OpenAPI should document agent surface map endpoint");
   assert.ok(openapi.body.paths["/api/quickstart"], "OpenAPI should document quickstart endpoint");
   assert.ok(openapi.body.paths["/api/recipes"], "OpenAPI should document recipes endpoint");
+  assert.ok(openapi.body.paths["/api/journeys"], "OpenAPI should document Atlas journeys endpoint");
   assert.ok(openapi.body.paths["/api/roadmap"], "OpenAPI should document roadmap endpoint");
   assert.ok(openapi.body.paths["/api/quality"], "OpenAPI should document quality report endpoint");
   assert.ok(openapi.body.paths["/api/quality/review"], "OpenAPI should document quality review endpoint");

@@ -17,6 +17,7 @@ await testStatusRoute();
 await testIntegrationsRoute();
 await testQuickstartRoute();
 await testRecipesRoute();
+await testJourneysRoute();
 await testRoadmapRoute();
 await testDiscoverRoute();
 await testTrendsRoute();
@@ -61,6 +62,7 @@ async function testLegacyConsoleRedirects() {
   assert.match(llmsText, /Agent surface map: https:\/\/git\.top\/api\/agent-map/);
   assert.match(llmsText, /Agent quickstart: https:\/\/git\.top\/quickstart/);
   assert.match(llmsText, /Agent recipes: https:\/\/git\.top\/recipes/);
+  assert.match(llmsText, /Atlas journeys: https:\/\/git\.top\/journeys/);
   assert.match(llmsText, /Roadmap: https:\/\/git\.top\/roadmap/);
 
   const llmsFull = await worker.fetch(new Request("https://git.top/llms-full.txt"), {});
@@ -69,6 +71,7 @@ async function testLegacyConsoleRedirects() {
   assert.match(llmsFullText, /GET \/api\/agent-map/);
   assert.match(llmsFullText, /GET \/api\/quickstart/);
   assert.match(llmsFullText, /GET \/api\/recipes/);
+  assert.match(llmsFullText, /GET \/api\/journeys\?limit=8/);
   assert.match(llmsFullText, /GET \/api\/roadmap/);
   assert.match(llmsFullText, /Agent Surface Map/);
   assert.match(llmsFullText, /POST \/api\/project/);
@@ -81,6 +84,7 @@ async function testLegacyConsoleRedirects() {
   assert.match(llmsFullText, /POST \/api\/score/);
   assert.match(llmsFullText, /POST \/api\/graph/);
   assert.match(llmsFullText, /GET \/api\/atlas\?limit=6/);
+  assert.match(llmsFullText, /journeys\[\]\.steps/);
   assert.match(llmsFullText, /exploration_paths/);
   assert.match(llmsFullText, /decision_summary/);
   assert.match(llmsFullText, /fit_profile/);
@@ -191,6 +195,32 @@ async function testRecipesRoute() {
   assert.ok(agentMapBody.surfaces.some((surface) => surface.concept === "Agent recipes"));
 }
 
+async function testJourneysRoute() {
+  const response = await worker.fetch(new Request("https://git.top/journeys"), {});
+  const text = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(text, /Git\.Top Atlas Journeys/);
+  assert.match(text, /Explore open-source ecosystems as routes/);
+  assert.match(text, /Open Journeys JSON/);
+  assert.match(text, /Cloudflare Ecosystem/);
+  assert.match(text, /Choose a production candidate/);
+  assert.match(text, /Agent Map/);
+
+  const api = await worker.fetch(new Request("https://git.top/api/journeys?limit=3"), {});
+  const body = await api.json();
+  assert.equal(api.status, 200);
+  assert.equal(body.positioning, "The Knowledge Graph of Open Source");
+  assert.ok(Array.isArray(body.journeys));
+  assert.ok(body.journeys.some((journey) => journey.ecosystem_id === "cloudflare"));
+  assert.ok(body.journeys.some((journey) => journey.steps.some((step) => step.href === "/api/agent-map")));
+  assert.ok(body.stats.ecosystem_count >= 5);
+
+  const agentMap = await worker.fetch(new Request("https://git.top/api/agent-map"), {});
+  const agentMapBody = await agentMap.json();
+  assert.equal(agentMap.status, 200);
+  assert.ok(agentMapBody.surfaces.some((surface) => surface.concept === "Atlas journeys" && surface.rest.includes("GET /api/journeys")));
+}
+
 async function testRoadmapRoute() {
   const response = await worker.fetch(new Request("https://git.top/roadmap"), {});
   const text = await response.text();
@@ -205,6 +235,8 @@ async function testRoadmapRoute() {
   assert.equal(api.status, 200);
   assert.equal(body.positioning, "The Knowledge Graph of Open Source");
   assert.equal(body.phases.length, 6);
+  assert.ok(body.phases.some((phase) => phase.id === "atlas" && phase.human_pages.includes("/journeys")));
+  assert.ok(body.phases.some((phase) => phase.id === "atlas" && phase.api_endpoints.includes("/api/journeys")));
 
   const agentMap = await worker.fetch(new Request("https://git.top/api/agent-map"), {});
   const agentMapBody = await agentMap.json();

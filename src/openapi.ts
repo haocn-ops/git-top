@@ -47,6 +47,13 @@ export const openApiDocument = {
         responses: { "200": { description: "Agent recipes with use cases, outcomes, ordered REST steps, command examples, inspection fields, and trust checks" } }
       }
     },
+    "/api/journeys": {
+      get: {
+        summary: "Fetch Atlas exploration journeys that connect ecosystems to recommendations, graph, alternatives, compare, score, and Agent Map surfaces.",
+        parameters: [queryParam("limit", "Maximum projects per ecosystem used to build journey links")],
+        responses: { "200": { description: "Atlas journeys with ecosystem ids, ordered steps, human page links, API links, stats, and metadata" } }
+      }
+    },
     "/api/search": {
       get: {
         summary: "Search project knowledge by query, category, deployment, difficulty, language, project type, confidence, and Cloudflare readiness.",

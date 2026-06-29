@@ -100,16 +100,17 @@ export function buildProductRoadmap(): ProductRoadmap {
       phase: 5,
       title: "Atlas",
       status: "active",
-      progress: 78,
+      progress: 82,
       goal: "Create an exploratory map for open-source ecosystems.",
       shipped: [
         "Atlas maps are live for Cloudflare, AI Agents, MCP, RAG, and Browser AI.",
         "Atlas exposes stats, exploration paths, graph nodes, graph edges, representative projects, and journeys.",
+        "Atlas Journeys is live as a human page and JSON API for turning ecosystem maps into ordered exploration routes.",
         "MCP get_atlas exposes the same curated maps to agents."
       ],
       next: ["Add richer interactive graph controls when the Worker UI needs dense exploration."],
-      humanPages: ["/atlas", "/atlas/cloudflare", "/atlas/agents", "/topics/atlas-guide"],
-      apiEndpoints: ["/api/atlas", "/api/atlas/cloudflare"],
+      humanPages: ["/atlas", "/journeys", "/atlas/cloudflare", "/atlas/agents", "/topics/atlas-guide"],
+      apiEndpoints: ["/api/atlas", "/api/atlas/cloudflare", "/api/journeys"],
       mcpTools: ["get_atlas", "git_top_grp_query"]
     },
     {
@@ -120,7 +121,7 @@ export function buildProductRoadmap(): ProductRoadmap {
       progress: 86,
       goal: "Make Git.Top a default structured knowledge source for agents.",
       shipped: [
-        "REST endpoints cover project lookup, recommendation, workflow, alternatives, graph, compare, score, trends, atlas, quality, quickstart, recipes, and agent map.",
+        "REST endpoints cover project lookup, recommendation, workflow, alternatives, graph, compare, score, trends, atlas, journeys, quality, quickstart, recipes, and agent map.",
         "MCP tools map to the same product concepts and support D1-required strict mode.",
         "llms.txt, llms-full.txt, OpenAPI, schema, Agent Map, Quickstart, Recipes, and workflow pages make the product machine-discoverable."
       ],

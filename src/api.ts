@@ -19,6 +19,7 @@ import { getGovernanceSummary, listGovernanceRuns, parseGovernanceRunInput, upse
 import { buildKnowledgeGraph, compareProjectKnowledge } from "./graph";
 import { normalizeGrpRequest, runGrpQuery } from "./grp";
 import { errorJson, json, parseBool, parseLimit, rawJson } from "./http";
+import { buildAtlasJourneysView } from "./journeys-page";
 import { openApiDocument } from "./openapi";
 import { resolveProject } from "./project-aliases";
 import { toProjectKnowledgeView, withRelatedProjects } from "./project-view";
@@ -305,6 +306,17 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     return json(buildAgentRecipes(), {
       headers: {
         "cache-control": "public, max-age=300"
+      }
+    });
+  }
+
+  if (path === "/api/journeys") {
+    if (request.method !== "GET") {
+      return errorJson(405, "method_not_allowed", "Journeys endpoint supports GET.");
+    }
+    return json(await buildAtlasJourneysView(env, parseLimit(url.searchParams.get("limit")) ?? 8), {
+      headers: {
+        "cache-control": "public, max-age=180"
       }
     });
   }

@@ -159,6 +159,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms-full\.txt<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quickstart<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/recipes<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/journeys<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/integrations<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/status<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/operations<\/loc>/);
@@ -179,12 +180,14 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/ai-ide-coding-agents<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/quickstart<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/recipes<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/journeys<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/roadmap<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/projects\/cloudflare\/agents<\/loc>/);
 
     const llms = await getText(context, "/llms.txt");
     assert.equal(llms.status, 200);
     assert.match(llms.text, /Git\.Top is an agent-native GitHub project knowledge layer/);
+    assert.match(llms.text, /Atlas journeys: https:\/\/git\.top\/journeys/);
 
     const { status: openapiStatus, body: openapi } = await getJson(context, "/openapi.json");
     assert.equal(openapiStatus, 200);
@@ -413,6 +416,30 @@ export async function runSmoke(args = [], env = process.env) {
     return {
       recipes: recipes.body.recipes.length,
       hasGrp: recipes.body.recipes.some((recipe) => recipe.id === "plan-with-grp")
+    };
+  });
+
+  await check(context, "journeys_page", async () => {
+    const { status, text } = await getText(context, "/journeys");
+    assert.equal(status, 200);
+    assert.match(text, /Git\.Top Atlas Journeys/);
+    assert.match(text, /Explore open-source ecosystems as routes/);
+    assert.match(text, /Open Journeys JSON/);
+    assert.match(text, /Cloudflare Ecosystem/);
+
+    const journeys = await getJson(context, `/api/journeys?limit=3${context.allowSeed ? "" : "&require_d1=true"}`);
+    assert.equal(journeys.status, 200);
+    assert.equal(journeys.body.positioning, "The Knowledge Graph of Open Source");
+    assert.ok(Array.isArray(journeys.body.journeys), "journeys API should include journeys");
+    assert.ok(journeys.body.journeys.length > 0, "journeys API should not be empty");
+    assert.ok(journeys.body.journeys.some((journey) => journey.ecosystem_id === "cloudflare"), "journeys should include Cloudflare ecosystem");
+    assert.ok(journeys.body.journeys.some((journey) => journey.steps.some((step) => step.href === "/api/agent-map")), "journeys should link to Agent Map");
+    assertMetadata(journeys.body.metadata, { allowSeed });
+
+    return {
+      journeys: journeys.body.journeys.length,
+      ecosystems: journeys.body.stats.ecosystem_count,
+      source: journeys.body.metadata.source
     };
   });
 
