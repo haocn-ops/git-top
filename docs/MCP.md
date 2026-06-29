@@ -66,7 +66,7 @@ curl -X POST http://localhost:8787/mcp \
   -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_project","arguments":{"project_id":"cloudflare/agents"}}}'
 ```
 
-`get_project` also accepts `{"owner":"cloudflare","repo":"agents"}` and `{"repo":"cloudflare/agents"}` for clients that split GitHub owner and repository fields.
+`get_project` also accepts `{"owner":"cloudflare","repo":"agents"}`, `{"repo":"cloudflare/agents"}`, and Git.Top product aliases such as `{"project_id":"claude-code"}` for clients starting from product names instead of canonical GitHub owner/repo identifiers.
 
 ## Recommend Project
 

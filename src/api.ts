@@ -498,11 +498,11 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     if (knowledge instanceof Response) {
       return knowledge;
     }
-    const project = getProjectKnowledgeFromList(knowledge.projects, id);
-    if (!project) {
+    const resolution = resolveProject(knowledge.projects, id);
+    if (!resolution) {
       return errorJson(404, "project_not_found", `Project ${id} was not found.`);
     }
-    return projectLookupResponse(project, knowledge.projects, parseLimit(url.searchParams.get("related_limit")) ?? 8, knowledge.metadata);
+    return projectLookupResponse(resolution.project, knowledge.projects, parseLimit(url.searchParams.get("related_limit")) ?? 8, knowledge.metadata, resolvedFrom(resolution));
   }
 
   const shortProjectMatch = path.match(/^\/api\/project\/([^/]+)$/);
@@ -512,11 +512,11 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     if (knowledge instanceof Response) {
       return knowledge;
     }
-    const project = getProjectKnowledgeFromList(knowledge.projects, id);
-    if (!project) {
+    const resolution = resolveProject(knowledge.projects, id);
+    if (!resolution) {
       return errorJson(404, "project_not_found", `Project ${id} was not found.`);
     }
-    return projectLookupResponse(project, knowledge.projects, parseLimit(url.searchParams.get("related_limit")) ?? 8, knowledge.metadata);
+    return projectLookupResponse(resolution.project, knowledge.projects, parseLimit(url.searchParams.get("related_limit")) ?? 8, knowledge.metadata, resolvedFrom(resolution));
   }
 
   const relatedMatch = path.match(/^\/api\/related\/([^/]+)\/([^/]+)$/);
@@ -526,8 +526,12 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     if (knowledge instanceof Response) {
       return knowledge;
     }
-    const related = findRelatedProjectsFromList(knowledge.projects, id, parseLimit(url.searchParams.get("limit")));
-    return json({ related: related.map(toProjectKnowledgeView), metadata: knowledge.metadata });
+    const resolution = resolveProject(knowledge.projects, id);
+    if (!resolution) {
+      return errorJson(404, "project_not_found", `Project ${id} was not found.`);
+    }
+    const related = findRelatedProjectsFromList(knowledge.projects, resolution.resolvedId, parseLimit(url.searchParams.get("limit")));
+    return json({ project: toProjectKnowledgeView(resolution.project), related: related.map(toProjectKnowledgeView), resolvedFrom: resolvedFrom(resolution), metadata: knowledge.metadata });
   }
 
   const shortRelatedMatch = path.match(/^\/api\/related\/([^/]+)$/);
@@ -536,8 +540,13 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     if (knowledge instanceof Response) {
       return knowledge;
     }
-    const related = findRelatedProjectsFromList(knowledge.projects, decodeURIComponent(shortRelatedMatch[1]), parseLimit(url.searchParams.get("limit")));
-    return json({ related: related.map(toProjectKnowledgeView), metadata: knowledge.metadata });
+    const id = decodeURIComponent(shortRelatedMatch[1]);
+    const resolution = resolveProject(knowledge.projects, id);
+    if (!resolution) {
+      return errorJson(404, "project_not_found", `Project ${id} was not found.`);
+    }
+    const related = findRelatedProjectsFromList(knowledge.projects, resolution.resolvedId, parseLimit(url.searchParams.get("limit")));
+    return json({ project: toProjectKnowledgeView(resolution.project), related: related.map(toProjectKnowledgeView), resolvedFrom: resolvedFrom(resolution), metadata: knowledge.metadata });
   }
 
   const alternativesMatch = path.match(/^\/api\/alternatives\/([^/]+)\/([^/]+)$/);
@@ -685,11 +694,11 @@ async function handleProjectLookupApi(request: Request, env: Env): Promise<Respo
   if (knowledge instanceof Response) {
     return knowledge;
   }
-  const project = getProjectKnowledgeFromList(knowledge.projects, parsed.input.projectId);
-  if (!project) {
+  const resolution = resolveProject(knowledge.projects, parsed.input.projectId);
+  if (!resolution) {
     return errorJson(404, "project_not_found", `Project ${parsed.input.projectId} was not found.`);
   }
-  return projectLookupResponse(project, knowledge.projects, parsed.input.relatedLimit ?? 8, knowledge.metadata);
+  return projectLookupResponse(resolution.project, knowledge.projects, parsed.input.relatedLimit ?? 8, knowledge.metadata, resolvedFrom(resolution));
 }
 
 async function parseProjectLookupBody(
@@ -721,10 +730,11 @@ function projectLookupResponse(
   project: NonNullable<ReturnType<typeof getProjectKnowledgeFromList>>,
   projects: ProjectKnowledgeResult["projects"],
   relatedLimit: number,
-  metadata: ProjectKnowledgeResult["metadata"]
+  metadata: ProjectKnowledgeResult["metadata"],
+  resolution?: { requestedId: string; resolvedId: string; resolution: "direct" | "alias" }
 ): Response {
   const related = findRelatedProjectsFromList(projects, project.project.id, relatedLimit);
-  return json({ ...withRelatedProjects(toProjectKnowledgeView(project), related), knowledge: project, metadata });
+  return json({ ...withRelatedProjects(toProjectKnowledgeView(project), related), knowledge: project, ...(resolution ? { resolvedFrom: resolution } : {}), metadata });
 }
 
 async function handleRelatedApi(request: Request, env: Env): Promise<Response> {
@@ -741,14 +751,15 @@ async function handleRelatedApi(request: Request, env: Env): Promise<Response> {
   if (knowledge instanceof Response) {
     return knowledge;
   }
-  const project = getProjectKnowledgeFromList(knowledge.projects, parsed.input.projectId);
-  if (!project) {
+  const resolution = resolveProject(knowledge.projects, parsed.input.projectId);
+  if (!resolution) {
     return errorJson(404, "project_not_found", `Project ${parsed.input.projectId} was not found.`);
   }
-  const related = findRelatedProjectsFromList(knowledge.projects, project.project.id, parsed.input.limit);
+  const related = findRelatedProjectsFromList(knowledge.projects, resolution.resolvedId, parsed.input.limit);
   return json({
-    project: toProjectKnowledgeView(project),
+    project: toProjectKnowledgeView(resolution.project),
     related: related.map(toProjectKnowledgeView),
+    resolvedFrom: resolvedFrom(resolution),
     metadata: knowledge.metadata
   });
 }
@@ -874,6 +885,14 @@ function alternativesResponse(
     ...(resolvedFrom ? { resolvedFrom } : {}),
     metadata
   });
+}
+
+function resolvedFrom(resolution: NonNullable<ReturnType<typeof resolveProject>>): { requestedId: string; resolvedId: string; resolution: "direct" | "alias" } {
+  return {
+    requestedId: resolution.requestedId,
+    resolvedId: resolution.resolvedId,
+    resolution: resolution.resolution
+  };
 }
 
 async function handleCompareApi(request: Request, env: Env): Promise<Response> {

@@ -49,6 +49,17 @@ export const openApiDocument = {
         responses: { "200": { description: "Project knowledge view plus full knowledge and metadata" }, "404": { description: "Project not found" } }
       }
     },
+    "/api/project/{project}": {
+      get: {
+        summary: "Fetch a project knowledge record by short slug, encoded owner/repo, or Git.Top product alias.",
+        parameters: [
+          pathParam("project", "Project slug, encoded owner/repo id, or product alias such as claude-code"),
+          queryParam("related_limit", "Maximum related project count"),
+          queryParam("require_d1", "Fail closed unless D1-backed data is available")
+        ],
+        responses: { "200": { description: "Project knowledge view plus full knowledge, related projects, resolved_from, and metadata" }, "404": { description: "Project not found" } }
+      }
+    },
     "/api/project": {
       post: {
         summary: "Fetch a project knowledge record from a structured JSON body.",
@@ -145,6 +156,13 @@ export const openApiDocument = {
         responses: { "200": { description: "Related project list" } }
       }
     },
+    "/api/related/{project}": {
+      get: {
+        summary: "Find related ecosystem projects by short slug, encoded owner/repo, or Git.Top product alias.",
+        parameters: [pathParam("project", "Project slug, encoded owner/repo id, or product alias such as claude-code"), queryParam("limit", "Maximum result count")],
+        responses: { "200": { description: "Related project list with project context, resolved_from, and metadata" }, "404": { description: "Project not found" } }
+      }
+    },
     "/api/related": {
       post: {
         summary: "Find related ecosystem projects from a structured JSON body.",
@@ -162,7 +180,7 @@ export const openApiDocument = {
     "/api/score/{owner}/{repo}": {
       get: {
         summary: "Explain a project's Git.Top Score with weighted dimensions, adoption guidance, risk flags, next actions, related scores, evidence, and links.",
-        parameters: [pathParam("owner", "GitHub owner"), pathParam("repo", "GitHub repository name")],
+        parameters: [pathParam("owner", "GitHub owner or single-segment project alias when using /api/score/{project}"), pathParam("repo", "GitHub repository name")],
         responses: { "200": { description: "Project score explanation with adoption guidance, risk flags, and next actions" }, "404": { description: "Project not found" } }
       }
     },
@@ -183,7 +201,7 @@ export const openApiDocument = {
     "/api/graph": {
       get: {
         summary: "Return project relationship graph nodes, edges, stats, summary, next actions, project context, and relationship groups.",
-        parameters: [queryParam("repo", "Optional focus repository"), queryParam("limit", "Maximum project count")],
+        parameters: [queryParam("repo", "Optional focus repository or Git.Top product alias such as claude-code"), queryParam("limit", "Maximum project count")],
         responses: { "200": { description: "Knowledge graph with graph_stats, summary, next_actions, alternatives, related projects, dependencies, deployment targets, and use cases when focused on a project" } }
       },
       post: {
@@ -216,7 +234,7 @@ export const openApiDocument = {
     "/api/graph/{owner}/{repo}": {
       get: {
         summary: "Return project relationship graph nodes, edges, stats, summary, next actions, project context, and relationship groups for one project.",
-        parameters: [pathParam("owner", "GitHub owner"), pathParam("repo", "GitHub repository name"), queryParam("limit", "Maximum project count")],
+        parameters: [pathParam("owner", "GitHub owner or single-segment project alias when using /api/graph/{project}"), pathParam("repo", "GitHub repository name"), queryParam("limit", "Maximum project count")],
         responses: { "200": { description: "Focused project knowledge graph with graph_stats, summary, next_actions, grouped alternatives, related projects, dependencies, deployment targets, and use cases" } }
       }
     },

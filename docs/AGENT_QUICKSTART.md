@@ -53,6 +53,7 @@ Fetch the full project view before making a recommendation:
 
 ```sh
 curl https://git.top/api/project/cloudflare/agents
+curl https://git.top/api/project/claude-code
 ```
 
 Use:

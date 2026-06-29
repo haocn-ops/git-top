@@ -101,17 +101,39 @@ async function testToolCalls() {
   assert.equal(repoProject.result.project_id, "cloudflare/agents");
   assert.equal(repoProject.result.project.repo, "cloudflare/agents");
 
+  const aliasProject = await callTool("get_project", { project_id: "claude-code" });
+  assert.equal(aliasProject.status, 200);
+  assert.equal(aliasProject.result.project_id, "claude-code");
+  assert.equal(aliasProject.result.resolved_from.requested_id, "claude-code");
+  assert.equal(aliasProject.result.resolved_from.resolution, "alias");
+  assert.equal(aliasProject.result.project.repo, aliasProject.result.resolved_from.resolved_id);
+  assert.ok(Array.isArray(aliasProject.result.project.related));
+  assertMetadata(aliasProject.result.metadata, "db_missing");
+
   const card = await callTool("get_project_card", { project_id: "cloudflare/agents" });
   assert.equal(card.status, 200);
   assert.equal(card.result.project_id, "cloudflare/agents");
   assert.equal(card.result.agent_card.classification.category.confidence, "low");
   assertMetadata(card.result.metadata, "db_missing");
 
+  const aliasCard = await callTool("get_project_card", { project_id: "claude-code" });
+  assert.equal(aliasCard.status, 200);
+  assert.equal(aliasCard.result.resolved_from.requested_id, "claude-code");
+  assert.equal(aliasCard.result.resolved_from.resolution, "alias");
+  assert.ok(aliasCard.result.agent_card);
+  assertMetadata(aliasCard.result.metadata, "db_missing");
+
   const deployment = await callTool("get_deployment", { project_id: "cloudflare/agents" });
   assert.equal(deployment.status, 200);
   assert.ok(deployment.result.deployments.includes("cloudflare"));
   assert.equal(deployment.result.cloudflare_ready, true);
   assertMetadata(deployment.result.metadata, "db_missing");
+
+  const aliasDeployment = await callTool("get_deployment", { project_id: "claude-code" });
+  assert.equal(aliasDeployment.status, 200);
+  assert.equal(aliasDeployment.result.resolved_from.requested_id, "claude-code");
+  assert.ok(Array.isArray(aliasDeployment.result.deployments));
+  assertMetadata(aliasDeployment.result.metadata, "db_missing");
 
   const quality = await callTool("get_quality_score", { project_id: "cloudflare/agents" });
   assert.equal(quality.status, 200);
@@ -129,6 +151,13 @@ async function testToolCalls() {
   assert.ok(quality.result.score_explanation.next_actions.some((action) => action.kind === "compare"));
   assertMetadata(quality.result.metadata, "db_missing");
 
+  const aliasQuality = await callTool("get_quality_score", { project_id: "claude-code" });
+  assert.equal(aliasQuality.status, 200);
+  assert.equal(aliasQuality.result.resolved_from.requested_id, "claude-code");
+  assert.equal(aliasQuality.result.resolved_from.resolution, "alias");
+  assert.equal(aliasQuality.result.score_explanation.project.repo, aliasQuality.result.resolved_from.resolved_id);
+  assertMetadata(aliasQuality.result.metadata, "db_missing");
+
   const alternatives = await callTool("get_alternatives", { project_id: "cloudflare/agents", limit: 3 });
   assert.equal(alternatives.status, 200);
   assert.equal(alternatives.result.project.repo, "cloudflare/agents");
@@ -145,12 +174,28 @@ async function testToolCalls() {
   assert.ok(typeof alternatives.result.alternative_matches[0].alternative_reason === "string");
   assertMetadata(alternatives.result.metadata, "db_missing");
 
+  const aliasAlternatives = await callTool("get_alternatives", { project_id: "claude-code", limit: 3 });
+  assert.equal(aliasAlternatives.status, 200);
+  assert.equal(aliasAlternatives.result.resolved_from.requested_id, "claude-code");
+  assert.equal(aliasAlternatives.result.resolved_from.resolution, "alias");
+  assert.equal(aliasAlternatives.result.project.repo, aliasAlternatives.result.resolved_from.resolved_id);
+  assert.ok(aliasAlternatives.result.alternative_matches.length <= 3);
+  assertMetadata(aliasAlternatives.result.metadata, "db_missing");
+
   const related = await callTool("get_related_projects", { project_id: "cloudflare/agents", limit: 3 });
   assert.equal(related.status, 200);
   assert.ok(Array.isArray(related.result.related));
   assert.ok(related.result.related.length > 0);
   assert.ok(related.result.related.length <= 3);
   assertMetadata(related.result.metadata, "db_missing");
+
+  const aliasRelated = await callTool("get_related_projects", { project_id: "claude-code", limit: 3 });
+  assert.equal(aliasRelated.status, 200);
+  assert.equal(aliasRelated.result.resolved_from.requested_id, "claude-code");
+  assert.equal(aliasRelated.result.resolved_from.resolution, "alias");
+  assert.equal(aliasRelated.result.project.repo, aliasRelated.result.resolved_from.resolved_id);
+  assert.ok(aliasRelated.result.related.length <= 3);
+  assertMetadata(aliasRelated.result.metadata, "db_missing");
 
   const graph = await callTool("get_project_graph", { project_id: "cloudflare/agents", limit: 8 });
   assert.equal(graph.status, 200);
@@ -163,6 +208,14 @@ async function testToolCalls() {
   assert.ok(Array.isArray(graph.result.graph.relationship_groups.alternatives));
   assert.ok(Array.isArray(graph.result.graph.relationship_groups.deployment_targets));
   assertMetadata(graph.result.metadata, "db_missing");
+
+  const aliasGraph = await callTool("get_project_graph", { project_id: "claude-code", limit: 8 });
+  assert.equal(aliasGraph.status, 200);
+  assert.equal(aliasGraph.result.resolved_from.requested_id, "claude-code");
+  assert.equal(aliasGraph.result.resolved_from.resolution, "alias");
+  assert.equal(aliasGraph.result.graph.focus, aliasGraph.result.resolved_from.resolved_id);
+  assert.equal(aliasGraph.result.graph.project.repo, aliasGraph.result.resolved_from.resolved_id);
+  assertMetadata(aliasGraph.result.metadata, "db_missing");
 
   const compare = await callTool("compare_projects", {
     project_ids: ["cloudflare/agents", "run-llama/llama_index"],

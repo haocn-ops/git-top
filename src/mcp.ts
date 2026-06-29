@@ -14,6 +14,7 @@ import { errorJson, json, rawJson, stringifyApiJson } from "./http";
 import { toProjectKnowledgeView, withRelatedProjects } from "./project-view";
 import { buildProjectScoreExplanation } from "./score";
 import { getKnowledgeForSourcePolicy } from "./source-policy";
+import { resolveProject } from "./project-aliases";
 import type { Env, ProjectKnowledge } from "./types";
 
 interface RpcRequest {
@@ -66,7 +67,7 @@ const tools = [
       properties: {
         project_id: {
           type: "string",
-          description: "Canonical owner/repo identifier. The repo field may also contain owner/repo."
+          description: "Canonical owner/repo identifier or a Git.Top product alias such as claude-code or cursor. The repo field may also contain owner/repo."
         },
         owner: { type: "string", description: "GitHub owner; use with repo when project_id is omitted." },
         repo: { type: "string", description: "GitHub repository name, or owner/repo when owner is omitted." },
@@ -80,11 +81,11 @@ const tools = [
   },
   {
     name: "get_alternatives",
-    description: "Find alternative projects for a given GitHub owner/name project id.",
+    description: "Find alternative projects for a canonical owner/name project id or Git.Top product alias.",
     inputSchema: {
       type: "object",
       properties: {
-        project_id: { type: "string" },
+        project_id: { type: "string", description: "Canonical owner/repo id or Git.Top product alias." },
         limit: { type: "number" },
         require_d1: {
           type: "boolean",
@@ -100,7 +101,7 @@ const tools = [
     inputSchema: {
       type: "object",
       properties: {
-        project_id: { type: "string" },
+        project_id: { type: "string", description: "Canonical owner/repo id or Git.Top product alias." },
         limit: { type: "number" },
         require_d1: {
           type: "boolean",
@@ -116,7 +117,7 @@ const tools = [
     inputSchema: {
       type: "object",
       properties: {
-        project_id: { type: "string" },
+        project_id: { type: "string", description: "Canonical owner/repo id or Git.Top product alias." },
         require_d1: {
           type: "boolean",
           description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
@@ -131,7 +132,7 @@ const tools = [
     inputSchema: {
       type: "object",
       properties: {
-        project_id: { type: "string" },
+        project_id: { type: "string", description: "Canonical owner/repo id or Git.Top product alias." },
         require_d1: {
           type: "boolean",
           description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
@@ -169,11 +170,11 @@ const tools = [
   },
   {
     name: "find_alternatives",
-    description: "Find alternative projects for a given GitHub owner/name project id.",
+    description: "Find alternative projects for a canonical owner/name project id or Git.Top product alias.",
     inputSchema: {
       type: "object",
       properties: {
-        project_id: { type: "string" },
+        project_id: { type: "string", description: "Canonical owner/repo id or Git.Top product alias." },
         reason: { type: "string" },
         limit: { type: "number" },
         require_d1: {
@@ -191,7 +192,7 @@ const tools = [
     inputSchema: {
       type: "object",
       properties: {
-        project_id: { type: "string" },
+        project_id: { type: "string", description: "Canonical owner/repo id or Git.Top product alias." },
         require_d1: {
           type: "boolean",
           description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
@@ -206,7 +207,7 @@ const tools = [
     inputSchema: {
       type: "object",
       properties: {
-        project_id: { type: "string" },
+        project_id: { type: "string", description: "Canonical owner/repo id or Git.Top product alias." },
         limit: { type: "number" },
         require_d1: {
           type: "boolean",
@@ -486,11 +487,13 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
       return knowledge;
     }
     const projectId = projectIdArg(args);
-    const project = getProjectKnowledgeFromList(knowledge.projects, projectId);
-    const related = project ? findRelatedProjectsFromList(knowledge.projects, project.project.id, 8) : [];
+    const resolution = resolveMcpProject(knowledge.projects, projectId);
+    const project = resolution?.project ?? null;
+    const related = resolution ? findRelatedProjectsFromList(knowledge.projects, resolution.resolvedId, 8) : [];
     return {
       project_id: projectId || null,
       project: project ? withRelatedProjects(toProjectKnowledgeView(project), related) : null,
+      resolved_from: resolution ? mcpResolvedFrom(resolution) : null,
       metadata: knowledge.metadata
     };
   }
@@ -521,11 +524,13 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
     if (isToolErrorResult(knowledge)) {
       return knowledge;
     }
-    const project = getProjectKnowledgeFromList(knowledge.projects, stringArg(args.project_id) ?? "");
+    const resolution = resolveMcpProject(knowledge.projects, stringArg(args.project_id) ?? "");
+    const project = resolution?.project ?? null;
     const matches = project ? generateAlternativeMatches(project, knowledge.projects, numberArg(args.limit) ?? 5) : [];
     const decision = project ? buildAlternativesDecision(project, matches) : null;
     return {
       project: project ? toProjectKnowledgeView(project) : null,
+      resolved_from: resolution ? mcpResolvedFrom(resolution) : null,
       summary: decision?.summary ?? null,
       stats: decision?.stats ?? null,
       nextActions: decision?.nextActions ?? [],
@@ -541,8 +546,11 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
     if (isToolErrorResult(knowledge)) {
       return knowledge;
     }
+    const resolution = resolveMcpProject(knowledge.projects, stringArg(args.project_id) ?? "");
     return {
-      related: findRelatedProjectsFromList(knowledge.projects, stringArg(args.project_id) ?? "", numberArg(args.limit)).map(toProjectKnowledgeView),
+      project: resolution ? toProjectKnowledgeView(resolution.project) : null,
+      related: resolution ? findRelatedProjectsFromList(knowledge.projects, resolution.resolvedId, numberArg(args.limit)).map(toProjectKnowledgeView) : [],
+      resolved_from: resolution ? mcpResolvedFrom(resolution) : null,
       metadata: knowledge.metadata
     };
   }
@@ -552,9 +560,11 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
     if (isToolErrorResult(knowledge)) {
       return knowledge;
     }
-    const project = getProjectKnowledgeFromList(knowledge.projects, stringArg(args.project_id) ?? "");
+    const resolution = resolveMcpProject(knowledge.projects, stringArg(args.project_id) ?? "");
+    const project = resolution?.project ?? null;
     return {
       project_id: stringArg(args.project_id),
+      resolved_from: resolution ? mcpResolvedFrom(resolution) : null,
       agent_card: project ? withDefaultAgentCardClassification(project.agentCard) : null,
       metrics: project?.metrics ?? null,
       metadata: knowledge.metadata
@@ -566,9 +576,11 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
     if (isToolErrorResult(knowledge)) {
       return knowledge;
     }
-    const project = getProjectKnowledgeFromList(knowledge.projects, stringArg(args.project_id) ?? "");
+    const resolution = resolveMcpProject(knowledge.projects, stringArg(args.project_id) ?? "");
+    const project = resolution?.project ?? null;
     return {
       project_id: stringArg(args.project_id),
+      resolved_from: resolution ? mcpResolvedFrom(resolution) : null,
       deployments: project?.agentCard.deployment ?? [],
       cloudflare_ready: project?.agentCard.cloudflareReady ?? false,
       metadata: knowledge.metadata
@@ -580,11 +592,13 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
     if (isToolErrorResult(knowledge)) {
       return knowledge;
     }
-    const project = getProjectKnowledgeFromList(knowledge.projects, stringArg(args.project_id) ?? "");
+    const resolution = resolveMcpProject(knowledge.projects, stringArg(args.project_id) ?? "");
+    const project = resolution?.project ?? null;
     const view = project ? toProjectKnowledgeView(project) : null;
     const scoreExplanation = project ? buildProjectScoreExplanation(project) : null;
     return {
       project_id: stringArg(args.project_id),
+      resolved_from: resolution ? mcpResolvedFrom(resolution) : null,
       git_top_score: view?.gitTopScore ?? null,
       git_top_score_breakdown: view?.gitTopScoreBreakdown ?? null,
       score_explanation: scoreExplanation,
@@ -602,8 +616,10 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
     if (isToolErrorResult(knowledge)) {
       return knowledge;
     }
+    const resolution = stringArg(args.project_id) ? resolveMcpProject(knowledge.projects, stringArg(args.project_id) ?? "") : null;
     return {
-      graph: buildKnowledgeGraph(knowledge.projects, stringArg(args.project_id), numberArg(args.limit) ?? 24),
+      graph: buildKnowledgeGraph(knowledge.projects, resolution?.resolvedId ?? stringArg(args.project_id), numberArg(args.limit) ?? 24),
+      resolved_from: resolution ? mcpResolvedFrom(resolution) : null,
       metadata: knowledge.metadata
     };
   }
@@ -717,6 +733,18 @@ function projectIdArg(args: Record<string, unknown>): string {
     return `${owner}/${repo}`;
   }
   return repo ?? "";
+}
+
+function resolveMcpProject(projects: ProjectKnowledge[], id: string): NonNullable<ReturnType<typeof resolveProject>> | null {
+  return id ? resolveProject(projects, id) : null;
+}
+
+function mcpResolvedFrom(resolution: NonNullable<ReturnType<typeof resolveProject>>): { requested_id: string; resolved_id: string; resolution: "direct" | "alias" } {
+  return {
+    requested_id: resolution.requestedId,
+    resolved_id: resolution.resolvedId,
+    resolution: resolution.resolution
+  };
 }
 
 function objectArg(value: unknown): Record<string, unknown> {

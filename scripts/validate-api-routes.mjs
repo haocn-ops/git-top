@@ -90,6 +90,15 @@ async function testSearchAndProjectRoutes() {
   assert.equal(encodedProject.body.repo, "cloudflare/agents");
   assert.ok(Array.isArray(encodedProject.body.related));
 
+  const aliasProject = await getJson("/api/project/claude-code?related_limit=3");
+  assert.equal(aliasProject.status, 200);
+  assert.equal(aliasProject.body.resolved_from.requested_id, "claude-code");
+  assert.equal(aliasProject.body.resolved_from.resolution, "alias");
+  assert.equal(aliasProject.body.repo, aliasProject.body.resolved_from.resolved_id);
+  assert.ok(Array.isArray(aliasProject.body.related));
+  assert.ok(aliasProject.body.related.length <= 3);
+  assertMetadata(aliasProject.body.metadata, "db_missing");
+
   const postProject = await request("/api/project", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -103,6 +112,30 @@ async function testSearchAndProjectRoutes() {
   assert.ok(Array.isArray(postProject.body.related));
   assert.ok(postProject.body.related.length <= 3);
   assertMetadata(postProject.body.metadata, "db_missing");
+
+  const aliasPostProject = await request("/api/project", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      project_id: "cursor",
+      related_limit: 2
+    })
+  });
+  assert.equal(aliasPostProject.status, 200);
+  assert.equal(aliasPostProject.body.resolved_from.requested_id, "cursor");
+  assert.equal(aliasPostProject.body.resolved_from.resolution, "alias");
+  assert.equal(aliasPostProject.body.repo, aliasPostProject.body.resolved_from.resolved_id);
+  assert.ok(aliasPostProject.body.related.length <= 2);
+  assertMetadata(aliasPostProject.body.metadata, "db_missing");
+
+  const aliasRelated = await getJson("/api/related/claude-code?limit=3");
+  assert.equal(aliasRelated.status, 200);
+  assert.equal(aliasRelated.body.resolved_from.requested_id, "claude-code");
+  assert.equal(aliasRelated.body.resolved_from.resolution, "alias");
+  assert.equal(aliasRelated.body.project.repo, aliasRelated.body.resolved_from.resolved_id);
+  assert.ok(Array.isArray(aliasRelated.body.related));
+  assert.ok(aliasRelated.body.related.length <= 3);
+  assertMetadata(aliasRelated.body.metadata, "db_missing");
 
   const missing = await getJson("/api/project/not-a-real/project");
   assert.equal(missing.status, 404);
@@ -499,6 +532,8 @@ async function testOpenApiDocument() {
   assert.ok(openapi.body.paths["/api/quality"], "OpenAPI should document quality report endpoint");
   assert.ok(openapi.body.paths["/api/quality/review"], "OpenAPI should document quality review endpoint");
   assert.ok(openapi.body.paths["/api/related/{owner}/{repo}"], "OpenAPI should document related projects endpoint");
+  assert.ok(openapi.body.paths["/api/project/{project}"], "OpenAPI should document alias project endpoint");
+  assert.ok(openapi.body.paths["/api/related/{project}"], "OpenAPI should document alias related endpoint");
   assert.ok(openapi.body.paths["/api/related"].post, "OpenAPI should document structured related projects POST endpoint");
   assert.ok(openapi.body.paths["/api/score/{owner}/{repo}"], "OpenAPI should document score explanation endpoint");
   assert.ok(openapi.body.paths["/api/score"].post, "OpenAPI should document structured score POST endpoint");
