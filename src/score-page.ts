@@ -214,6 +214,14 @@ function renderHtml({
             ${fact("Data source", `${metadata.source} / ${metadata.reason}`)}
           </div>
         </article>
+        <article class="panel">
+          <p class="eyebrow">Score Confidence</p>
+          <h2>${escapeHtml(explanation.score_confidence.level.toUpperCase())}</h2>
+          <p class="muted">${escapeHtml(explanation.score_confidence.summary)}</p>
+          <div class="facts">
+            ${explanation.score_confidence.evidence_checklist.slice(0, 3).map((item) => fact(item.signal, `${item.status}: ${item.description}`)).join("")}
+          </div>
+        </article>
       </section>
 
       <section class="panel" style="margin-top:14px">

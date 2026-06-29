@@ -425,6 +425,9 @@ async function testGraphAndQualityRoutes() {
   assert.ok(score.body.weakest_dimension.key);
   assert.ok(typeof score.body.adoption_guidance === "string");
   assert.ok(Array.isArray(score.body.risk_flags));
+  assert.ok(["high", "medium", "low"].includes(score.body.score_confidence.level));
+  assert.ok(Array.isArray(score.body.score_confidence.evidence_checklist));
+  assert.ok(score.body.score_confidence.evidence_checklist.some((item) => item.signal === "Classification evidence"));
   assert.ok(Array.isArray(score.body.next_actions));
   assert.ok(score.body.next_actions.some((action) => action.kind === "alternatives"));
   assert.ok(score.body.links.compare_api.includes("/api/compare"));
@@ -537,6 +540,7 @@ async function testSchemaRoutes() {
   assert.ok(Array.isArray(agentMap.body.surfaces));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Project graph" && surface.human_page === "/graph/:project"));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Recommendations" && surface.mcp_tools.includes("recommend_project")));
+  assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Score explanation" && surface.output_fields.includes("score_confidence")));
   assert.equal(agentMap.body.trust_policy.high_confidence_source, "metadata.source=d1");
 }
 

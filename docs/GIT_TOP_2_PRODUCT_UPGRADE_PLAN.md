@@ -146,6 +146,7 @@ Status:
 
 - Project pages and score pages expose Git.Top Score, Agent Score, Quality Score, and weighted dimension breakdowns.
 - Score APIs expose `dimensions`, `strongest_dimension`, `weakest_dimension`, `adoption_guidance`, `risk_flags`, `next_actions`, related scores, evidence, and links.
+- Score APIs and pages now include `score_confidence`, an evidence checklist that tells agents whether the score is high-, medium-, or low-confidence for citation.
 - Scores are positioned as decision support rather than a replacement for checking source metadata, confidence, license, and deployment fit.
 
 ## Phase 5: Atlas

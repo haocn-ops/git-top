@@ -77,6 +77,7 @@ async function testLegacyConsoleRedirects() {
   assert.match(llmsFullText, /alternative_matches/);
   assert.match(llmsFullText, /adoption_guidance/);
   assert.match(llmsFullText, /risk_flags/);
+  assert.match(llmsFullText, /score_confidence/);
   assert.match(llmsFullText, /decision_matrix/);
 
   const reports = await worker.fetch(new Request("https://git.top/reports"), {});
@@ -446,6 +447,7 @@ async function testWorkerProjectSlugLookup() {
   assert.match(scoreText, /Project Score/);
   assert.match(scoreText, /Adoption Guidance/);
   assert.match(scoreText, /Risk Flags/);
+  assert.match(scoreText, /Score Confidence/);
   assert.match(scoreText, /Score JSON/);
 
   const aliasScore = await worker.fetch(new Request("https://git.top/score/cursor"), {});

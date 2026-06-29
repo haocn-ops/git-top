@@ -29,6 +29,7 @@ export function buildProjectScoreExplanation(project: ProjectKnowledge) {
   const weakest = [...dimensions].sort((a, b) => a.score - b.score)[0];
   const riskFlags = scoreRiskFlags(view, weakest);
   const nextActions = scoreNextActions(view);
+  const scoreConfidence = buildScoreConfidence(view);
 
   return {
     project: {
@@ -46,6 +47,7 @@ export function buildProjectScoreExplanation(project: ProjectKnowledge) {
     summary: `${view.repo} scores ${view.gitTopScore}/100. ${strongest.label} is strongest at ${strongest.score}/100; ${weakest.label} is the lowest dimension at ${weakest.score}/100.`,
     adoption_guidance: adoptionGuidance(view.gitTopScore, riskFlags),
     risk_flags: riskFlags,
+    score_confidence: scoreConfidence,
     next_actions: nextActions,
     strongest_dimension: strongest,
     weakest_dimension: weakest,
@@ -71,6 +73,55 @@ export function buildProjectScoreExplanation(project: ProjectKnowledge) {
       compare_api: `/api/compare?repos=${view.repo}`,
       recommendations_api: `/api/recommend?category=${encodeURIComponent(view.category[0] ?? "")}&limit=5`
     }
+  };
+}
+
+function buildScoreConfidence(view: ProjectView) {
+  const classificationSignals = Object.values(view.classification ?? {});
+  const highClassificationSignals = classificationSignals.filter((signal) => signal?.confidence === "high").length;
+  const completeQualitySignals = Object.values(view.qualitySignalConfidence ?? {}).filter((value) => value === "complete" || value === "snapshot").length;
+  const checklist = [
+    {
+      signal: "Classification evidence",
+      status: highClassificationSignals >= 3 ? "strong" : highClassificationSignals >= 2 ? "review" : "weak",
+      description: `${highClassificationSignals}/${classificationSignals.length || 4} classification signals are high-confidence.`
+    },
+    {
+      signal: "Quality signal completeness",
+      status: completeQualitySignals >= 3 ? "strong" : completeQualitySignals >= 2 ? "review" : "weak",
+      description: `${completeQualitySignals} quality signals are complete or snapshot-backed.`
+    },
+    {
+      signal: "Deployment clarity",
+      status: view.deployments.length > 0 ? "strong" : "weak",
+      description: view.deployments.length > 0 ? `${view.deployments.length} deployment targets are indexed.` : "No deployment targets are indexed."
+    },
+    {
+      signal: "Agent-readable context",
+      status: view.useCases.length > 0 && view.dependencies.length > 0 ? "strong" : view.useCases.length > 0 ? "review" : "weak",
+      description: `${view.useCases.length} use cases and ${view.dependencies.length} inferred dependencies are available.`
+    },
+    {
+      signal: "Tradeoff disclosure",
+      status: view.notGoodFor.length > 0 ? "strong" : "review",
+      description: view.notGoodFor.length > 0 ? `${view.notGoodFor.length} caveats are indexed for adoption decisions.` : "No explicit caveats are indexed."
+    }
+  ] as const;
+  const strongCount = checklist.filter((item) => item.status === "strong").length;
+  const weakCount = checklist.filter((item) => item.status === "weak").length;
+  const level = weakCount === 0 && strongCount >= 4 ? "high" : weakCount <= 1 && strongCount >= 3 ? "medium" : "low";
+  const reasons = checklist.filter((item) => item.status !== "strong").map((item) => `${item.signal}: ${item.description}`);
+  return {
+    level,
+    summary:
+      level === "high"
+        ? "Score evidence is strong enough for shortlist ranking when paired with current metadata."
+        : level === "medium"
+          ? "Score evidence is usable for comparison, but agents should cite the review notes before making a strong recommendation."
+          : "Score evidence is incomplete; use this score as an exploration signal rather than a final recommendation.",
+    reasons: reasons.length ? reasons : ["All score evidence checks are strong."],
+    evidence_checklist: checklist,
+    citation_guidance: "When citing this score, include metadata.source, weakest_dimension, risk_flags, and score_confidence.level."
   };
 }
 

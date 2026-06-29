@@ -219,7 +219,7 @@ export function renderLlmsFullTxt(): Response {
       "",
       "git_top_score weights community, maintenance, documentation, stability, adoption, and agent readability.",
       "",
-      "Score explanations expose dimensions, strongest_dimension, weakest_dimension, adoption_guidance, risk_flags, next_actions, related_scores, evidence, and links.",
+      "Score explanations expose dimensions, strongest_dimension, weakest_dimension, adoption_guidance, risk_flags, score_confidence, next_actions, related_scores, evidence, and links.",
       "",
       "quality_score weights repository activity: 40% 30-day star movement, 20% commits, 15% releases, 15% contributors, 10% issue response.",
       "",

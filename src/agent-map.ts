@@ -59,8 +59,8 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     humanPage: "/score/:project",
     rest: ["GET /api/score/:project", "POST /api/score"],
     mcpTools: ["get_quality_score"],
-    outputFields: ["git_top_score", "dimensions", "strongest_dimension", "weakest_dimension", "adoption_guidance", "risk_flags"],
-    trustFields: ["metadata.source", "evidence", "related_scores"],
+    outputFields: ["git_top_score", "dimensions", "strongest_dimension", "weakest_dimension", "adoption_guidance", "risk_flags", "score_confidence"],
+    trustFields: ["metadata.source", "evidence", "related_scores", "score_confidence.level"],
     recommendedUse: "Explain why a project scores well or poorly across community, maintenance, documentation, stability, adoption, and agent readability."
   },
   {
