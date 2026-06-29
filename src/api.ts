@@ -849,14 +849,22 @@ async function handleCompareApi(request: Request, env: Env): Promise<Response> {
   if (knowledge instanceof Response) {
     return knowledge;
   }
+  const resolvedInputs = parsed.input.ids.map((id) => resolveProject(knowledge.projects, id));
   const projects =
     parsed.input.ids.length > 0
-      ? parsed.input.ids.map((id) => getProjectKnowledgeFromList(knowledge.projects, id)).filter(isProjectKnowledge)
+      ? resolvedInputs.map((resolution) => resolution?.project ?? null).filter(isProjectKnowledge)
       : knowledge.projects.slice(0, 3);
 
   return json({
     ...compareProjectKnowledge(projects, { deployment: parsed.input.deployment }),
     requested_repos: parsed.input.ids,
+    resolved_repos: resolvedInputs
+      .filter((resolution): resolution is NonNullable<typeof resolution> => resolution !== null)
+      .map((resolution) => ({
+        requestedId: resolution.requestedId,
+        resolvedId: resolution.resolvedId,
+        resolution: resolution.resolution
+      })),
     order: parsed.input.ids.length > 0 ? "input" : "default_score",
     metadata: knowledge.metadata
   });

@@ -9,12 +9,15 @@ const projectAliases: Record<string, string[]> = {
   "openai-alternatives": ["openai/openai-agents-python", "openai/codex", "cloudflare/agents", "langchain-ai/langchain"],
   "openai-sdk": ["openai/openai-openapi", "openai/openai-agents-python", "langchain-ai/langchain"],
   "openai-sdk-alternatives": ["openai/openai-openapi", "openai/openai-agents-python", "langchain-ai/langchain"],
+  "vercel-ai-sdk": ["vercel/ai", "langchain-ai/langchain"],
   dify: ["langgenius/dify", "langchain-ai/langchain"],
   "dify-alternatives": ["langgenius/dify", "langchain-ai/langchain"],
+  langflow: ["langflow-ai/langflow", "langchain-ai/langchain"],
   langchain: ["langchain-ai/langchain"],
   "langchain-alternatives": ["langchain-ai/langchain"],
   "browser-use": ["browser-use/browser-use", "cloudflare/agents"],
   "browser-use-alternatives": ["browser-use/browser-use", "cloudflare/agents"],
+  playwright: ["microsoft/playwright", "cloudflare/agents"],
   "cloudflare-agents": ["cloudflare/agents"],
   "cloudflare-agents-alternatives": ["cloudflare/agents"],
   llamaindex: ["run-llama/llama_index"],
@@ -75,6 +78,17 @@ export function findProjectById(projects: ProjectKnowledge[], id: string): Proje
 
 export function alternativeAliasPaths(): string[] {
   return ["claude-code", "cursor", "openai", "dify", "langchain", "browser-use", "cloudflare-agents", "llama-index", "opencode"];
+}
+
+export function compareAliasPaths(): string[] {
+  return [
+    "claude-code...opencode",
+    "claude-code...cursor",
+    "dify...langflow",
+    "browser-use...playwright",
+    "openai-sdk...vercel-ai-sdk",
+    "cloudflare-agents...langchain"
+  ];
 }
 
 function normalizeAlias(value: string): string {

@@ -235,6 +235,12 @@ async function testCompareRoute() {
   assert.match(detailText, /Decision Matrix/);
   assert.match(detailText, /Top Agent/);
   assert.match(detailText, /Inspect graph/);
+
+  const alias = await worker.fetch(new Request("https://git.top/compare/claude-code...opencode"), {});
+  const aliasText = await alias.text();
+  assert.equal(alias.status, 200);
+  assert.match(aliasText, /Project Comparison/);
+  assert.match(aliasText, /Decision Matrix/);
 }
 
 async function testScoring() {

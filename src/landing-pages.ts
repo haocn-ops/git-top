@@ -320,7 +320,7 @@ export async function renderCompareLandingPage(env: Env, rawIds: string): Promis
 
   const knowledge = await listProjectKnowledgeWithMeta(env);
   const projects = ids
-    .map((id) => findProject(knowledge.projects, id))
+    .map((id) => resolveProject(knowledge.projects, id)?.project ?? null)
     .filter((item): item is ProjectKnowledge => item !== null);
   if (projects.length < 2) {
     return null;

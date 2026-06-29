@@ -160,6 +160,10 @@ async function testRecommendationAndCompareRoutes() {
   assert.ok(compare.body.projects.length >= 1);
   assert.equal(compare.body.projects[0].repo, "cloudflare/agents");
   assert.deepEqual(compare.body.requested_repos, ["cloudflare/agents", "run-llama/llama_index"]);
+  assert.deepEqual(
+    compare.body.resolved_repos.map((item) => item.resolved_id),
+    ["cloudflare/agents", "run-llama/llama_index"]
+  );
   assert.equal(compare.body.order, "input");
   assert.equal(compare.body.context.deployment, "cloudflare");
   assert.ok(typeof compare.body.summary === "string");
@@ -168,6 +172,14 @@ async function testRecommendationAndCompareRoutes() {
   assert.ok(compare.body.decision_matrix.some((item) => item.repo === "cloudflare/agents"));
   assert.ok(compare.body.next_actions.some((action) => action.kind === "graph"));
   assertMetadata(compare.body.metadata, "db_missing");
+
+  const aliasCompare = await getJson("/api/compare?repos=claude-code,opencode&deployment=local");
+  assert.equal(aliasCompare.status, 200);
+  assert.deepEqual(aliasCompare.body.requested_repos, ["claude-code", "opencode"]);
+  assert.equal(aliasCompare.body.resolved_repos[0].resolution, "alias");
+  assert.ok(aliasCompare.body.resolved_repos.length >= 2);
+  assert.ok(aliasCompare.body.projects.length >= 2);
+  assertMetadata(aliasCompare.body.metadata, "db_missing");
 
   const postCompare = await request("/api/compare", {
     method: "POST",
