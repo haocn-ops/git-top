@@ -90,6 +90,7 @@ async function testSearchAndProjectRoutes() {
 
   const project = await getJson("/api/project/cloudflare/agents");
   assert.equal(project.status, 200);
+  assert.equal(project.body.project_id, "cloudflare/agents");
   assert.equal(project.body.repo, "cloudflare/agents");
   assert.equal(project.body.knowledge.project.full_name, "cloudflare/agents");
   assert.equal(project.body.score, project.body.git_top_score);
@@ -112,6 +113,7 @@ async function testSearchAndProjectRoutes() {
   assert.equal(aliasProject.status, 200);
   assert.equal(aliasProject.body.resolved_from.requested_id, "claude-code");
   assert.equal(aliasProject.body.resolved_from.resolution, "alias");
+  assert.equal(aliasProject.body.project_id, aliasProject.body.repo);
   assert.equal(aliasProject.body.repo, aliasProject.body.resolved_from.resolved_id);
   assert.ok(Array.isArray(aliasProject.body.related));
   assert.ok(aliasProject.body.related.length <= 3);
@@ -126,6 +128,7 @@ async function testSearchAndProjectRoutes() {
     })
   });
   assert.equal(postProject.status, 200);
+  assert.equal(postProject.body.project_id, "cloudflare/agents");
   assert.equal(postProject.body.repo, "cloudflare/agents");
   assert.ok(Array.isArray(postProject.body.related));
   assert.ok(postProject.body.related.length <= 3);
@@ -213,6 +216,7 @@ async function testRecommendationAndCompareRoutes() {
   const compare = await getJson("/api/compare?repos=cloudflare/agents,run-llama/llama_index&deployment=cloudflare");
   assert.equal(compare.status, 200);
   assert.ok(compare.body.projects.length >= 1);
+  assert.ok(Array.isArray(compare.body.project_ids));
   assert.equal(compare.body.projects[0].repo, "cloudflare/agents");
   assert.deepEqual(compare.body.requested_repos, ["cloudflare/agents", "run-llama/llama_index"]);
   assert.deepEqual(
@@ -273,6 +277,10 @@ async function testWorkflowRoute() {
   assert.ok(workflow.body.shortlist.length <= 3);
   assert.ok(typeof workflow.body.shortlist[0].decision_summary === "string");
   assert.ok(Array.isArray(workflow.body.trend_context.top_categories));
+  assert.ok(Array.isArray(workflow.body.agent_map.short_path));
+  assert.equal(workflow.body.agent_map.short_path[0].concept, "Trust preflight");
+  assert.ok(Array.isArray(workflow.body.agent_map.reference_path));
+  assert.equal(workflow.body.agent_map.reference_path[0].concept, "Trust and freshness");
   assert.ok(Array.isArray(workflow.body.agent_map.surfaces));
   assert.ok(workflow.body.agent_map.surfaces.some((surface) => surface.concept === "Project graph"));
   assert.ok(workflow.body.trust_policy.production_check.includes("require_d1=true"));
@@ -586,8 +594,11 @@ async function testGraphAndQualityRoutes() {
 
   const score = await getJson("/api/score/cloudflare/agents");
   assert.equal(score.status, 200);
+  assert.equal(score.body.project_id, "cloudflare/agents");
   assert.equal(score.body.project.repo, "cloudflare/agents");
   assert.equal(score.body.score, score.body.git_top_score);
+  assert.ok(typeof score.body.quality_score === "number");
+  assert.ok(typeof score.body.agent_score === "number");
   assert.ok(Array.isArray(score.body.dimensions));
   assert.equal(score.body.dimensions.length, 6);
   assert.ok(typeof score.body.dimensions[0].contribution === "number");
@@ -609,6 +620,7 @@ async function testGraphAndQualityRoutes() {
   assert.equal(aliasScore.status, 200);
   assert.equal(aliasScore.body.resolved_from.requested_id, "claude-code");
   assert.equal(aliasScore.body.resolved_from.resolution, "alias");
+  assert.equal(aliasScore.body.project_id, aliasScore.body.project.repo);
   assert.equal(aliasScore.body.project.repo, aliasScore.body.resolved_from.resolved_id);
   assert.equal(aliasScore.body.score, aliasScore.body.git_top_score);
   assertMetadata(aliasScore.body.metadata, "db_missing");
@@ -621,6 +633,7 @@ async function testGraphAndQualityRoutes() {
     })
   });
   assert.equal(postScore.status, 200);
+  assert.equal(postScore.body.project_id, "cloudflare/agents");
   assert.equal(postScore.body.project.repo, "cloudflare/agents");
   assert.equal(postScore.body.score, postScore.body.git_top_score);
   assert.ok(Array.isArray(postScore.body.dimensions));
@@ -681,6 +694,7 @@ async function testGraphAndQualityRoutes() {
   assert.equal(typeof trust.body.production_ready, "boolean");
   assert.ok(Array.isArray(trust.body.checks));
   assert.ok(trust.body.checks.some((check) => check.id === "d1-source"));
+  assert.ok(trust.body.checks.some((check) => check.id === "derived-alternatives"));
   assert.ok(trust.body.checks.some((check) => check.id === "data-trust-score"));
   assert.ok(Array.isArray(trust.body.required_for_high_confidence));
   assert.ok(trust.body.required_for_high_confidence.includes("metadata.source=d1"));
@@ -741,6 +755,10 @@ async function testSchemaRoutes() {
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Open source trends" && surface.rest.includes("GET /api/trends")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Alternatives" && surface.output_fields.includes("alternative_matches[].replacement_risk")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Score explanation" && surface.output_fields.includes("score_confidence")));
+  assert.ok(Array.isArray(agentMap.body.short_path));
+  assert.equal(agentMap.body.short_path[0].concept, "Trust preflight");
+  assert.ok(Array.isArray(agentMap.body.reference_path));
+  assert.equal(agentMap.body.reference_path[0].concept, "Trust and freshness");
   assert.equal(agentMap.body.trust_policy.high_confidence_source, "metadata.source=d1");
 }
 
@@ -759,11 +777,14 @@ async function testOpenApiDocument() {
   assert.ok(openapi.body.paths["/api/quality/review"], "OpenAPI should document quality review endpoint");
   assert.ok(openapi.body.paths["/api/related/{owner}/{repo}"], "OpenAPI should document related projects endpoint");
   assert.ok(openapi.body.paths["/api/project/{project}"], "OpenAPI should document alias project endpoint");
+  assert.ok(openapi.body.paths["/api/alternatives/{project}"], "OpenAPI should document alias alternatives endpoint");
   assert.ok(openapi.body.paths["/api/related/{project}"], "OpenAPI should document alias related endpoint");
   assert.ok(openapi.body.paths["/api/related"].post, "OpenAPI should document structured related projects POST endpoint");
   assert.ok(openapi.body.paths["/api/score/{owner}/{repo}"], "OpenAPI should document score explanation endpoint");
+  assert.ok(openapi.body.paths["/api/score/{project}"], "OpenAPI should document alias score endpoint");
   assert.ok(openapi.body.paths["/api/score"].post, "OpenAPI should document structured score POST endpoint");
   assert.ok(openapi.body.paths["/api/graph/{owner}/{repo}"], "OpenAPI should document path graph endpoint");
+  assert.ok(openapi.body.paths["/api/graph/{project}"], "OpenAPI should document alias graph endpoint");
   assert.ok(openapi.body.paths["/api/atlas"], "OpenAPI should document Atlas endpoint");
   assert.ok(openapi.body.paths["/api/atlas/{ecosystem}"], "OpenAPI should document Atlas ecosystem endpoint");
   assert.ok(openapi.body.paths["/api/project"].post, "OpenAPI should document structured project POST endpoint");
@@ -790,6 +811,17 @@ async function testOpenApiDocument() {
   const recommendParameterNames = openapi.body.paths["/api/recommend"].get.parameters.map((item) => item.name);
   assert.ok(recommendParameterNames.includes("category"));
   assert.ok(recommendParameterNames.includes("license"));
+  assert.ok(recommendParameterNames.includes("require_d1"));
+  assert.ok(openapi.body.paths["/api/alternatives/{project}"].get.parameters.map((item) => item.name).includes("require_d1"));
+  assert.ok(openapi.body.paths["/api/score/{project}"].get.parameters.map((item) => item.name).includes("require_d1"));
+  assert.ok(openapi.body.paths["/api/graph/{project}"].get.parameters.map((item) => item.name).includes("require_d1"));
+  assert.ok(openapi.body.paths["/api/atlas/{ecosystem}"].get.parameters.map((item) => item.name).includes("require_d1"));
+  for (const path of ["/api/project", "/api/recommend", "/api/workflow", "/api/compare", "/api/alternatives", "/api/related", "/api/score", "/api/graph", "/api/grp/query"]) {
+    assert.ok(
+      openapi.body.paths[path].post.parameters.map((item) => item.name).includes("require_d1"),
+      `${path} POST should document require_d1 query parameter`
+    );
+  }
   assert.deepEqual(openapi.body.paths["/api/admin/classification-overrides"], openApiDocument.paths["/api/admin/classification-overrides"]);
   assert.equal(openapi.body.components.securitySchemes.syncSecret.scheme, "bearer");
   assert.deepEqual(openapi.body.paths["/api/quality/review"], openApiDocument.paths["/api/quality/review"]);
@@ -939,6 +971,51 @@ async function testMethodAndBodyValidation() {
   assert.equal(authorizedAdminSync.status, 200);
   assert.deepEqual(authorizedAdminSync.body.synced, []);
   assert.deepEqual(authorizedAdminSync.body.failed, []);
+  assert.equal(authorizedAdminSync.body.derived_refresh.alternatives, "updated");
+
+  const adminSyncWithoutDerived = await request(
+    "/api/admin/sync",
+    {
+      method: "POST",
+      headers: {
+        authorization: "Bearer test-secret",
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        repositories: [],
+        limit: 5,
+        signal_depth: "lite",
+        refresh_derived: false
+      })
+    },
+    { ...mockD1Env(), SYNC_SECRET: "test-secret" }
+  );
+  assert.equal(adminSyncWithoutDerived.status, 200);
+  assert.equal(adminSyncWithoutDerived.body.derived_refresh.alternatives, "skipped");
+  assert.equal(adminSyncWithoutDerived.body.alternatives_updated, 0);
+
+  const alternativesEnv = { ...mockD1Env(), SYNC_SECRET: "test-secret" };
+  const authorizedAlternatives = await request(
+    "/api/admin/alternatives",
+    {
+      method: "POST",
+      headers: {
+        authorization: "Bearer test-secret",
+        "content-type": "application/json"
+      }
+    },
+    alternativesEnv
+  );
+  assert.equal(authorizedAlternatives.status, 200);
+  assert.equal(authorizedAlternatives.body.run.task, "derived:alternatives");
+  assert.equal(authorizedAlternatives.body.run.status, "success");
+  assert.equal(authorizedAlternatives.body.run.summary.source, "d1");
+  assert.equal(authorizedAlternatives.body.updated, authorizedAlternatives.body.updates.length);
+
+  const alternativesRuns = await request("/api/governance/runs?task=derived:alternatives", {}, alternativesEnv);
+  assert.equal(alternativesRuns.status, 200);
+  assert.equal(alternativesRuns.body.runs.length, 1);
+  assert.equal(alternativesRuns.body.runs[0].task, "derived:alternatives");
 
   const adminOverrides = await request("/api/admin/classification-overrides");
   assert.equal(adminOverrides.status, 401);
@@ -1038,6 +1115,15 @@ async function testSyncStatusWithMockD1() {
           failed_count: 0,
           finished_at: now
         })
+      ],
+      governanceRuns: [
+        governanceRunRow({
+          id: "derived_alternatives",
+          task: "derived:alternatives",
+          status: "success",
+          trigger: "admin",
+          finished_at: now
+        })
       ]
     })
   );
@@ -1053,6 +1139,12 @@ async function testSyncStatusWithMockD1() {
   assert.equal(typeof healthy.body.hours_since_successful_sync, "number");
   assert.equal(healthy.body.last_failed_sync_at, null);
   assert.equal(healthy.body.next_batch.length, 5);
+  assert.equal(typeof healthy.body.priority.generated_at, "string");
+  assert.equal(healthy.body.priority.policy.hot_target_days, 1);
+  assert.equal(typeof healthy.body.priority.counts.hot, "number");
+  assert.ok(Array.isArray(healthy.body.priority.priority_preview));
+  assert.equal(healthy.body.derived.alternatives.freshness, "fresh");
+  assert.equal(healthy.body.derived.alternatives.last_run_status, "success");
 
   const degraded = await request(
     "/api/sync/status",

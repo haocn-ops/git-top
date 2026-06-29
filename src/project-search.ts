@@ -27,6 +27,7 @@ export interface RecommendationQuery {
 
 export interface Recommendation {
   project_id: string;
+  projectId: string;
   score: number;
   reason: string;
   reasons: string[];
@@ -288,6 +289,7 @@ export function recommendProjectList(projects: ProjectKnowledge[], query: Recomm
 
       return {
         project_id: item.project.id,
+        projectId: item.project.id,
         score,
         reason: reasons.join(" "),
         reasons,

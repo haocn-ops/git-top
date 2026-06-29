@@ -62,6 +62,24 @@ export function buildAgentWorkflow(projects: ProjectKnowledge[], input: AgentWor
     },
     agent_map: {
       url: "/api/agent-map",
+      short_path: buildAgentMap().short_path.map((step) => ({
+        step: step.step,
+        concept: step.concept,
+        rest: step.rest,
+        mcp_tools: step.mcpTools,
+        inspect: step.inspect,
+        trust_fields: step.trustFields,
+        use_when: step.useWhen
+      })),
+      reference_path: buildAgentMap().reference_path.map((step) => ({
+        step: step.step,
+        concept: step.concept,
+        rest: step.rest,
+        mcp_tools: step.mcpTools,
+        inspect: step.inspect,
+        trust_fields: step.trustFields,
+        use_when: step.useWhen
+      })),
       surfaces: buildAgentMap().surfaces.map((surface) => ({
         concept: surface.concept,
         rest: surface.rest,

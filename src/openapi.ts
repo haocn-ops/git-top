@@ -106,6 +106,7 @@ export const openApiDocument = {
     "/api/project": {
       post: {
         summary: "Fetch a project knowledge record from a structured JSON body.",
+        parameters: [queryParam("require_d1", "Fail closed unless D1-backed data is available")],
         requestBody: {
           required: true,
           content: {
@@ -120,7 +121,7 @@ export const openApiDocument = {
     "/api/trending": {
       get: {
         summary: "List trending projects from the loaded knowledge set.",
-        parameters: [queryParam("category", "Optional category filter"), queryParam("limit", "Maximum result count")],
+        parameters: [queryParam("category", "Optional category filter"), queryParam("limit", "Maximum result count"), queryParam("require_d1", "Fail closed unless D1-backed data is available")],
         responses: { "200": { description: "Trending projects" } }
       }
     },
@@ -142,12 +143,14 @@ export const openApiDocument = {
           queryParam("difficulty", "Difficulty level"),
           queryParam("language", "Primary language"),
           queryParam("cloudflare_ready", "Boolean Cloudflare readiness filter"),
-          queryParam("limit", "Maximum result count")
+          queryParam("limit", "Maximum result count"),
+          queryParam("require_d1", "Fail closed unless D1-backed data is available")
         ],
         responses: { "200": { description: "Recommendations with fit profiles, adoption plans, risk flags, reasons, and tradeoffs" } }
       },
       post: {
         summary: "Recommend projects from a structured JSON body with optional nested constraints.",
+        parameters: [queryParam("require_d1", "Fail closed unless D1-backed data is available")],
         requestBody: {
           required: true,
           content: {
@@ -179,6 +182,7 @@ export const openApiDocument = {
       },
       post: {
         summary: "Return an agent selection workflow from a structured JSON body.",
+        parameters: [queryParam("require_d1", "Fail closed unless D1-backed data is available")],
         requestBody: {
           required: true,
           content: {
@@ -193,11 +197,12 @@ export const openApiDocument = {
     "/api/compare": {
       get: {
         summary: "Compare projects by deployment, maintenance, quality, agent score, decision matrix, and next actions.",
-        parameters: [queryParam("repos", "Comma-separated owner/repo list"), queryParam("deployment", "Deployment preference")],
+        parameters: [queryParam("repos", "Comma-separated owner/repo list"), queryParam("deployment", "Deployment preference"), queryParam("require_d1", "Fail closed unless D1-backed data is available")],
         responses: { "200": { description: "Comparison matrix with summary, stats, decision_matrix, next_actions, and winner reasoning" } }
       },
       post: {
         summary: "Compare projects from a structured JSON body.",
+        parameters: [queryParam("require_d1", "Fail closed unless D1-backed data is available")],
         requestBody: {
           required: true,
           content: {
@@ -212,13 +217,21 @@ export const openApiDocument = {
     "/api/alternatives/{owner}/{repo}": {
       get: {
         summary: "Find alternatives for a project with summary, stats, next actions, similarity scores, and match signals.",
-        parameters: [pathParam("owner", "GitHub owner"), pathParam("repo", "GitHub repository name"), queryParam("limit", "Maximum result count")],
+        parameters: [pathParam("owner", "GitHub owner"), pathParam("repo", "GitHub repository name"), queryParam("limit", "Maximum result count"), queryParam("require_d1", "Fail closed unless D1-backed data is available")],
         responses: { "200": { description: "Alternative project list with summary, stats, next_actions, comparison_links, similarity scores, and match signals" } }
+      }
+    },
+    "/api/alternatives/{project}": {
+      get: {
+        summary: "Find alternatives by short slug, encoded owner/repo, or Git.Top product alias.",
+        parameters: [pathParam("project", "Project slug, encoded owner/repo id, or product alias such as claude-code"), queryParam("limit", "Maximum result count"), queryParam("require_d1", "Fail closed unless D1-backed data is available")],
+        responses: { "200": { description: "Alternative project list with resolved_from, summary, stats, next_actions, comparison_links, similarity scores, and match signals" }, "404": { description: "Project not found" } }
       }
     },
     "/api/alternatives": {
       post: {
         summary: "Find alternatives for a project from a structured JSON body.",
+        parameters: [queryParam("require_d1", "Fail closed unless D1-backed data is available")],
         requestBody: {
           required: true,
           content: {
@@ -233,20 +246,21 @@ export const openApiDocument = {
     "/api/related/{owner}/{repo}": {
       get: {
         summary: "Find related ecosystem projects connected by category, deployment, dependency, topics, or use cases.",
-        parameters: [pathParam("owner", "GitHub owner"), pathParam("repo", "GitHub repository name"), queryParam("limit", "Maximum result count")],
+        parameters: [pathParam("owner", "GitHub owner"), pathParam("repo", "GitHub repository name"), queryParam("limit", "Maximum result count"), queryParam("require_d1", "Fail closed unless D1-backed data is available")],
         responses: { "200": { description: "Related project list" } }
       }
     },
     "/api/related/{project}": {
       get: {
         summary: "Find related ecosystem projects by short slug, encoded owner/repo, or Git.Top product alias.",
-        parameters: [pathParam("project", "Project slug, encoded owner/repo id, or product alias such as claude-code"), queryParam("limit", "Maximum result count")],
+        parameters: [pathParam("project", "Project slug, encoded owner/repo id, or product alias such as claude-code"), queryParam("limit", "Maximum result count"), queryParam("require_d1", "Fail closed unless D1-backed data is available")],
         responses: { "200": { description: "Related project list with project context, resolved_from, and metadata" }, "404": { description: "Project not found" } }
       }
     },
     "/api/related": {
       post: {
         summary: "Find related ecosystem projects from a structured JSON body.",
+        parameters: [queryParam("require_d1", "Fail closed unless D1-backed data is available")],
         requestBody: {
           required: true,
           content: {
@@ -261,13 +275,21 @@ export const openApiDocument = {
     "/api/score/{owner}/{repo}": {
       get: {
         summary: "Explain a project's Git.Top Score with weighted dimensions, adoption guidance, risk flags, next actions, related scores, evidence, and links.",
-        parameters: [pathParam("owner", "GitHub owner or single-segment project alias when using /api/score/{project}"), pathParam("repo", "GitHub repository name")],
+        parameters: [pathParam("owner", "GitHub owner or single-segment project alias when using /api/score/{project}"), pathParam("repo", "GitHub repository name"), queryParam("require_d1", "Fail closed unless D1-backed data is available")],
         responses: { "200": { description: "Project score explanation with adoption guidance, risk flags, and next actions" }, "404": { description: "Project not found" } }
+      }
+    },
+    "/api/score/{project}": {
+      get: {
+        summary: "Explain a project's Git.Top Score by short slug, encoded owner/repo, or Git.Top product alias.",
+        parameters: [pathParam("project", "Project slug, encoded owner/repo id, or product alias such as claude-code"), queryParam("require_d1", "Fail closed unless D1-backed data is available")],
+        responses: { "200": { description: "Project score explanation with resolved_from, dimensions, adoption guidance, risk flags, next actions, evidence, and metadata" }, "404": { description: "Project not found" } }
       }
     },
     "/api/score": {
       post: {
         summary: "Explain a project's Git.Top Score from a structured JSON body.",
+        parameters: [queryParam("require_d1", "Fail closed unless D1-backed data is available")],
         requestBody: {
           required: true,
           content: {
@@ -282,11 +304,12 @@ export const openApiDocument = {
     "/api/graph": {
       get: {
         summary: "Return project relationship graph nodes, edges, stats, summary, next actions, project context, and relationship groups.",
-        parameters: [queryParam("repo", "Optional focus repository or Git.Top product alias such as claude-code"), queryParam("limit", "Maximum project count")],
+        parameters: [queryParam("repo", "Optional focus repository or Git.Top product alias such as claude-code"), queryParam("limit", "Maximum project count"), queryParam("require_d1", "Fail closed unless D1-backed data is available")],
         responses: { "200": { description: "Knowledge graph with graph_stats, summary, next_actions, alternatives, related projects, dependencies, deployment targets, and use cases when focused on a project" } }
       },
       post: {
         summary: "Return a project relationship graph from a structured JSON body.",
+        parameters: [queryParam("require_d1", "Fail closed unless D1-backed data is available")],
         requestBody: {
           required: true,
           content: {
@@ -301,22 +324,29 @@ export const openApiDocument = {
     "/api/atlas": {
       get: {
         summary: "List Atlas ecosystem maps with stats, exploration paths, comparison paths, concept/project nodes, edges, representative projects, and Agent API links.",
-        parameters: [queryParam("limit", "Maximum projects per ecosystem")],
+        parameters: [queryParam("limit", "Maximum projects per ecosystem"), queryParam("require_d1", "Fail closed unless D1-backed data is available")],
         responses: { "200": { description: "Atlas ecosystem list with stats, exploration_paths, recommendation links, map.nodes, and map.edges" } }
       }
     },
     "/api/atlas/{ecosystem}": {
       get: {
         summary: "Fetch one Atlas ecosystem map with stats, exploration paths, comparison paths, concept/project nodes, edges, representative projects, and Agent API links.",
-        parameters: [pathParam("ecosystem", "Atlas ecosystem id"), queryParam("limit", "Maximum project count")],
+        parameters: [pathParam("ecosystem", "Atlas ecosystem id"), queryParam("limit", "Maximum project count"), queryParam("require_d1", "Fail closed unless D1-backed data is available")],
         responses: { "200": { description: "Atlas ecosystem with stats, exploration_paths, recommendation links, map.nodes, and map.edges" }, "404": { description: "Atlas ecosystem not found" } }
       }
     },
     "/api/graph/{owner}/{repo}": {
       get: {
         summary: "Return project relationship graph nodes, edges, stats, summary, next actions, project context, and relationship groups for one project.",
-        parameters: [pathParam("owner", "GitHub owner or single-segment project alias when using /api/graph/{project}"), pathParam("repo", "GitHub repository name"), queryParam("limit", "Maximum project count")],
+        parameters: [pathParam("owner", "GitHub owner or single-segment project alias when using /api/graph/{project}"), pathParam("repo", "GitHub repository name"), queryParam("limit", "Maximum project count"), queryParam("require_d1", "Fail closed unless D1-backed data is available")],
         responses: { "200": { description: "Focused project knowledge graph with graph_stats, summary, next_actions, grouped alternatives, related projects, dependencies, deployment targets, and use cases" } }
+      }
+    },
+    "/api/graph/{project}": {
+      get: {
+        summary: "Return a focused project relationship graph by short slug, encoded owner/repo, or Git.Top product alias.",
+        parameters: [pathParam("project", "Project slug, encoded owner/repo id, or product alias such as claude-code"), queryParam("limit", "Maximum project count"), queryParam("require_d1", "Fail closed unless D1-backed data is available")],
+        responses: { "200": { description: "Focused project knowledge graph with resolved_from, graph_stats, summary, next_actions, grouped alternatives, related projects, dependencies, deployment targets, and use cases" }, "404": { description: "Project not found" } }
       }
     },
     "/api/quality": {
@@ -361,6 +391,7 @@ export const openApiDocument = {
     "/api/grp/query": {
       post: {
         summary: "Run Graph Reasoning Protocol over the knowledge graph.",
+        parameters: [queryParam("require_d1", "Fail closed unless D1-backed data is available")],
         responses: { "200": { description: "Graph-grounded project set, plan, comparison, or stack" } }
       }
     },

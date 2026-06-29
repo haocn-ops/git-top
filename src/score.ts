@@ -33,6 +33,7 @@ export function buildProjectScoreExplanation(project: ProjectKnowledge) {
 
   return {
     project: {
+      project_id: view.repo,
       repo: view.repo,
       name: view.name,
       description: view.description,
@@ -40,8 +41,11 @@ export function buildProjectScoreExplanation(project: ProjectKnowledge) {
       language: view.language,
       license: view.license
     },
+    project_id: view.repo,
     score: view.gitTopScore,
     git_top_score: view.gitTopScore,
+    quality_score: view.qualityScore,
+    agent_score: view.agentScore,
     git_top_score_breakdown: view.gitTopScoreBreakdown,
     dimensions,
     summary: `${view.repo} scores ${view.gitTopScore}/100. ${strongest.label} is strongest at ${strongest.score}/100; ${weakest.label} is the lowest dimension at ${weakest.score}/100.`,

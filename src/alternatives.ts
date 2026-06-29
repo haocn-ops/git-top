@@ -69,6 +69,7 @@ export function generateAlternativesForAll(projects: ProjectKnowledge[], limit =
 export function generateAlternatives(project: ProjectKnowledge, allProjects: ProjectKnowledge[], limit = 3): Alternative[] {
   return generateAlternativeMatches(project, allProjects, limit).map((match) => ({
     project_id: match.project.project.id,
+    projectId: match.project.project.id,
     reason: match.reason
   }));
 }
@@ -88,6 +89,8 @@ export function toAlternativeMatchView(match: AlternativeMatch) {
   const guidance = alternativeAdoptionGuidance(match);
   return {
     ...toProjectKnowledgeView(match.project),
+    projectId: match.project.project.id,
+    project_id: match.project.project.id,
     similarityScore: match.similarityScore,
     alternativeReason: match.reason,
     matchSignals: match.signals,

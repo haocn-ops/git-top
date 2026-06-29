@@ -54,7 +54,7 @@ function renderHtml(health: HealthStatus, sync: SyncStatus): string {
       .lead { max-width:880px; font-size:18px; }
       .button,.pill { display:inline-flex; align-items:center; justify-content:center; min-height:36px; border:1px solid var(--line); border-radius:8px; background:#fff; font-weight:900; padding:8px 10px; }
       .button.primary { border-color:var(--teal); background:var(--teal); color:#fff; }
-      .metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-top:14px; }
+      .metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-top:14px; }
       .metric { display:grid; gap:8px; padding:14px; min-height:112px; }
       .metric strong { font-size:30px; line-height:1; }
       .metric span { color:var(--muted); font-weight:800; }
@@ -95,6 +95,7 @@ function renderHtml(health: HealthStatus, sync: SyncStatus): string {
         ${metric("Runtime", health.ok ? "OK" : "CHECK", `D1 binding is ${health.db}.`)}
         ${metric("Data source", health.metadata.source, health.metadata.reason)}
         ${metric("Sync", `${sync.health} / ${sync.freshness}`, sync.lastSuccessfulSyncAt ? `Last success ${sync.lastSuccessfulSyncAt}.` : "No successful sync recorded.")}
+        ${metric("Derived", sync.derived.alternatives.freshness, sync.derived.alternatives.lastSuccessfulRunAt ? `Alternatives rebuilt ${sync.derived.alternatives.lastSuccessfulRunAt}.` : "No alternatives rebuild recorded.")}
         ${metric("Indexed", sync.indexedCount, `${sync.syncedCount}/${sync.seedTotal} seed repositories synced.`)}
       </section>
 
@@ -108,6 +109,8 @@ function renderHtml(health: HealthStatus, sync: SyncStatus): string {
             <div class="row"><strong>Remaining seed items</strong><span>${sync.remainingCount} repositories remain before the current cycle is complete.</span></div>
             <div class="row"><strong>Next batch wraps</strong><span>${sync.nextBatchWraps ? "Yes" : "No"}</span></div>
             <div class="row"><strong>Next batch preview</strong><span>${escapeHtml(sync.nextBatch.slice(0, 5).join(", ") || "No queued repositories.")}</span></div>
+            <div class="row"><strong>Refresh tiers</strong><span>${sync.priority ? `${sync.priority.counts.hot} hot, ${sync.priority.counts.warm} warm, ${sync.priority.counts.cold} cold.` : "Priority summary unavailable."}</span></div>
+            <div class="row"><strong>Stale by policy</strong><span>${sync.priority ? `${sync.priority.staleCounts.hot} hot, ${sync.priority.staleCounts.warm} warm, ${sync.priority.staleCounts.cold} cold; oldest ${sync.priority.oldestStaleDays}d.` : "Priority summary unavailable."}</span></div>
           </div>
         </article>
         <aside class="panel">
@@ -118,6 +121,7 @@ function renderHtml(health: HealthStatus, sync: SyncStatus): string {
             <div class="row"><strong>Hours since success</strong><span>${sync.hoursSinceSuccessfulSync ?? "Unknown"}</span></div>
             <div class="row"><strong>Last failed sync</strong><span>${escapeHtml(sync.lastFailedSyncAt ?? "None recorded")}</span></div>
             <div class="row"><strong>Last error</strong><span>${escapeHtml(sync.lastError ? `${sync.lastError.repository}: ${sync.lastError.error}` : "None recorded")}</span></div>
+            <div class="row"><strong>Derived alternatives</strong><span>${escapeHtml(`${sync.derived.alternatives.freshness}; last success ${sync.derived.alternatives.lastSuccessfulRunAt ?? "unknown"}; last status ${sync.derived.alternatives.lastRunStatus ?? "unknown"}`)}</span></div>
           </div>
         </aside>
       </section>
@@ -131,6 +135,16 @@ function renderHtml(health: HealthStatus, sync: SyncStatus): string {
           </div>
         </article>
         <aside class="panel">
+          <p class="eyebrow">Refresh Priority</p>
+          <h2>Hot, warm, and cold queues</h2>
+          <div class="rows">
+            ${sync.priority?.priorityPreview.length ? sync.priority.priorityPreview.slice(0, 5).map(priorityRow).join("") : `<div class="row"><strong>No stale priority items</strong><span>All loaded projects are within the current refresh policy.</span></div>`}
+          </div>
+        </aside>
+      </section>
+
+      <section class="two">
+        <article class="panel">
           <p class="eyebrow">Integration Guidance</p>
           <h2>When to fail closed</h2>
           <div class="rows">
@@ -138,7 +152,7 @@ function renderHtml(health: HealthStatus, sync: SyncStatus): string {
             <div class="row"><strong>Check source and freshness together.</strong><span>Prefer <code>metadata.source=d1</code>, <code>sync.health=healthy</code>, and <code>sync.freshness=fresh</code> before citing high-confidence recommendations.</span></div>
             <div class="row"><strong>Use quality and coverage for context.</strong><span>Pair this page with <a href="/quality">/quality</a> and <a href="/coverage">/coverage</a> before broad selection tasks.</span></div>
           </div>
-        </aside>
+        </article>
       </section>
     </div>
   </body>
@@ -151,6 +165,10 @@ function metric(label: string, value: string | number, note: string): string {
 
 function runRow(run: SyncStatus["recentRuns"][number]): string {
   return `<div class="row"><strong>${escapeHtml(run.trigger)} · ${escapeHtml(run.finishedAt)}</strong><span>${run.syncedCount} synced, ${run.failedCount} failed, ${run.alternativesUpdated} alternatives updated, ${run.durationMs}ms.</span></div>`;
+}
+
+function priorityRow(item: NonNullable<SyncStatus["priority"]>["priorityPreview"][number]): string {
+  return `<div class="row"><strong>${escapeHtml(item.projectId)} · ${escapeHtml(item.tier)}</strong><span>${item.staleDays}d stale, target ${item.targetIntervalDays}d. ${escapeHtml(item.reasons.join(", "))}</span></div>`;
 }
 
 function statusClass(status: string): string {

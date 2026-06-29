@@ -28,10 +28,22 @@ Treat `metadata.source: "seed"` as a fallback mode. Seed data is useful for demo
 
 ## 2. Choose a Workflow
 
+Before a high-confidence recommendation, check the Trust Gate:
+
+```sh
+curl https://git.top/api/trust
+```
+
+Use the decision:
+
+- `allow` for direct production use.
+- `caution` when you need to disclose caveats.
+- `block` when you should fail closed.
+
 When an agent needs a guided path across trends, recommendations, graph, alternatives, score, compare, and trust checks, fetch the agent workflow:
 
 ```sh
-curl "https://git.top/api/workflow?intent=choose%20a%20Cloudflare-ready%20agent%20framework&deployment=cloudflare&category=agent_framework&cloudflare_ready=true&limit=5"
+curl "https://git.top/api/workflow?intent=choose%20a%20Cloudflare-ready%20agent%20framework&deployment=cloudflare&category=agent_framework&cloudflare_ready=true&limit=5&require_d1=true"
 ```
 
 Use the same path in MCP:
@@ -42,9 +54,9 @@ curl -X POST https://git.top/mcp \
   -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"get_agent_workflow","arguments":{"intent":"choose a Cloudflare-ready agent framework","constraints":{"deployment":"cloudflare","category":"agent_framework","cloudflare_ready":true},"limit":5}}}'
 ```
 
-The response gives a recommended sequence, shortlist, trend context, agent map hints, and trust policy.
+The response gives a recommended sequence, shortlist, trend context, agent map hints, and trust policy. Use `agent_map.short_path` first, then `agent_map.reference_path` only when you need the fuller discovery surface.
 
-When you need corpus-wide quality or coverage before a recommendation, call `get_quality_report`:
+When you need corpus-wide quality or coverage after checking the Trust Gate, call `get_quality_report`:
 
 ```sh
 curl -X POST https://git.top/mcp \
@@ -74,18 +86,18 @@ When an agent needs to choose the right surface first, fetch the machine-readabl
 curl https://git.top/api/agent-map
 ```
 
-Use it to map product concepts to human pages, REST endpoints, MCP tools, output fields, and trust fields.
+Use it to map product concepts to human pages, REST endpoints, MCP tools, output fields, and trust fields. Start with `short_path`; expand into `reference_path` when the shorter route is not enough.
 
 Use search for direct retrieval:
 
 ```sh
-curl "https://git.top/api/search?q=cloudflare%20agent%20framework&limit=5"
+curl "https://git.top/api/search?q=cloudflare%20agent%20framework&limit=5&require_d1=true"
 ```
 
 Use scoped discovery when the user asks for a category rather than a named technology:
 
 ```sh
-curl "https://git.top/api/search?category=agent_framework&deployment=cloudflare&ranking=browse&limit=10"
+curl "https://git.top/api/search?category=agent_framework&deployment=cloudflare&ranking=browse&limit=10&require_d1=true"
 ```
 
 Read these fields before presenting results:
@@ -100,8 +112,8 @@ Read these fields before presenting results:
 Fetch the full project view before making a recommendation:
 
 ```sh
-curl https://git.top/api/project/cloudflare/agents
-curl https://git.top/api/project/claude-code
+curl https://git.top/api/project/cloudflare/agents?require_d1=true
+curl https://git.top/api/project/claude-code?require_d1=true
 ```
 
 Use:
@@ -115,7 +127,7 @@ Use:
 Use `/api/recommend` for a concrete use case:
 
 ```sh
-curl "https://git.top/api/recommend?use_case=build%20a%20browser%20automation%20agent&deployment=docker&limit=5"
+curl "https://git.top/api/recommend?use_case=build%20a%20browser%20automation%20agent&deployment=docker&limit=5&require_d1=true"
 ```
 
 When presenting the answer, include:
@@ -129,7 +141,7 @@ When presenting the answer, include:
 Use comparison when the user already has candidate projects:
 
 ```sh
-curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain,run-llama/llama_index&deployment=cloudflare"
+curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain,run-llama/llama_index&deployment=cloudflare&require_d1=true"
 ```
 
 Prefer comparison output over raw star counts when the task is a product decision.
@@ -173,7 +185,7 @@ curl -X POST https://git.top/mcp \
 GRP is best when the user asks for a plan, comparison, project set, or stack:
 
 ```sh
-curl -X POST https://git.top/api/grp/query \
+curl -X POST "https://git.top/api/grp/query?require_d1=true" \
   -H "content-type: application/json" \
   -d '{"goal":"build a Cloudflare-ready coding agent stack","mode":"plan","constraints":{"deploy":["cloudflare"],"agent_ready":true}}'
 ```

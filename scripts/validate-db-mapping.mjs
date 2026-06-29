@@ -3,7 +3,7 @@ import { getStarsDeltaSnapshot, getSyncStatus, getSyncedProjectCount } from "../
 import { getHealth } from "../src/health.ts";
 import { listProjectKnowledgeWithMeta } from "../src/knowledge-source.ts";
 import { buildGeneratedKnowledgeFixtures } from "./eval-fixtures.mjs";
-import { mockD1Env, mockD1ProjectId, syncRunRow } from "./mock-d1.mjs";
+import { governanceRunRow, mockD1Env, mockD1ProjectId, syncRunRow } from "./mock-d1.mjs";
 
 await testRowToDomainMapping();
 await testGeneratedFixtureRows();
@@ -152,6 +152,7 @@ async function testHealthCountSemantics() {
 }
 
 async function testSyncStatusMapping() {
+  const derivedSuccessAt = "2026-06-29T00:00:00Z";
   const status = await getSyncStatus(
     mockD1Env({
       cursor: 3,
@@ -169,6 +170,23 @@ async function testSyncStatusMapping() {
           failed_count: 0,
           finished_at: "2026-06-20T01:00:00Z"
         })
+      ],
+      governanceRuns: [
+        governanceRunRow({
+          id: "derived_old",
+          task: "derived:alternatives",
+          status: "failed",
+          trigger: "admin",
+          started_at: "2026-06-10T00:00:00Z",
+          finished_at: "2026-06-10T00:00:10Z"
+        }),
+        governanceRunRow({
+          id: "derived_alternatives",
+          task: "derived:alternatives",
+          status: "success",
+          trigger: "admin",
+          finished_at: derivedSuccessAt
+        })
       ]
     }),
     [mockD1ProjectId, "b/b", "c/c", "d/d", "e/e", "f/f"]
@@ -184,6 +202,9 @@ async function testSyncStatusMapping() {
   assert.equal(status.lastError?.repository, mockD1ProjectId);
   assert.equal(status.nextBatchWraps, true);
   assert.deepEqual(status.nextBatch, ["d/d", "e/e", "f/f", mockD1ProjectId, "b/b"]);
+  assert.equal(status.derived.alternatives.freshness, "fresh");
+  assert.equal(status.derived.alternatives.lastRunStatus, "success");
+  assert.equal(status.derived.alternatives.lastSuccessfulRunAt, derivedSuccessAt);
 
   const overflowKnowledge = buildGeneratedKnowledgeFixtures()
     .slice(0, 3)

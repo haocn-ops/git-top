@@ -6,7 +6,8 @@ import worker from "../src/index.ts";
 import { buildQualityReport } from "../src/quality.ts";
 import { calculateMetrics } from "../src/scoring.ts";
 import { seedProjects } from "../src/seed.ts";
-import { defaultSyncLimit, maxSyncLimit, scheduledSyncLimit, selectRepositoryBatch } from "../src/sync.ts";
+import { buildSyncPrioritySummary, classifySyncPriority, selectPriorityRepositoryIds } from "../src/sync-priority.ts";
+import { defaultSyncLimit, maxSyncLimit, nextSyncOffset, scheduledSyncLimit, selectRepositoryBatch, selectScheduledRepositoryBatch } from "../src/sync.ts";
 
 await testScoring();
 await testQualityInfoIssuesDoNotLowerScore();
@@ -28,6 +29,7 @@ await testRecommendRoute();
 await testWorkflowRoute();
 await testCompareRoute();
 await testSyncBatchSelection();
+await testSyncPrioritySummary();
 await testWorkerProjectSlugLookup();
 await testBrowseRanking();
 await testBrowseRankingBroadVocabulary();
@@ -73,12 +75,14 @@ async function testLegacyConsoleRedirects() {
   const llmsFull = await worker.fetch(new Request("https://git.top/llms-full.txt"), {});
   assert.equal(llmsFull.status, 200);
   const llmsFullText = await llmsFull.text();
+  assert.match(llmsFullText, /Trust first: GET \/api\/health and GET \/api\/trust/);
   assert.match(llmsFullText, /GET \/api\/agent-map/);
   assert.match(llmsFullText, /GET \/api\/quickstart/);
   assert.match(llmsFullText, /GET \/api\/recipes/);
   assert.match(llmsFullText, /GET \/api\/examples/);
   assert.match(llmsFullText, /GET \/api\/journeys\?limit=8/);
   assert.match(llmsFullText, /GET \/api\/roadmap/);
+  assert.match(llmsFullText, /GET \/api\/trust/);
   assert.match(llmsFullText, /Agent Surface Map/);
   assert.match(llmsFullText, /POST \/api\/project/);
   assert.match(llmsFullText, /GET \/api\/workflow/);
@@ -95,6 +99,10 @@ async function testLegacyConsoleRedirects() {
   assert.match(llmsFullText, /\/topics\/mcp-integration-guide/);
   assert.match(llmsFullText, /journeys\[\]\.steps/);
   assert.match(llmsFullText, /comparison_paths/);
+  assert.match(llmsFullText, /get_trends/);
+  assert.match(llmsFullText, /get_agent_workflow/);
+  assert.match(llmsFullText, /get_atlas/);
+  assert.match(llmsFullText, /get_trust_gate/);
   assert.match(llmsFullText, /exploration_paths/);
   assert.match(llmsFullText, /decision_summary/);
   assert.match(llmsFullText, /fit_profile/);
@@ -192,12 +200,29 @@ async function testQuickstartRoute() {
   const body = await api.json();
   assert.equal(api.status, 200);
   assert.equal(body.positioning, "The Knowledge Graph of Open Source");
+  assert.equal(body.steps[0].id, "check-trust-gate");
   assert.ok(body.steps.some((step) => step.id === "compare"));
   assert.ok(body.steps.some((step) => step.id === "explore-atlas-journeys"));
+  const trustFreeSteps = new Set(["check-trust-gate", "check-data-source"]);
+  for (const id of ["check-trust-gate", "check-data-source", "choose-workflow", "search-projects", "explore-atlas-journeys", "inspect-project", "recommend", "compare", "quality", "grp"]) {
+    const step = body.steps.find((item) => item.id === id);
+    assert.ok(step, `quickstart should include ${id}`);
+    if (trustFreeSteps.has(id)) {
+      assert.doesNotMatch(step.command, /require_d1=true/, `${id} should not require D1 because the trust gate is its own preflight`);
+    } else {
+      assert.match(step.command, /require_d1=true/, `${id} should use strict D1 mode in the production command`);
+    }
+  }
 
   const agentMap = await worker.fetch(new Request("https://git.top/api/agent-map"), {});
   const agentMapBody = await agentMap.json();
   assert.equal(agentMap.status, 200);
+  assert.ok(Array.isArray(agentMapBody.core_surfaces));
+  assert.equal(agentMapBody.core_surfaces[0].concept, "Trust preflight");
+  assert.ok(Array.isArray(agentMapBody.short_path));
+  assert.equal(agentMapBody.short_path[0].concept, "Trust preflight");
+  assert.ok(Array.isArray(agentMapBody.reference_path));
+  assert.equal(agentMapBody.reference_path[0].concept, "Trust and freshness");
   assert.ok(agentMapBody.surfaces.some((surface) => surface.concept === "Agent quickstart"));
 }
 
@@ -216,6 +241,8 @@ async function testRecipesRoute() {
   assert.equal(body.positioning, "The Knowledge Graph of Open Source");
   assert.ok(body.recipes.some((recipe) => recipe.id === "find-project-alternatives"));
   assert.ok(body.recipes.some((recipe) => recipe.id === "map-ecosystem-to-comparison"));
+  const grpRecipe = body.recipes.find((recipe) => recipe.id === "plan-with-grp");
+  assert.ok(grpRecipe.steps.some((step) => step.endpoint === "/api/grp/query" && step.command.includes("?require_d1=true")));
 
   const agentMap = await worker.fetch(new Request("https://git.top/api/agent-map"), {});
   const agentMapBody = await agentMap.json();
@@ -238,6 +265,11 @@ async function testExamplesRoute() {
   assert.ok(body.examples.some((example) => example.id === "structured-recommend" && example.method === "POST"));
   assert.ok(body.examples.some((example) => example.surface === "MCP" && example.endpoint === "/mcp"));
   assert.ok(body.examples.some((example) => example.surface === "GRP" && example.endpoint === "/api/grp/query"));
+  const structuredRecommend = body.examples.find((example) => example.id === "structured-recommend");
+  assert.match(structuredRecommend.command, /\/api\/recommend\?require_d1=true/);
+  assert.doesNotMatch(structuredRecommend.command, /"require_d1":true/);
+  const grpExample = body.examples.find((example) => example.id === "grp-plan-stack");
+  assert.match(grpExample.command, /\/api\/grp\/query\?require_d1=true/);
   assert.ok(Array.isArray(body.trust_policy));
 
   const agentMap = await worker.fetch(new Request("https://git.top/api/agent-map"), {});
@@ -383,6 +415,13 @@ async function testDiscoverRoute() {
   assert.match(mcpTopicText, /MCP Integration Guide/);
   assert.match(mcpTopicText, /Tool Call Shape/);
   assert.match(mcpTopicText, /\/mcp/);
+
+  const trustGateTopic = await worker.fetch(new Request("https://git.top/topics/trust-gate-guide"), {});
+  const trustGateTopicText = await trustGateTopic.text();
+  assert.equal(trustGateTopic.status, 200);
+  assert.match(trustGateTopicText, /Trust Gate Guide/);
+  assert.match(trustGateTopicText, /Decision Flow/);
+  assert.match(trustGateTopicText, /\/trust/);
 }
 
 async function testTrendsRoute() {
@@ -659,13 +698,72 @@ async function testQualityCollectionCoverage() {
 async function testSyncBatchSelection() {
   assert.equal(defaultSyncLimit, 1, "manual sync without a limit should stay conservative by default");
   assert.equal(maxSyncLimit, 50, "admin and catch-up syncs should allow bounded larger batches");
-  assert.equal(scheduledSyncLimit, 8, "scheduled sync should stay under Worker subrequest limits with lightweight signals");
+  assert.equal(scheduledSyncLimit, 5, "scheduled sync should stay comfortably under Worker subrequest limits with lightweight signals");
 
   const repositories = ["a/a", "b/b", "c/c", "d/d", "e/e"];
   assert.deepEqual(selectRepositoryBatch(repositories, 1, 3), ["b/b", "c/c", "d/d"]);
   assert.deepEqual(selectRepositoryBatch(repositories, 3, 4), ["d/d", "e/e", "a/a", "b/b"]);
   assert.deepEqual(selectRepositoryBatch(repositories, 0, 10), repositories);
   assert.deepEqual(selectRepositoryBatch([], 0, 5), []);
+  assert.equal(nextSyncOffset(repositories.length, 3, 2), 0);
+  assert.equal(nextSyncOffset(repositories.length, 3, 0), 3);
+  assert.equal(nextSyncOffset(0, 3, 2), 0);
+
+  assert.deepEqual(selectScheduledRepositoryBatch(repositories, 0, 4, ["d/d", "b/b"], 1).repositories, ["d/d", "b/b", "a/a", "c/c"]);
+  assert.deepEqual(selectScheduledRepositoryBatch(repositories, 3, 4, ["b/b", "missing/repo", "e/e"], 1).repositories, ["b/b", "e/e", "d/d", "a/a"]);
+  assert.deepEqual(selectScheduledRepositoryBatch(repositories, 0, 1, ["d/d"], 1).repositories, ["a/a"]);
+  assert.deepEqual(selectScheduledRepositoryBatch(repositories, 0, 2, []).repositories, ["a/a", "b/b"]);
+}
+
+async function testSyncPrioritySummary() {
+  const now = "2026-06-29T00:00:00Z";
+  const hot = makeSearchFixture("mock/hot-agent", {
+    stars: 6000,
+    gitScore: 88,
+    category: "agent_framework",
+    cloudflareReady: true,
+    stars30dDelta: 120
+  });
+  hot.project.syncedAt = "2026-06-25T00:00:00Z";
+  hot.metrics.calculatedAt = hot.project.syncedAt;
+
+  const warm = makeSearchFixture("mock/warm-runtime", {
+    stars: 8000,
+    gitScore: 74,
+    category: "local_llm_runtime",
+    cloudflareReady: false,
+    stars30dDelta: 30
+  });
+  warm.project.syncedAt = "2026-06-15T00:00:00Z";
+  warm.metrics.calculatedAt = warm.project.syncedAt;
+
+  const cold = makeSearchFixture("mock/cold-tool", {
+    stars: 400,
+    gitScore: 45,
+    category: "other",
+    cloudflareReady: false,
+    stars30dDelta: 0
+  });
+  cold.project.syncedAt = "2026-05-01T00:00:00Z";
+  cold.metrics.calculatedAt = cold.project.syncedAt;
+
+  assert.equal(classifySyncPriority(hot, now).tier, "hot");
+  assert.equal(classifySyncPriority(warm, now).tier, "warm");
+  assert.equal(classifySyncPriority(cold, now).tier, "cold");
+
+  const summary = buildSyncPrioritySummary([warm, cold, hot], now, 3);
+  assert.equal(summary.counts.hot, 1);
+  assert.equal(summary.counts.warm, 1);
+  assert.equal(summary.counts.cold, 1);
+  assert.equal(summary.staleCounts.hot, 1);
+  assert.equal(summary.staleCounts.warm, 1);
+  assert.equal(summary.staleCounts.cold, 1);
+  assert.equal(summary.oldestStaleDays, 59);
+  assert.equal(summary.priorityPreview[0].projectId, "mock/hot-agent");
+  assert.deepEqual(selectPriorityRepositoryIds([warm, cold, hot], ["mock/hot-agent", "mock/warm-runtime", "mock/cold-tool"], 2, now), [
+    "mock/hot-agent",
+    "mock/warm-runtime"
+  ]);
 }
 
 async function testWorkerProjectSlugLookup() {
@@ -949,7 +1047,7 @@ function makeSearchFixture(id, overrides) {
       category: overrides.category ?? "agent_framework",
       difficulty: "intermediate",
       deployment: overrides.deployment ?? ["cloudflare"],
-      cloudflareReady: true,
+      cloudflareReady: overrides.cloudflareReady ?? true,
       useCases: overrides.useCases ?? ["build agent runtimes"],
       notGoodFor: [],
       alternatives: [],
@@ -965,7 +1063,7 @@ function makeSearchFixture(id, overrides) {
     },
     metrics: {
       projectId: id,
-      stars30dDelta: 0,
+      stars30dDelta: overrides.stars30dDelta ?? 0,
       commits30d: 0,
       releases180d: 0,
       contributors90d: 0,

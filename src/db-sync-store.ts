@@ -1,6 +1,9 @@
 import { rowToSyncRun, type SyncRunRow } from "./db-mapping";
 import { seedProjects } from "./seed";
+import { listProjectKnowledgeWithMeta } from "./knowledge-source";
+import { buildSyncPrioritySummary } from "./sync-priority";
 import { buildSyncStatus, type SyncStatus } from "./sync-status";
+import { getLatestGovernanceRun, listGovernanceRuns } from "./governance-store";
 import type { Env, SyncRun } from "./types";
 
 export interface StarDeltaSnapshot {
@@ -85,18 +88,22 @@ export async function listSyncRuns(env: Env, limit = 10): Promise<SyncRun[]> {
 }
 
 export async function getSyncStatus(env: Env, seedRepositories: string[] = []): Promise<SyncStatus> {
-  const [cursor, recentRuns, indexedCount, seedSyncedCount] = await Promise.all([
+  const [cursor, recentRuns, indexedCount, seedSyncedCount, knowledge, derivedRuns] = await Promise.all([
     getSyncCursor(env),
     listSyncRuns(env, 10),
     getSyncedProjectCount(env),
-    getSyncedSeedProjectCount(env, seedRepositories)
+    getSyncedSeedProjectCount(env, seedRepositories),
+    listProjectKnowledgeWithMeta(env),
+    getLatestGovernanceRun(env, "derived:alternatives")
   ]);
   return buildSyncStatus({
     cursor,
     recentRuns,
     indexedCount,
     seedSyncedCount,
-    seedRepositories
+    seedRepositories,
+    priority: buildSyncPrioritySummary(knowledge.projects),
+    derivedRuns: derivedRuns ? [derivedRuns] : []
   });
 }
 

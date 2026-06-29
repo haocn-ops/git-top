@@ -68,7 +68,7 @@ export function buildAgentApiExamples(): AgentApiExamples {
         "REST",
         "POST",
         "/api/recommend",
-        'curl -X POST https://git.top/api/recommend -H "content-type: application/json" -d \'{"use_case":"build browser automation agents","constraints":{"deployment":"docker","category":"browser_agent"},"limit":5,"require_d1":true}\'',
+        'curl -X POST "https://git.top/api/recommend?require_d1=true" -H "content-type: application/json" -d \'{"use_case":"build browser automation agents","constraints":{"deployment":"docker","category":"browser_agent"},"limit":5}\'',
         ["recommendations[].decision_summary", "recommendations[].fit_profile", "recommendations[].risk_flags", "recommendations[].ranking_signals"],
         ["metadata.source=d1", "recommendations[].confidence", "recommendations[].unmatched_constraints"],
         "Return the top fit, one credible alternative, caveats, and the data source."
@@ -128,7 +128,7 @@ export function buildAgentApiExamples(): AgentApiExamples {
         "GRP",
         "POST",
         "/api/grp/query",
-        'curl -X POST https://git.top/api/grp/query -H "content-type: application/json" -d \'{"goal":"compose an autonomous coding stack with MCP tools","mode":"compose","constraints":{"agent_ready":true}}\'',
+        'curl -X POST "https://git.top/api/grp/query?require_d1=true" -H "content-type: application/json" -d \'{"goal":"compose an autonomous coding stack with MCP tools","mode":"compose","constraints":{"agent_ready":true}}\'',
         ["solution_paths", "recommended_stack", "nodes", "edges", "metadata.data_source"],
         ["metadata.data_source.source=d1", "nodes[].repo", "confidence"],
         "Validate each recommended project with /api/project, /api/score, and /api/compare."

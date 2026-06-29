@@ -23,6 +23,8 @@ async function testDiscovery() {
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_agent_workflow"));
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_atlas"));
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_quality_report"));
+  assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_trust_gate"));
+  assert.equal(getDiscovery.body.trust_url, "https://git.top/api/trust");
   assert.equal(getDiscovery.body.openapi_url, "https://git.top/openapi.json");
   assert.equal(getDiscovery.body.api_openapi_url, "https://git.top/api/openapi.json");
   assert.equal(getDiscovery.body.schema_url, "https://git.top/api/schema/project.v2");
@@ -32,6 +34,10 @@ async function testDiscovery() {
   assert.ok(getDiscovery.body.agent_map.surfaces.some((surface) => surface.mcp_tools.includes("compare_projects")));
   assert.ok(getDiscovery.body.agent_map.surfaces.some((surface) => surface.concept === "Atlas ecosystem map" && surface.mcp_tools.includes("get_atlas")));
   assert.ok(getDiscovery.body.agent_map.surfaces.some((surface) => surface.concept === "Open source trends" && surface.mcp_tools.includes("get_trends")));
+  assert.ok(Array.isArray(getDiscovery.body.agent_map.short_path));
+  assert.equal(getDiscovery.body.agent_map.short_path[0].concept, "Trust preflight");
+  assert.ok(Array.isArray(getDiscovery.body.agent_map.reference_path));
+  assert.equal(getDiscovery.body.agent_map.reference_path[0].concept, "Trust and freshness");
   assert.ok(Array.isArray(getDiscovery.body.agent_api.structured_post_endpoints));
   assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/project"));
   assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/recommend"));
@@ -41,7 +47,10 @@ async function testDiscovery() {
   assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/related"));
   assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/score"));
   assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/graph"));
+  assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/trust"));
   assert.ok(getDiscovery.body.quickstart.some((item) => item.includes("structured POST")));
+  assert.ok(getDiscovery.body.quickstart.some((item) => item.includes("get_trust_gate")));
+  assert.ok(getDiscovery.body.quickstart.some((item) => item.includes("short_path")));
   assert.equal(getDiscovery.body.examples.structured_recommend.url, "https://git.top/api/recommend");
 
   const rpcDiscovery = await rpc("tools/list", {});
@@ -88,6 +97,10 @@ async function testDiscovery() {
   const qualityReportTool = getDiscovery.body.tools.find((tool) => tool.name === "get_quality_report");
   assert.match(qualityReportTool.description, /quality and coverage report/);
   assert.equal(qualityReportTool.input_schema.properties.require_d1.type, "boolean");
+
+  const trustGateTool = getDiscovery.body.tools.find((tool) => tool.name === "get_trust_gate");
+  assert.match(trustGateTool.description, /Trust Gate/);
+  assert.deepEqual(trustGateTool.input_schema.properties, {});
 }
 
 async function testToolCalls() {
@@ -298,6 +311,17 @@ async function testToolCalls() {
   assert.ok(trends.result.categories.length <= 3);
   assertMetadata(trends.result.metadata, "db_missing");
 
+  const trustGate = await callTool("get_trust_gate", {});
+  assert.equal(trustGate.status, 200);
+  assert.equal(trustGate.result.name, "Git.Top Trust Gate");
+  assert.ok(["allow", "caution", "block"].includes(trustGate.result.decision));
+  assert.equal(typeof trustGate.result.production_ready, "boolean");
+  assert.ok(Array.isArray(trustGate.result.checks));
+  assert.ok(trustGate.result.checks.some((check) => check.id === "d1-source"));
+  assert.ok(trustGate.result.agent_policy.cite.includes("metadata.source"));
+  assert.ok(typeof trustGate.result.quality.release_score === "number");
+  assertMetadata(trustGate.result.metadata, "db_missing");
+
   const qualityReport = await callTool("get_quality_report", {});
   assert.equal(qualityReport.status, 200);
   assert.ok(typeof qualityReport.result.release_score === "number");
@@ -352,6 +376,11 @@ async function testToolCalls() {
   assert.equal(strictQualityReport.status, 200);
   assertMetadata(strictQualityReport.result.metadata, "d1_query", "d1");
   assert.ok(typeof strictQualityReport.result.release_score === "number");
+
+  const strictTrustGate = await callTool("get_trust_gate", {}, mockD1Env());
+  assert.equal(strictTrustGate.status, 200);
+  assertMetadata(strictTrustGate.result.metadata, "d1_query", "d1");
+  assert.ok(["allow", "caution", "block"].includes(strictTrustGate.result.decision));
 
   const allAtlas = await callTool("get_atlas", { limit: 2 });
   assert.equal(allAtlas.status, 200);

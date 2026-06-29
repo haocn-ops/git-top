@@ -5,8 +5,9 @@ import type { Env, ProjectKnowledge } from "./types";
 const siteOrigin = "https://git.top";
 
 export function canonicalHostRedirect(request: Request, url: URL): Response | null {
-  const host = request.headers.get("host")?.split(":")[0].toLowerCase() ?? url.hostname;
-  if ([host, url.hostname].some((value) => ["localhost", "127.0.0.1", "::1"].includes(value))) {
+  const host = normalizeHostname(request.headers.get("host") ?? url.hostname);
+  const clientIp = request.headers.get("cf-connecting-ip");
+  if ([host, normalizeHostname(url.hostname), clientIp ? normalizeHostname(clientIp) : ""].some(isLocalHostname)) {
     return null;
   }
 
@@ -22,6 +23,22 @@ export function canonicalHostRedirect(request: Request, url: URL): Response | nu
     target.hostname = "git.top";
   }
   return Response.redirect(target.toString(), 301);
+}
+
+function normalizeHostname(value: string): string {
+  const host = value.trim().toLowerCase();
+  const bracketedIpv6 = host.match(/^\[([^\]]+)\](?::\d+)?$/);
+  if (bracketedIpv6) {
+    return bracketedIpv6[1];
+  }
+  if (host.includes(":") && host.indexOf(":") === host.lastIndexOf(":")) {
+    return host.replace(/:\d+$/, "");
+  }
+  return host;
+}
+
+function isLocalHostname(value: string): boolean {
+  return value === "localhost" || value.endsWith(".localhost") || value === "::1" || value.startsWith("127.");
 }
 
 export function withSiteHeaders(response: Response): Response {
@@ -100,6 +117,7 @@ export function renderLlmsTxt(): Response {
       "- Roadmap: https://git.top/roadmap",
       "- Agent workflow: https://git.top/workflow",
       "- Trust gate: https://git.top/trust",
+      "- Trust Gate Guide: https://git.top/topics/trust-gate-guide",
       "- OpenAPI: https://git.top/openapi.json",
       "- Project schema: https://git.top/api/schema/project.v2",
       "- Health: https://git.top/api/health",
@@ -121,6 +139,7 @@ export function renderLlmsTxt(): Response {
       "- Inspect classification evidence and quality_signal_confidence before citing a score.",
       "- Use /mcp for JSON-RPC tools/list and tools/call.",
       "- Use /quickstart or /api/quickstart for the shortest integration path.",
+      "- Use /api/agent-map.short_path first, then /api/agent-map.reference_path when you need the fuller discovery surface.",
       "- Use /recipes or /api/recipes for task-specific integration workflows.",
       "- Use /examples or /api/examples for copyable REST, MCP, and GRP calls.",
       "- Use /journeys or /api/journeys when starting from an ecosystem and moving toward a recommendation, graph, alternatives, compare, score, or Agent Map decision path.",
@@ -146,6 +165,7 @@ export function renderLlmsTxt(): Response {
       "- Git.Top Score Guide: https://git.top/topics/git-top-score-guide",
       "- Agent Workflow Guide: https://git.top/topics/agent-workflow-guide",
       "- Alternatives Engine Guide: https://git.top/topics/alternatives-engine-guide",
+      "- Trust Gate Guide: https://git.top/topics/trust-gate-guide",
       "- Data Trust Guide: https://git.top/topics/data-trust-guide",
       "- Open Source Quality Score API: https://git.top/topics/open-source-quality-score-api",
       "",
@@ -174,15 +194,17 @@ export function renderLlmsFullTxt(): Response {
       "",
       "## Recommended Agent Flow",
       "",
-      "1. GET /api/health and verify db=available and metadata.source=d1 for high-confidence production recommendations.",
-      "2. Use /api/workflow or /workflow when an agent needs a guided path across trends, recommendations, graph, alternatives, score, compare, and trust policy.",
-      "3. Search with /api/search or MCP search_projects.",
-      "4. Fetch candidate details with /api/project/:owner/:repo or MCP get_project.",
-      "5. Fetch alternatives with /api/alternatives/:owner/:repo or MCP get_alternatives.",
-      "6. Compare final candidates with /api/compare or MCP compare_projects.",
-      "7. Use /api/agent-map when an agent needs the human page, REST endpoint, MCP tool, output fields, and trust fields for a Git.Top concept.",
-      "8. Cite metadata, classification evidence, quality_signal_confidence, and freshness fields.",
-      "9. Operators can use the protected classification override API for reviewed one-off corrections from /quality/review.",
+      "1. Trust first: GET /api/health and GET /api/trust before high-confidence production recommendations.",
+      "2. GET /api/health and verify db=available and metadata.source=d1 for high-confidence production recommendations.",
+      "3. GET /api/trust or call MCP get_trust_gate before high-confidence production recommendations.",
+      "4. Use /api/workflow or MCP get_agent_workflow when an agent needs a guided path across trends, recommendations, graph, alternatives, score, compare, and trust policy.",
+      "5. Search with /api/search or MCP search_projects.",
+      "6. Fetch candidate details with /api/project/:owner/:repo or MCP get_project.",
+      "7. Fetch alternatives with /api/alternatives/:owner/:repo or MCP get_alternatives.",
+      "8. Compare final candidates with /api/compare or MCP compare_projects.",
+      "9. Use /api/agent-map when an agent needs the human page, REST endpoint, MCP tool, output fields, and trust fields for a Git.Top concept.",
+      "10. Cite metadata, classification evidence, quality_signal_confidence, and freshness fields.",
+      "11. Operators can use the protected classification override API for reviewed one-off corrections from /quality/review.",
       "",
       "## REST Endpoints",
       "",
@@ -215,6 +237,7 @@ export function renderLlmsFullTxt(): Response {
       "- GET /api/recipes",
       "- GET /api/examples",
       "- GET /api/roadmap",
+      "- GET /api/trust",
       "- GET /api/quality",
       "- GET /api/quality/review",
       "- GET /api/sync/status",
@@ -234,10 +257,15 @@ export function renderLlmsFullTxt(): Response {
       "- search_projects",
       "- get_project",
       "- get_alternatives",
+      "- get_related_projects",
       "- get_deployment",
       "- get_quality_score",
-      "- get_quality_report",
       "- recommend_project",
+      "- get_trends",
+      "- get_agent_workflow",
+      "- get_atlas",
+      "- get_quality_report",
+      "- get_trust_gate",
       "- find_alternatives",
       "- get_project_card",
       "- get_project_graph",
@@ -294,7 +322,7 @@ export function renderLlmsFullTxt(): Response {
       "",
       "## Agent Surface Map",
       "",
-      "GET /api/agent-map maps Git.Top concepts to human pages, REST endpoints, MCP tools, output fields, trust fields, and recommended use. Agents should call it when choosing between project lookup, recommendations, alternatives, graph, compare, score, Atlas, GRP, and quality surfaces.",
+      "GET /api/agent-map maps Git.Top concepts to human pages, REST endpoints, MCP tools, output fields, trust fields, and recommended use. Agents should read short_path first for the smallest viable trust-first route, then expand into reference_path when they need the fuller discovery surface. Use it when choosing between project lookup, recommendations, alternatives, graph, compare, score, Atlas, GRP, and quality surfaces.",
       "",
       "## Trust Fields",
       "",
@@ -350,6 +378,7 @@ export function renderLlmsFullTxt(): Response {
       "- /topics/git-top-score-guide",
       "- /topics/agent-workflow-guide",
       "- /topics/alternatives-engine-guide",
+      "- /topics/trust-gate-guide",
       "- /topics/data-trust-guide",
       "- /topics/langchain-alternatives",
       "- /topics/open-source-rag-frameworks",
@@ -456,6 +485,7 @@ function staticSitemapUrls(now: string): SitemapUrl[] {
     { path: "/topics/git-top-score-guide", changefreq: "weekly", priority: "0.9", lastmod: now },
     { path: "/topics/agent-workflow-guide", changefreq: "weekly", priority: "0.9", lastmod: now },
     { path: "/topics/alternatives-engine-guide", changefreq: "weekly", priority: "0.9", lastmod: now },
+    { path: "/topics/trust-gate-guide", changefreq: "weekly", priority: "0.9", lastmod: now },
     { path: "/topics/data-trust-guide", changefreq: "weekly", priority: "0.9", lastmod: now },
     { path: "/topics/langchain-alternatives", changefreq: "weekly", priority: "0.9", lastmod: now },
     { path: "/topics/open-source-rag-frameworks", changefreq: "weekly", priority: "0.9", lastmod: now },
@@ -662,6 +692,7 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
           <h2>Human pages, REST, and MCP stay aligned</h2>
           <ul>
             <li><code>/api/agent-map</code> maps each Git.Top concept to its page, REST endpoints, MCP tools, output fields, and trust fields.</li>
+            <li>Read <code>short_path</code> first, then <code>reference_path</code> only when you need the fuller discovery surface.</li>
             <li>Use it when deciding whether to call project lookup, recommendations, alternatives, graph, compare, score, Atlas, GRP, or quality endpoints.</li>
             <li>The same map is exposed through <code>GET /mcp</code> discovery for agent runtimes.</li>
           </ul>

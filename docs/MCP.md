@@ -24,7 +24,7 @@ Git.Top supports a simple GET discovery response:
 curl http://localhost:8787/mcp
 ```
 
-The GET response includes the MCP endpoint, docs URL, project schema URL, health URL, quality URL, agent map URL, quickstart hints, example JSON-RPC payloads, and the tool list. Agents should use it as the discovery entry point before guessing routes.
+The GET response includes the MCP endpoint, docs URL, project schema URL, health URL, quality URL, agent map URL, quickstart hints, example JSON-RPC payloads, and the tool list. Agents should use it as the discovery entry point before guessing routes. Treat `agent_map.short_path` as the first pass and `agent_map.reference_path` as the expansion path.
 
 The `agent_map` object is the same concept map exposed at `/api/agent-map`: it connects human pages, REST endpoints, MCP tools, output fields, and trust fields for project lookup, recommendations, alternatives, graph, compare, score, Atlas, GRP, and quality surfaces.
 
@@ -108,15 +108,25 @@ curl -X POST http://localhost:8787/mcp \
 
 Use `get_atlas` when an agent wants ecosystem maps, exploration paths, comparison paths, map nodes, edges, representative projects, and Atlas journey links without manually calling REST endpoints first.
 
+## Get Trust Gate
+
+```sh
+curl -X POST http://localhost:8787/mcp \
+  -H "content-type: application/json" \
+  -d '{"jsonrpc":"2.0","id":44,"method":"tools/call","params":{"name":"get_trust_gate","arguments":{}}}'
+```
+
+Use `get_trust_gate` before high-confidence production recommendations. It returns `decision`, `production_ready`, trust checks, agent policy, health, sync, quality, and metadata in one tool result.
+
 ## Get Quality Report
 
 ```sh
 curl -X POST http://localhost:8787/mcp \
   -H "content-type: application/json" \
-  -d '{"jsonrpc":"2.0","id":44,"method":"tools/call","params":{"name":"get_quality_report","arguments":{"require_d1":true}}}'
+  -d '{"jsonrpc":"2.0","id":45,"method":"tools/call","params":{"name":"get_quality_report","arguments":{"require_d1":true}}}'
 ```
 
-Use `get_quality_report` when an agent needs release score, data trust score, risk level, coverage, issue summary, and review queue size before trusting a recommendation.
+Use `get_quality_report` when an agent needs detailed release score, data trust score, risk level, coverage, issue summary, and review queue size after checking the Trust Gate.
 
 ## Find Alternatives
 
@@ -149,10 +159,11 @@ Agents should:
 - Prefer `metadata.source === "d1"` when making high-confidence recommendations.
 - Use `require_d1: true` for production answers that should fail closed rather than fall back to seed data.
 - Treat seed fallback as useful for demos and development, but mention the fallback when presenting results.
-- Use `get_quality_report` before citing corpus-wide quality or coverage claims.
+- Use `get_trust_gate` before high-confidence recommendations, then use `get_quality_report` for detailed corpus-wide quality or coverage claims.
 - Inspect `classification` evidence before asserting category, difficulty, or Cloudflare readiness.
 - Inspect `quality_signal_confidence` before treating growth, commit, release, or contributor counts as complete.
 - Prefer `git_top_grp_query` for goal-level planning and `search_projects` for direct retrieval.
+- Start with `agent_map.short_path`, then read `agent_map.reference_path` when you need the fuller discovery surface.
 - Use `ranking: "browse"` for broad scoped discovery, and omit it when the user names a specific project, owner, technology, or package.
 
 When a tool returns text content, parse it as JSON and inspect `metadata` before presenting conclusions. High-confidence production answers should be backed by `metadata.source: "d1"`.

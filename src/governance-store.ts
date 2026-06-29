@@ -98,6 +98,30 @@ export async function listGovernanceRuns(env: Env, limit = 25, task?: string): P
   }
 }
 
+export async function getLatestGovernanceRun(env: Env, task: string): Promise<GovernanceRun | null> {
+  if (!env.DB) {
+    return null;
+  }
+
+  try {
+    const row = await env.DB.prepare(
+      `SELECT * FROM governance_runs
+       WHERE task = ?
+       ORDER BY started_at DESC
+       LIMIT 1`
+    )
+      .bind(task)
+      .first<GovernanceRunRow>();
+    return row ? rowToGovernanceRun(row) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getLatestGovernanceRunByTask(env: Env, task: string): Promise<GovernanceRun | null> {
+  return getLatestGovernanceRun(env, task);
+}
+
 export async function getGovernanceSummary(env: Env): Promise<GovernanceSummary> {
   const runs = await listGovernanceRuns(env, 100);
   const latestByTaskMap = new Map<string, GovernanceRun>();

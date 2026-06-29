@@ -28,7 +28,13 @@ pnpm release:check
 pnpm release:check -- --skip-prod-smoke
 ```
 
-When schema columns changed, apply migrations in `migrations/` to the target D1 database before deploying code that reads those columns.
+When schema changed, apply migrations in `migrations/` to the target D1 database before deploying code that reads those tables or columns. The current content-sync optimization adds the GitHub conditional request cache:
+
+```sh
+wrangler d1 execute git-top --remote --file=./migrations/0006_github_request_cache.sql
+```
+
+If this migration is missed, sync degrades to direct GitHub requests because cache reads and writes are best-effort, but production should still be migrated before deploy so repeated syncs can reuse GitHub validators.
 
 ## Deploy
 
@@ -112,13 +118,15 @@ Healthy production should show:
 - `synced_count` moving toward the seed repository count.
 - `health` as `healthy` after a successful sync run.
 - `freshness` as `fresh` when a successful sync completed within the last 24 hours.
+- `derived.alternatives.freshness` as `fresh` when global alternatives were rebuilt within the last seven days.
+- `priority` with hot, warm, and cold stale queues; Cron consumes this queue before the seed cursor fallback.
 - `hours_since_successful_sync` low enough for the current operating window.
 - `cycle_complete` true after the seed list has been fully covered at least once.
 - `next_batch_wraps` true only when the next sync batch crosses the end of the seed list and wraps back to the beginning.
 - `last_failed_sync_at` empty or older than the latest successful run.
 - `last_error` empty unless the most recent sync failed.
 
-Cron sync intentionally uses lightweight signal collection: it processes five repositories per invocation, reads README and root files, checks one page each for commits, releases, and contributors, and skips issue-comment deep dives. This keeps steady progress under Cloudflare Worker subrequest limits.
+Cron sync intentionally uses lightweight signal collection: it processes five repositories per invocation, reads README and root files, checks one page each for commits, releases, and contributors, and skips issue-comment deep dives. It refreshes stale hot/warm/cold repositories before falling back to the seed cursor, does not rebuild global alternatives inline, and keeps steady progress under Cloudflare Worker subrequest limits.
 
 Trigger a small protected sync when needed:
 
@@ -129,22 +137,41 @@ curl -X POST https://git.top/api/admin/sync \
   -d '{"limit":1}'
 ```
 
-Use lightweight signal collection for catch-up syncs:
+Use lightweight signal collection for catch-up syncs. Prefer small batches when recent sync status is degraded:
 
 ```sh
 curl -X POST https://git.top/api/admin/sync \
   -H "authorization: Bearer $SYNC_SECRET" \
   -H "content-type: application/json" \
-  -d '{"limit":40,"signal_depth":"lite"}'
+  -d '{"limit":5,"signal_depth":"lite","refresh_derived":false}'
 ```
 
 Run repeated catch-up rounds from the repo:
 
 ```sh
-SYNC_SECRET=... pnpm sync:prod:catchup --rounds 13 --limit 40
+SYNC_SECRET=... pnpm sync:prod:catchup --rounds 10 --limit 5 --signal-depth lite
 ```
 
-Cron uses a lightweight batch of 8 to stay under Worker subrequest limits, and the sync code caps manual catch-up batches at 50. Use larger manual batches only after checking recent `/api/sync/status` runs. If production is `degraded` with a subrequest-limit error, run `limit:1` or `signal_depth:"lite"` until a successful run makes `health` return to `healthy`.
+The sync code caps manual catch-up batches at 50, but larger batches should be used only after checking recent `/api/sync/status` runs. If production is `degraded` with a subrequest-limit error, run `limit:1` or `limit:5` with `signal_depth:"lite"` until a successful run makes `health` return to `healthy`. Retryable platform and rate-limit failures stop the batch and do not advance the sync cursor past unprocessed repositories.
+
+Admin sync responses include `github_request_metrics`, per-repository `repository_request_metrics`, and `derived_refresh`. Use those fields to confirm that GitHub conditional requests are active and that catch-up runs intentionally skipped expensive derived rebuilds.
+
+## Derived Alternatives Refresh
+
+Global alternatives are derived from the current project corpus. Refresh them separately after catch-up syncs or when `/api/sync/status` reports stale alternatives:
+
+```sh
+curl -X POST https://git.top/api/admin/alternatives \
+  -H "authorization: Bearer $SYNC_SECRET"
+```
+
+The refresh records a governance run with `task=derived:alternatives`:
+
+```sh
+curl "https://git.top/api/governance/runs?task=derived:alternatives"
+```
+
+The Trust Gate checks derived alternatives freshness separately from raw GitHub metadata freshness, so a stale alternatives warning does not necessarily mean repository metadata sync is stale.
 
 ## Data Quality Check
 

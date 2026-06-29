@@ -1,4 +1,5 @@
-import type { SyncFailure, SyncRun } from "./types";
+import type { GovernanceRun, SyncFailure, SyncRun } from "./types";
+import type { SyncPrioritySummary } from "./sync-priority";
 
 export interface SyncStatusInput {
   cursor: number;
@@ -6,6 +7,18 @@ export interface SyncStatusInput {
   indexedCount: number;
   seedSyncedCount: number;
   seedRepositories: string[];
+  priority?: SyncPrioritySummary;
+  derivedRuns?: GovernanceRun[];
+}
+
+export interface DerivedFreshnessStatus {
+  alternatives: {
+    freshness: "fresh" | "stale" | "unknown";
+    lastSuccessfulRunAt: string | null;
+    hoursSinceSuccessfulRun: number | null;
+    lastRunStatus: GovernanceRun["status"] | null;
+    staleAfterHours: number;
+  };
 }
 
 export interface SyncStatus {
@@ -25,6 +38,8 @@ export interface SyncStatus {
   lastFailedSyncAt: string | null;
   lastError: SyncFailure | null;
   recentRuns: SyncRun[];
+  priority?: SyncPrioritySummary;
+  derived: DerivedFreshnessStatus;
 }
 
 export function buildSyncStatus(input: SyncStatusInput): SyncStatus {
@@ -40,6 +55,7 @@ export function buildSyncStatus(input: SyncStatusInput): SyncStatus {
   const lastSuccessfulRun = recentRuns.find((run) => run.syncedCount > 0);
   const lastFailedRun = recentRuns.find((run) => run.failedCount > 0);
   const freshness = syncFreshness(recentRuns);
+  const derived = derivedFreshness(input.derivedRuns ?? []);
 
   return {
     cursor: normalizedCursor,
@@ -57,7 +73,9 @@ export function buildSyncStatus(input: SyncStatusInput): SyncStatus {
     hoursSinceSuccessfulSync: freshness.hoursSinceSuccessfulSync,
     lastFailedSyncAt: lastFailedRun?.finishedAt ?? null,
     lastError: lastFailedRun?.failed[0] ?? null,
-    recentRuns
+    recentRuns,
+    ...(input.priority ? { priority: input.priority } : {}),
+    derived
   };
 }
 
@@ -102,4 +120,28 @@ function hoursBetween(startIso: string, endIso: string): number {
     return 0;
   }
   return Math.max(0, Math.floor((end - start) / 1000 / 60 / 60));
+}
+
+function derivedFreshness(runs: GovernanceRun[]): DerivedFreshnessStatus {
+  const alternativesRuns = runs.filter((run) => run.task === "derived:alternatives");
+  const latestRun = alternativesRuns[0] ?? null;
+  const lastSuccessfulRun = alternativesRuns.find((run) => run.status === "success") ?? null;
+  const staleAfterHours = 24 * 7;
+  const hoursSinceSuccessfulRun = lastSuccessfulRun ? hoursBetween(lastSuccessfulRun.finishedAt, new Date().toISOString()) : null;
+  const freshness =
+    hoursSinceSuccessfulRun === null
+      ? "unknown"
+      : hoursSinceSuccessfulRun <= staleAfterHours
+        ? "fresh"
+        : "stale";
+
+  return {
+    alternatives: {
+      freshness,
+      lastSuccessfulRunAt: lastSuccessfulRun?.finishedAt ?? null,
+      hoursSinceSuccessfulRun,
+      lastRunStatus: latestRun?.status ?? null,
+      staleAfterHours
+    }
+  };
 }

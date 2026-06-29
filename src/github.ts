@@ -1,3 +1,4 @@
+import { getGithubRequestCache, touchGithubRequestCache, upsertGithubRequestCache } from "./github-cache-store";
 import type { Env, GithubRepoSignals, GithubRepository } from "./types";
 import seedRepositories from "../data/seed-repositories.json";
 
@@ -48,6 +49,19 @@ interface PagedCount {
   complete: boolean;
 }
 
+interface GithubResponse<T> {
+  data: T;
+  headers: Headers;
+}
+
+export interface GithubRequestMetrics {
+  total: number;
+  conditional: number;
+  cacheHits: number;
+  cacheMisses: number;
+  revalidated: number;
+}
+
 export interface GithubSignalOptions {
   maxCommitPages?: number;
   maxReleasePages?: number;
@@ -57,6 +71,13 @@ export interface GithubSignalOptions {
 
 export class GithubClient {
   private readonly env: Env;
+  private readonly metrics: GithubRequestMetrics = {
+    total: 0,
+    conditional: 0,
+    cacheHits: 0,
+    cacheMisses: 0,
+    revalidated: 0
+  };
 
   constructor(env: Env) {
     this.env = env;
@@ -93,6 +114,12 @@ export class GithubClient {
         releases180d: confidenceFor(releases180d),
         contributors90d: confidenceFor(contributors90d)
       }
+    };
+  }
+
+  getRequestMetrics(): GithubRequestMetrics {
+    return {
+      ...this.metrics
     };
   }
 
@@ -187,7 +214,7 @@ export class GithubClient {
     return (await this.requestWithHeaders<T>(path)).data;
   }
 
-  private async requestWithHeaders<T>(path: string): Promise<{ data: T; headers: Headers }> {
+  private async requestWithHeaders<T>(path: string): Promise<GithubResponse<T>> {
     const headers = new Headers({
       accept: "application/vnd.github+json",
       "user-agent": "git-top-worker"
@@ -197,12 +224,46 @@ export class GithubClient {
       headers.set("authorization", `Bearer ${this.env.GITHUB_TOKEN}`);
     }
 
+    const cached = await getGithubRequestCache(this.env, path);
+    if (cached?.etag) {
+      headers.set("if-none-match", cached.etag);
+    }
+    if (cached?.lastModified) {
+      headers.set("if-modified-since", cached.lastModified);
+    }
+
+    this.metrics.total += 1;
+    if (cached) {
+      this.metrics.conditional += 1;
+    }
+
     const response = await fetch(`${githubApiBase}${path}`, { headers });
+    if (response.status === 304 && cached) {
+      this.metrics.cacheHits += 1;
+      await touchGithubRequestCache(this.env, path);
+      return {
+        data: JSON.parse(cached.bodyJson) as T,
+        headers: response.headers
+      };
+    }
     if (!response.ok) {
       throw new Error(`GitHub API ${response.status} for ${path}`);
     }
+    if (cached) {
+      this.metrics.revalidated += 1;
+    } else {
+      this.metrics.cacheMisses += 1;
+    }
+    const data = await response.json<T>();
+    await upsertGithubRequestCache(this.env, {
+      cacheKey: path,
+      etag: response.headers.get("etag"),
+      lastModified: response.headers.get("last-modified"),
+      bodyJson: JSON.stringify(data),
+      status: response.status
+    });
     return {
-      data: await response.json<T>(),
+      data,
       headers: response.headers
     };
   }

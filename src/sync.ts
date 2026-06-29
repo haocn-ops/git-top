@@ -3,13 +3,14 @@ import { generateAlternatives } from "./alternatives";
 import { getSyncCursor, getStarsDeltaSnapshot, insertSyncRun, setSyncCursor } from "./db-sync-store";
 import { updateProjectAlternatives, upsertProjectKnowledge } from "./db-write-store";
 import { listProjectKnowledgeWithMeta } from "./knowledge-source";
-import { defaultSeedRepositories, GithubClient } from "./github";
+import { defaultSeedRepositories, GithubClient, type GithubRequestMetrics } from "./github";
 import { calculateMetrics } from "./scoring";
+import { selectPriorityRepositoryIds } from "./sync-priority";
 import type { Env, GithubRepository, Project, ProjectKnowledge, SyncFailure, SyncTrigger } from "./types";
 import { validateProjectKnowledge, ValidationError } from "./validation";
 
 export const defaultSyncLimit = 1;
-export const scheduledSyncLimit = 8;
+export const scheduledSyncLimit = 5;
 export const maxSyncLimit = 50;
 
 const lightweightSignalOptions = {
@@ -25,6 +26,7 @@ export interface SyncOptions {
   offset?: number;
   trigger?: SyncTrigger;
   signalDepth?: "full" | "lite";
+  refreshDerived?: boolean;
 }
 
 export interface SyncResult {
@@ -43,6 +45,11 @@ export interface SyncResult {
       contributors90d?: "complete" | "partial" | "unknown";
     }
   >;
+  githubRequestMetrics: GithubRequestMetrics;
+  repositoryRequestMetrics: Record<string, GithubRequestMetrics>;
+  derivedRefresh: {
+    alternatives: "updated" | "skipped";
+  };
 }
 
 export async function syncGithubProjects(env: Env, options: SyncOptions = {}): Promise<SyncResult> {
@@ -54,21 +61,39 @@ export async function syncGithubProjects(env: Env, options: SyncOptions = {}): P
   const usesCursor = !options.repositories && options.offset === undefined;
   const offset = allRepositories.length === 0 ? 0 : usesCursor ? (await getSyncCursor(env)) % allRepositories.length : clampOffset(options.offset);
   const limit = clampLimit(options.limit);
-  const repositories = selectRepositoryBatch(allRepositories, offset, limit);
-  const nextOffset = allRepositories.length === 0 ? 0 : (offset + limit) % allRepositories.length;
+  const cursorRepositories = selectRepositoryBatch(allRepositories, offset, limit);
+  const cursorReserve = usesCursor && options.trigger === "cron" ? 1 : 0;
+  const priorityRepositories =
+    usesCursor && options.trigger === "cron"
+      ? selectPriorityRepositoryIds((await listProjectKnowledgeWithMeta(env)).projects, allRepositories, Math.max(1, limit - cursorReserve))
+      : [];
+  const repositories =
+    usesCursor && options.trigger === "cron"
+      ? selectScheduledRepositoryBatch(allRepositories, offset, limit, priorityRepositories, cursorReserve).repositories
+      : cursorRepositories;
   const github = new GithubClient(env);
   const signalOptions = options.signalDepth === "lite" ? lightweightSignalOptions : undefined;
+  const trigger = options.trigger ?? "manual";
+  const refreshDerived = options.refreshDerived ?? trigger !== "cron";
   const startedAt = new Date();
+  let cursorAdvanceCount = 0;
+  const cursorProgress = new Set<string>();
   const result: SyncResult = {
     synced: [],
     alternativesUpdated: 0,
     offset,
-    nextOffset,
+    nextOffset: offset,
     failed: [],
-    metricSources: {}
+    metricSources: {},
+    githubRequestMetrics: github.getRequestMetrics(),
+    repositoryRequestMetrics: {},
+    derivedRefresh: {
+      alternatives: refreshDerived ? "updated" : "skipped"
+    }
   };
 
   for (const repository of repositories) {
+    const beforeMetrics = github.getRequestMetrics();
     try {
       const repo = await github.getRepository(repository);
       const signals = await github.getSignals(repo, signalOptions);
@@ -80,6 +105,7 @@ export async function syncGithubProjects(env: Env, options: SyncOptions = {}): P
         ...signals.signalConfidence
       } satisfies NonNullable<ProjectKnowledge["metrics"]["signalConfidence"]>;
       result.metricSources[repository] = signalConfidence;
+      result.repositoryRequestMetrics[repository] = deltaGithubMetrics(beforeMetrics, github.getRequestMetrics());
       const knowledge: ProjectKnowledge = {
         project: repositoryToProject(repo, now),
         agentCard: generateAgentCard(repo, signals, now),
@@ -89,23 +115,38 @@ export async function syncGithubProjects(env: Env, options: SyncOptions = {}): P
       validateProjectKnowledge(knowledge);
       await upsertProjectKnowledge(env, knowledge);
       result.synced.push(repository);
+      cursorProgress.add(repository.toLowerCase());
+      cursorAdvanceCount = countCursorProgress(cursorRepositories, cursorProgress);
     } catch (error) {
+      result.repositoryRequestMetrics[repository] = deltaGithubMetrics(beforeMetrics, github.getRequestMetrics());
+      const retryable = isRetryableSyncError(error);
       result.failed.push({
         repository,
         error: formatSyncError(error)
       });
+      if (retryable) {
+        break;
+      }
+      cursorProgress.add(repository.toLowerCase());
+      cursorAdvanceCount = countCursorProgress(cursorRepositories, cursorProgress);
     }
   }
+  result.githubRequestMetrics = github.getRequestMetrics();
 
-  const projects = (await listProjectKnowledgeWithMeta(env)).projects;
-  const syncedIds = new Set(result.synced.map((repository) => repository.toLowerCase()));
-  const alternativeUpdates = projects
-    .filter((project) => syncedIds.has(project.project.id.toLowerCase()))
-    .map((project) => ({
-      projectId: project.project.id,
-      alternatives: generateAlternatives(project, projects, 5)
-    }));
-  result.alternativesUpdated = await updateProjectAlternatives(env, alternativeUpdates);
+  const nextOffset = nextSyncOffset(allRepositories.length, offset, cursorAdvanceCount);
+  result.nextOffset = nextOffset;
+
+  if (refreshDerived) {
+    const projects = (await listProjectKnowledgeWithMeta(env)).projects;
+    const syncedIds = new Set(result.synced.map((repository) => repository.toLowerCase()));
+    const alternativeUpdates = projects
+      .filter((project) => syncedIds.has(project.project.id.toLowerCase()))
+      .map((project) => ({
+        projectId: project.project.id,
+        alternatives: generateAlternatives(project, projects, 5)
+      }));
+    result.alternativesUpdated = await updateProjectAlternatives(env, alternativeUpdates);
+  }
 
   if (usesCursor) {
     await setSyncCursor(env, nextOffset);
@@ -113,7 +154,7 @@ export async function syncGithubProjects(env: Env, options: SyncOptions = {}): P
 
   await insertSyncRun(env, {
     id: crypto.randomUUID(),
-    trigger: options.trigger ?? "manual",
+    trigger,
     startedAt: startedAt.toISOString(),
     finishedAt: new Date().toISOString(),
     durationMs: Date.now() - startedAt.getTime(),
@@ -183,6 +224,77 @@ export function selectRepositoryBatch(repositories: string[], offset: number, li
   return Array.from({ length: batchSize }, (_, index) => repositories[(normalizedOffset + index) % repositories.length]);
 }
 
+export function selectScheduledRepositoryBatch(
+  repositories: string[],
+  offset: number,
+  limit: number,
+  priorityRepositories: string[],
+  cursorReserve = 0
+): { repositories: string[]; cursorRepositories: string[] } {
+  const cursorRepositories = selectRepositoryBatch(repositories, offset, limit);
+  const selectedPriorityLimit = Math.max(0, Math.min(limit - Math.max(0, Math.trunc(cursorReserve)), limit));
+  const canonical = new Map(repositories.map((repo) => [repo.toLowerCase(), repo]));
+  const selected: string[] = [];
+  const seen = new Set<string>();
+
+  if (selectedPriorityLimit > 0) {
+    for (const repository of priorityRepositories) {
+      const normalized = repository.toLowerCase();
+      const canonicalRepository = canonical.get(normalized);
+      if (!canonicalRepository || seen.has(normalized)) {
+        continue;
+      }
+      selected.push(canonicalRepository);
+      seen.add(normalized);
+      if (selected.length >= selectedPriorityLimit) {
+        break;
+      }
+    }
+  }
+
+  for (const repository of cursorRepositories) {
+    const normalized = repository.toLowerCase();
+    if (seen.has(normalized)) {
+      continue;
+    }
+    selected.push(repository);
+    seen.add(normalized);
+    if (selected.length >= limit) {
+      break;
+    }
+  }
+
+  return {
+    repositories: selected,
+    cursorRepositories
+  };
+}
+
+export function nextSyncOffset(repositoryCount: number, offset: number, advancedCount: number): number {
+  if (repositoryCount <= 0) {
+    return 0;
+  }
+  return (Math.max(0, Math.trunc(offset)) + Math.max(0, Math.trunc(advancedCount))) % repositoryCount;
+}
+
+function countCursorProgress(cursorRepositories: string[], processedRepositories: Set<string>): number {
+  let count = 0;
+  while (count < cursorRepositories.length && processedRepositories.has(cursorRepositories[count].toLowerCase())) {
+    count += 1;
+  }
+  return count;
+}
+
+function deltaGithubMetrics(before: GithubRequestMetrics, after: GithubRequestMetrics): GithubRequestMetrics {
+  return {
+    total: after.total - before.total,
+    conditional: after.conditional - before.conditional,
+    cacheHits: after.cacheHits - before.cacheHits,
+    cacheMisses: after.cacheMisses - before.cacheMisses,
+    revalidated: after.revalidated - before.revalidated
+  };
+}
+
 function clampLimit(value: number | undefined): number {
   if (!value || !Number.isFinite(value)) {
     return defaultSyncLimit;
@@ -195,4 +307,18 @@ function clampOffset(value: number | undefined): number {
     return 0;
   }
   return Math.max(0, Math.trunc(value));
+}
+
+function isRetryableSyncError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  const message = error.message.toLowerCase();
+  if (message.includes("too many subrequests")) {
+    return true;
+  }
+  if (message.includes("github api 403") || message.includes("github api 429")) {
+    return true;
+  }
+  return /github api 5\d\d/.test(message);
 }

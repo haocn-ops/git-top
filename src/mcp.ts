@@ -18,6 +18,7 @@ import { buildProjectScoreExplanation } from "./score";
 import { buildQualityReport } from "./quality";
 import { getKnowledgeForSourcePolicy } from "./source-policy";
 import { buildTrendsView } from "./trends";
+import { buildTrustGate } from "./trust-gate";
 import { buildAgentWorkflow } from "./workflow";
 import { resolveProject } from "./project-aliases";
 import type { Env, ProjectKnowledge } from "./types";
@@ -56,6 +57,29 @@ const tools = [
           description: "Optional browse ranking for broad category/deployment discovery with larger limits. Defaults to exact-intent search ranking."
         },
         limit: { type: "number" },
+        require_d1: {
+          type: "boolean",
+          description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
+        }
+      }
+    }
+  },
+  {
+    name: "get_trust_gate",
+    description:
+      "Return the Trust Gate production-readiness decision before agents cite or recommend projects with high confidence.",
+    inputSchema: {
+      type: "object",
+      properties: {}
+    }
+  },
+  {
+    name: "get_quality_report",
+    description:
+      "Return the corpus quality and coverage report with release score, data trust score, risk level, coverage, issue summary, and review queue size.",
+    inputSchema: {
+      type: "object",
+      properties: {
         require_d1: {
           type: "boolean",
           description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
@@ -240,19 +264,6 @@ const tools = [
     }
   },
   {
-    name: "get_quality_report",
-    description: "Return the corpus quality and coverage report with release score, data trust score, risk level, coverage, issue summary, and review queue size.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        require_d1: {
-          type: "boolean",
-          description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
-        }
-      }
-    }
-  },
-  {
     name: "find_alternatives",
     description: "Find alternative projects for a canonical owner/name project id or Git.Top product alias.",
     inputSchema: {
@@ -381,7 +392,7 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
       name: "git-top",
       title: "Git.Top GitHub Knowledge Layer for AI Agents",
       description:
-        "Agent-native open source project intelligence with search, project lookup, alternatives, deployment signals, quality scores, and graph reasoning.",
+        "Agent-native open source project intelligence with trust-first discovery, search, project lookup, alternatives, deployment signals, quality scores, and graph reasoning.",
       protocolVersion: "2025-06-18",
       endpoint: "/mcp",
       docsUrl: "https://git.top/docs",
@@ -389,6 +400,7 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
       apiOpenapiUrl: "https://git.top/api/openapi.json",
       schemaUrl: "https://git.top/api/schema/project.v2",
       healthUrl: "https://git.top/api/health",
+      trustUrl: "https://git.top/api/trust",
       qualityUrl: "https://git.top/api/quality",
       agentMapUrl: "https://git.top/api/agent-map",
       agentMap,
@@ -456,11 +468,19 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
             method: "GET",
             description: "Inspect corpus-level category, deployment, language, rising-project, and agent-briefing trend signals.",
             bodyExample: null
+          },
+          {
+            path: "/api/trust",
+            method: "GET",
+            description: "Inspect the production-readiness Trust Gate before high-confidence recommendations.",
+            bodyExample: null
           }
         ]
       },
       quickstart: [
-        "GET /api/health and verify metadata.source is d1 for production recommendations.",
+      "GET /api/trust or call get_trust_gate before high-confidence production recommendations.",
+      "GET /api/health to confirm system availability, then rely on metadata.source=d1 for production recommendations.",
+      "Use agent_map.short_path first, then expand into agent_map.reference_path when you need the fuller discovery surface.",
         "Use structured POST endpoints under agent_api.structured_post_endpoints for project, recommendation, comparison, alternatives, and graph requests.",
         "Call tools/list to inspect available MCP tools.",
         "Call search_projects with query, category, deployment, and limit.",
@@ -694,6 +714,10 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
       ...buildQualityReport(knowledge.projects),
       metadata: knowledge.metadata
     };
+  }
+
+  if (name === "get_trust_gate") {
+    return buildTrustGate(env);
   }
 
   if (name === "find_alternatives" || name === "get_alternatives") {

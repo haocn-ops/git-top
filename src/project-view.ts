@@ -1,6 +1,7 @@
 import type { ProjectKnowledge } from "./types";
 
 export interface ProjectKnowledgeView {
+  projectId: string;
   repo: string;
   name: string;
   githubUrl: string;
@@ -64,6 +65,7 @@ export function toProjectKnowledgeView(item: ProjectKnowledge): ProjectKnowledge
   const gitTopScore = calculateGitTopScoreFromParts(gitTopScoreBreakdown);
 
   return {
+    projectId: item.project.fullName,
     repo: item.project.fullName,
     name: item.project.name,
     githubUrl: item.project.githubUrl,

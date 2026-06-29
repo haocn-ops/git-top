@@ -126,7 +126,7 @@ export function buildAgentRecipes(): AgentRecipes {
         useCase: "A user asks for a plan, stack, or project set rather than a single repository.",
         outcome: "Return graph-grounded paths or stacks, then validate candidate projects through normal APIs.",
         steps: [
-          step("Run GRP", "POST", "/api/grp/query", 'curl -X POST https://git.top/api/grp/query -H "content-type: application/json" -d \'{"goal":"compose an autonomous coding stack with MCP tools","mode":"compose","constraints":{"agent_ready":true}}\'', ["solution_paths", "recommended_stack", "nodes", "metadata.data_source"]),
+          step("Run GRP", "POST", "/api/grp/query", 'curl -X POST "https://git.top/api/grp/query?require_d1=true" -H "content-type: application/json" -d \'{"goal":"compose an autonomous coding stack with MCP tools","mode":"compose","constraints":{"agent_ready":true}}\'', ["solution_paths", "recommended_stack", "nodes", "metadata.data_source"]),
           step("Inspect candidate", "GET", "/api/project/:project", "curl https://git.top/api/project/cloudflare/agents?require_d1=true", ["classification", "related", "quality_signal_confidence"]),
           step("Compare final stack candidates", "GET", "/api/compare", 'curl "https://git.top/api/compare?repos=cloudflare/agents,github/github-mcp-server&require_d1=true"', ["decision_matrix", "next_actions"])
         ],
@@ -220,7 +220,7 @@ function renderHtml(recipes: AgentRecipes): string {
           <a class="button primary" href="/api/recipes">Open Recipes JSON</a>
           <a class="button" href="/quickstart">Quickstart</a>
           <a class="button" href="/api/agent-map">Agent Map</a>
-          <a class="button" href="/api/workflow?intent=choose%20a%20Cloudflare-ready%20agent%20framework&amp;deployment=cloudflare&amp;category=agent_framework&amp;cloudflare_ready=true&amp;limit=5">Try Workflow</a>
+          <a class="button" href="/api/workflow?intent=choose%20a%20Cloudflare-ready%20agent%20framework&amp;deployment=cloudflare&amp;category=agent_framework&amp;cloudflare_ready=true&amp;limit=5&amp;require_d1=true">Try Workflow</a>
         </div>
       </header>
 

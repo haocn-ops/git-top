@@ -566,6 +566,21 @@ const topicLandings: Record<
         body: "Operators and agents can combine /status, /coverage, /quality, /quality/review, and get_quality_report to understand data readiness and risk."
       }
     ]
+  },
+  "trust-gate-guide": {
+    title: "Trust Gate Guide",
+    subtitle: "Learn how Git.Top turns health, sync, quality, and data trust into a single production-readiness decision.",
+    apiPath: "/trust",
+    sections: [
+      {
+        title: "Decision Flow",
+        body: "Check /api/trust first. Use allow for direct production recommendations, caution when you need to disclose caveats, and block when you should fail closed."
+      },
+      {
+        title: "When To Follow Up",
+        body: "Use /api/quality after the gate when you need release score, corpus trust, coverage, and risk details for deeper review."
+      }
+    ]
   }
 };
 

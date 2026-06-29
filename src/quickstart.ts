@@ -35,6 +35,16 @@ export function buildAgentQuickstart(): AgentQuickstart {
     },
     steps: [
       {
+        id: "check-trust-gate",
+        title: "Check Trust Gate",
+        purpose: "Get a single production-readiness decision before making a high-confidence recommendation.",
+        rest: "GET /api/trust",
+        mcpTool: "get_trust_gate",
+        command: "curl https://git.top/api/trust",
+        inspect: ["decision", "production_ready", "checks[].status", "quality.release_score", "quality.data_trust_score", "metadata.source"],
+        next: "Use the gate decision to decide whether to answer directly, disclose caveats, or fail closed."
+      },
+      {
         id: "check-data-source",
         title: "Check Data Source",
         purpose: "Verify production data is D1-backed before making a high-confidence recommendation.",
@@ -49,9 +59,9 @@ export function buildAgentQuickstart(): AgentQuickstart {
         purpose: "Use a guided path when the task spans trends, recommendations, graph, alternatives, score, compare, and trust checks.",
         rest: "GET /api/workflow",
         mcpTool: "get_agent_workflow",
-        command: 'curl "https://git.top/api/workflow?intent=choose%20a%20Cloudflare-ready%20agent%20framework&deployment=cloudflare&category=agent_framework&cloudflare_ready=true&limit=5"',
+        command: 'curl "https://git.top/api/workflow?intent=choose%20a%20Cloudflare-ready%20agent%20framework&deployment=cloudflare&category=agent_framework&cloudflare_ready=true&limit=5&require_d1=true"',
         inspect: ["recommended_sequence", "shortlist", "trend_context", "agent_map", "trust_policy"],
-        next: "Start here for broad or ambiguous project-selection tasks."
+        next: "Start here for broad or ambiguous project-selection tasks after confirming the trust gate."
       },
       {
         id: "inspect-surface-map",
@@ -60,7 +70,7 @@ export function buildAgentQuickstart(): AgentQuickstart {
         rest: "GET /api/agent-map",
         command: "curl https://git.top/api/agent-map",
         inspect: ["surfaces[].concept", "surfaces[].rest", "surfaces[].mcp_tools", "surfaces[].trust_fields"],
-        next: "Use this before guessing whether to call recommendations, alternatives, graph, compare, score, Atlas, GRP, or quality endpoints."
+        next: "Use this before guessing whether to call recommendations, alternatives, graph, compare, score, Atlas, GRP, or quality endpoints. Treat short_path as the default route and reference_path as the expansion route."
       },
       {
         id: "search-projects",
@@ -68,7 +78,7 @@ export function buildAgentQuickstart(): AgentQuickstart {
         purpose: "Retrieve candidate projects by query, category, deployment, language, project kind, and Cloudflare readiness.",
         rest: "GET /api/search",
         mcpTool: "search_projects",
-        command: 'curl "https://git.top/api/search?category=agent_framework&deployment=cloudflare&ranking=browse&limit=10"',
+        command: 'curl "https://git.top/api/search?category=agent_framework&deployment=cloudflare&ranking=browse&limit=10&require_d1=true"',
         inspect: ["projects[].repo", "projects[].project_kind", "projects[].collection_metadata", "metadata.source"],
         next: "Use browse ranking for category discovery and query search for direct retrieval."
       },
@@ -78,7 +88,7 @@ export function buildAgentQuickstart(): AgentQuickstart {
         purpose: "Start from an ecosystem map and move into ordered journeys plus comparison paths before choosing projects.",
         rest: "GET /api/journeys",
         mcpTool: "get_atlas",
-        command: "curl https://git.top/api/journeys?limit=8",
+        command: "curl https://git.top/api/journeys?limit=8&require_d1=true",
         inspect: ["journeys[].steps", "comparison_paths", "comparison_paths[].api_href", "stats.comparison_path_count"],
         next: "Use comparison_paths when the user asks for ecosystem-specific shortlists or map-to-compare decisions."
       },
@@ -88,7 +98,7 @@ export function buildAgentQuickstart(): AgentQuickstart {
         purpose: "Fetch structured project knowledge before recommending, comparing, or citing a repository.",
         rest: "GET /api/project/:project",
         mcpTool: "get_project",
-        command: "curl https://git.top/api/project/cloudflare/agents",
+        command: "curl https://git.top/api/project/cloudflare/agents?require_d1=true",
         inspect: ["knowledge.agent_card.classification", "quality_signal_confidence", "score", "related", "metadata.source"],
         next: "Check classification evidence before saying a project is Cloudflare-ready or production-fit."
       },
@@ -98,7 +108,7 @@ export function buildAgentQuickstart(): AgentQuickstart {
         purpose: "Turn a concrete use case and constraints into an explainable shortlist.",
         rest: "GET /api/recommend",
         mcpTool: "recommend_project",
-        command: 'curl "https://git.top/api/recommend?use_case=build%20a%20browser%20automation%20agent&deployment=docker&limit=5"',
+        command: 'curl "https://git.top/api/recommend?use_case=build%20a%20browser%20automation%20agent&deployment=docker&limit=5&require_d1=true"',
         inspect: ["recommendations[].decision_summary", "fit_profile", "adoption_plan", "risk_flags", "confidence"],
         next: "Present the top project, one alternative, caveats, and metadata source."
       },
@@ -108,7 +118,7 @@ export function buildAgentQuickstart(): AgentQuickstart {
         purpose: "Use decision matrices instead of raw star counts when the user already has candidates.",
         rest: "GET /api/compare",
         mcpTool: "compare_projects",
-        command: 'curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain,run-llama/llama_index&deployment=cloudflare"',
+        command: 'curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain,run-llama/llama_index&deployment=cloudflare&require_d1=true"',
         inspect: ["summary", "decision_matrix", "winner", "reasoning", "next_actions"],
         next: "Move from comparison into graph, alternatives, score, or project pages before finalizing."
       },
@@ -118,9 +128,9 @@ export function buildAgentQuickstart(): AgentQuickstart {
         purpose: "Inspect release score, corpus data trust, coverage, stale data, and review risk before high-confidence answers.",
         rest: "GET /api/quality",
         mcpTool: "get_quality_report",
-        command: "curl https://git.top/api/quality",
+        command: "curl https://git.top/api/quality?require_d1=true",
         inspect: ["release_score", "data_trust_score", "risk_level", "improvement_plan", "coverage", "issues", "metadata.source"],
-        next: "Disclose degraded sync, seed fallback, low classification confidence, or partial quality signals."
+        next: "Use the trust gate first, then disclose degraded sync, seed fallback, low classification confidence, or partial quality signals."
       },
       {
         id: "grp",
@@ -128,7 +138,7 @@ export function buildAgentQuickstart(): AgentQuickstart {
         purpose: "Use graph reasoning when the user asks for a plan, stack, comparison, or project set.",
         rest: "POST /api/grp/query",
         mcpTool: "git_top_grp_query",
-        command: 'curl -X POST https://git.top/api/grp/query -H "content-type: application/json" -d \'{"goal":"build a Cloudflare-ready coding agent stack","mode":"plan","constraints":{"deploy":["cloudflare"],"agent_ready":true}}\'',
+        command: 'curl -X POST "https://git.top/api/grp/query?require_d1=true" -H "content-type: application/json" -d \'{"goal":"build a Cloudflare-ready coding agent stack","mode":"plan","constraints":{"deploy":["cloudflare"],"agent_ready":true}}\'',
         inspect: ["solution_paths", "recommended_stack", "nodes", "edges", "metadata.data_source"],
         next: "Use GRP output as a plan, then fetch project, graph, score, and compare details for the final answer."
       }
@@ -141,6 +151,7 @@ export function buildAgentQuickstart(): AgentQuickstart {
       "Data source and confidence evidence."
     ],
     trustPolicy: [
+      "Check /api/trust before high-confidence answers.",
       "Prefer metadata.source=d1 for production answers.",
       "Disclose metadata.source=seed as fallback mode.",
       "Check classification evidence before claiming deployment fit.",
@@ -234,9 +245,9 @@ function renderHtml(quickstart: AgentQuickstart): string {
           <a class="button primary" href="/api/quickstart">Open Quickstart JSON</a>
           <a class="button" href="/recipes">Open Recipes</a>
           <a class="button" href="/api/health">Check Health</a>
-          <a class="button" href="/api/workflow?intent=choose%20a%20Cloudflare-ready%20agent%20framework&amp;deployment=cloudflare&amp;category=agent_framework&amp;cloudflare_ready=true&amp;limit=5">Try Workflow</a>
+          <a class="button" href="/api/workflow?intent=choose%20a%20Cloudflare-ready%20agent%20framework&amp;deployment=cloudflare&amp;category=agent_framework&amp;cloudflare_ready=true&amp;limit=5&amp;require_d1=true">Try Workflow</a>
           <a class="button" href="/api/agent-map">Agent Map</a>
-          <a class="button" href="/api/quality">Quality</a>
+          <a class="button" href="/api/quality?require_d1=true">Quality</a>
         </div>
       </header>
 

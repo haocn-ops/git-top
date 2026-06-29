@@ -8,6 +8,25 @@ export interface AgentSurfaceMapEntry {
   recommendedUse: string;
 }
 
+export interface AgentCoreSurface {
+  concept: string;
+  rest: string[];
+  mcpTools: string[];
+  inspect: string[];
+  trustFields: string[];
+  nextUse: string;
+}
+
+export interface AgentPathSurface {
+  step: number;
+  concept: string;
+  rest: string[];
+  mcpTools: string[];
+  inspect: string[];
+  trustFields: string[];
+  useWhen: string;
+}
+
 export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
   {
     concept: "Project knowledge",
@@ -148,7 +167,7 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     concept: "Quality and coverage",
     humanPage: "/trust",
     rest: ["GET /api/trust", "GET /api/quality", "GET /api/quality/review", "GET /api/health", "GET /api/sync/status"],
-    mcpTools: ["get_quality_report"],
+    mcpTools: ["get_trust_gate", "get_quality_report"],
     outputFields: ["decision", "production_ready", "checks", "agent_policy", "releaseScore", "dataTrustScore", "riskLevel", "coverage", "issues"],
     trustFields: ["decision", "production_ready", "checks[].status", "metadata.source", "metadata.reason", "sync.freshness", "quality.risk_level"],
     recommendedUse: "Use the Trust Gate before high-confidence recommendations; it combines source, sync freshness, release health, data trust, and risk into one decision."
@@ -161,6 +180,93 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     outputFields: ["completion", "current_focus", "phases", "phases[].shipped", "phases[].next", "agent_use"],
     trustFields: ["phases[].status", "phases[].progress", "phases[].api_endpoints", "phases[].mcp_tools"],
     recommendedUse: "Understand which Git.Top 2.0 surfaces are implemented, active, or still being deepened before choosing an integration path."
+  }
+];
+
+export const agentCoreSurfaces: AgentCoreSurface[] = [
+  {
+    concept: "Trust preflight",
+    rest: ["GET /api/health", "GET /api/trust"],
+    mcpTools: ["get_trust_gate", "get_quality_report"],
+    inspect: ["db=available", "metadata.source=d1", "sync_freshness", "decision", "production_ready"],
+    trustFields: ["metadata.source", "metadata.reason", "sync.freshness", "quality.risk_level"],
+    nextUse: "Check this first before making a high-confidence production recommendation."
+  },
+  {
+    concept: "Discovery and selection",
+    rest: ["GET /api/agent-map", "GET /api/quickstart", "GET /api/workflow"],
+    mcpTools: ["get_agent_workflow", "get_atlas"],
+    inspect: ["surfaces[].concept", "recommended_sequence", "shortlist", "trend_context"],
+    trustFields: ["trust_policy.strict_mode", "trust_policy.disclose_when", "shortlist[].confidence"],
+    nextUse: "Use this to choose the shortest path to search, lookup, alternatives, compare, graph, or Atlas."
+  },
+  {
+    concept: "Project actions",
+    rest: ["GET /api/search", "GET /api/project/:owner/:repo", "GET /api/alternatives/:project", "GET /api/compare", "GET /api/graph?repo=:project", "GET /api/score/:project"],
+    mcpTools: ["search_projects", "get_project", "get_alternatives", "compare_projects", "get_project_graph", "get_quality_score"],
+    inspect: ["projects[].repo", "knowledge", "related", "alternative_matches", "decision_matrix", "graph_stats", "git_top_score"],
+    trustFields: ["metadata.source", "quality_signal_confidence", "classification.*.confidence"],
+    nextUse: "Use this after trust and discovery when you need the actual project answer."
+  }
+];
+
+export const agentShortPath: AgentPathSurface[] = [
+  {
+    step: 1,
+    concept: "Trust preflight",
+    rest: ["GET /api/health", "GET /api/trust"],
+    mcpTools: ["get_trust_gate"],
+    inspect: ["db=available", "metadata.source=d1", "decision", "production_ready"],
+    trustFields: ["metadata.source", "metadata.reason", "sync.freshness", "quality.risk_level"],
+    useWhen: "Start here before any high-confidence production answer."
+  },
+  {
+    step: 2,
+    concept: "Discovery",
+    rest: ["GET /api/agent-map", "GET /api/quickstart", "GET /api/workflow"],
+    mcpTools: ["get_agent_workflow", "get_atlas"],
+    inspect: ["core_surfaces", "recommended_agent_flow", "recommended_sequence", "shortlist"],
+    trustFields: ["trust_policy.strict_mode", "trust_policy.disclose_when"],
+    useWhen: "Use this to choose the shortest route into search, lookup, alternatives, compare, graph, or Atlas."
+  },
+  {
+    step: 3,
+    concept: "Project action",
+    rest: ["GET /api/search", "GET /api/project/:owner/:repo", "GET /api/recommend", "GET /api/compare"],
+    mcpTools: ["search_projects", "get_project", "recommend_project", "compare_projects"],
+    inspect: ["projects[].repo", "knowledge", "recommendations", "decision_matrix"],
+    trustFields: ["metadata.source", "quality_signal_confidence", "classification.*.confidence"],
+    useWhen: "Use this once trust and discovery are settled and you need the actual answer."
+  }
+];
+
+export const agentReferencePath: AgentPathSurface[] = [
+  {
+    step: 1,
+    concept: "Trust and freshness",
+    rest: ["GET /api/health", "GET /api/trust", "GET /api/quality", "GET /api/sync/status"],
+    mcpTools: ["get_trust_gate", "get_quality_report"],
+    inspect: ["db=available", "sync_freshness", "release_score", "data_trust_score", "risk_level"],
+    trustFields: ["metadata.source", "metadata.reason", "sync.freshness", "quality.risk_level"],
+    useWhen: "Use when the answer must explain source quality or freshness in detail."
+  },
+  {
+    step: 2,
+    concept: "Discovery and planning",
+    rest: ["GET /api/agent-map", "GET /api/quickstart", "GET /api/workflow", "GET /api/journeys", "GET /api/atlas"],
+    mcpTools: ["get_agent_workflow", "get_atlas", "get_trends"],
+    inspect: ["surfaces", "core_surfaces", "recommended_agent_flow", "recommended_sequence", "comparison_paths"],
+    trustFields: ["trust_policy.strict_mode", "trust_policy.disclose_when", "trend_context.stats.project_count"],
+    useWhen: "Use when you need the broader discovery layer, not just the first action."
+  },
+  {
+    step: 3,
+    concept: "Project analysis",
+    rest: ["GET /api/search", "GET /api/project/:owner/:repo", "GET /api/alternatives/:project", "GET /api/graph?repo=:project", "GET /api/score/:project", "GET /api/compare"],
+    mcpTools: ["search_projects", "get_project", "get_alternatives", "get_project_graph", "get_quality_score", "compare_projects"],
+    inspect: ["projects[].repo", "knowledge", "related", "alternative_matches", "graph_stats", "score_confidence", "decision_matrix"],
+    trustFields: ["metadata.source", "quality_signal_confidence", "classification.*.confidence"],
+    useWhen: "Use this when you are explaining or comparing concrete projects."
   }
 ];
 
@@ -177,9 +283,13 @@ export function buildAgentMap() {
     llms_url: "https://git.top/llms.txt",
     llms_full_url: "https://git.top/llms-full.txt",
     roadmap_url: "https://git.top/roadmap",
+    short_path: agentShortPath,
+    reference_path: agentReferencePath,
+    core_surfaces: agentCoreSurfaces,
     recommended_agent_flow: [
+      "Trust first: GET /api/health and GET /api/trust before high-confidence production recommendations.",
+      "Use /api/agent-map or GET /mcp discovery to read short_path first, then reference_path when you need the fuller discovery surface.",
       "GET /api/health and require metadata.source=d1 for high-confidence production recommendations.",
-      "Use /api/agent-map or GET /mcp discovery to choose the matching human page, REST endpoint, or MCP tool.",
       "Use /api/workflow or MCP get_agent_workflow when you need an end-to-end project selection path.",
       "Use /api/quality or MCP get_quality_report when you need release score, corpus trust, coverage, and review risk before citing a recommendation.",
       "Fetch project, graph, alternatives, score, and compare data before making a final recommendation.",

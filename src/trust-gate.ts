@@ -60,6 +60,7 @@ export async function buildTrustGate(env: Env): Promise<TrustGateView> {
       "metadata.source=d1",
       "db=available",
       "sync_freshness=fresh",
+      "derived_alternatives_freshness=fresh",
       "release_score>=90",
       "data_trust_score>=75",
       "risk_level is not high"
@@ -68,8 +69,8 @@ export async function buildTrustGate(env: Env): Promise<TrustGateView> {
       highConfidenceUse: "Use Git.Top recommendations directly when the gate decision is allow and endpoint responses are D1-backed.",
       cautionUse: "Use Git.Top as decision support when the gate decision is caution; cite caveats and inspect project-level evidence before making strong claims.",
       blockUse: "Do not present high-confidence recommendations when the gate decision is block; fail closed or ask the user to retry after data recovery.",
-      cite: ["metadata.source", "sync_freshness", "release_score", "data_trust_score", "risk_level", "quality_signal_confidence"],
-      discloseWhen: ["seed fallback is active", "D1 is unavailable", "sync is stale or degraded", "data trust risk is high", "quality signals are partial"]
+      cite: ["metadata.source", "sync_freshness", "derived_alternatives_freshness", "release_score", "data_trust_score", "risk_level", "quality_signal_confidence"],
+      discloseWhen: ["seed fallback is active", "D1 is unavailable", "sync is stale or degraded", "derived alternatives are stale", "data trust risk is high", "quality signals are partial"]
     },
     nextActions: [
       { label: "Health JSON", href: "/api/health", kind: "health" },
@@ -110,6 +111,13 @@ function buildChecks(health: HealthStatus, sync: SyncStatus, quality: QualityRep
       status: sync.freshness === "fresh" ? "pass" : sync.freshness === "stale" ? "warn" : "fail",
       observed: `${sync.health} / ${sync.freshness}`,
       requirement: "sync_freshness=fresh"
+    },
+    {
+      id: "derived-alternatives",
+      label: "Derived alternatives freshness",
+      status: sync.derived.alternatives.freshness === "fresh" ? "pass" : sync.derived.alternatives.freshness === "stale" ? "warn" : "fail",
+      observed: `${sync.derived.alternatives.freshness} / ${sync.derived.alternatives.lastRunStatus ?? "unknown"}`,
+      requirement: "derived_alternatives_freshness=fresh"
     },
     {
       id: "release-score",

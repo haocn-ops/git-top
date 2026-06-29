@@ -26,7 +26,7 @@ Modes:
 ## Plan: Cloudflare-Ready Coding Agent
 
 ```sh
-curl -X POST http://localhost:8787/api/grp/query \
+curl -X POST "http://localhost:8787/api/grp/query?require_d1=true" \
   -H "content-type: application/json" \
   -d '{
     "goal": "build a Cloudflare-ready coding agent",
@@ -44,7 +44,7 @@ Use this when the agent needs a path rather than a single repository.
 ## Find: MCP Servers for Browser Automation
 
 ```sh
-curl -X POST http://localhost:8787/api/grp/query \
+curl -X POST "http://localhost:8787/api/grp/query?require_d1=true" \
   -H "content-type: application/json" \
   -d '{
     "goal": "find MCP servers for browser automation",
@@ -60,7 +60,7 @@ Use this when the agent is gathering candidate projects for a narrow capability.
 ## Compare: Open Source Agent Frameworks
 
 ```sh
-curl -X POST http://localhost:8787/api/grp/query \
+curl -X POST "http://localhost:8787/api/grp/query?require_d1=true" \
   -H "content-type: application/json" \
   -d '{
     "goal": "compare Cloudflare Agents, LangChain, and LlamaIndex for agent development",
@@ -76,7 +76,7 @@ Use this when the agent needs tradeoffs and a winner rather than only ranked sea
 ## Compose: Autonomous Coding Stack
 
 ```sh
-curl -X POST http://localhost:8787/api/grp/query \
+curl -X POST "http://localhost:8787/api/grp/query?require_d1=true" \
   -H "content-type: application/json" \
   -d '{
     "goal": "compose an autonomous coding stack with tool calling, browser use, and LLM access",

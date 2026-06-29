@@ -53,12 +53,17 @@ const html = String.raw`<!doctype html>
         box-sizing: border-box;
       }
 
+      html {
+        overflow-x: hidden;
+      }
+
       body {
         margin: 0;
         min-width: 320px;
         min-height: 100vh;
         background: var(--bg);
         color: var(--ink);
+        overflow-x: hidden;
       }
 
       a {
@@ -80,16 +85,19 @@ const html = String.raw`<!doctype html>
       }
 
       code {
+        display: inline-block;
+        max-width: 100%;
         border: 1px solid var(--line);
         border-radius: 6px;
         background: #f7faf9;
         color: #2e4c58;
+        overflow-wrap: anywhere;
         padding: 4px 6px;
-        white-space: nowrap;
       }
 
       .page {
         max-width: 1240px;
+        width: 100%;
         margin: 0 auto;
         padding: 22px;
       }
@@ -99,6 +107,7 @@ const html = String.raw`<!doctype html>
         align-items: center;
         justify-content: space-between;
         gap: 14px;
+        flex-wrap: wrap;
         margin-bottom: 18px;
       }
 
@@ -124,16 +133,20 @@ const html = String.raw`<!doctype html>
       .nav-links {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
         flex-wrap: wrap;
         justify-content: flex-end;
         color: #40505a;
         font-weight: 800;
       }
 
+      .nav-links a {
+        white-space: nowrap;
+      }
+
       .hero {
         display: grid;
-        grid-template-columns: minmax(0, 1.08fr) minmax(380px, 0.92fr);
+        grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
         gap: 14px;
         min-height: 430px;
         border: 1px solid var(--line);
@@ -236,6 +249,7 @@ const html = String.raw`<!doctype html>
         display: grid;
         align-content: space-between;
         gap: 16px;
+        min-width: 0;
         background: rgba(255, 255, 255, 0.82);
         padding: 18px;
       }
@@ -246,6 +260,7 @@ const html = String.raw`<!doctype html>
         justify-content: space-between;
         gap: 10px;
         flex-wrap: wrap;
+        min-width: 0;
       }
 
       .status-pill {
@@ -288,6 +303,7 @@ const html = String.raw`<!doctype html>
       .knowledge-grid strong {
         font-size: 20px;
         line-height: 1.2;
+        overflow-wrap: anywhere;
       }
 
       .category-strip {
@@ -342,6 +358,11 @@ const html = String.raw`<!doctype html>
         font-weight: 900;
         line-height: 1.25;
         padding-top: 8px;
+      }
+
+      .intent-links span {
+        min-width: 0;
+        overflow-wrap: anywhere;
       }
 
       .intent-links a:first-child {
@@ -401,6 +422,13 @@ const html = String.raw`<!doctype html>
         align-items: start;
       }
 
+      .project-card h3,
+      .project-card a,
+      .project-card p {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+
       .project-card p {
         line-height: 1.5;
       }
@@ -438,6 +466,13 @@ const html = String.raw`<!doctype html>
 
       .search-panel {
         margin-top: 22px;
+      }
+
+      .search-status {
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 1.45;
       }
 
       .doc-panel {
@@ -489,6 +524,7 @@ const html = String.raw`<!doctype html>
       .search-form input,
       .search-form select {
         flex: 1 1 320px;
+        min-width: 0;
         min-height: 40px;
         border: 1px solid var(--line-strong);
         border-radius: 8px;
@@ -617,13 +653,39 @@ const html = String.raw`<!doctype html>
           padding: 16px;
         }
 
+        .nav {
+          align-items: flex-start;
+        }
+
+        .nav-links {
+          width: 100%;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          justify-content: stretch;
+        }
+
+        .nav-links a {
+          min-height: 34px;
+          border: 1px solid var(--line);
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.72);
+          overflow: hidden;
+          text-align: center;
+          text-overflow: ellipsis;
+          padding: 7px 8px;
+        }
+
         .hero {
           min-height: auto;
           padding: 18px;
         }
 
         h1 {
-          font-size: 40px;
+          font-size: 38px;
+        }
+
+        .actions .button {
+          flex: 1 1 100%;
         }
 
         .knowledge-grid,
@@ -647,17 +709,11 @@ const html = String.raw`<!doctype html>
         </a>
         <div class="nav-links">
           <a href="/atlas">Atlas</a>
-          <a href="/workflow">Workflow</a>
           <a href="/recommend">Recommend</a>
           <a href="/trends">Trends</a>
           <a href="/graph">Graph</a>
           <a href="/docs">Docs</a>
-          <a href="/quickstart">Quickstart</a>
-          <a href="/recipes">Recipes</a>
-          <a href="/examples">Examples</a>
-          <a href="/topics/open-source-knowledge-graph-api">Agent API</a>
           <a href="/mcp">MCP</a>
-          <a href="/api/schema/project.v2">Schema</a>
         </div>
       </nav>
 
@@ -668,16 +724,9 @@ const html = String.raw`<!doctype html>
           <p class="hero-lede">GitHub provides the code. Git.Top provides the knowledge: project meaning, alternatives, dependencies, ecosystems, scores, and agent-readable recommendations.</p>
           <div class="actions">
             <a class="button primary" href="/discover">Discover Projects</a>
-            <a class="button secondary" href="/graph">Explore Graph</a>
-            <a class="button secondary" href="/atlas">Open Atlas</a>
-            <a class="button secondary" href="/trends">View Trends</a>
-            <a class="button secondary" href="/workflow">Build Workflow</a>
             <a class="button secondary" href="/recommend">Get Recommendations</a>
+            <a class="button secondary" href="/graph">Explore Graph</a>
             <a class="button secondary" href="/docs">Docs</a>
-            <a class="button secondary" href="/quickstart">Quickstart</a>
-            <a class="button secondary" href="/recipes">Recipes</a>
-            <a class="button secondary" href="/examples">Examples</a>
-            <a class="button secondary" href="/topics/open-source-knowledge-graph-api">Agent API</a>
           </div>
         </div>
 
@@ -773,6 +822,7 @@ const html = String.raw`<!doctype html>
           <p class="muted">Inspect corpus coverage, sync freshness, governance, and low-confidence review queues.</p>
           <div class="intent-links">
             <a href="/trust"><span>Trust Gate</span><span>-></span></a>
+            <a href="/topics/trust-gate-guide"><span>Trust Gate Guide</span><span>-></span></a>
             <a href="/api/trust"><span>Trust Gate JSON</span><span>-></span></a>
             <a href="/topics/data-trust-guide"><span>Data Trust Guide</span><span>-></span></a>
             <a href="/quality"><span>Quality Governance</span><span>-></span></a>
@@ -854,6 +904,7 @@ const html = String.raw`<!doctype html>
           </div>
           <a class="button secondary" href="/api/trending">JSON</a>
         </div>
+        <p class="search-status" id="search-status" aria-live="polite">Loading default results for cloudflare agent framework...</p>
         <div class="project-card-grid" id="project-grid">
           <div class="empty">Loading projects...</div>
         </div>
@@ -911,8 +962,13 @@ const html = String.raw`<!doctype html>
           <h2>Scores include evidence and confidence</h2>
           <p class="muted">Quality score and agent score are separate. Responses include source metadata, classification evidence, and signal confidence.</p>
           <div class="link-list">
+            <a href="/trust">Trust Gate</a>
             <a href="/docs#scoring">Scoring methodology</a>
             <a href="/docs#freshness">Data freshness</a>
+            <a href="/quality">Quality governance</a>
+            <a href="/coverage">Corpus coverage</a>
+            <a href="/status">Public status</a>
+            <a href="/quality/review">Review queue</a>
             <a href="/.well-known/security.txt">Security contact</a>
           </div>
         </article>
@@ -965,10 +1021,11 @@ const html = String.raw`<!doctype html>
       const kindFilter = document.querySelector("#kind-filter");
       const confidenceFilter = document.querySelector("#confidence-filter");
       const cloudflareFilter = document.querySelector("#cloudflare-filter");
+      const searchStatus = document.querySelector("#search-status");
 
       form.addEventListener("submit", (event) => {
         event.preventDefault();
-        loadProjects();
+        loadProjects({ reveal: true });
       });
       [categoryFilter, deploymentFilter, languageFilter, kindFilter, confidenceFilter, cloudflareFilter].forEach((control) => {
         control.addEventListener("change", () => loadProjects());
@@ -976,7 +1033,7 @@ const html = String.raw`<!doctype html>
 
       loadProjects();
 
-      async function loadProjects() {
+      async function loadProjects(options = {}) {
         const q = query.value.trim() || "agent";
         const params = new URLSearchParams({ q, limit: "12" });
         if (categoryFilter.value) params.set("category", categoryFilter.value);
@@ -987,13 +1044,22 @@ const html = String.raw`<!doctype html>
         if (cloudflareFilter.checked) params.set("cloudflare_ready", "true");
         if (categoryFilter.value || deploymentFilter.value) params.set("ranking", "browse");
         grid.innerHTML = '<div class="empty">Loading projects...</div>';
+        searchStatus.textContent = 'Searching for "' + q + '"...';
         try {
           const response = await fetch("/api/search?" + params.toString(), { headers: { accept: "application/json" } });
           if (!response.ok) throw new Error("HTTP " + response.status);
           const data = await response.json();
           const projects = data.projects || [];
+          const count = projects.length;
+          searchStatus.textContent = count
+            ? 'Showing ' + count + ' results for "' + q + '".'
+            : 'No results found for "' + q + '". Try fewer filters.';
           grid.innerHTML = projects.length ? projects.map(projectCard).join("") : '<div class="empty">No projects matched this query.</div>';
+          if (options.reveal) {
+            document.querySelector("#projects").scrollIntoView({ behavior: "smooth", block: "start" });
+          }
         } catch (error) {
+          searchStatus.textContent = 'Search failed for "' + q + '".';
           grid.innerHTML = '<div class="empty">Project search failed: ' + escapeHtml(error.message || "unknown error") + '</div>';
         }
       }
@@ -1108,15 +1174,17 @@ const graphHtml = String.raw`<!doctype html>
         font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
       * { box-sizing: border-box; }
+      html, body { overflow-x: hidden; }
       body { margin: 0; min-width: 320px; background: var(--bg); color: var(--ink); }
       a { color: inherit; text-decoration: none; }
       h1, h2, h3, p { margin: 0; }
-      .page { max-width: 1240px; margin: 0 auto; padding: 22px; }
+      .page { width: 100%; max-width: 1240px; margin: 0 auto; padding: 22px; }
       .nav, .header, .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
       .nav { margin-bottom: 18px; }
       .brand { display: flex; align-items: center; gap: 10px; font-weight: 900; }
       .brand-mark, .feature-icon { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 8px; background: #e6f3ef; color: var(--teal); }
-      .nav-links { display: flex; gap: 10px; color: #40505a; font-weight: 800; }
+      .nav-links { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; color: #40505a; font-weight: 800; }
+      .nav-links a { white-space: nowrap; }
       .eyebrow { color: #0b5d56; font-size: 12px; font-weight: 900; text-transform: uppercase; }
       h1 { font-size: clamp(32px, 5vw, 56px); line-height: 1; margin-top: 4px; }
       h2 { font-size: 19px; line-height: 1.2; }
@@ -1132,47 +1200,76 @@ const graphHtml = String.raw`<!doctype html>
       .node.category { background: #fff8e7; }
       .node span, .node small { color: var(--muted); font-size: 12px; font-weight: 900; text-transform: uppercase; }
       .node strong { overflow-wrap: anywhere; }
-      .score strong { display: inline-block; font-size: 58px; line-height: 0.9; margin-top: 8px; }
+      .status-note { color: var(--muted); font-size: 13px; font-weight: 800; line-height: 1.45; margin-top: 10px; }
+      .score > strong { display: inline-block; font-size: 58px; line-height: 0.9; margin-top: 8px; }
       .list { display: grid; gap: 9px; margin-top: 14px; }
-      .list div { border-top: 1px solid var(--line); padding-top: 9px; }
-      .list div:first-child { border-top: 0; padding-top: 0; }
-      .compare { display: grid; min-width: 860px; margin-top: 12px; }
-      .compare-row { display: grid; grid-template-columns: minmax(240px, 1.3fr) 100px 80px 80px 100px 100px; gap: 12px; align-items: center; border-top: 1px solid var(--line); padding: 12px 0; }
+      .list > div { display: grid; gap: 4px; border-top: 1px solid var(--line); padding-top: 9px; }
+      .list > div:first-child { border-top: 0; padding-top: 0; }
+      .compare { display: grid; min-width: 760px; margin-top: 12px; }
+      .compare-row { display: grid; grid-template-columns: minmax(200px, 1.3fr) 90px 70px 70px 90px 90px; gap: 12px; align-items: center; border-top: 1px solid var(--line); padding: 12px 0; }
       .compare-head { border-top: 0; color: var(--muted); font-size: 12px; font-weight: 900; text-transform: uppercase; }
-      .table-wrap { overflow-x: auto; margin-top: 18px; }
+      .table-wrap { max-width: 100%; overflow-x: auto; margin-top: 18px; }
+      .table-wrap .panel-heading { min-width: 0; }
       @media (max-width: 900px) { .grid, .node-map { grid-template-columns: 1fr; } }
+      @media (max-width: 700px) {
+        .page { padding: 16px; }
+        .nav-links { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: stretch; }
+        .nav-links a { min-height: 34px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255, 255, 255, 0.72); overflow: hidden; text-align: center; text-overflow: ellipsis; padding: 7px 8px; }
+        .button { width: 100%; }
+        .compare { min-width: 680px; }
+      }
     </style>
   </head>
   <body>
     <div class="page">
       <nav class="nav">
         <a class="brand" href="/"><span class="brand-mark">G</span><span>Git.Top</span></a>
-        <div class="nav-links"><a href="/">Home</a><a href="/graph/cloudflare-agents">Project Graph</a><a href="/api/graph?repo=cloudflare-agents">Graph API</a><a href="/mcp">MCP</a></div>
+        <div class="nav-links"><a href="/">Home</a><a href="/graph/cloudflare/agents">Project Graph</a><a href="/api/graph?repo=cloudflare/agents">Graph API</a><a href="/mcp">MCP</a></div>
       </nav>
 
       <header class="header">
         <div>
           <p class="eyebrow">Project Knowledge Graph</p>
           <h1>Knowledge, then Graph, then Agent</h1>
+          <p class="muted">Start from a real project graph, then follow alternatives, dependencies, deployment targets, and score evidence.</p>
         </div>
-        <a class="button primary" href="/graph/cloudflare-agents">Open Project Graph</a>
+        <a class="button primary" href="/graph/cloudflare/agents">Open Project Graph</a>
       </header>
 
       <section class="grid">
         <article class="panel">
-          <div class="panel-heading"><div><p class="eyebrow">Focus Graph</p><h2>cloudflare/agents</h2></div><span id="graph-count" class="button">Loading</span></div>
-          <div class="node-map" id="node-map"></div>
+          <div class="panel-heading"><div><p class="eyebrow">Focus Graph</p><h2>cloudflare/agents</h2></div><span id="graph-count" class="button">Example graph</span></div>
+          <p class="status-note" id="graph-status">Loading live graph details for cloudflare/agents. The example below remains useful if the API is unavailable.</p>
+          <div class="node-map" id="node-map">
+            <div class="node project"><span>Focus</span><strong>cloudflare/agents</strong></div>
+            <div class="node deployment"><span>Deployment</span><strong>Cloudflare Workers</strong></div>
+            <div class="node deployment"><span>Deployment</span><strong>Serverless</strong></div>
+            <div class="node category"><span>Category</span><strong>Agent framework</strong></div>
+            <div class="node"><span>Dependency</span><strong>LLM provider</strong></div>
+            <div class="node project"><span>Alternative</span><strong>vercel/ai</strong></div>
+            <div class="node project"><span>Related</span><strong>cloudflare/ai-utils</strong></div>
+            <div class="node"><span>Use case</span><strong>Build Cloudflare-ready AI agents</strong></div>
+          </div>
         </article>
         <aside class="panel score">
           <p class="eyebrow">Agent Score</p>
-          <strong id="agent-score">-</strong><span>/100</span>
-          <div class="list" id="score-list"></div>
+          <strong id="agent-score">87</strong><span>/100</span>
+          <p class="status-note">Live score details load from the project API and stay separate from Git.Top quality score.</p>
+          <div class="list" id="score-list">
+            <div><strong>documentation</strong><p class="muted">Evidence-bearing docs and API surfaces</p></div>
+            <div><strong>deployment</strong><p class="muted">Cloudflare and serverless fit</p></div>
+            <div><strong>maintenance</strong><p class="muted">Freshness and repository activity</p></div>
+          </div>
         </aside>
       </section>
 
       <section class="panel table-wrap">
         <div class="panel-heading"><div><p class="eyebrow">Compare Matrix</p><h2>What agents need to decide</h2></div><a class="button" href="/api/compare">Compare API</a></div>
-        <div class="compare" id="compare"></div>
+        <div class="compare" id="compare">
+          <div class="compare-row compare-head"><span>Project</span><span>Stars</span><span>Agent</span><span>Local</span><span>Cloudflare</span><span>Score</span></div>
+          <div class="compare-row"><strong>cloudflare/agents</strong><span>-</span><span>Yes</span><span>Yes</span><span>Yes</span><strong>87</strong></div>
+          <div class="compare-row"><strong>vercel/ai</strong><span>-</span><span>Yes</span><span>Yes</span><span>No</span><strong>-</strong></div>
+        </div>
       </section>
     </div>
     <script>
@@ -1183,18 +1280,24 @@ const graphHtml = String.raw`<!doctype html>
       const compare = document.querySelector("#compare");
       init();
       async function init() {
-        const [graph, project, comparison] = await Promise.all([
-          getJson("/api/graph?repo=cloudflare-agents&limit=18"),
-          getJson("/api/project/cloudflare/agents"),
-          getJson("/api/compare")
-        ]);
-        graphCount.textContent = graph.nodes.length + " nodes / " + graph.edges.length + " edges";
-        nodeMap.innerHTML = graph.nodes.slice(0, 18).map((node) => '<div class="node ' + escapeHtml(node.kind) + '"><span>' + escapeHtml(node.kind) + '</span><strong>' + escapeHtml(node.label) + '</strong>' + (node.score ? '<small>' + escapeHtml(node.score) + '/100</small>' : '') + '</div>').join("");
-        agentScore.textContent = project.agent_score || "-";
-        const parts = project.agent_score_breakdown || {};
-        scoreList.innerHTML = ["documentation", "deployment", "maintenance", "community", "popularity"].map((key) => '<div><strong>' + key + '</strong><p class="muted">' + escapeHtml(parts[key] ?? "-") + '</p></div>').join("");
-        compare.innerHTML = '<div class="compare-row compare-head"><span>Project</span><span>Stars</span><span>Agent</span><span>Local</span><span>Cloudflare</span><span>Score</span></div>' +
-          (comparison.projects || []).map((project) => '<div class="compare-row"><strong>' + escapeHtml(project.repo) + '</strong><span>' + Number(project.stars || 0).toLocaleString() + '</span><span>' + yes(project.agent) + '</span><span>' + yes(project.local) + '</span><span>' + yes(project.cloudflare) + '</span><strong>' + escapeHtml(project.agent_score) + '</strong></div>').join("");
+        try {
+          const [graph, project, comparison] = await Promise.all([
+            getJson("/api/graph?repo=cloudflare/agents&limit=18"),
+            getJson("/api/project/cloudflare/agents"),
+            getJson("/api/compare")
+          ]);
+          graphCount.textContent = graph.nodes.length + " nodes / " + graph.edges.length + " edges";
+          document.querySelector("#graph-status").textContent = "Live graph loaded from Git.Top API.";
+          nodeMap.innerHTML = graph.nodes.slice(0, 18).map((node) => '<div class="node ' + escapeHtml(node.kind) + '"><span>' + escapeHtml(node.kind) + '</span><strong>' + escapeHtml(node.label) + '</strong>' + (node.score ? '<small>' + escapeHtml(node.score) + '/100</small>' : '') + '</div>').join("");
+          agentScore.textContent = project.agent_score || "87";
+          const parts = project.agent_score_breakdown || {};
+          scoreList.innerHTML = ["documentation", "deployment", "maintenance", "community", "popularity"].map((key) => '<div><strong>' + key + '</strong><p class="muted">' + escapeHtml(parts[key] ?? "-") + '</p></div>').join("");
+          compare.innerHTML = '<div class="compare-row compare-head"><span>Project</span><span>Stars</span><span>Agent</span><span>Local</span><span>Cloudflare</span><span>Score</span></div>' +
+            (comparison.projects || []).map((project) => '<div class="compare-row"><strong>' + escapeHtml(project.repo) + '</strong><span>' + Number(project.stars || 0).toLocaleString() + '</span><span>' + yes(project.agent) + '</span><span>' + yes(project.local) + '</span><span>' + yes(project.cloudflare) + '</span><strong>' + escapeHtml(project.agent_score) + '</strong></div>').join("");
+        } catch (error) {
+          graphCount.textContent = "Example graph";
+          document.querySelector("#graph-status").textContent = "Live graph details could not load. Use the project graph link or Graph API for the full relationship model.";
+        }
       }
       async function getJson(path) {
         const response = await fetch(path, { headers: { accept: "application/json" } });

@@ -25,6 +25,7 @@ curl https://git.top/api/agent-map
 ```
 
 It maps each product concept to the matching human page, REST endpoints, MCP tools, output fields, trust fields, and recommended use. This is the machine-readable bridge between pages such as `/graph/:project` and APIs such as `/api/graph`.
+The response also splits discovery into `short_path` and `reference_path`; agents should read `short_path` first and expand only when they need the fuller surface.
 
 ## Agent Workflow
 
@@ -74,6 +75,14 @@ For fail-closed production reads, add `require_d1=true` to knowledge endpoints. 
 curl "http://localhost:8787/api/search?q=cloudflare%20agent%20framework&require_d1=true"
 ```
 
+Structured POST knowledge endpoints use the same query parameter:
+
+```sh
+curl -X POST "http://localhost:8787/api/recommend?require_d1=true" \
+  -H "content-type: application/json" \
+  -d '{"deployment":"cloudflare","category":"agent_framework","limit":3}'
+```
+
 ## Scoring Methodology
 
 Git.Top exposes two separate scores because project popularity and agent usefulness are related but not identical.
@@ -106,6 +115,7 @@ Git.Top exposes two separate scores because project popularity and agent usefuln
 Agents should inspect `quality_signal_confidence` before treating score inputs as complete. Star movement may be snapshot-backed or estimated; commit, release, and contributor counts may be complete, partial, or unknown depending on GitHub API collection depth.
 
 Project lookup responses also expose `score` as a backwards-compatible alias for `git_top_score`.
+For agent-friendly normalization, prefer `project_id` for the canonical repo id, `git_top_score` for the main knowledge score, `quality_score` for repository activity, and `agent_score` for agent-readiness.
 
 Project records include `project.synced_at`, and metric records include `metrics.calculated_at`. Use these fields with endpoint `metadata.generated_at` and `/api/sync/status` when freshness matters.
 
@@ -115,7 +125,7 @@ Project records include `project.synced_at`, and metric records include `metrics
 curl http://localhost:8787/api/health
 ```
 
-Production health includes D1 availability, project counts, sync cursor, sync health, sync freshness, and the timestamp of the latest successful sync.
+Production health includes D1 availability, project counts, sync cursor, sync health, sync freshness, and the timestamp of the latest successful sync. Use `/api/sync/status` when you also need priority queues, GitHub sync details, and `derived.alternatives` freshness.
 
 Project count fields:
 
@@ -143,6 +153,7 @@ Governance read endpoints expose recent automation history and are safe for dash
 curl https://git.top/api/governance/summary
 curl "https://git.top/api/governance/runs?limit=20"
 curl "https://git.top/api/governance/runs?task=daily-production-health"
+curl "https://git.top/api/governance/runs?task=derived:alternatives"
 ```
 
 Scheduled GitHub Actions jobs record task results through the protected endpoint:
@@ -155,6 +166,8 @@ curl -X POST https://git.top/api/admin/governance/runs \
 ```
 
 The first automated tasks are `daily-production-health`, `weekly-data-governance`, `biweekly-live-check`, and `monthly-corpus-review`.
+
+Derived data refreshes also record governance history. `derived:alternatives` is written by the protected alternatives refresh endpoint and is used by sync status and Trust Gate freshness checks.
 
 ## Trust Gate
 
@@ -179,6 +192,12 @@ Important fields:
 - `sync`
 - `quality`
 - `metadata.source`
+
+After the gate:
+
+- Use `decision=allow` for direct production recommendations when the specific endpoint response is also D1-backed.
+- Use `decision=caution` with caveats, then inspect `/api/quality` or MCP `get_quality_report` for details.
+- Use `decision=block` to fail closed instead of presenting a high-confidence recommendation.
 
 ## Search
 
@@ -323,6 +342,7 @@ Compare responses include `summary`, `stats`, `decision_matrix`, `next_actions`,
 
 ```sh
 curl http://localhost:8787/api/alternatives/langchain-ai/langchain
+curl http://localhost:8787/api/alternatives/claude-code
 ```
 
 Structured POST body:
@@ -342,6 +362,8 @@ Use alternatives when you need replacement candidates for the same job. The resp
 - `comparison_links`: direct compare, graph, project, and score links for the source project.
 - `alternatives`: backward-compatible project list.
 - `alternative_matches`: enriched alternatives with `similarity_score`, `alternative_reason`, and `match_signals`.
+
+The path form accepts either `owner/repo` or a Git.Top alias such as `claude-code`. Alias responses include `resolved_from`.
 
 ## Related Projects
 
@@ -363,6 +385,7 @@ Use related projects when you need adjacent ecosystem context: shared category, 
 
 ```sh
 curl http://localhost:8787/api/score/cloudflare/agents
+curl http://localhost:8787/api/score/claude-code
 ```
 
 Structured POST body:
@@ -375,11 +398,14 @@ curl -X POST "http://localhost:8787/api/score" \
 
 Use score explanations when an agent or UI needs to explain why a project has a specific Git.Top Score. The response includes weighted `dimensions`, total `git_top_score`, `strongest_dimension`, `weakest_dimension`, `adoption_guidance`, `risk_flags`, `next_actions`, related quality and agent scores, evidence, and links.
 
+The path form accepts either `owner/repo` or a Git.Top alias such as `claude-code`. Alias responses include `resolved_from` so agents can cite the canonical repository behind the request.
+
 ## Graph
 
 ```sh
 curl "http://localhost:8787/api/graph?repo=cloudflare/agents&limit=24"
 curl "http://localhost:8787/api/graph/cloudflare/agents?limit=24"
+curl "http://localhost:8787/api/graph/claude-code?limit=24"
 ```
 
 Structured POST body:
@@ -391,6 +417,8 @@ curl -X POST "http://localhost:8787/api/graph" \
 ```
 
 Use graph responses when you need a project relationship model. Focused responses include `summary`, `graph_stats`, `next_actions`, `relationship_groups`, `nodes`, and `edges` across alternatives, related projects, dependencies, deployment targets, and use cases.
+
+Focused graph requests accept either `repo=owner/repo`, `/api/graph/:owner/:repo`, or `/api/graph/:project` with a Git.Top alias. Alias responses include `resolved_from`.
 
 ## Atlas
 
@@ -471,6 +499,8 @@ curl -X POST http://localhost:8787/api/grp/query \
   -d '{"goal":"compose a Cloudflare-ready coding agent stack","mode":"compose","constraints":{"deploy":["cloudflare"],"agent_ready":true}}'
 ```
 
+Use `POST /api/grp/query?require_d1=true` when graph reasoning must fail closed unless the knowledge source is D1-backed.
+
 See `docs/GRP_EXAMPLES.md` for more examples.
 
 ## Admin Sync
@@ -490,7 +520,7 @@ Use lightweight signal collection for catch-up syncs that need to stay under Wor
 curl -X POST http://localhost:8787/api/admin/sync \
   -H "authorization: Bearer $SYNC_SECRET" \
   -H "content-type: application/json" \
-  -d '{"limit":5,"signal_depth":"lite"}'
+  -d '{"limit":5,"signal_depth":"lite","refresh_derived":false}'
 ```
 
 Sync a specific set:
@@ -501,6 +531,26 @@ curl -X POST http://localhost:8787/api/admin/sync \
   -H "content-type: application/json" \
   -d '{"repositories":["cloudflare/agents","modelcontextprotocol/servers"],"limit":2}'
 ```
+
+Cron sync uses lightweight collection, refreshes stale priority queues before seed cursor fallback, and skips inline derived alternatives refresh. Admin sync defaults to refreshing derived alternatives for backward compatibility; pass `refresh_derived:false` for catch-up runs that should only update raw GitHub-backed project metadata.
+
+The response includes `github_request_metrics`, per-repository `repository_request_metrics`, and `derived_refresh`. After `migrations/0006_github_request_cache.sql` is applied, repeated syncs can send GitHub validators and reuse cached JSON for `304 Not Modified` responses.
+
+## Admin Derived Alternatives
+
+Derived alternatives refresh requires `SYNC_SECRET`.
+
+```sh
+curl -X POST http://localhost:8787/api/admin/alternatives \
+  -H "authorization: Bearer $SYNC_SECRET"
+```
+
+The response includes:
+
+- `updated`: number of projects with refreshed alternatives.
+- `updates`: per-project alternative update summaries.
+- `metadata`: corpus and generation metadata.
+- `run`: the recorded `derived:alternatives` governance run.
 
 ## Admin Classification Overrides
 

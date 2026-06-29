@@ -12,8 +12,8 @@ import { buildAgentMap } from "./agent-map";
 import { buildAtlasEcosystemView, findAtlasEcosystem, listAtlasEcosystems } from "./atlas-page";
 import { getHealth } from "./health";
 import { getSyncStatus } from "./db-sync-store";
-import { listClassificationOverrides, updateProjectAlternatives, upsertClassificationOverride } from "./db-write-store";
-import { generateAlternativesForAll } from "./alternatives";
+import { listClassificationOverrides, upsertClassificationOverride } from "./db-write-store";
+import { refreshAlternativesDerivedData } from "./derived-refresh";
 import { defaultSeedRepositories } from "./github";
 import { buildAgentApiExamples } from "./examples";
 import { getGovernanceSummary, listGovernanceRuns, parseGovernanceRunInput, upsertGovernanceRun } from "./governance-store";
@@ -51,20 +51,22 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       return errorJson(401, "unauthorized", "Missing or invalid admin authorization.");
     }
 
-    let body: { repositories?: string[]; limit?: number; offset?: number; signalDepth?: string; signal_depth?: string } = {};
+    let body: { repositories?: string[]; limit?: number; offset?: number; signalDepth?: string; signal_depth?: string; refreshDerived?: boolean; refresh_derived?: boolean } = {};
     try {
-      body = (await request.json()) as { repositories?: string[]; limit?: number; offset?: number; signalDepth?: string; signal_depth?: string };
+      body = (await request.json()) as { repositories?: string[]; limit?: number; offset?: number; signalDepth?: string; signal_depth?: string; refreshDerived?: boolean; refresh_derived?: boolean };
     } catch {
       body = {};
     }
     const signalDepth = parseSignalDepth(body.signalDepth ?? body.signal_depth);
+    const refreshDerived = typeof body.refreshDerived === "boolean" ? body.refreshDerived : typeof body.refresh_derived === "boolean" ? body.refresh_derived : undefined;
 
     const result = await syncGithubProjects(env, {
       repositories: Array.isArray(body.repositories) ? body.repositories : undefined,
       limit: typeof body.limit === "number" ? body.limit : undefined,
       offset: typeof body.offset === "number" ? body.offset : undefined,
       trigger: "admin",
-      signalDepth
+      signalDepth,
+      refreshDerived
     });
 
     return json(result, {
@@ -83,26 +85,15 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       return errorJson(401, "unauthorized", "Missing or invalid admin authorization.");
     }
 
-    const knowledgePolicy = await getKnowledgeForSourcePolicy(env);
-    if (!knowledgePolicy.ok) {
-      return sourcePolicyError(knowledgePolicy.failure);
-    }
-    const knowledge = knowledgePolicy.knowledge;
-    const result = generateAlternativesForAll(knowledge.projects);
-    const updated = await updateProjectAlternatives(env, result.updates);
-
-    return json(
-      {
-        updated,
-        updates: result.updates,
-        metadata: knowledge.metadata
-      },
-      {
+    try {
+      return json(await refreshAlternativesDerivedData(env, "admin"), {
         headers: {
           "cache-control": "no-store"
         }
-      }
-    );
+      });
+    } catch (error) {
+      return errorJson(500, "alternatives_refresh_failed", formatError(error));
+    }
   }
 
   if (path === "/api/admin/classification-overrides") {
@@ -835,7 +826,14 @@ function projectLookupResponse(
   resolution?: { requestedId: string; resolvedId: string; resolution: "direct" | "alias" }
 ): Response {
   const related = findRelatedProjectsFromList(projects, project.project.id, relatedLimit);
-  return json({ ...withRelatedProjects(toProjectKnowledgeView(project), related), knowledge: project, ...(resolution ? { resolvedFrom: resolution } : {}), metadata });
+  const view = withRelatedProjects(toProjectKnowledgeView(project), related);
+  return json({
+    ...view,
+    project_id: view.projectId,
+    knowledge: project,
+    ...(resolution ? { resolvedFrom: resolution } : {}),
+    metadata
+  });
 }
 
 async function handleRelatedApi(request: Request, env: Env): Promise<Response> {
@@ -1018,6 +1016,7 @@ async function handleCompareApi(request: Request, env: Env): Promise<Response> {
 
   return json({
     ...compareProjectKnowledge(projects, { deployment: parsed.input.deployment }),
+    project_ids: parsed.input.ids,
     requested_repos: parsed.input.ids,
     resolved_repos: resolvedInputs
       .filter((resolution): resolution is NonNullable<typeof resolution> => resolution !== null)

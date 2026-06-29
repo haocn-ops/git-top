@@ -110,6 +110,16 @@ CREATE TABLE IF NOT EXISTS governance_runs (
   created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS github_request_cache (
+  cache_key TEXT PRIMARY KEY,
+  etag TEXT,
+  last_modified TEXT,
+  body_json TEXT NOT NULL,
+  status INTEGER NOT NULL,
+  checked_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_projects_language ON projects(language);
 CREATE INDEX IF NOT EXISTS idx_projects_stars ON projects(stars DESC);
 CREATE INDEX IF NOT EXISTS idx_agent_cards_category ON agent_cards(category);
@@ -120,3 +130,4 @@ CREATE INDEX IF NOT EXISTS idx_sync_runs_started_at ON sync_runs(started_at DESC
 CREATE INDEX IF NOT EXISTS idx_classification_overrides_reviewed_at ON classification_overrides(reviewed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_governance_runs_task_started_at ON governance_runs(task, started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_governance_runs_started_at ON governance_runs(started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_github_request_cache_checked_at ON github_request_cache(checked_at DESC);

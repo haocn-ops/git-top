@@ -1,7 +1,19 @@
 export const mockD1ProjectId = "mock/d1-agent";
 
 export function mockD1Env(options = {}) {
-  const config = typeof options === "string" ? { mode: options } : options;
+  const input = typeof options === "string" ? { mode: options } : options;
+  const config = {
+    mode: "rows",
+    cursor: 0,
+    rawProjectCount: null,
+    starSnapshot: null,
+    syncRuns: [],
+    governanceRuns: [],
+    githubRequestCache: [],
+    knowledge: null,
+    classificationOverrides: [],
+    ...input
+  };
   return {
     DB: {
       prepare(sql) {
@@ -15,17 +27,7 @@ class MockStatement {
   constructor(sql, bindings = [], config = {}) {
     this.sql = sql;
     this.bindings = bindings;
-    this.config = {
-      mode: "rows",
-      cursor: 0,
-      rawProjectCount: null,
-      starSnapshot: null,
-      syncRuns: [],
-      governanceRuns: [],
-      knowledge: null,
-      classificationOverrides: [],
-      ...config
-    };
+    this.config = config;
   }
 
   bind(...bindings) {
@@ -63,9 +65,19 @@ class MockStatement {
     }
     if (this.sql.includes("FROM governance_runs")) {
       const task = this.sql.includes("WHERE task = ?") ? String(this.bindings[0]) : null;
-      const rows = task ? this.config.governanceRuns.filter((row) => row.task === task) : this.config.governanceRuns;
+      const rows = (task ? this.config.governanceRuns.filter((row) => row.task === task) : this.config.governanceRuns)
+        .slice()
+        .sort((a, b) => Date.parse(b.started_at) - Date.parse(a.started_at));
+      if (this.sql.includes("LIMIT 1")) {
+        return rows[0] ?? null;
+      }
       return {
         results: rows.slice(0, Number(this.bindings[this.bindings.length - 1] ?? rows.length))
+      };
+    }
+    if (this.sql.includes("FROM github_request_cache")) {
+      return {
+        results: this.config.githubRequestCache
       };
     }
     return {
@@ -101,6 +113,17 @@ class MockStatement {
     }
     if (this.sql.includes("FROM star_snapshots")) {
       return this.config.starSnapshot;
+    }
+    if (this.sql.includes("FROM github_request_cache")) {
+      const key = String(this.bindings[0]);
+      return this.config.githubRequestCache.find((row) => row.cache_key === key) ?? null;
+    }
+    if (this.sql.includes("FROM governance_runs")) {
+      const task = this.sql.includes("WHERE task = ?") ? String(this.bindings[0]) : null;
+      const rows = (task ? this.config.governanceRuns.filter((row) => row.task === task) : this.config.governanceRuns)
+        .slice()
+        .sort((a, b) => Date.parse(b.started_at) - Date.parse(a.started_at));
+      return rows[0] ?? null;
     }
     return null;
   }
@@ -141,7 +164,7 @@ class MockStatement {
         this.config.governanceRuns.unshift(nextRow);
       }
     }
-    if (this.sql.includes("classification_overrides")) {
+    if (this.sql.includes("INTO classification_overrides") || this.sql.includes("FROM classification_overrides")) {
       const [
         project_id,
         category,
@@ -173,10 +196,51 @@ class MockStatement {
         this.config.classificationOverrides.unshift(nextRow);
       }
     }
+    if (this.sql.includes("github_request_cache")) {
+      if (this.sql.includes("UPDATE github_request_cache SET checked_at")) {
+        const [checked_at, cache_key] = this.bindings;
+        const row = this.config.githubRequestCache.find((item) => item.cache_key === cache_key);
+        if (row) {
+          row.checked_at = checked_at;
+        }
+      } else {
+        const [cache_key, etag, last_modified, body_json, status, checked_at, updated_at] = this.bindings;
+        const nextRow = {
+          cache_key,
+          etag,
+          last_modified,
+          body_json,
+          status,
+          checked_at,
+          updated_at
+        };
+        const index = this.config.githubRequestCache.findIndex((row) => row.cache_key === cache_key);
+        if (index >= 0) {
+          this.config.githubRequestCache[index] = nextRow;
+        } else {
+          this.config.githubRequestCache.unshift(nextRow);
+        }
+      }
+    }
     return {
       success: true
     };
   }
+}
+
+export function githubRequestCacheRow(overrides = {}) {
+  return {
+    cache_key: "/repos/mock/d1-agent",
+    etag: '"mock-etag"',
+    last_modified: "Sat, 20 Jun 2026 00:00:00 GMT",
+    body_json: JSON.stringify({
+      full_name: mockD1ProjectId
+    }),
+    status: 200,
+    checked_at: "2026-06-20T00:00:00Z",
+    updated_at: "2026-06-20T00:00:00Z",
+    ...overrides
+  };
 }
 
 export function governanceRunRow(overrides = {}) {

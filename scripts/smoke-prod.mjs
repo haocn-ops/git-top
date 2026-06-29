@@ -72,6 +72,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.ok(body.tools.some((tool) => tool.name === "get_agent_workflow"), "MCP discovery should include get_agent_workflow");
     assert.ok(body.tools.some((tool) => tool.name === "get_atlas"), "MCP discovery should include get_atlas");
     assert.ok(body.tools.some((tool) => tool.name === "get_quality_report"), "MCP discovery should include get_quality_report");
+    assert.ok(body.tools.some((tool) => tool.name === "get_trust_gate"), "MCP discovery should include get_trust_gate");
     assert.ok(body.tools.some((tool) => tool.name === "git_top_grp_query"), "MCP discovery should include git_top_grp_query");
     return {
       tools: body.tools.length,
@@ -351,6 +352,7 @@ export async function runSmoke(args = [], env = process.env) {
     const scoreGuide = await getHead(context, "/topics/git-top-score-guide");
     const workflowGuide = await getHead(context, "/topics/agent-workflow-guide");
     const alternativesGuide = await getHead(context, "/topics/alternatives-engine-guide");
+    const trustGateGuide = await getHead(context, "/topics/trust-gate-guide");
     const trustGuide = await getHead(context, "/topics/data-trust-guide");
 
     assert.equal(atlasGuide.status, 200);
@@ -364,6 +366,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.equal(scoreGuide.status, 200);
     assert.equal(workflowGuide.status, 200);
     assert.equal(alternativesGuide.status, 200);
+    assert.equal(trustGateGuide.status, 200);
     assert.equal(trustGuide.status, 200);
 
     return {
@@ -378,6 +381,7 @@ export async function runSmoke(args = [], env = process.env) {
       score: scoreGuide.status,
       workflow: workflowGuide.status,
       alternatives: alternativesGuide.status,
+      trustGate: trustGateGuide.status,
       trust: trustGuide.status
     };
   });
