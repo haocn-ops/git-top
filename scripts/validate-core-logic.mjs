@@ -75,6 +75,7 @@ async function testLegacyConsoleRedirects() {
   assert.match(llmsFullText, /relationship_groups/);
   assert.match(llmsFullText, /comparison_links/);
   assert.match(llmsFullText, /alternative_matches/);
+  assert.match(llmsFullText, /replacement_risk/);
   assert.match(llmsFullText, /adoption_guidance/);
   assert.match(llmsFullText, /risk_flags/);
   assert.match(llmsFullText, /score_confidence/);
@@ -187,6 +188,8 @@ async function testAlternativesRoute() {
   assert.match(detailText, /Decision Summary/);
   assert.match(detailText, /Avg similarity/);
   assert.match(detailText, /Compare shortlist/);
+  assert.match(detailText, /Replacement risk/);
+  assert.match(detailText, /Fit:/);
 
   const alias = await worker.fetch(new Request("https://git.top/alternatives/claude-code"), {});
   const aliasText = await alias.text();

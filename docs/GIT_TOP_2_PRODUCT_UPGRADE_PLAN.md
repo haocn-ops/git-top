@@ -118,6 +118,7 @@ Status:
 - Alternatives pages are implemented at `/alternatives` and `/alternatives/:project` with source context, comparison table, best-fit guidance, not-best-for guidance, and match cards.
 - Alternatives APIs expose `summary`, `stats`, `next_actions`, `comparison_links`, `alternatives`, and `alternative_matches` so agents can move from replacement discovery into compare, graph, score, and recommendation flows.
 - Alternatives matching uses explicit alternatives, category overlap, deployment overlap, use-case overlap, topic overlap, inferred dependency overlap, language fit, maintenance signals, and Cloudflare readiness.
+- Alternative matches now include `fit_summary`, `adoption_notes`, and `replacement_risk` so users and agents can distinguish direct substitutes from adjacent options.
 
 ## Phase 4: Git.Top Score
 

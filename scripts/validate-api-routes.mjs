@@ -249,6 +249,9 @@ async function testGraphAndQualityRoutes() {
   assert.ok(alternatives.body.alternative_matches.length <= 4, "alternatives endpoint should honor limit");
   assert.ok(typeof alternatives.body.alternative_matches[0].similarity_score === "number");
   assert.ok(typeof alternatives.body.alternative_matches[0].alternative_reason === "string");
+  assert.ok(typeof alternatives.body.alternative_matches[0].fit_summary === "string");
+  assert.ok(Array.isArray(alternatives.body.alternative_matches[0].adoption_notes));
+  assert.ok(["low", "medium", "high"].includes(alternatives.body.alternative_matches[0].replacement_risk));
   assert.ok(alternatives.body.alternative_matches[0].match_signals && typeof alternatives.body.alternative_matches[0].match_signals === "object");
   assertMetadata(alternatives.body.metadata, "db_missing");
 
@@ -540,6 +543,7 @@ async function testSchemaRoutes() {
   assert.ok(Array.isArray(agentMap.body.surfaces));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Project graph" && surface.human_page === "/graph/:project"));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Recommendations" && surface.mcp_tools.includes("recommend_project")));
+  assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Alternatives" && surface.output_fields.includes("alternative_matches[].replacement_risk")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Score explanation" && surface.output_fields.includes("score_confidence")));
   assert.equal(agentMap.body.trust_policy.high_confidence_source, "metadata.source=d1");
 }

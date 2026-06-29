@@ -239,7 +239,7 @@ export function renderLlmsFullTxt(): Response {
       "",
       "## Alternatives Engine",
       "",
-      "Alternatives responses expose summary, stats, next_actions, comparison_links, alternatives, and alternative_matches so agents can move from replacement discovery into comparison, graph, score, and recommendation flows.",
+      "Alternatives responses expose summary, stats, next_actions, comparison_links, alternatives, and alternative_matches with fit_summary, adoption_notes, and replacement_risk so agents can move from replacement discovery into comparison, graph, score, and recommendation flows.",
       "",
       "## Atlas",
       "",

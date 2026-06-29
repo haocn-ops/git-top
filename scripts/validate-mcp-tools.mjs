@@ -176,6 +176,9 @@ async function testToolCalls() {
   assert.ok(alternatives.result.alternative_matches.length <= 3);
   assert.ok(typeof alternatives.result.alternative_matches[0].similarity_score === "number");
   assert.ok(typeof alternatives.result.alternative_matches[0].alternative_reason === "string");
+  assert.ok(typeof alternatives.result.alternative_matches[0].fit_summary === "string");
+  assert.ok(Array.isArray(alternatives.result.alternative_matches[0].adoption_notes));
+  assert.ok(["low", "medium", "high"].includes(alternatives.result.alternative_matches[0].replacement_risk));
   assertMetadata(alternatives.result.metadata, "db_missing");
 
   const aliasAlternatives = await callTool("get_alternatives", { project_id: "claude-code", limit: 3 });

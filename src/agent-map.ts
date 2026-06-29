@@ -32,8 +32,8 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     humanPage: "/alternatives/:project",
     rest: ["GET /api/alternatives/:project", "POST /api/alternatives"],
     mcpTools: ["get_alternatives", "find_alternatives"],
-    outputFields: ["summary", "stats", "alternative_matches", "comparison_links", "next_actions"],
-    trustFields: ["metadata.source", "alternative_matches[].similarity_score", "alternative_matches[].match_signals"],
+    outputFields: ["summary", "stats", "alternative_matches", "alternative_matches[].fit_summary", "alternative_matches[].adoption_notes", "alternative_matches[].replacement_risk", "comparison_links", "next_actions"],
+    trustFields: ["metadata.source", "alternative_matches[].similarity_score", "alternative_matches[].match_signals", "alternative_matches[].replacement_risk"],
     recommendedUse: "Find replacement candidates and move into compare, graph, score, or recommendation flows."
   },
   {

@@ -85,11 +85,50 @@ export function generateAlternativeMatches(project: ProjectKnowledge, allProject
 }
 
 export function toAlternativeMatchView(match: AlternativeMatch) {
+  const guidance = alternativeAdoptionGuidance(match);
   return {
     ...toProjectKnowledgeView(match.project),
     similarityScore: match.similarityScore,
     alternativeReason: match.reason,
-    matchSignals: match.signals
+    matchSignals: match.signals,
+    fitSummary: guidance.fitSummary,
+    adoptionNotes: guidance.adoptionNotes,
+    replacementRisk: guidance.replacementRisk
+  };
+}
+
+export function alternativeAdoptionGuidance(match: AlternativeMatch) {
+  const notes: string[] = [];
+  if (match.signals.sharedCategory) {
+    notes.push("Same category, so it can be evaluated as a direct functional substitute.");
+  } else {
+    notes.push("Different category, so treat it as an adjacent option rather than a drop-in replacement.");
+  }
+  if (match.signals.sharedDeployments.length > 0) {
+    notes.push(`Deployment overlap: ${match.signals.sharedDeployments.slice(0, 3).join(", ")}.`);
+  } else {
+    notes.push("No indexed deployment overlap; verify runtime and hosting fit before switching.");
+  }
+  if (match.signals.dependencyOverlap.length > 0) {
+    notes.push(`Shared dependency context: ${match.signals.dependencyOverlap.slice(0, 3).join(", ")}.`);
+  }
+  if (match.signals.cloudflareReadyUpgrade) {
+    notes.push("Cloudflare-ready upgrade candidate.");
+  }
+  if (!match.signals.sameLanguage && match.project.project.language) {
+    notes.push(`Language changes to ${match.project.project.language}; migration cost may be higher.`);
+  }
+
+  const replacementRisk = match.signals.sharedCategory && match.signals.sharedDeployments.length > 0 && match.similarityScore >= 65 ? "low" : match.similarityScore >= 45 ? "medium" : "high";
+  return {
+    fitSummary:
+      replacementRisk === "low"
+        ? "Strong replacement candidate with category and deployment overlap."
+        : replacementRisk === "medium"
+          ? "Useful alternative, but compare deployment, language, and dependency fit before switching."
+          : "Exploratory alternative; inspect graph and score evidence before treating it as a substitute.",
+    adoptionNotes: notes.slice(0, 5),
+    replacementRisk
   };
 }
 

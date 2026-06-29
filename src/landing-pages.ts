@@ -1,6 +1,6 @@
 import { compareProjectKnowledge } from "./graph";
 import { listProjectKnowledgeWithMeta } from "./knowledge-source";
-import { buildAlternativesDecision, generateAlternativeMatches } from "./alternatives";
+import { alternativeAdoptionGuidance, buildAlternativesDecision, generateAlternativeMatches } from "./alternatives";
 import { findAlternativesFromList, searchProjectList } from "./project-search";
 import { findProjectById, resolveProject } from "./project-aliases";
 import { toProjectKnowledgeView } from "./project-view";
@@ -610,6 +610,7 @@ function alternativeExampleCard(example: {
 
 function alternativeMatchCard(match: ReturnType<typeof generateAlternativeMatches>[number]): string {
   const view = toProjectKnowledgeView(match.project);
+  const guidance = alternativeAdoptionGuidance(match);
   const signals = [
     match.signals.explicit ? "Explicit" : "",
     match.signals.sharedCategory ? label(view.category[0] ?? "category") : "",
@@ -622,8 +623,13 @@ function alternativeMatchCard(match: ReturnType<typeof generateAlternativeMatche
       <span class="tag">${match.similarityScore}/100</span>
     </div>
     <p>${escapeHtml(match.reason)}</p>
+    <p class="muted"><strong>Fit:</strong> ${escapeHtml(guidance.fitSummary)}</p>
     <p class="muted">${escapeHtml(view.description || view.overview)}</p>
     <div class="tag-list">${signals.slice(0, 5).map((signal) => `<span class="tag">${escapeHtml(signal)}</span>`).join("")}</div>
+    <div class="list">
+      <div><span class="muted">Replacement risk</span><strong>${escapeHtml(guidance.replacementRisk)}</strong></div>
+      ${guidance.adoptionNotes.slice(0, 2).map((note) => `<div><span class="muted">Adoption note</span><strong>${escapeHtml(note)}</strong></div>`).join("")}
+    </div>
     <div class="score"><div><span class="muted">Quality</span><strong>${view.qualityScore}</strong></div><div><span class="muted">Agent</span><strong>${view.agentScore}</strong></div></div>
   </article>`;
 }
