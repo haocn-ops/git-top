@@ -254,6 +254,9 @@ async function testToolCalls() {
   assert.ok(recommend.result.recommendations.length > 0);
   assert.ok(Array.isArray(recommend.result.recommendations[0].reasons));
   assert.ok(typeof recommend.result.recommendations[0].decision_summary === "string");
+  assert.ok(recommend.result.recommendations[0].fit_profile && typeof recommend.result.recommendations[0].fit_profile.primary_fit === "string");
+  assert.ok(Array.isArray(recommend.result.recommendations[0].adoption_plan));
+  assert.ok(Array.isArray(recommend.result.recommendations[0].risk_flags));
   assert.ok(Array.isArray(recommend.result.recommendations[0].next_actions));
   assert.ok(recommend.result.recommendations[0].next_actions.some((action) => action.kind === "alternatives"));
   assert.equal(recommend.result.recommendations[0].matched_constraints.category, "agent_framework");

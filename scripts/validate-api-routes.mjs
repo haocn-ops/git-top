@@ -149,6 +149,9 @@ async function testRecommendationAndCompareRoutes() {
   assert.ok(recommend.body.recommendations.length > 0, "recommend should return seed recommendations");
   assert.ok(Array.isArray(recommend.body.recommendations[0].reasons));
   assert.ok(typeof recommend.body.recommendations[0].decision_summary === "string");
+  assert.ok(recommend.body.recommendations[0].fit_profile && typeof recommend.body.recommendations[0].fit_profile.primary_fit === "string");
+  assert.ok(Array.isArray(recommend.body.recommendations[0].adoption_plan));
+  assert.ok(Array.isArray(recommend.body.recommendations[0].risk_flags));
   assert.ok(Array.isArray(recommend.body.recommendations[0].next_actions));
   assert.ok(recommend.body.recommendations[0].next_actions.some((action) => action.kind === "graph"));
   assert.ok(typeof recommend.body.recommendations[0].matched_constraints === "object");
@@ -185,6 +188,7 @@ async function testRecommendationAndCompareRoutes() {
   assert.ok(postRecommend.body.recommendations.length > 0);
   assert.ok(postRecommend.body.recommendations.length <= 2);
   assert.ok(typeof postRecommend.body.recommendations[0].decision_summary === "string");
+  assert.ok(Array.isArray(postRecommend.body.recommendations[0].adoption_plan));
   assert.ok(postRecommend.body.recommendations[0].next_actions.some((action) => action.kind === "score"));
   assertMetadata(postRecommend.body.metadata, "db_missing");
 
@@ -543,6 +547,7 @@ async function testSchemaRoutes() {
   assert.ok(Array.isArray(agentMap.body.surfaces));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Project graph" && surface.human_page === "/graph/:project"));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Recommendations" && surface.mcp_tools.includes("recommend_project")));
+  assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Recommendations" && surface.output_fields.includes("recommendations[].adoption_plan")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Alternatives" && surface.output_fields.includes("alternative_matches[].replacement_risk")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Score explanation" && surface.output_fields.includes("score_confidence")));
   assert.equal(agentMap.body.trust_policy.high_confidence_source, "metadata.source=d1");

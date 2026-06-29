@@ -70,6 +70,9 @@ async function testLegacyConsoleRedirects() {
   assert.match(llmsFullText, /GET \/api\/atlas\?limit=6/);
   assert.match(llmsFullText, /exploration_paths/);
   assert.match(llmsFullText, /decision_summary/);
+  assert.match(llmsFullText, /fit_profile/);
+  assert.match(llmsFullText, /adoption_plan/);
+  assert.match(llmsFullText, /risk_flags/);
   assert.match(llmsFullText, /next_actions/);
   assert.match(llmsFullText, /graph_stats/);
   assert.match(llmsFullText, /relationship_groups/);
@@ -239,6 +242,9 @@ async function testRecommendRoute() {
   assert.match(text, /Recommendation Engine/);
   assert.match(text, /Find projects by fit/);
   assert.match(text, /Open JSON/);
+  assert.match(text, /Fit Profile/);
+  assert.match(text, /Adoption Plan/);
+  assert.match(text, /Risk Flags/);
   assert.match(text, /Matched|Review/);
 
   const filtered = await worker.fetch(new Request("https://git.top/recommend?use_case=build%20RAG%20applications&deployment=local&category=rag_framework&limit=3"), {});

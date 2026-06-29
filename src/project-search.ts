@@ -31,6 +31,14 @@ export interface Recommendation {
   reason: string;
   reasons: string[];
   decision_summary: string;
+  fit_profile: {
+    primary_fit: string;
+    deployment_fit: string;
+    maturity: string;
+    agent_readiness: string;
+  };
+  adoption_plan: string[];
+  risk_flags: string[];
   tradeoffs: string[];
   next_actions: Array<{
     label: string;
@@ -276,6 +284,7 @@ export function recommendProjectList(projects: ProjectKnowledge[], query: Recomm
       const unmatchedConstraints = recommendationUnmatchedConstraints(item, query);
       const reasons = buildRecommendationReasons(item, query, rankingSignals, matchedConstraints, unmatchedConstraints);
       const tradeoffs = buildRecommendationTradeoffs(item, query, unmatchedConstraints);
+      const confidence = recommendationConfidence(rankingSignals, matchedConstraints, unmatchedConstraints, query);
 
       return {
         project_id: item.project.id,
@@ -283,12 +292,15 @@ export function recommendProjectList(projects: ProjectKnowledge[], query: Recomm
         reason: reasons.join(" "),
         reasons,
         decision_summary: buildRecommendationDecisionSummary(item, score, query, matchedConstraints, unmatchedConstraints),
+        fit_profile: buildRecommendationFitProfile(item, query, rankingSignals, matchedConstraints, unmatchedConstraints),
+        adoption_plan: buildRecommendationAdoptionPlan(item, query, matchedConstraints, unmatchedConstraints),
+        risk_flags: buildRecommendationRiskFlags(item, query, rankingSignals, unmatchedConstraints, confidence),
         tradeoffs,
         next_actions: buildRecommendationNextActions(item),
         matched_constraints: matchedConstraints,
         unmatched_constraints: unmatchedConstraints,
         ranking_signals: rankingSignals,
-        confidence: recommendationConfidence(rankingSignals, matchedConstraints, unmatchedConstraints, query),
+        confidence,
         project: item.project,
         agent_card: item.agentCard,
         metrics: item.metrics
@@ -388,6 +400,69 @@ function buildRecommendationDecisionSummary(
   return `${item.project.fullName} is ranked by Git.Top fit signals${context}: recommendation score ${score}/100.`;
 }
 
+function buildRecommendationFitProfile(
+  item: ProjectKnowledge,
+  query: RecommendationQuery,
+  rankingSignals: Recommendation["ranking_signals"],
+  matchedConstraints: Recommendation["matched_constraints"],
+  unmatchedConstraints: Recommendation["unmatched_constraints"]
+): Recommendation["fit_profile"] {
+  const primaryFit = query.useCase
+    ? rankingSignals.use_case_match >= 60
+      ? `Strong use-case overlap for "${query.useCase}".`
+      : rankingSignals.use_case_match >= 30
+        ? `Partial use-case overlap for "${query.useCase}"; validate the target workflow.`
+        : `Weak indexed use-case overlap for "${query.useCase}"; inspect graph and README evidence.`
+    : `Ranked within ${item.agentCard.category} using quality and readiness signals.`;
+  const deploymentFit = query.deployment
+    ? matchedConstraints.deployment
+      ? `Matches requested ${query.deployment} deployment.`
+      : `Does not explicitly list ${query.deployment}; indexed deployments are ${item.agentCard.deployment.join(", ")}.`
+    : item.agentCard.deployment.length
+      ? `Supports ${item.agentCard.deployment.slice(0, 3).join(", ")} deployment paths.`
+      : "No indexed deployment target.";
+  const maturity =
+    rankingSignals.community >= 70 && rankingSignals.maintenance >= 60
+      ? "High maturity signal from community and maintenance scores."
+      : rankingSignals.maintenance >= 50
+        ? "Moderate maturity signal; maintenance is acceptable but compare community adoption."
+        : "Early or uneven maturity signal; review maintenance history before adoption.";
+  const agentReadiness =
+    item.agentCard.useCases.length > 0 && item.agentCard.summaryForAgent
+      ? "Agent-readable summary and use cases are available."
+      : Object.keys(unmatchedConstraints).length > 0
+        ? "Agent should cite unmatched constraints before recommending."
+        : "Agent-readable metadata is partial; inspect project and score evidence.";
+  return {
+    primary_fit: primaryFit,
+    deployment_fit: deploymentFit,
+    maturity,
+    agent_readiness: agentReadiness
+  };
+}
+
+function buildRecommendationAdoptionPlan(
+  item: ProjectKnowledge,
+  query: RecommendationQuery,
+  matchedConstraints: Recommendation["matched_constraints"],
+  unmatchedConstraints: Recommendation["unmatched_constraints"]
+): string[] {
+  const plan = [
+    `Open /projects/${item.project.id} to verify license, language, classification evidence, and quality signal confidence.`,
+    `Inspect /graph/${item.project.id} for dependencies, related projects, deployment targets, and alternatives.`
+  ];
+  if (Object.keys(unmatchedConstraints).length > 0) {
+    plan.push(`Resolve unmatched constraints before adoption: ${Object.keys(unmatchedConstraints).join(", ")}.`);
+  } else if (Object.keys(matchedConstraints).length > 0) {
+    plan.push(`Use the matched constraints (${Object.keys(matchedConstraints).join(", ")}) as the initial acceptance checklist.`);
+  }
+  if (query.deployment || item.agentCard.deployment.length > 0) {
+    plan.push(`Prototype the ${query.deployment ?? item.agentCard.deployment[0]} deployment path before committing to a migration.`);
+  }
+  plan.push(`Compare against /alternatives/${item.project.id} before final selection.`);
+  return plan.slice(0, 5);
+}
+
 function buildRecommendationNextActions(item: ProjectKnowledge): Recommendation["next_actions"] {
   const repo = item.project.id;
   return [
@@ -461,6 +536,35 @@ function buildRecommendationTradeoffs(
     tradeoffs.push("No structured use cases are available for this project yet.");
   }
   return sortedUnique(tradeoffs).slice(0, 4);
+}
+
+function buildRecommendationRiskFlags(
+  item: ProjectKnowledge,
+  query: RecommendationQuery,
+  rankingSignals: Recommendation["ranking_signals"],
+  unmatchedConstraints: Recommendation["unmatched_constraints"],
+  confidence: Recommendation["confidence"]
+): string[] {
+  const risks: string[] = [];
+  if (Object.keys(unmatchedConstraints).length > 0) {
+    risks.push(`Unmatched constraints: ${Object.keys(unmatchedConstraints).join(", ")}.`);
+  }
+  if (confidence === "low") {
+    risks.push("Low recommendation confidence; use as a discovery lead, not a final choice.");
+  }
+  if (rankingSignals.maintenance < 40) {
+    risks.push("Maintenance signal is weak; inspect recent commits, releases, and issues.");
+  }
+  if (query.useCase && rankingSignals.use_case_match < 35) {
+    risks.push("Use-case overlap is weak in indexed text.");
+  }
+  if (item.agentCard.projectKind === "collection") {
+    risks.push("This is a collection/resource hub, not a single installable project.");
+  }
+  if (query.cloudflareReady && !item.agentCard.cloudflareReady) {
+    risks.push("Cloudflare-ready constraint is not satisfied.");
+  }
+  return sortedUnique(risks).slice(0, 5);
 }
 
 function recommendationConfidence(

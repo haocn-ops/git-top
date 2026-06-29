@@ -96,12 +96,16 @@ function renderHtml({
       .metric span { display:block; color:var(--muted); font-size:11px; font-weight:900; text-transform:uppercase; }
       .metric strong { display:block; margin-top:4px; font-size:18px; }
       .reason-list,.tradeoffs { display:grid; gap:7px; margin:0; padding-left:18px; }
+      .fit-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+      .fit-item { border:1px solid var(--line); border-radius:8px; background:#fbfdfd; padding:10px; }
+      .fit-item span { display:block; color:var(--muted); font-size:11px; font-weight:900; text-transform:uppercase; }
+      .fit-item strong { display:block; margin-top:5px; color:#22313a; line-height:1.45; }
       .side { display:grid; gap:12px; }
       .data-panel { border:1px solid var(--line); border-radius:8px; background:#fff; padding:14px; }
       code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; overflow-wrap:anywhere; }
       @media (max-width:980px) { .layout,.form-grid { grid-template-columns:1fr; } }
-      @media (max-width:760px) { .score-box { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-      @media (max-width:480px) { .score-box { grid-template-columns:1fr; } }
+      @media (max-width:760px) { .score-box,.fit-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+      @media (max-width:520px) { .score-box,.fit-grid { grid-template-columns:1fr; } }
     </style>
   </head>
   <body>
@@ -204,6 +208,15 @@ function recommendationCard(item: Recommendation, index: number): string {
       ${Object.keys(item.matched_constraints).map((key) => `<span class="tag good">Matched ${escapeHtml(label(key))}</span>`).join("")}
       ${Object.keys(item.unmatched_constraints).map((key) => `<span class="tag warn">Review ${escapeHtml(label(key))}</span>`).join("")}
     </div>
+    <div>
+      <p class="eyebrow">Fit Profile</p>
+      <div class="fit-grid" style="margin-top:8px">
+        ${fitItem("Primary fit", item.fit_profile.primary_fit)}
+        ${fitItem("Deployment", item.fit_profile.deployment_fit)}
+        ${fitItem("Maturity", item.fit_profile.maturity)}
+        ${fitItem("Agent readiness", item.fit_profile.agent_readiness)}
+      </div>
+    </div>
     <div class="layout" style="grid-template-columns:minmax(0,1fr) minmax(260px,.7fr); margin-top:0">
       <div>
         <p class="eyebrow">Reasons</p>
@@ -214,11 +227,25 @@ function recommendationCard(item: Recommendation, index: number): string {
         <ul class="tradeoffs">${item.tradeoffs.length ? item.tradeoffs.slice(0, 3).map((tradeoff) => `<li>${escapeHtml(tradeoff)}</li>`).join("") : "<li>No major tradeoffs generated from indexed signals.</li>"}</ul>
       </div>
     </div>
+    <div class="layout" style="grid-template-columns:minmax(0,1fr) minmax(260px,.7fr); margin-top:0">
+      <div>
+        <p class="eyebrow">Adoption Plan</p>
+        <ul class="reason-list">${item.adoption_plan.slice(0, 4).map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ul>
+      </div>
+      <div>
+        <p class="eyebrow">Risk Flags</p>
+        <ul class="tradeoffs">${item.risk_flags.length ? item.risk_flags.slice(0, 4).map((risk) => `<li>${escapeHtml(risk)}</li>`).join("") : "<li>No major risk flags generated from indexed signals.</li>"}</ul>
+      </div>
+    </div>
   </article>`;
 }
 
 function metric(labelText: string, value: number): string {
   return `<div class="metric"><span>${escapeHtml(labelText)}</span><strong>${Math.round(value)}</strong></div>`;
+}
+
+function fitItem(labelText: string, value: string): string {
+  return `<div class="fit-item"><span>${escapeHtml(labelText)}</span><strong>${escapeHtml(value)}</strong></div>`;
 }
 
 function queryTags(query: RecommendationQuery): string {

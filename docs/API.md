@@ -222,6 +222,9 @@ Recommendation items include both human and machine-readable explanation fields:
 - `reason`: backward-compatible one-line explanation.
 - `reasons`: ranked explanation sentences.
 - `decision_summary`: short adoption-oriented summary for the candidate.
+- `fit_profile`: primary fit, deployment fit, maturity, and agent-readiness guidance.
+- `adoption_plan`: suggested verification and rollout steps before selecting the project.
+- `risk_flags`: indexed risks such as unmatched constraints, weak maintenance, or low confidence.
 - `matched_constraints`
 - `unmatched_constraints`
 - `ranking_signals`: use-case, community, maintenance, readiness, and license-fit signals.

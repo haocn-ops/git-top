@@ -227,7 +227,7 @@ export function renderLlmsFullTxt(): Response {
       "",
       "## Recommendation Engine",
       "",
-      "Recommendation results include reason, reasons, decision_summary, tradeoffs, matched_constraints, unmatched_constraints, ranking_signals, confidence, and next_actions links into project, graph, alternatives, score, and compare flows.",
+      "Recommendation results include reason, reasons, decision_summary, fit_profile, adoption_plan, risk_flags, tradeoffs, matched_constraints, unmatched_constraints, ranking_signals, confidence, and next_actions links into project, graph, alternatives, score, and compare flows.",
       "",
       "## Compare",
       "",

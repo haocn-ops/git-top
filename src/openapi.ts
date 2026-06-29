@@ -100,7 +100,7 @@ export const openApiDocument = {
           queryParam("cloudflare_ready", "Boolean Cloudflare readiness filter"),
           queryParam("limit", "Maximum result count")
         ],
-        responses: { "200": { description: "Recommendations with reasons and tradeoffs" } }
+        responses: { "200": { description: "Recommendations with fit profiles, adoption plans, risk flags, reasons, and tradeoffs" } }
       },
       post: {
         summary: "Recommend projects from a structured JSON body with optional nested constraints.",
@@ -112,7 +112,7 @@ export const openApiDocument = {
             }
           }
         },
-        responses: { "200": { description: "Recommendations with reasons, constraints, ranking signals, and tradeoffs" }, "400": { description: "Invalid recommendation request" } }
+        responses: { "200": { description: "Recommendations with fit profiles, adoption plans, risk flags, constraints, ranking signals, and tradeoffs" }, "400": { description: "Invalid recommendation request" } }
       }
     },
     "/api/compare": {

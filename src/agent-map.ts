@@ -23,8 +23,8 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     humanPage: "/recommend",
     rest: ["GET /api/recommend", "POST /api/recommend"],
     mcpTools: ["recommend_project"],
-    outputFields: ["recommendations", "decision_summary", "ranking_signals", "matched_constraints", "next_actions"],
-    trustFields: ["metadata.source", "recommendations[].confidence", "recommendations[].unmatched_constraints"],
+    outputFields: ["recommendations", "recommendations[].decision_summary", "recommendations[].fit_profile", "recommendations[].adoption_plan", "recommendations[].risk_flags", "recommendations[].ranking_signals", "recommendations[].matched_constraints", "recommendations[].next_actions"],
+    trustFields: ["metadata.source", "recommendations[].confidence", "recommendations[].unmatched_constraints", "recommendations[].risk_flags"],
     recommendedUse: "Choose candidates from use case, deployment, category, license, language, and Cloudflare-readiness constraints."
   },
   {
