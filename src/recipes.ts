@@ -102,11 +102,11 @@ export function buildAgentRecipes(): AgentRecipes {
         outcome: "Return release score, data trust score, risk level, and disclosure guidance.",
         steps: [
           step("Fetch health", "GET", "/api/health", "curl https://git.top/api/health", ["db", "metadata.source", "sync_health", "sync_freshness"]),
-          step("Fetch quality report", "GET", "/api/quality", "curl https://git.top/api/quality?require_d1=true", ["release_score", "data_trust_score", "risk_level", "coverage", "issues"]),
+          step("Fetch quality report", "GET", "/api/quality", "curl https://git.top/api/quality?require_d1=true", ["release_score", "data_trust_score", "risk_level", "improvement_plan", "coverage", "issues"]),
           step("Fetch review queue", "GET", "/api/quality/review", "curl https://git.top/api/quality/review?require_d1=true", ["review_count", "items", "impact_score"]),
           step("Fetch coverage page", "GET", "/coverage", "curl https://git.top/coverage", ["category distribution", "collection semantics", "use boundaries"])
         ],
-        trustChecks: ["release_score", "data_trust_score", "risk_summary.reasons", "coverage.low_confidence_classification_rate"]
+        trustChecks: ["release_score", "data_trust_score", "risk_summary.reasons", "improvement_plan", "coverage.low_confidence_classification_rate"]
       },
       {
         id: "plan-with-grp",

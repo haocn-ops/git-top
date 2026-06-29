@@ -457,6 +457,8 @@ async function testQualityInfoIssuesDoNotLowerScore() {
   assert.equal(report.releaseScore, 100);
   assert.equal(report.scoreSummary.releaseScoreMeaning.includes("Release gate score"), true);
   assert.equal(typeof report.dataTrustScore, "number");
+  assert.ok(Array.isArray(report.improvementPlan));
+  assert.ok(report.improvementPlan.length > 0);
 }
 
 async function testQualityCollectionCoverage() {
@@ -508,6 +510,7 @@ async function testQualityCollectionCoverage() {
   assert.equal(report.coverage.collectionFreshnessCounts.stale, 1);
   assert.equal(report.coverage.staleCollectionCount, 1);
   assert.equal(report.coverage.collectionReviewCount, 1);
+  assert.ok(report.improvementPlan.some((item) => item.title.includes("collection")));
 }
 
 async function testSyncBatchSelection() {

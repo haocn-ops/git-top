@@ -252,6 +252,8 @@ export async function runSmoke(args = [], env = process.env) {
     assert.equal(status, 200);
     assert.match(text, /Quality Governance/);
     assert.match(text, /Risk Summary/);
+    assert.match(text, /Improvement Plan/);
+    assert.match(text, /How to lower data trust risk/);
     assert.match(text, /Category coverage/);
     assert.match(text, /Low-confidence classifications/);
     assert.match(text, /Open quality JSON/);
@@ -278,11 +280,14 @@ export async function runSmoke(args = [], env = process.env) {
     assert.ok(typeof result.release_score === "number", "quality report should include release_score");
     assert.ok(typeof result.data_trust_score === "number", "quality report should include data_trust_score");
     assert.ok(typeof result.risk_level === "string", "quality report should include risk_level");
+    assert.ok(Array.isArray(result.improvement_plan), "quality report should include improvement_plan");
+    assert.ok(result.improvement_plan.length > 0, "quality report improvement_plan should not be empty");
     assert.ok(result.coverage, "quality report should include coverage");
     assert.ok(Array.isArray(result.issues), "quality report should include issues");
     return {
       releaseScore: result.release_score,
-      riskLevel: result.risk_level
+      riskLevel: result.risk_level,
+      improvementItems: result.improvement_plan.length
     };
   });
 

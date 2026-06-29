@@ -17,6 +17,7 @@ export interface QualityReport {
   scoreSummary: QualityScoreSummary;
   riskLevel: QualityRiskLevel;
   riskSummary: QualityRiskSummary;
+  improvementPlan: QualityImprovementPlanItem[];
   projectCount: number;
   issueCount: number;
   errorCount: number;
@@ -41,6 +42,15 @@ export interface QualityRiskSummary {
   collectionReviewRate: number;
   staleProjectRate: number;
   staleCollectionRate: number;
+}
+
+export interface QualityImprovementPlanItem {
+  priority: "P0" | "P1" | "P2";
+  title: string;
+  reason: string;
+  target: string;
+  action: string;
+  urls: string[];
 }
 
 export interface LowConfidenceReviewItem {
@@ -129,6 +139,7 @@ export function buildQualityReport(projects: ProjectKnowledge[]): QualityReport 
   const penalty = errorCount * 10 + warningCount * 4;
   const releaseScore = Math.max(0, Math.min(100, 100 - penalty));
   const dataTrustScore = buildDataTrustScore(coverage, projects.length);
+  const improvementPlan = buildImprovementPlan(coverage, riskSummary, issues, projects.length);
 
   return {
     score: releaseScore,
@@ -141,6 +152,7 @@ export function buildQualityReport(projects: ProjectKnowledge[]): QualityReport 
     },
     riskLevel: riskSummary.level,
     riskSummary,
+    improvementPlan,
     projectCount: projects.length,
     issueCount: issues.length,
     errorCount,
@@ -149,6 +161,76 @@ export function buildQualityReport(projects: ProjectKnowledge[]): QualityReport 
     coverage,
     issues
   };
+}
+
+function buildImprovementPlan(
+  coverage: QualityCoverage,
+  riskSummary: QualityRiskSummary,
+  issues: QualityIssue[],
+  projectCount: number
+): QualityImprovementPlanItem[] {
+  const plan: QualityImprovementPlanItem[] = [];
+  const staleSyncCount = issues.filter((issue) => issue.code === "stale_sync").length;
+  const weakAlternativesCount = issues.filter((issue) => issue.code === "weak_alternatives").length;
+  const missingAlternativesCount = issues.filter((issue) => issue.code === "missing_alternatives").length;
+  const collectionReviewRate = rate(coverage.collectionReviewCount, projectCount);
+
+  if (staleSyncCount > 0 || coverage.staleProjectRate > 0) {
+    plan.push({
+      priority: coverage.staleProjectRate >= 0.1 ? "P0" : "P1",
+      title: "Refresh stale project sync data",
+      reason: `${staleSyncCount} projects are reported with stale sync observations; stale project rate is ${percent(coverage.staleProjectRate)}.`,
+      target: "Reduce stale_project_rate below 10% and clear stale_sync observations for high-visibility projects.",
+      action: "Run the production catch-up sync or targeted admin sync for stale high-traffic repositories, then re-run quality and smoke checks.",
+      urls: ["/status", "/api/sync/status", "/operations", "/api/quality"]
+    });
+  }
+
+  if (coverage.lowConfidenceClassificationCount > 0 || riskSummary.lowConfidenceClassificationRate >= 0.1) {
+    plan.push({
+      priority: riskSummary.lowConfidenceClassificationRate >= 0.25 ? "P0" : "P1",
+      title: "Burn down low-confidence classifications",
+      reason: `${coverage.lowConfidenceClassificationCount} projects include low-confidence classification signals; rate is ${percent(riskSummary.lowConfidenceClassificationRate)}.`,
+      target: "Review high-impact low-confidence projects first and move flagship category/deployment evidence to high confidence.",
+      action: "Use the review queue to inspect README/topics/evidence, add classification overrides for reviewed projects, and add eval coverage for recurring ambiguities.",
+      urls: ["/quality/review", "/api/quality/review", "/docs#governance"]
+    });
+  }
+
+  if (coverage.collectionReviewCount > 0 || collectionReviewRate >= 0.05) {
+    plan.push({
+      priority: collectionReviewRate >= 0.15 ? "P1" : "P2",
+      title: "Review collection semantics",
+      reason: `${coverage.collectionReviewCount} collections need curation, scope, item-count, or freshness review; collection review rate is ${percent(collectionReviewRate)}.`,
+      target: "Keep collections useful for discovery without treating them as direct runtime choices.",
+      action: "Confirm scope, curated status, freshness, and estimated item counts for collection/resource repositories; apply reviewed collection policy entries where appropriate.",
+      urls: ["/coverage", "/quality/review", "/api/quality"]
+    });
+  }
+
+  if (weakAlternativesCount > 0 || missingAlternativesCount > 0) {
+    plan.push({
+      priority: weakAlternativesCount + missingAlternativesCount >= 10 ? "P1" : "P2",
+      title: "Strengthen alternatives evidence",
+      reason: `${weakAlternativesCount} popular projects have weak same-category alternatives and ${missingAlternativesCount} popular projects are missing alternatives.`,
+      target: "Improve direct replacement quality for high-traffic alternatives and comparison pages.",
+      action: "Refresh generated alternatives, inspect same-category overlap, and add reviewed alternatives for high-visibility projects when generated matches are adjacent rather than direct substitutes.",
+      urls: ["/alternatives", "/topics/alternatives-engine-guide", "/api/recipes"]
+    });
+  }
+
+  if (plan.length === 0) {
+    plan.push({
+      priority: "P2",
+      title: "Maintain quality gates",
+      reason: "No major quality risk thresholds are currently exceeded.",
+      target: "Keep release score above 90 and data trust risk low.",
+      action: "Continue running quality, focused tests, API/MCP validation, and production smoke before deployments.",
+      urls: ["/api/quality", "/status", "/roadmap"]
+    });
+  }
+
+  return plan;
 }
 
 function buildDataTrustScore(coverage: QualityCoverage, projectCount: number): number {
@@ -537,6 +619,10 @@ function rate(count: number, total: number): number {
     return 0;
   }
   return Number((count / total).toFixed(3));
+}
+
+function percent(value: number): string {
+  return `${Math.round(value * 1000) / 10}%`;
 }
 
 function issue(projectId: string, severity: QualitySeverity, code: string, message: string): QualityIssue {

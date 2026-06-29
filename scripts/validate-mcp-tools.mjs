@@ -304,6 +304,8 @@ async function testToolCalls() {
   assert.ok(typeof qualityReport.result.risk_level === "string");
   assert.ok(qualityReport.result.score_summary);
   assert.ok(qualityReport.result.risk_summary);
+  assert.ok(Array.isArray(qualityReport.result.improvement_plan));
+  assert.ok(qualityReport.result.improvement_plan.length > 0);
   assert.ok(qualityReport.result.coverage);
   assert.ok(Array.isArray(qualityReport.result.issues));
   assert.ok(typeof qualityReport.result.issue_count === "number");

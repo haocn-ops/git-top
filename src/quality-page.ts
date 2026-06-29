@@ -78,6 +78,9 @@ function renderHtml(
       .issue { border-left:4px solid var(--amber); padding-left:10px; }
       .issue.error { border-color:var(--red); }
       .issue.warning { border-color:var(--amber); }
+      .plan { border-left:4px solid var(--teal); padding-left:10px; }
+      .plan.P0 { border-color:var(--red); }
+      .plan.P1 { border-color:var(--amber); }
       .category-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
       @media (max-width:900px) { .metrics,.grid,.two,.category-grid { grid-template-columns:1fr; } }
     </style>
@@ -126,6 +129,25 @@ function renderHtml(
         </aside>
       </section>
 
+      <section class="two">
+        <article class="panel">
+          <p class="eyebrow">Improvement Plan</p>
+          <h2>How to lower data trust risk</h2>
+          <div class="rows">
+            ${report.improvementPlan.map(planRow).join("")}
+          </div>
+        </article>
+        <aside class="panel">
+          <p class="eyebrow">Agent Guidance</p>
+          <h2>Use this before citing recommendations</h2>
+          <div class="rows">
+            <div class="row"><strong>Read <code>release_score</code> and <code>data_trust_score</code> separately.</strong><span>A clean release gate does not mean the corpus has low data risk.</span></div>
+            <div class="row"><strong>Check <code>improvement_plan</code>.</strong><span>Agents can disclose active quality work when risk is medium or high.</span></div>
+            <div class="row"><strong>Fail closed with <code>require_d1=true</code>.</strong><span>Use it when production answers should not fall back to seed data.</span></div>
+          </div>
+        </aside>
+      </section>
+
       <section class="grid">
         ${coverageCard("Category coverage", `${report.coverage.coveredCategories}/${report.coverage.totalCategories}`, rateWidth(report.coverage.coveredCategories, report.coverage.totalCategories), report.coverage.missingCategories.length ? `Missing: ${report.coverage.missingCategories.join(", ")}` : "All tracked categories are represented.")}
         ${coverageCard("Low-confidence classifications", percent(report.coverage.lowConfidenceClassificationRate), report.coverage.lowConfidenceClassificationRate * 100, `${report.coverage.lowConfidenceClassificationCount} projects include low-confidence classification evidence.`)}
@@ -171,6 +193,10 @@ function coverageCard(title: string, value: string | number, width: number, note
 
 function issueRow(issue: QualityReport["issues"][number]): string {
   return `<div class="row issue ${escapeAttr(issue.severity)}"><strong>${escapeHtml(issue.projectId)} · ${escapeHtml(issue.code)}</strong><span>${escapeHtml(issue.message)}</span></div>`;
+}
+
+function planRow(item: QualityReport["improvementPlan"][number]): string {
+  return `<div class="row plan ${escapeAttr(item.priority)}"><strong>${escapeHtml(item.priority)} · ${escapeHtml(item.title)}</strong><span>${escapeHtml(item.reason)}</span><span>${escapeHtml(item.action)}</span><div class="pills">${item.urls.map((url) => `<a class="pill" href="${escapeAttr(url)}">${escapeHtml(url)}</a>`).join("")}</div></div>`;
 }
 
 function percent(value: number): string {

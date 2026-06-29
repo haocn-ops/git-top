@@ -122,7 +122,7 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     humanPage: "/quality",
     rest: ["GET /api/quality", "GET /api/quality/review", "GET /api/health", "GET /api/sync/status"],
     mcpTools: ["get_quality_report"],
-    outputFields: ["releaseScore", "dataTrustScore", "scoreSummary", "riskLevel", "riskSummary", "coverage", "issues"],
+    outputFields: ["releaseScore", "dataTrustScore", "scoreSummary", "riskLevel", "riskSummary", "improvementPlan", "coverage", "issues"],
     trustFields: ["metadata.source", "metadata.reason", "coverage.lowConfidenceClassificationRate", "coverage.collectionReviewCount", "coverage.staleProjectRate"],
     recommendedUse: "Check whether recommendations are backed by fresh D1 data and whether corpus risk should be disclosed."
   },

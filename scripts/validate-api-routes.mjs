@@ -602,6 +602,10 @@ async function testGraphAndQualityRoutes() {
   assert.ok(["low", "medium", "high"].includes(quality.body.risk_level));
   assert.equal(quality.body.risk_summary.level, quality.body.risk_level);
   assert.ok(Array.isArray(quality.body.risk_summary.reasons));
+  assert.ok(Array.isArray(quality.body.improvement_plan));
+  assert.ok(quality.body.improvement_plan.length > 0);
+  assert.ok(quality.body.improvement_plan[0].priority);
+  assert.ok(Array.isArray(quality.body.improvement_plan[0].urls));
   assert.ok(typeof quality.body.risk_summary.low_confidence_classification_rate === "number");
   assert.ok(typeof quality.body.coverage.covered_categories === "number");
   assert.ok(Array.isArray(quality.body.coverage.missing_categories));

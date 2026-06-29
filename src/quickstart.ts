@@ -109,7 +109,7 @@ export function buildAgentQuickstart(): AgentQuickstart {
         rest: "GET /api/quality",
         mcpTool: "get_quality_report",
         command: "curl https://git.top/api/quality",
-        inspect: ["release_score", "data_trust_score", "risk_level", "coverage", "issues", "metadata.source"],
+        inspect: ["release_score", "data_trust_score", "risk_level", "improvement_plan", "coverage", "issues", "metadata.source"],
         next: "Disclose degraded sync, seed fallback, low classification confidence, or partial quality signals."
       },
       {
@@ -135,7 +135,8 @@ export function buildAgentQuickstart(): AgentQuickstart {
       "Disclose metadata.source=seed as fallback mode.",
       "Check classification evidence before claiming deployment fit.",
       "Check quality_signal_confidence before citing score-driven claims.",
-      "Use /api/quality, /api/health, and /api/sync/status when corpus freshness or confidence matters."
+      "Use /api/quality, /api/health, and /api/sync/status when corpus freshness or confidence matters.",
+      "Read improvement_plan when risk_level is medium or high."
     ]
   };
 }
