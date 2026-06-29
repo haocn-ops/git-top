@@ -264,6 +264,15 @@ async function testGraphAndQualityRoutes() {
   assert.ok(graph.body.relationship_groups.deployment_targets.includes("cloudflare"));
   assertMetadata(graph.body.metadata, "db_missing");
 
+  const aliasGraph = await getJson("/api/graph?repo=claude-code&limit=8");
+  assert.equal(aliasGraph.status, 200);
+  assert.equal(aliasGraph.body.resolved_from.requested_id, "claude-code");
+  assert.equal(aliasGraph.body.resolved_from.resolution, "alias");
+  assert.equal(aliasGraph.body.focus, aliasGraph.body.resolved_from.resolved_id);
+  assert.equal(aliasGraph.body.project.repo, aliasGraph.body.resolved_from.resolved_id);
+  assert.ok(aliasGraph.body.nodes.length > 0);
+  assertMetadata(aliasGraph.body.metadata, "db_missing");
+
   const postGraph = await request("/api/graph", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -281,6 +290,20 @@ async function testGraphAndQualityRoutes() {
   assert.ok(postGraph.body.next_actions.some((action) => action.kind === "score"));
   assert.ok(Array.isArray(postGraph.body.relationship_groups.alternatives));
   assertMetadata(postGraph.body.metadata, "db_missing");
+
+  const aliasPostGraph = await request("/api/graph", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      project_id: "claude-code",
+      limit: 8
+    })
+  });
+  assert.equal(aliasPostGraph.status, 200);
+  assert.equal(aliasPostGraph.body.resolved_from.requested_id, "claude-code");
+  assert.equal(aliasPostGraph.body.resolved_from.resolution, "alias");
+  assert.equal(aliasPostGraph.body.focus, aliasPostGraph.body.resolved_from.resolved_id);
+  assertMetadata(aliasPostGraph.body.metadata, "db_missing");
 
   const atlas = await getJson("/api/atlas?limit=3");
   assert.equal(atlas.status, 200);
@@ -320,6 +343,13 @@ async function testGraphAndQualityRoutes() {
   assert.equal(pathGraph.body.project.repo, "cloudflare/agents");
   assert.ok(Array.isArray(pathGraph.body.relationship_groups.use_cases));
   assertMetadata(pathGraph.body.metadata, "db_missing");
+
+  const shortPathGraph = await getJson("/api/graph/claude-code?limit=8");
+  assert.equal(shortPathGraph.status, 200);
+  assert.equal(shortPathGraph.body.resolved_from.requested_id, "claude-code");
+  assert.equal(shortPathGraph.body.resolved_from.resolution, "alias");
+  assert.equal(shortPathGraph.body.project.repo, shortPathGraph.body.resolved_from.resolved_id);
+  assertMetadata(shortPathGraph.body.metadata, "db_missing");
 
   const related = await getJson("/api/related/cloudflare/agents?limit=4");
   assert.equal(related.status, 200);
@@ -361,6 +391,14 @@ async function testGraphAndQualityRoutes() {
   assert.ok(score.body.related_scores && typeof score.body.related_scores.agent_score === "number");
   assertMetadata(score.body.metadata, "db_missing");
 
+  const aliasScore = await getJson("/api/score/claude-code");
+  assert.equal(aliasScore.status, 200);
+  assert.equal(aliasScore.body.resolved_from.requested_id, "claude-code");
+  assert.equal(aliasScore.body.resolved_from.resolution, "alias");
+  assert.equal(aliasScore.body.project.repo, aliasScore.body.resolved_from.resolved_id);
+  assert.equal(aliasScore.body.score, aliasScore.body.git_top_score);
+  assertMetadata(aliasScore.body.metadata, "db_missing");
+
   const postScore = await request("/api/score", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -376,6 +414,19 @@ async function testGraphAndQualityRoutes() {
   assert.ok(typeof postScore.body.adoption_guidance === "string");
   assert.ok(postScore.body.next_actions.some((action) => action.kind === "graph"));
   assertMetadata(postScore.body.metadata, "db_missing");
+
+  const aliasPostScore = await request("/api/score", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      project_id: "cursor"
+    })
+  });
+  assert.equal(aliasPostScore.status, 200);
+  assert.equal(aliasPostScore.body.resolved_from.requested_id, "cursor");
+  assert.equal(aliasPostScore.body.resolved_from.resolution, "alias");
+  assert.equal(aliasPostScore.body.project.repo, aliasPostScore.body.resolved_from.resolved_id);
+  assertMetadata(aliasPostScore.body.metadata, "db_missing");
 
   const missingScore = await getJson("/api/score/not-real/project");
   assert.equal(missingScore.status, 404);

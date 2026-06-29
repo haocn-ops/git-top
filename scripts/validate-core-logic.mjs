@@ -397,6 +397,13 @@ async function testWorkerProjectSlugLookup() {
   assert.match(graphText, /href="\/alternatives\/cloudflare\/agents"/);
   assert.match(graphText, /href="\/api\/compare\?repos=/);
 
+  const aliasGraph = await worker.fetch(new Request("https://git.top/graph/claude-code"), {});
+  assert.equal(aliasGraph.status, 200, "graph alias should resolve to a product-name landing page");
+  const aliasGraphText = await aliasGraph.text();
+  assert.match(aliasGraphText, /Project Graph/);
+  assert.match(aliasGraphText, /Project Context/);
+  assert.match(aliasGraphText, /Graph Summary/);
+
   const project = await worker.fetch(new Request("https://git.top/projects/cloudflare/agents"), {});
   assert.equal(project.status, 200, "owner/repo project route should resolve through the Worker surface");
   assert.match(await project.text(), /Project Knowledge/);
@@ -408,6 +415,12 @@ async function testWorkerProjectSlugLookup() {
   assert.match(scoreText, /Adoption Guidance/);
   assert.match(scoreText, /Risk Flags/);
   assert.match(scoreText, /Score JSON/);
+
+  const aliasScore = await worker.fetch(new Request("https://git.top/score/cursor"), {});
+  assert.equal(aliasScore.status, 200, "score alias should resolve to a product-name landing page");
+  const aliasScoreText = await aliasScore.text();
+  assert.match(aliasScoreText, /Project Score/);
+  assert.match(aliasScoreText, /Score JSON/);
 
   const missing = await worker.fetch(new Request("https://git.top/not-a-real-project"), {});
   assert.equal(missing.status, 404, "missing project detail should not silently fall back to the first project");

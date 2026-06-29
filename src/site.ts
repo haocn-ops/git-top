@@ -1,5 +1,5 @@
 import { listProjectKnowledgeWithMeta } from "./knowledge-source";
-import { alternativeAliasPaths, compareAliasPaths } from "./project-aliases";
+import { alternativeAliasPaths, compareAliasPaths, graphAliasPaths, scoreAliasPaths } from "./project-aliases";
 import type { Env, ProjectKnowledge } from "./types";
 
 const siteOrigin = "https://git.top";
@@ -340,6 +340,11 @@ function staticSitemapUrls(now: string): SitemapUrl[] {
     { path: "/alternatives/cloudflare/agents", changefreq: "weekly", priority: "0.9", lastmod: now },
     { path: "/alternatives/langgenius/dify", changefreq: "weekly", priority: "0.8", lastmod: now },
     { path: "/alternatives/browser-use/browser-use", changefreq: "weekly", priority: "0.8", lastmod: now },
+    ...graphAliasPaths().map((slug) => ({ path: `/graph/${slug}`, changefreq: "weekly", priority: "0.8", lastmod: now })),
+    { path: "/graph/langchain-ai/langchain", changefreq: "weekly", priority: "0.8", lastmod: now },
+    { path: "/graph/cloudflare/agents", changefreq: "weekly", priority: "0.8", lastmod: now },
+    { path: "/graph/browser-use/browser-use", changefreq: "weekly", priority: "0.8", lastmod: now },
+    ...scoreAliasPaths().map((slug) => ({ path: `/score/${slug}`, changefreq: "weekly", priority: "0.8", lastmod: now })),
     { path: "/score/langchain-ai/langchain", changefreq: "weekly", priority: "0.8", lastmod: now },
     { path: "/score/cloudflare/agents", changefreq: "weekly", priority: "0.8", lastmod: now },
     { path: "/score/browser-use/browser-use", changefreq: "weekly", priority: "0.8", lastmod: now },

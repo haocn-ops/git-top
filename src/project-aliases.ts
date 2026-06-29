@@ -91,6 +91,18 @@ export function compareAliasPaths(): string[] {
   ];
 }
 
+export function graphAliasPaths(): string[] {
+  return projectSurfaceAliasPaths();
+}
+
+export function scoreAliasPaths(): string[] {
+  return projectSurfaceAliasPaths();
+}
+
+function projectSurfaceAliasPaths(): string[] {
+  return ["claude-code", "cursor", "openai", "dify", "langchain", "browser-use", "cloudflare-agents", "llama-index", "opencode"];
+}
+
 function normalizeAlias(value: string): string {
   return value.trim().toLowerCase().replace(/^\/+|\/+$/g, "").replaceAll("--", "/").replaceAll("_", "-");
 }

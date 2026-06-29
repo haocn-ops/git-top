@@ -1,5 +1,5 @@
 import { listProjectKnowledgeWithMeta } from "./knowledge-source";
-import { getProjectKnowledgeFromList } from "./project-search";
+import { resolveProject } from "./project-aliases";
 import { toProjectKnowledgeView } from "./project-view";
 import { buildProjectScoreExplanation } from "./score";
 import type { Env } from "./types";
@@ -17,11 +17,12 @@ const scoreWeights = [
 
 export async function renderProjectScorePage(env: Env, id: string): Promise<Response | null> {
   const knowledge = await listProjectKnowledgeWithMeta(env);
-  const project = getProjectKnowledgeFromList(knowledge.projects, id);
-  if (!project) {
+  const resolution = resolveProject(knowledge.projects, id);
+  if (!resolution) {
     return null;
   }
 
+  const project = resolution.project;
   const view = toProjectKnowledgeView(project);
   const explanation = buildProjectScoreExplanation(project);
   return new Response(renderHtml({ view, explanation, syncedAt: project.project.syncedAt, metricsAt: project.metrics.calculatedAt, metadata: knowledge.metadata }), {

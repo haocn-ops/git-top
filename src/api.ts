@@ -367,8 +367,18 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     if (knowledge instanceof Response) {
       return knowledge;
     }
+    const id = decodeURIComponent(graphShortMatch[1]);
+    const resolution = resolveProject(knowledge.projects, id);
+    if (!resolution) {
+      return errorJson(404, "project_not_found", `Project ${id} was not found.`);
+    }
     return json({
-      ...buildKnowledgeGraph(knowledge.projects, decodeURIComponent(graphShortMatch[1]), parseLimit(url.searchParams.get("limit")) ?? 24),
+      ...buildKnowledgeGraph(knowledge.projects, resolution.resolvedId, parseLimit(url.searchParams.get("limit")) ?? 24),
+      resolvedFrom: {
+        requestedId: resolution.requestedId,
+        resolvedId: resolution.resolvedId,
+        resolution: resolution.resolution
+      },
       metadata: knowledge.metadata
     });
   }
@@ -466,11 +476,19 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     if (knowledge instanceof Response) {
       return knowledge;
     }
-    const project = getProjectKnowledgeFromList(knowledge.projects, id);
-    if (!project) {
+    const resolution = resolveProject(knowledge.projects, id);
+    if (!resolution) {
       return errorJson(404, "project_not_found", `Project ${id} was not found.`);
     }
-    return json({ ...buildProjectScoreExplanation(project), metadata: knowledge.metadata });
+    return json({
+      ...buildProjectScoreExplanation(resolution.project),
+      resolvedFrom: {
+        requestedId: resolution.requestedId,
+        resolvedId: resolution.resolvedId,
+        resolution: resolution.resolution
+      },
+      metadata: knowledge.metadata
+    });
   }
 
   const projectMatch = path.match(/^\/api\/project\/([^/]+)\/([^/]+)$/);
@@ -598,8 +616,23 @@ async function handleGraphApi(request: Request, env: Env): Promise<Response> {
   if (knowledge instanceof Response) {
     return knowledge;
   }
+  if (parsed.input.projectId) {
+    const resolution = resolveProject(knowledge.projects, parsed.input.projectId);
+    if (!resolution) {
+      return errorJson(404, "project_not_found", `Project ${parsed.input.projectId} was not found.`);
+    }
+    return json({
+      ...buildKnowledgeGraph(knowledge.projects, resolution.resolvedId, parsed.input.limit ?? 24),
+      resolvedFrom: {
+        requestedId: resolution.requestedId,
+        resolvedId: resolution.resolvedId,
+        resolution: resolution.resolution
+      },
+      metadata: knowledge.metadata
+    });
+  }
   return json({
-    ...buildKnowledgeGraph(knowledge.projects, parsed.input.projectId, parsed.input.limit ?? 24),
+    ...buildKnowledgeGraph(knowledge.projects, undefined, parsed.input.limit ?? 24),
     metadata: knowledge.metadata
   });
 }
@@ -734,11 +767,19 @@ async function handleScoreApi(request: Request, env: Env): Promise<Response> {
   if (knowledge instanceof Response) {
     return knowledge;
   }
-  const project = getProjectKnowledgeFromList(knowledge.projects, parsed.input.projectId);
-  if (!project) {
+  const resolution = resolveProject(knowledge.projects, parsed.input.projectId);
+  if (!resolution) {
     return errorJson(404, "project_not_found", `Project ${parsed.input.projectId} was not found.`);
   }
-  return json({ ...buildProjectScoreExplanation(project), metadata: knowledge.metadata });
+  return json({
+    ...buildProjectScoreExplanation(resolution.project),
+    resolvedFrom: {
+      requestedId: resolution.requestedId,
+      resolvedId: resolution.resolvedId,
+      resolution: resolution.resolution
+    },
+    metadata: knowledge.metadata
+  });
 }
 
 async function parseProjectLimitBody(
