@@ -358,9 +358,16 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(graph.text, /<link rel="canonical" href="https:\/\/git\.top\/graph"/);
     assert.match(graph.text, /Project%20relationships%20for%20AI%20agents/);
 
+    const workflow = await getText(context, "/workflow");
+    assert.equal(workflow.status, 200);
+    assert.match(workflow.text, /<link rel="canonical" href="https:\/\/git\.top\/workflow"/);
+    assert.match(workflow.text, /Agent Selection Workflow/);
+    assert.match(workflow.text, /Open Workflow JSON/);
+
     return {
       projectsCanonical: true,
-      graphCanonical: true
+      graphCanonical: true,
+      workflowCanonical: true
     };
   });
 

@@ -647,6 +647,7 @@ const html = String.raw`<!doctype html>
         </a>
         <div class="nav-links">
           <a href="/atlas">Atlas</a>
+          <a href="/workflow">Workflow</a>
           <a href="/recommend">Recommend</a>
           <a href="/trends">Trends</a>
           <a href="/graph">Graph</a>
@@ -667,6 +668,7 @@ const html = String.raw`<!doctype html>
             <a class="button secondary" href="/graph">Explore Graph</a>
             <a class="button secondary" href="/atlas">Open Atlas</a>
             <a class="button secondary" href="/trends">View Trends</a>
+            <a class="button secondary" href="/workflow">Build Workflow</a>
             <a class="button secondary" href="/recommend">Get Recommendations</a>
             <a class="button secondary" href="/docs">Docs</a>
             <a class="button secondary" href="/api/search?q=cloudflare%20agent%20framework">Agent API</a>
@@ -719,6 +721,16 @@ const html = String.raw`<!doctype html>
             <a href="/alternatives/langgenius/dify"><span>Dify Alternatives</span><span>-></span></a>
             <a href="/alternatives/langchain-ai/langchain"><span>LangChain Alternatives</span><span>-></span></a>
             <a href="/alternatives/cloudflare/agents"><span>Cloudflare Agents Alternatives</span><span>-></span></a>
+          </div>
+        </article>
+        <article class="intent-card">
+          <div class="intent-card-top"><div class="feature-icon">FLW</div><div><p class="eyebrow">Guide the agent</p><h2>Workflow</h2></div></div>
+          <p class="muted">Move from intent to trend context, shortlist, graph, alternatives, score, compare, and trust checks.</p>
+          <div class="intent-links">
+            <a href="/workflow"><span>Agent Selection Workflow</span><span>-></span></a>
+            <a href="/workflow?intent=choose%20a%20Cloudflare-ready%20agent%20framework&amp;deployment=cloudflare&amp;category=agent_framework&amp;cloudflare_ready=true"><span>Cloudflare Agent Workflow</span><span>-></span></a>
+            <a href="/workflow?intent=evaluate%20Claude%20Code%20alternatives&amp;project_id=claude-code&amp;deployment=local"><span>Claude Code Alternatives</span><span>-></span></a>
+            <a href="/api/workflow?intent=choose%20a%20RAG%20framework&amp;category=rag_framework&amp;deployment=local"><span>Workflow JSON</span><span>-></span></a>
           </div>
         </article>
         <article class="intent-card">

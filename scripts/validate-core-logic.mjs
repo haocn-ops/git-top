@@ -20,6 +20,7 @@ await testTrendsRoute();
 await testAlternativesRoute();
 await testAtlasRoute();
 await testRecommendRoute();
+await testWorkflowRoute();
 await testCompareRoute();
 await testSyncBatchSelection();
 await testWorkerProjectSlugLookup();
@@ -62,6 +63,8 @@ async function testLegacyConsoleRedirects() {
   assert.match(llmsFullText, /GET \/api\/agent-map/);
   assert.match(llmsFullText, /Agent Surface Map/);
   assert.match(llmsFullText, /POST \/api\/project/);
+  assert.match(llmsFullText, /GET \/api\/workflow/);
+  assert.match(llmsFullText, /POST \/api\/workflow/);
   assert.match(llmsFullText, /POST \/api\/recommend/);
   assert.match(llmsFullText, /POST \/api\/compare/);
   assert.match(llmsFullText, /POST \/api\/alternatives/);
@@ -143,6 +146,7 @@ async function testDiscoverRoute() {
   const homeText = await home.text();
   assert.equal(home.status, 200);
   assert.match(homeText, /href="\/discover"/);
+  assert.match(homeText, /href="\/workflow"/);
   assert.match(homeText, /href="\/topics\/browser-ai-automation"/);
   assert.match(homeText, /href="\/topics\/ai-ide-coding-agents"/);
 
@@ -264,6 +268,25 @@ async function testRecommendRoute() {
   assert.equal(filtered.status, 200);
   assert.match(filteredText, /RAG Framework/);
   assert.match(filteredText, /\/api\/recommend\?/);
+}
+
+async function testWorkflowRoute() {
+  const response = await worker.fetch(new Request("https://git.top/workflow"), {});
+  const text = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(text, /Agent Selection Workflow/);
+  assert.match(text, /Move from open-source intent/);
+  assert.match(text, /Open Workflow JSON/);
+  assert.match(text, /Recommended Sequence/);
+  assert.match(text, /Trust Policy/);
+  assert.match(text, /\/api\/workflow\?/);
+
+  const focused = await worker.fetch(new Request("https://git.top/workflow?intent=evaluate%20Claude%20Code%20alternatives&project_id=claude-code&deployment=local&limit=3"), {});
+  const focusedText = await focused.text();
+  assert.equal(focused.status, 200);
+  assert.match(focusedText, /claude-code/);
+  assert.match(focusedText, /\/api\/graph\/claude-code/);
+  assert.match(focusedText, /\/api\/alternatives\/claude-code/);
 }
 
 async function testCompareRoute() {

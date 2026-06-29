@@ -228,6 +228,7 @@ Status:
 - Recommendation Engine responses include confidence, constraints, ranking signals, tradeoffs, decision summaries, and next-action links into project, graph, alternatives, score, and compare flows.
 - Recommendation results now include `fit_profile`, `adoption_plan`, and `risk_flags` so agents can turn ranked candidates into an actionable selection workflow.
 - `/api/workflow` and MCP `get_agent_workflow` now expose an end-to-end agent selection path across health, trends, recommendations, graph, alternatives, score, compare, Agent Map, and trust policy.
+- `/workflow` now gives the same workflow a human-readable Worker page with editable intent and constraint controls, visible recommended steps, shortlist, trend context, and trust policy.
 - MCP discovery and tools expose the same concepts as REST, including trends via `get_trends`, with D1-required fail-closed options for production agents.
 - `/api/agent-map` now exposes a machine-readable map from product concepts to human pages, REST endpoints, MCP tools, output fields, trust fields, and recommended use.
 
