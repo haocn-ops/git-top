@@ -1,4 +1,5 @@
 import { listProjectKnowledgeWithMeta } from "./knowledge-source";
+import { alternativeAliasPaths } from "./project-aliases";
 import type { Env, ProjectKnowledge } from "./types";
 
 const siteOrigin = "https://git.top";
@@ -333,6 +334,7 @@ function staticSitemapUrls(now: string): SitemapUrl[] {
     { path: "/deployments/local", changefreq: "weekly", priority: "0.8", lastmod: now },
     { path: "/compare/cloudflare-agents...langchain-ai-langchain", changefreq: "weekly", priority: "0.7", lastmod: now },
     { path: "/alternatives", changefreq: "weekly", priority: "0.9", lastmod: now },
+    ...alternativeAliasPaths().map((slug) => ({ path: `/alternatives/${slug}`, changefreq: "weekly", priority: "0.9", lastmod: now })),
     { path: "/alternatives/langchain-ai/langchain", changefreq: "weekly", priority: "0.9", lastmod: now },
     { path: "/alternatives/cloudflare/agents", changefreq: "weekly", priority: "0.9", lastmod: now },
     { path: "/alternatives/langgenius/dify", changefreq: "weekly", priority: "0.8", lastmod: now },

@@ -144,7 +144,7 @@ Run repeated catch-up rounds from the repo:
 SYNC_SECRET=... pnpm sync:prod:catchup --rounds 13 --limit 40
 ```
 
-Cron uses a lightweight batch of 40 and the sync code caps manual batches at 50. That keeps the 500-project corpus on an approximately weekly refresh cycle. If production is `degraded` with a subrequest-limit error, run `limit:1` or `signal_depth:"lite"` until a successful run makes `health` return to `healthy`.
+Cron uses a lightweight batch of 8 to stay under Worker subrequest limits, and the sync code caps manual catch-up batches at 50. Use larger manual batches only after checking recent `/api/sync/status` runs. If production is `degraded` with a subrequest-limit error, run `limit:1` or `signal_depth:"lite"` until a successful run makes `health` return to `healthy`.
 
 ## Data Quality Check
 

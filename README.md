@@ -136,7 +136,7 @@ curl -X POST http://localhost:8787/api/admin/sync \
   -d '{"limit": 40, "offset": 0, "signal_depth": "lite"}'
 ```
 
-Use `{"limit":40,"signal_depth":"lite"}` for catch-up syncs. Cron uses the same lightweight batch size, which keeps the 500-project corpus on an approximately weekly refresh cycle while staying under the bounded sync limit of 50.
+Use `{"limit":40,"signal_depth":"lite"}` for manual catch-up syncs after checking recent `/api/sync/status` runs. Cron uses a smaller lightweight batch size to stay under Worker subrequest limits, while manual catch-up remains capped at 50.
 
 Run repeated production catch-up rounds:
 

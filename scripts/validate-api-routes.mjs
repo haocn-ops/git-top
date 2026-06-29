@@ -207,6 +207,15 @@ async function testGraphAndQualityRoutes() {
   assert.ok(alternatives.body.alternative_matches[0].match_signals && typeof alternatives.body.alternative_matches[0].match_signals === "object");
   assertMetadata(alternatives.body.metadata, "db_missing");
 
+  const aliasAlternatives = await getJson("/api/alternatives/claude-code?limit=4");
+  assert.equal(aliasAlternatives.status, 200);
+  assert.equal(aliasAlternatives.body.resolved_from.requested_id, "claude-code");
+  assert.equal(aliasAlternatives.body.resolved_from.resolution, "alias");
+  assert.equal(aliasAlternatives.body.project.repo, aliasAlternatives.body.resolved_from.resolved_id);
+  assert.ok(Array.isArray(aliasAlternatives.body.alternative_matches));
+  assert.ok(aliasAlternatives.body.alternative_matches.length > 0);
+  assertMetadata(aliasAlternatives.body.metadata, "db_missing");
+
   const postAlternatives = await request("/api/alternatives", {
     method: "POST",
     headers: { "content-type": "application/json" },

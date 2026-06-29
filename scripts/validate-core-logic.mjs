@@ -182,6 +182,13 @@ async function testAlternativesRoute() {
   assert.match(detailText, /Decision Summary/);
   assert.match(detailText, /Avg similarity/);
   assert.match(detailText, /Compare shortlist/);
+
+  const alias = await worker.fetch(new Request("https://git.top/alternatives/claude-code"), {});
+  const aliasText = await alias.text();
+  assert.equal(alias.status, 200);
+  assert.match(aliasText, /Alternatives Engine/);
+  assert.match(aliasText, /Decision Summary/);
+  assert.match(aliasText, /<link rel="canonical" href="https:\/\/git\.top\/alternatives\/claude-code"/);
 }
 
 async function testAtlasRoute() {
@@ -358,7 +365,7 @@ async function testQualityCollectionCoverage() {
 async function testSyncBatchSelection() {
   assert.equal(defaultSyncLimit, 1, "manual sync without a limit should stay conservative by default");
   assert.equal(maxSyncLimit, 50, "admin and catch-up syncs should allow bounded larger batches");
-  assert.equal(scheduledSyncLimit, 40, "scheduled sync should cover a 500-project corpus within roughly one week");
+  assert.equal(scheduledSyncLimit, 8, "scheduled sync should stay under Worker subrequest limits with lightweight signals");
 
   const repositories = ["a/a", "b/b", "c/c", "d/d", "e/e"];
   assert.deepEqual(selectRepositoryBatch(repositories, 1, 3), ["b/b", "c/c", "d/d"]);

@@ -19,6 +19,7 @@ import { buildKnowledgeGraph, compareProjectKnowledge } from "./graph";
 import { normalizeGrpRequest, runGrpQuery } from "./grp";
 import { errorJson, json, parseBool, parseLimit, rawJson } from "./http";
 import { openApiDocument } from "./openapi";
+import { resolveProject } from "./project-aliases";
 import { toProjectKnowledgeView, withRelatedProjects } from "./project-view";
 import { buildLowConfidenceReviewReport, buildQualityReport } from "./quality";
 import { agentCardJsonSchema, projectKnowledgeJsonSchema, projectV2JsonSchema } from "./schema";
@@ -542,11 +543,15 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       return knowledge;
     }
     const id = decodeURIComponent(shortAlternativesMatch[1]);
-    const project = getProjectKnowledgeFromList(knowledge.projects, id);
-    if (!project) {
+    const resolution = resolveProject(knowledge.projects, id);
+    if (!resolution) {
       return errorJson(404, "project_not_found", `Project ${id} was not found.`);
     }
-    return alternativesResponse(project, knowledge.projects, parseLimit(url.searchParams.get("limit")) ?? 5, knowledge.metadata);
+    return alternativesResponse(resolution.project, knowledge.projects, parseLimit(url.searchParams.get("limit")) ?? 5, knowledge.metadata, {
+      requestedId: resolution.requestedId,
+      resolvedId: resolution.resolvedId,
+      resolution: resolution.resolution
+    });
   }
 
   return errorJson(404, "not_found", "Unknown API endpoint.");
@@ -812,7 +817,8 @@ function alternativesResponse(
   project: NonNullable<ReturnType<typeof getProjectKnowledgeFromList>>,
   projects: ProjectKnowledgeResult["projects"],
   limit: number,
-  metadata: ProjectKnowledgeResult["metadata"]
+  metadata: ProjectKnowledgeResult["metadata"],
+  resolvedFrom?: { requestedId: string; resolvedId: string; resolution: "direct" | "alias" }
 ): Response {
   const matches = generateAlternativeMatches(project, projects, limit);
   const decision = buildAlternativesDecision(project, matches);
@@ -824,6 +830,7 @@ function alternativesResponse(
     comparisonLinks: decision.comparisonLinks,
     alternatives: matches.map((match) => toProjectKnowledgeView(match.project)),
     alternativeMatches: matches.map(toAlternativeMatchView),
+    ...(resolvedFrom ? { resolvedFrom } : {}),
     metadata
   });
 }

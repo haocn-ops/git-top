@@ -9,7 +9,7 @@ import type { Env, GithubRepository, Project, ProjectKnowledge, SyncFailure, Syn
 import { validateProjectKnowledge, ValidationError } from "./validation";
 
 export const defaultSyncLimit = 1;
-export const scheduledSyncLimit = 40;
+export const scheduledSyncLimit = 8;
 export const maxSyncLimit = 50;
 
 const lightweightSignalOptions = {

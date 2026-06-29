@@ -2,6 +2,7 @@ import { compareProjectKnowledge } from "./graph";
 import { listProjectKnowledgeWithMeta } from "./knowledge-source";
 import { buildAlternativesDecision, generateAlternativeMatches } from "./alternatives";
 import { findAlternativesFromList, searchProjectList } from "./project-search";
+import { findProjectById, resolveProject } from "./project-aliases";
 import { toProjectKnowledgeView } from "./project-view";
 import type { Env, ProjectKnowledge } from "./types";
 
@@ -84,6 +85,21 @@ const discoverSections = [
 ];
 
 const alternativeExamples = [
+  {
+    title: "Claude Code Alternatives",
+    description: "Find adjacent coding agents, IDE assistants, and developer workflow tools.",
+    projectId: "openai/codex"
+  },
+  {
+    title: "Cursor Alternatives",
+    description: "Compare open-source coding assistants and local developer workflow tools.",
+    projectId: "continuedev/continue"
+  },
+  {
+    title: "OpenAI Alternatives",
+    description: "Compare agent SDKs, OpenAI-compatible gateways, and application AI frameworks.",
+    projectId: "openai/openai-agents-python"
+  },
   {
     title: "LangChain Alternatives",
     description: "Find adjacent RAG, orchestration, and agent framework options.",
@@ -346,10 +362,11 @@ export async function renderDiscoverPage(env: Env): Promise<Response> {
 
 export async function renderAlternativesLandingPage(env: Env, rawId: string): Promise<Response | null> {
   const knowledge = await listProjectKnowledgeWithMeta(env);
-  const project = findProject(knowledge.projects, decodeURIComponent(rawId));
-  if (!project) {
+  const resolution = resolveProject(knowledge.projects, rawId);
+  if (!resolution) {
     return null;
   }
+  const project = resolution.project;
 
   const alternatives = findAlternativesFromList(knowledge.projects, project.project.id, 12);
   const alternativeMatches = generateAlternativeMatches(project, knowledge.projects, 12);
@@ -358,7 +375,18 @@ export async function renderAlternativesLandingPage(env: Env, rawId: string): Pr
   const title = `${project.project.name} Alternatives`;
   const subtitle = `Compare open-source alternatives to ${project.project.fullName} by fit, deployment, maintenance, quality, and agent readiness.`;
 
-  return html(renderAlternativesHtml({ title, subtitle, project, alternatives, alternativeMatches, comparison, metadata: knowledge.metadata }));
+  return html(
+    renderAlternativesHtml({
+      title,
+      subtitle,
+      project,
+      alternatives,
+      alternativeMatches,
+      comparison,
+      metadata: knowledge.metadata,
+      aliasPath: resolution.resolution === "alias" ? resolution.requestedId : undefined
+    })
+  );
 }
 
 export async function renderAlternativesIndexPage(env: Env): Promise<Response> {
@@ -415,7 +443,8 @@ function renderAlternativesHtml({
   alternatives,
   alternativeMatches,
   comparison,
-  metadata
+  metadata,
+  aliasPath
 }: {
   title: string;
   subtitle: string;
@@ -424,6 +453,7 @@ function renderAlternativesHtml({
   alternativeMatches: ReturnType<typeof generateAlternativeMatches>;
   comparison: ReturnType<typeof compareProjectKnowledge>;
   metadata: { source: string; reason: string; projectCount: number; generatedAt: string };
+  aliasPath?: string;
 }): string {
   const view = toProjectKnowledgeView(project);
   const tableProjects = [project, ...alternatives.slice(0, 5)];
@@ -434,7 +464,7 @@ function renderAlternativesHtml({
   return pageShell({
     title,
     description: subtitle,
-    canonical: `https://git.top/alternatives/${projectIdPath(project.project.id)}`,
+    canonical: `https://git.top/alternatives/${aliasPath ? encodeURIComponent(aliasPath) : projectIdPath(project.project.id)}`,
     body: String.raw`
       <header class="hero">
         <p class="eyebrow">Alternatives Engine</p>
@@ -1010,14 +1040,7 @@ function projectCard(item: ProjectKnowledge): string {
 }
 
 function findProject(projects: ProjectKnowledge[], id: string): ProjectKnowledge | null {
-  const wanted = normalizeSlug(id);
-  return (
-    projects.find((item) =>
-      [item.project.id, item.project.fullName, item.project.name, item.project.fullName.replace("/", "-"), item.project.fullName.replace("/", "--")]
-        .map(normalizeSlug)
-        .includes(wanted)
-    ) ?? null
-  );
+  return findProjectById(projects, id);
 }
 
 function normalizeSlug(value: string): string {
