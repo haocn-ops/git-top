@@ -321,7 +321,7 @@ curl "http://localhost:8787/api/atlas?limit=6"
 curl "http://localhost:8787/api/atlas/cloudflare?limit=8"
 ```
 
-Use Atlas when you need an ecosystem-level map before choosing a project. The response groups representative projects with `stats`, `exploration_paths`, ecosystem `map.nodes`, `map.edges`, curated concept nodes, and direct links to the page, search API, and graph API.
+Use Atlas when you need an ecosystem-level map before choosing a project. The response groups representative projects with `stats`, `exploration_paths`, ecosystem `map.nodes`, `map.edges`, curated concept nodes, and direct links to the page, search API, recommendation API, and graph API.
 
 ## Quality
 

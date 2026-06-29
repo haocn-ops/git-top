@@ -349,7 +349,9 @@ async function testGraphAndQualityRoutes() {
   assert.ok(typeof atlas.body.ecosystems[0].stats.edge_count === "number");
   assert.ok(Array.isArray(atlas.body.ecosystems[0].exploration_paths));
   assert.ok(atlas.body.ecosystems[0].exploration_paths.some((path) => path.kind === "graph"));
+  assert.ok(atlas.body.ecosystems[0].exploration_paths.some((path) => path.kind === "recommend"));
   assert.ok(typeof atlas.body.ecosystems[0].links.page === "string");
+  assert.ok(atlas.body.ecosystems[0].links.recommend_api.includes("/api/recommend"));
   assertMetadata(atlas.body.metadata, "db_missing");
 
   const atlasCloudflare = await getJson("/api/atlas/cloudflare?limit=4");
@@ -362,7 +364,9 @@ async function testGraphAndQualityRoutes() {
   assert.ok(atlasCloudflare.body.ecosystem.map.edges.some((edge) => edge.kind === "contains_project"));
   assert.ok(atlasCloudflare.body.ecosystem.stats.concept_count > 0);
   assert.ok(atlasCloudflare.body.ecosystem.exploration_paths.some((path) => path.kind === "alternatives"));
+  assert.ok(atlasCloudflare.body.ecosystem.exploration_paths.some((path) => path.kind === "recommend"));
   assert.ok(atlasCloudflare.body.ecosystem.links.graph.includes("/api/graph/"));
+  assert.ok(atlasCloudflare.body.ecosystem.links.recommend_api.includes("deployment=cloudflare"));
   assertMetadata(atlasCloudflare.body.metadata, "db_missing");
 
   const missingAtlas = await getJson("/api/atlas/not-real");

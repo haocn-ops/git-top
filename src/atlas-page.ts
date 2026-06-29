@@ -91,6 +91,7 @@ export function buildAtlasEcosystemView(projects: ProjectKnowledge[], ecosystem:
     links: {
       page: `/atlas/${ecosystem.id}`,
       search_api: `/api/search?q=${encodeURIComponent(ecosystem.query)}&ranking=browse&limit=${limit}`,
+      recommend_api: recommendHref(ecosystem, limit),
       graph: ecosystemProjects[0] ? `/api/graph/${ecosystemProjects[0].repo}?limit=24` : "/api/graph?limit=24"
     }
   };
@@ -106,6 +107,12 @@ function buildExplorationPaths(ecosystem: AtlasEcosystem, projects: ProjectView[
       description: `Browse indexed projects around ${ecosystem.title}.`,
       href: searchApiHref(ecosystem.query, 12),
       kind: "search"
+    },
+    {
+      label: "Get Recommendations",
+      description: `Generate an explainable shortlist for ${ecosystem.title}.`,
+      href: recommendHref(ecosystem, 5).replace("/api/recommend", "/recommend"),
+      kind: "recommend"
     },
     {
       label: "Open Graph",
@@ -415,6 +422,7 @@ function ecosystemSection(ecosystem: AtlasEcosystem, projects: ProjectView[]): s
         </div>
         <div class="actions">
           <a class="button" href="${escapeAttr(searchApiHref(ecosystem.query, 12))}">JSON</a>
+          <a class="button" href="${escapeAttr(recommendHref(ecosystem, 5).replace("/api/recommend", "/recommend"))}">Recommend</a>
           <a class="button" href="/graph">Graph</a>
           ${projects[0] ? `<a class="button" href="/alternatives/${escapeAttr(projects[0].repo)}">Alternatives</a><a class="button" href="/score/${escapeAttr(projects[0].repo)}">Score</a>` : ""}
         </div>
@@ -470,6 +478,20 @@ function label(value: string): string {
 
 function searchApiHref(query: string, limit: number): string {
   return `/api/search?q=${encodeURIComponent(query)}&ranking=browse&limit=${limit}`;
+}
+
+function recommendHref(ecosystem: AtlasEcosystem, limit: number): string {
+  const params = new URLSearchParams({
+    use_case: `choose projects for ${ecosystem.title}`,
+    limit: String(limit)
+  });
+  if (ecosystem.category) {
+    params.set("category", ecosystem.category);
+  }
+  if (ecosystem.deployment) {
+    params.set("deployment", ecosystem.deployment);
+  }
+  return `/api/recommend?${params.toString()}`;
 }
 
 function slug(value: string): string {

@@ -221,14 +221,14 @@ export const openApiDocument = {
       get: {
         summary: "List Atlas ecosystem maps with stats, exploration paths, concept/project nodes, edges, representative projects, and Agent API links.",
         parameters: [queryParam("limit", "Maximum projects per ecosystem")],
-        responses: { "200": { description: "Atlas ecosystem list with stats, exploration_paths, map.nodes, and map.edges" } }
+        responses: { "200": { description: "Atlas ecosystem list with stats, exploration_paths, recommendation links, map.nodes, and map.edges" } }
       }
     },
     "/api/atlas/{ecosystem}": {
       get: {
         summary: "Fetch one Atlas ecosystem map with stats, exploration paths, concept/project nodes, edges, representative projects, and Agent API links.",
         parameters: [pathParam("ecosystem", "Atlas ecosystem id"), queryParam("limit", "Maximum project count")],
-        responses: { "200": { description: "Atlas ecosystem with stats, exploration_paths, map.nodes, and map.edges" }, "404": { description: "Atlas ecosystem not found" } }
+        responses: { "200": { description: "Atlas ecosystem with stats, exploration_paths, recommendation links, map.nodes, and map.edges" }, "404": { description: "Atlas ecosystem not found" } }
       }
     },
     "/api/graph/{owner}/{repo}": {
