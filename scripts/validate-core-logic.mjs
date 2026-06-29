@@ -411,6 +411,12 @@ async function testWorkerProjectSlugLookup() {
   assert.match(graphText, /Dependencies/);
   assert.match(graphText, /Graph Summary/);
   assert.match(graphText, /Open project knowledge/);
+  assert.match(graphText, /Relationship Legend/);
+  assert.match(graphText, /Recommended Next Hops/);
+  assert.match(graphText, /Relationship filters/);
+  assert.match(graphText, /Recommend a matching stack/);
+  assert.match(graphText, /href="\/recommend\?/);
+  assert.match(graphText, /href="\/atlas\/cloudflare"/);
   assert.match(graphText, /Related Network/);
   assert.match(graphText, /Alternatives Network/);
   assert.match(graphText, /href="\/alternatives\/cloudflare\/agents"/);

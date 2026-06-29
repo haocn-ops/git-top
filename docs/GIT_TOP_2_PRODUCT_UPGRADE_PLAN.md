@@ -77,6 +77,7 @@ Status:
 
 - Project graph pages are implemented on the Worker surface at `/graph/:project` with project context, deployment targets, dependencies, related projects, alternatives, and a lightweight graph visualization.
 - Graph APIs expose `summary`, `graph_stats`, `next_actions`, `relationship_groups`, `nodes`, and `edges` so agents can consume the same relationship model as the HTML page.
+- Graph pages now expose relationship filters, a relationship legend, and recommended exploration paths into Recommendations, Atlas, Compare, Score, and Graph JSON.
 - Remaining work: introduce a client-side graph library only when relationship density requires richer interaction.
 
 ## Phase 3: Alternatives Engine

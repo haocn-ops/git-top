@@ -94,9 +94,25 @@ function renderGraphHtml({
       .stat strong { display:block; margin-top:4px; font-size:18px; overflow-wrap:anywhere; }
       .action-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; margin-top:12px; }
       .action-grid a { border:1px solid var(--line); border-radius:8px; background:#fff; padding:10px; font-weight:900; color:#22313a; }
+      .filter-grid { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px; margin-top:12px; }
+      .filter-grid a { border:1px solid var(--line); border-radius:8px; background:#fbfdfd; padding:10px; font-weight:900; color:#22313a; }
+      .filter-grid span { display:block; color:var(--muted); font-size:12px; margin-top:3px; }
+      .legend { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+      .legend-item { display:inline-flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:999px; background:#fbfdfd; padding:7px 10px; color:#40505a; font-size:12px; font-weight:900; }
+      .legend-dot { width:10px; height:10px; border-radius:999px; background:#b7c5cc; }
+      .legend-dot.alternative { background:var(--teal); }
+      .legend-dot.related { background:var(--blue); }
+      .legend-dot.deployment { background:#5d8ad4; }
+      .legend-dot.dependency { background:var(--amber); }
+      .legend-dot.use_case { background:var(--green); }
+      .legend-dot.category { background:#8b6a19; }
+      .path-list { display:grid; gap:10px; margin-top:12px; }
+      .path-list a { display:grid; gap:4px; border:1px solid var(--line); border-radius:8px; background:#fbfdfd; padding:11px; }
+      .path-list strong { color:#22313a; }
+      .path-list span { color:var(--muted); line-height:1.45; }
       @media (max-width:900px) { .layout,.three-grid { grid-template-columns:1fr; } .graph-box { min-height:auto; } }
-      @media (max-width:900px) { .stat-grid,.action-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-      @media (max-width:560px) { .stat-grid,.action-grid { grid-template-columns:1fr; } }
+      @media (max-width:900px) { .stat-grid,.action-grid,.filter-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+      @media (max-width:560px) { .stat-grid,.action-grid,.filter-grid { grid-template-columns:1fr; } }
     </style>
   </head>
   <body>
@@ -131,6 +147,7 @@ function renderGraphHtml({
         <div class="action-grid">
           ${(graph.nextActions ?? []).map((action) => `<a href="${escapeAttr(action.href)}">${escapeHtml(action.label)}</a>`).join("")}
         </div>
+        ${renderRelationshipFilters(graph)}
       </section>
 
       <section class="three-grid">
@@ -144,8 +161,8 @@ function renderGraphHtml({
             <div><strong>Recent activity</strong><span>${escapeHtml(recentActivityLabel(project.metrics.recentPushDays))}</span></div>
           </div>
         </article>
-        ${panel("Deployment Targets", view.deployments)}
-        ${panel("Dependencies", view.dependencies.length ? view.dependencies : ["LLM provider"])}
+        ${panel("Deployment Targets", view.deployments, "relationship-deployments")}
+        ${panel("Dependencies", view.dependencies.length ? view.dependencies : ["LLM provider"], "relationship-dependencies")}
       </section>
 
       <section class="layout">
@@ -156,25 +173,107 @@ function renderGraphHtml({
 
         <div class="side-stack">
           <aside class="panel">
-            <div class="panel-heading"><div><p class="eyebrow">Related Network</p><h2>Adjacent projects</h2></div><a class="button" href="/api/related/${escapeAttr(view.repo)}">JSON</a></div>
+            <p class="eyebrow">Recommended Next Hops</p>
+            <h2>Continue the exploration</h2>
+            <div class="path-list">
+              ${explorationPaths(view, alternatives, related)
+                .map((path) => `<a href="${escapeAttr(path.href)}"><strong>${escapeHtml(path.label)}</strong><span>${escapeHtml(path.description)}</span></a>`)
+                .join("")}
+            </div>
+          </aside>
+
+          <aside class="panel">
+            <p class="eyebrow">Relationship Legend</p>
+            <h2>How to read this graph</h2>
+            <div class="legend">${relationshipLegend(graph)
+              .map((item) => `<span class="legend-item"><span class="legend-dot ${escapeAttr(item.kind)}"></span>${escapeHtml(item.label)}: ${item.count}</span>`)
+              .join("")}</div>
+          </aside>
+
+          <aside class="panel">
+            <div class="panel-heading" id="relationship-related"><div><p class="eyebrow">Related Network</p><h2>Adjacent projects</h2></div><a class="button" href="/api/related/${escapeAttr(view.repo)}">JSON</a></div>
             <div class="list">${related.length ? related.map((item) => `<div><strong>${escapeHtml(view.repo)} ↔ ${escapeHtml(item.repo)}</strong><span>${escapeHtml(item.overview)}</span></div>`).join("") : `<div><strong>No related projects yet</strong><span>Git.Top will infer related projects as the graph grows.</span></div>`}</div>
           </aside>
 
           <aside class="panel">
-            <div class="panel-heading"><div><p class="eyebrow">Alternatives Network</p><h2>Replacement candidates</h2></div><a class="button" href="/api/alternatives/${escapeAttr(view.repo)}">JSON</a></div>
+            <div class="panel-heading" id="relationship-alternatives"><div><p class="eyebrow">Alternatives Network</p><h2>Replacement candidates</h2></div><a class="button" href="/api/alternatives/${escapeAttr(view.repo)}">JSON</a></div>
             <div class="list">${alternatives.length ? alternatives.map((item) => `<div><strong>${escapeHtml(view.repo)} ↔ ${escapeHtml(item.repo)}</strong><span>${escapeHtml(item.overview)}</span></div>`).join("") : `<div><strong>No alternatives yet</strong><span>Git.Top will infer alternatives as the graph grows.</span></div>`}</div>
           </aside>
         </div>
       </section>
 
       <section class="three-grid">
-        ${panel("Use Cases", view.useCases)}
+        ${panel("Use Cases", view.useCases, "relationship-use-cases")}
+        ${panel("Categories", view.category.map((item) => item.replaceAll("_", " ")), "relationship-categories")}
         ${panel("Alternatives", alternatives.length ? alternatives.map((item) => item.repo) : ["No alternatives yet"])}
         ${panel("Related Projects", related.length ? related.map((item) => item.repo) : ["No related projects yet"])}
       </section>
     </div>
   </body>
 </html>`;
+}
+
+function renderRelationshipFilters(graph: ReturnType<typeof buildKnowledgeGraph>): string {
+  const groups = graph.relationshipGroups;
+  if (!groups) {
+    return "";
+  }
+  const filters = [
+    { label: "Alternatives", href: "#relationship-alternatives", count: groups.alternatives.length },
+    { label: "Related", href: "#relationship-related", count: groups.related.length },
+    { label: "Dependencies", href: "#relationship-dependencies", count: groups.dependencies.length },
+    { label: "Deployments", href: "#relationship-deployments", count: groups.deploymentTargets.length },
+    { label: "Use Cases", href: "#relationship-use-cases", count: groups.useCases.length },
+    { label: "Categories", href: "#relationship-categories", count: graph.graphStats.relationshipCounts.category }
+  ];
+  return `<div class="filter-grid" aria-label="Relationship filters">${filters
+    .map((filter) => `<a href="${escapeAttr(filter.href)}">${escapeHtml(filter.label)}<span>${filter.count} linked signals</span></a>`)
+    .join("")}</div>`;
+}
+
+function relationshipLegend(graph: ReturnType<typeof buildKnowledgeGraph>): Array<{ kind: string; label: string; count: number }> {
+  return [
+    { kind: "alternative", label: "Alternatives", count: graph.graphStats.relationshipCounts.alternative },
+    { kind: "related", label: "Related", count: graph.graphStats.relationshipCounts.related },
+    { kind: "deployment", label: "Deployment", count: graph.graphStats.relationshipCounts.deployment },
+    { kind: "dependency", label: "Dependency", count: graph.graphStats.relationshipCounts.dependency },
+    { kind: "use_case", label: "Use case", count: graph.graphStats.relationshipCounts.use_case },
+    { kind: "category", label: "Category", count: graph.graphStats.relationshipCounts.category }
+  ];
+}
+
+function explorationPaths(
+  view: ReturnType<typeof toProjectKnowledgeView>,
+  alternatives: Array<ReturnType<typeof toProjectKnowledgeView>>,
+  related: Array<ReturnType<typeof toProjectKnowledgeView>>
+): Array<{ label: string; href: string; description: string }> {
+  return [
+    {
+      label: "Recommend a matching stack",
+      href: recommendHref(view),
+      description: "Use category, deployment, license, and Cloudflare fit to find candidates beyond this graph."
+    },
+    {
+      label: "Open the Atlas layer",
+      href: `/atlas/${atlasIdFor(view)}`,
+      description: "Move from one project into the broader ecosystem map."
+    },
+    {
+      label: "Compare the shortlist",
+      href: `/api/compare?repos=${escapeAttr(compareRepos(view, alternatives.length ? alternatives : related))}`,
+      description: "Turn this graph neighborhood into a decision matrix."
+    },
+    {
+      label: "Explain adoption risk",
+      href: `/score/${escapeAttr(view.repo)}`,
+      description: "Inspect Git.Top Score, agent readability, maintenance, and stability signals."
+    },
+    {
+      label: "Use Graph JSON",
+      href: `/api/graph?repo=${escapeAttr(view.repo)}&limit=28`,
+      description: "Fetch the same relationship model for an agent or external workflow."
+    }
+  ];
 }
 
 function renderSvg(focusRepo: string, nodes: Array<{ id: string; label: string; kind: string; score?: number }>): string {
@@ -203,12 +302,56 @@ function renderSvg(focusRepo: string, nodes: Array<{ id: string; label: string; 
   </svg>`;
 }
 
-function panel(title: string, items: string[]): string {
-  return `<article class="panel"><p class="eyebrow">${escapeHtml(title)}</p><div class="tag-list">${items.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div></article>`;
+function panel(title: string, items: string[], id?: string): string {
+  return `<article class="panel"${id ? ` id="${escapeAttr(id)}"` : ""}><p class="eyebrow">${escapeHtml(title)}</p><div class="tag-list">${items.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div></article>`;
 }
 
 function compareRepos(view: ReturnType<typeof toProjectKnowledgeView>, alternatives: Array<ReturnType<typeof toProjectKnowledgeView>>): string {
   return [view.repo, ...alternatives.slice(0, 3).map((item) => item.repo)].join(",");
+}
+
+function recommendHref(view: ReturnType<typeof toProjectKnowledgeView>): string {
+  const params = new URLSearchParams();
+  const category = view.category[0];
+  const deployment = preferredDeployment(view.deployments);
+  if (category) {
+    params.set("category", category);
+  }
+  if (deployment) {
+    params.set("deployment", deployment);
+  }
+  if (view.license) {
+    params.set("license", view.license);
+  }
+  if (view.cloudflareReady) {
+    params.set("cloudflare_ready", "true");
+  }
+  params.set("limit", "5");
+  return `/recommend?${params.toString()}`;
+}
+
+function preferredDeployment(deployments: string[]): string | null {
+  return deployments.find((deployment) => deployment === "cloudflare") ?? deployments.find((deployment) => deployment === "docker") ?? deployments[0] ?? null;
+}
+
+function atlasIdFor(view: ReturnType<typeof toProjectKnowledgeView>): string {
+  const category = view.category.join(" ");
+  if (view.deployments.includes("cloudflare") || view.cloudflareReady) {
+    return "cloudflare";
+  }
+  if (category.includes("mcp")) {
+    return "mcp";
+  }
+  if (category.includes("rag")) {
+    return "rag";
+  }
+  if (category.includes("browser")) {
+    return "browser-ai";
+  }
+  if (category.includes("agent")) {
+    return "agents";
+  }
+  return "agents";
 }
 
 function recentActivityLabel(days: number | null): string {
