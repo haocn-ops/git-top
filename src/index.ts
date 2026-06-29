@@ -22,6 +22,7 @@ import { renderProjectPage } from "./project-page";
 import { renderQualityPage } from "./quality-page";
 import { renderQualityReviewPage } from "./quality-review-page";
 import { renderQuickstartPage } from "./quickstart";
+import { renderRecipesPage } from "./recipes";
 import { renderRecommendPage } from "./recommend-page";
 import { renderRoadmapPage } from "./roadmap";
 import { renderProjectScorePage } from "./score-page";
@@ -120,6 +121,10 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
 
   if (url.pathname === "/quickstart") {
     return renderQuickstartPage();
+  }
+
+  if (url.pathname === "/recipes") {
+    return renderRecipesPage();
   }
 
   if (url.pathname === "/atlas") {
@@ -325,7 +330,7 @@ function projectIdFromPath(pathname: string): string | null {
 
   const slug = decodeURIComponent(shortMatch[1]);
   if (
-    ["api", "mcp", "graph", "atlas", "score", "explorer", "discover", "trends", "workflow", "docs", "api-docs", "quality", "coverage", "status", "operations", "integrations", "roadmap", "quickstart", "categories", "deployments", "compare", "alternatives", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "favicon.ico"].includes(
+    ["api", "mcp", "graph", "atlas", "score", "explorer", "discover", "trends", "workflow", "docs", "api-docs", "quality", "coverage", "status", "operations", "integrations", "roadmap", "quickstart", "recipes", "categories", "deployments", "compare", "alternatives", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "favicon.ico"].includes(
       slug
     )
   ) {

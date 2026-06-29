@@ -212,7 +212,7 @@ function renderHtml(quickstart: AgentQuickstart): string {
     <div class="page">
       <nav class="nav">
         <a class="brand" href="/"><span class="brand-mark">G</span><span>Git.Top</span></a>
-        <div class="nav-links"><a href="/docs">Docs</a><a href="/quickstart">Quickstart</a><a href="/workflow">Workflow</a><a href="/api/quickstart">JSON</a><a href="/mcp">MCP</a></div>
+        <div class="nav-links"><a href="/docs">Docs</a><a href="/quickstart">Quickstart</a><a href="/recipes">Recipes</a><a href="/workflow">Workflow</a><a href="/api/quickstart">JSON</a><a href="/mcp">MCP</a></div>
       </nav>
 
       <header class="hero">
@@ -221,6 +221,7 @@ function renderHtml(quickstart: AgentQuickstart): string {
         <p class="lead">${escapeHtml(quickstart.summary)}</p>
         <div class="actions">
           <a class="button primary" href="/api/quickstart">Open Quickstart JSON</a>
+          <a class="button" href="/recipes">Open Recipes</a>
           <a class="button" href="/api/health">Check Health</a>
           <a class="button" href="/api/workflow?intent=choose%20a%20Cloudflare-ready%20agent%20framework&amp;deployment=cloudflare&amp;category=agent_framework&amp;cloudflare_ready=true&amp;limit=5">Try Workflow</a>
           <a class="button" href="/api/agent-map">Agent Map</a>
@@ -244,7 +245,7 @@ function renderHtml(quickstart: AgentQuickstart): string {
           <div class="rows">${quickstart.outputPattern.map(row).join("")}</div>
           <p class="eyebrow">Trust Policy</p>
           <div class="rows">${quickstart.trustPolicy.map(row).join("")}</div>
-          <div class="links"><a class="button" href="/llms.txt">llms.txt</a><a class="button" href="/openapi.json">OpenAPI</a><a class="button" href="/roadmap">Roadmap</a></div>
+          <div class="links"><a class="button" href="/recipes">Recipes</a><a class="button" href="/llms.txt">llms.txt</a><a class="button" href="/openapi.json">OpenAPI</a><a class="button" href="/roadmap">Roadmap</a></div>
         </aside>
       </main>
     </div>

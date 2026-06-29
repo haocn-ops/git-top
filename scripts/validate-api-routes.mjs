@@ -11,6 +11,7 @@ await testRecommendationAndCompareRoutes();
 await testWorkflowRoute();
 await testGraphAndQualityRoutes();
 await testQuickstartRoute();
+await testRecipesRoute();
 await testRoadmapRoute();
 await testSchemaRoutes();
 await testOpenApiDocument();
@@ -327,6 +328,21 @@ async function testQuickstartRoute() {
   const postQuickstart = await request("/api/quickstart", { method: "POST" });
   assert.equal(postQuickstart.status, 405);
   assert.equal(postQuickstart.body.error.code, "method_not_allowed");
+}
+
+async function testRecipesRoute() {
+  const recipes = await getJson("/api/recipes");
+  assert.equal(recipes.status, 200);
+  assert.equal(recipes.body.positioning, "The Knowledge Graph of Open Source");
+  assert.ok(Array.isArray(recipes.body.recipes));
+  assert.ok(recipes.body.recipes.length >= 6);
+  assert.ok(recipes.body.recipes.some((recipe) => recipe.id === "choose-cloudflare-agent-framework"));
+  assert.ok(recipes.body.recipes.some((recipe) => recipe.id === "plan-with-grp" && recipe.steps.some((step) => step.method === "POST")));
+  assert.ok(recipes.body.recipes.every((recipe) => Array.isArray(recipe.trust_checks) && recipe.trust_checks.length > 0));
+
+  const postRecipes = await request("/api/recipes", { method: "POST" });
+  assert.equal(postRecipes.status, 405);
+  assert.equal(postRecipes.body.error.code, "method_not_allowed");
 }
 
 async function testGraphAndQualityRoutes() {
@@ -653,6 +669,7 @@ async function testOpenApiDocument() {
   assert.equal(openapi.body.openapi, "3.1.0");
   assert.ok(openapi.body.paths["/api/agent-map"], "OpenAPI should document agent surface map endpoint");
   assert.ok(openapi.body.paths["/api/quickstart"], "OpenAPI should document quickstart endpoint");
+  assert.ok(openapi.body.paths["/api/recipes"], "OpenAPI should document recipes endpoint");
   assert.ok(openapi.body.paths["/api/roadmap"], "OpenAPI should document roadmap endpoint");
   assert.ok(openapi.body.paths["/api/quality"], "OpenAPI should document quality report endpoint");
   assert.ok(openapi.body.paths["/api/quality/review"], "OpenAPI should document quality review endpoint");

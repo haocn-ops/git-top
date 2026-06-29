@@ -24,6 +24,7 @@ import { resolveProject } from "./project-aliases";
 import { toProjectKnowledgeView, withRelatedProjects } from "./project-view";
 import { buildLowConfidenceReviewReport, buildQualityReport } from "./quality";
 import { buildAgentQuickstart } from "./quickstart";
+import { buildAgentRecipes } from "./recipes";
 import { buildProductRoadmap } from "./roadmap";
 import { agentCardJsonSchema, projectKnowledgeJsonSchema, projectV2JsonSchema } from "./schema";
 import { buildProjectScoreExplanation } from "./score";
@@ -291,6 +292,17 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       return errorJson(405, "method_not_allowed", "Quickstart endpoint supports GET.");
     }
     return json(buildAgentQuickstart(), {
+      headers: {
+        "cache-control": "public, max-age=300"
+      }
+    });
+  }
+
+  if (path === "/api/recipes") {
+    if (request.method !== "GET") {
+      return errorJson(405, "method_not_allowed", "Recipes endpoint supports GET.");
+    }
+    return json(buildAgentRecipes(), {
       headers: {
         "cache-control": "public, max-age=300"
       }

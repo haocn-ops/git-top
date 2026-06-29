@@ -41,6 +41,12 @@ export const openApiDocument = {
         responses: { "200": { description: "Agent quickstart with ordered steps, endpoint examples, inspection fields, trust policy, and answer pattern" } }
       }
     },
+    "/api/recipes": {
+      get: {
+        summary: "Fetch executable Git.Top agent recipes for common project selection, alternatives, comparison, graph, Atlas, quality, and GRP tasks.",
+        responses: { "200": { description: "Agent recipes with use cases, outcomes, ordered REST steps, command examples, inspection fields, and trust checks" } }
+      }
+    },
     "/api/search": {
       get: {
         summary: "Search project knowledge by query, category, deployment, difficulty, language, project type, confidence, and Cloudflare readiness.",

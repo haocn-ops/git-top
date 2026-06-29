@@ -158,6 +158,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms\.txt<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms-full\.txt<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quickstart<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/recipes<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/integrations<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/status<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/operations<\/loc>/);
@@ -177,6 +178,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/browser-ai-automation<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/ai-ide-coding-agents<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/quickstart<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/recipes<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/roadmap<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/projects\/cloudflare\/agents<\/loc>/);
 
@@ -387,6 +389,25 @@ export async function runSmoke(args = [], env = process.env) {
     return {
       steps: quickstart.body.steps.length,
       hasTrustPolicy: Array.isArray(quickstart.body.trust_policy)
+    };
+  });
+
+  await check(context, "recipes_page", async () => {
+    const { status, text } = await getText(context, "/recipes");
+    assert.equal(status, 200);
+    assert.match(text, /Git\.Top Agent Recipes/);
+    assert.match(text, /Choose A Cloudflare-ready Agent Framework/);
+    assert.match(text, /Plan With Graph Reasoning/);
+
+    const recipes = await getJson(context, "/api/recipes");
+    assert.equal(recipes.status, 200);
+    assert.equal(recipes.body.positioning, "The Knowledge Graph of Open Source");
+    assert.ok(recipes.body.recipes.some((recipe) => recipe.id === "check-recommendation-trust"));
+    assert.ok(recipes.body.recipes.every((recipe) => Array.isArray(recipe.trust_checks)));
+
+    return {
+      recipes: recipes.body.recipes.length,
+      hasGrp: recipes.body.recipes.some((recipe) => recipe.id === "plan-with-grp")
     };
   });
 

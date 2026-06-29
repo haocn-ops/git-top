@@ -16,6 +16,7 @@ await testCoverageRoute();
 await testStatusRoute();
 await testIntegrationsRoute();
 await testQuickstartRoute();
+await testRecipesRoute();
 await testRoadmapRoute();
 await testDiscoverRoute();
 await testTrendsRoute();
@@ -59,6 +60,7 @@ async function testLegacyConsoleRedirects() {
   assert.match(llmsText, /Full agent documentation: https:\/\/git\.top\/llms-full\.txt/);
   assert.match(llmsText, /Agent surface map: https:\/\/git\.top\/api\/agent-map/);
   assert.match(llmsText, /Agent quickstart: https:\/\/git\.top\/quickstart/);
+  assert.match(llmsText, /Agent recipes: https:\/\/git\.top\/recipes/);
   assert.match(llmsText, /Roadmap: https:\/\/git\.top\/roadmap/);
 
   const llmsFull = await worker.fetch(new Request("https://git.top/llms-full.txt"), {});
@@ -66,6 +68,7 @@ async function testLegacyConsoleRedirects() {
   const llmsFullText = await llmsFull.text();
   assert.match(llmsFullText, /GET \/api\/agent-map/);
   assert.match(llmsFullText, /GET \/api\/quickstart/);
+  assert.match(llmsFullText, /GET \/api\/recipes/);
   assert.match(llmsFullText, /GET \/api\/roadmap/);
   assert.match(llmsFullText, /Agent Surface Map/);
   assert.match(llmsFullText, /POST \/api\/project/);
@@ -166,6 +169,26 @@ async function testQuickstartRoute() {
   const agentMapBody = await agentMap.json();
   assert.equal(agentMap.status, 200);
   assert.ok(agentMapBody.surfaces.some((surface) => surface.concept === "Agent quickstart"));
+}
+
+async function testRecipesRoute() {
+  const response = await worker.fetch(new Request("https://git.top/recipes"), {});
+  const text = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(text, /Git\.Top Agent Recipes/);
+  assert.match(text, /Choose A Cloudflare-ready Agent Framework/);
+  assert.match(text, /Plan With Graph Reasoning/);
+
+  const api = await worker.fetch(new Request("https://git.top/api/recipes"), {});
+  const body = await api.json();
+  assert.equal(api.status, 200);
+  assert.equal(body.positioning, "The Knowledge Graph of Open Source");
+  assert.ok(body.recipes.some((recipe) => recipe.id === "find-project-alternatives"));
+
+  const agentMap = await worker.fetch(new Request("https://git.top/api/agent-map"), {});
+  const agentMapBody = await agentMap.json();
+  assert.equal(agentMap.status, 200);
+  assert.ok(agentMapBody.surfaces.some((surface) => surface.concept === "Agent recipes"));
 }
 
 async function testRoadmapRoute() {

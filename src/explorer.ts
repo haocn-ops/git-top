@@ -653,6 +653,7 @@ const html = String.raw`<!doctype html>
           <a href="/graph">Graph</a>
           <a href="/docs">Docs</a>
           <a href="/quickstart">Quickstart</a>
+          <a href="/recipes">Recipes</a>
           <a href="/api/search?q=cloudflare%20agent%20framework">Agent API</a>
           <a href="/mcp">MCP</a>
           <a href="/api/schema/project.v2">Schema</a>
@@ -673,6 +674,7 @@ const html = String.raw`<!doctype html>
             <a class="button secondary" href="/recommend">Get Recommendations</a>
             <a class="button secondary" href="/docs">Docs</a>
             <a class="button secondary" href="/quickstart">Quickstart</a>
+            <a class="button secondary" href="/recipes">Recipes</a>
             <a class="button secondary" href="/api/search?q=cloudflare%20agent%20framework">Agent API</a>
           </div>
         </div>
