@@ -8,6 +8,7 @@ const env = {};
 await testSeedMetadata();
 await testSearchAndProjectRoutes();
 await testRecommendationAndCompareRoutes();
+await testWorkflowRoute();
 await testGraphAndQualityRoutes();
 await testSchemaRoutes();
 await testOpenApiDocument();
@@ -247,6 +248,49 @@ async function testRecommendationAndCompareRoutes() {
   assert.ok(typeof postCompare.body.stats.highest_agent_score === "number");
   assert.ok(postCompare.body.next_actions.some((action) => action.kind === "score"));
   assertMetadata(postCompare.body.metadata, "db_missing");
+}
+
+async function testWorkflowRoute() {
+  const workflow = await getJson("/api/workflow?intent=choose%20a%20Cloudflare-ready%20agent%20framework&deployment=cloudflare&category=agent_framework&cloudflare_ready=true&limit=3");
+  assert.equal(workflow.status, 200);
+  assert.equal(workflow.body.positioning, "The Knowledge Graph of Open Source");
+  assert.ok(typeof workflow.body.summary === "string");
+  assert.equal(workflow.body.input.intent, "choose a Cloudflare-ready agent framework");
+  assert.equal(workflow.body.input.constraints.deployment, "cloudflare");
+  assert.equal(workflow.body.input.constraints.category, "agent_framework");
+  assert.equal(workflow.body.input.constraints.cloudflare_ready, true);
+  assert.ok(Array.isArray(workflow.body.recommended_sequence));
+  assert.ok(workflow.body.recommended_sequence.some((step) => step.url.startsWith("/api/trends")));
+  assert.ok(workflow.body.recommended_sequence.some((step) => step.mcp_tool === "recommend_project"));
+  assert.ok(workflow.body.recommended_sequence.some((step) => step.mcp_tool === "compare_projects"));
+  assert.ok(Array.isArray(workflow.body.shortlist));
+  assert.ok(workflow.body.shortlist.length > 0);
+  assert.ok(workflow.body.shortlist.length <= 3);
+  assert.ok(typeof workflow.body.shortlist[0].decision_summary === "string");
+  assert.ok(Array.isArray(workflow.body.trend_context.top_categories));
+  assert.ok(Array.isArray(workflow.body.agent_map.surfaces));
+  assert.ok(workflow.body.agent_map.surfaces.some((surface) => surface.concept === "Project graph"));
+  assert.ok(workflow.body.trust_policy.production_check.includes("require_d1=true"));
+  assertMetadata(workflow.body.metadata, "db_missing");
+
+  const focusedWorkflow = await request("/api/workflow", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      intent: "evaluate Claude Code alternatives",
+      project_id: "claude-code",
+      constraints: {
+        deployment: "local"
+      },
+      limit: 2
+    })
+  });
+  assert.equal(focusedWorkflow.status, 200);
+  assert.equal(focusedWorkflow.body.input.project_id, "claude-code");
+  assert.ok(focusedWorkflow.body.recommended_sequence.some((step) => step.url.includes("/api/graph/claude-code")));
+  assert.ok(focusedWorkflow.body.recommended_sequence.some((step) => step.url.includes("/api/alternatives/claude-code")));
+  assert.ok(focusedWorkflow.body.recommended_sequence.some((step) => step.url.includes("/api/score/claude-code")));
+  assertMetadata(focusedWorkflow.body.metadata, "db_missing");
 }
 
 async function testGraphAndQualityRoutes() {
@@ -559,6 +603,7 @@ async function testSchemaRoutes() {
   assert.ok(Array.isArray(agentMap.body.surfaces));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Project graph" && surface.human_page === "/graph/:project"));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Recommendations" && surface.mcp_tools.includes("recommend_project")));
+  assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Agent workflow" && surface.mcp_tools.includes("get_agent_workflow")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Recommendations" && surface.output_fields.includes("recommendations[].adoption_plan")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Open source trends" && surface.rest.includes("GET /api/trends")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Alternatives" && surface.output_fields.includes("alternative_matches[].replacement_risk")));
@@ -584,6 +629,7 @@ async function testOpenApiDocument() {
   assert.ok(openapi.body.paths["/api/atlas/{ecosystem}"], "OpenAPI should document Atlas ecosystem endpoint");
   assert.ok(openapi.body.paths["/api/project"].post, "OpenAPI should document structured project POST endpoint");
   assert.ok(openapi.body.paths["/api/recommend"].post, "OpenAPI should document structured recommend POST endpoint");
+  assert.ok(openapi.body.paths["/api/workflow"].post, "OpenAPI should document structured workflow POST endpoint");
   assert.ok(openapi.body.paths["/api/trends"], "OpenAPI should document trends endpoint");
   assert.ok(openapi.body.paths["/api/compare"].post, "OpenAPI should document structured compare POST endpoint");
   assert.ok(openapi.body.paths["/api/alternatives"].post, "OpenAPI should document structured alternatives POST endpoint");
@@ -592,6 +638,7 @@ async function testOpenApiDocument() {
   assert.ok(openapi.body.paths["/api/graph"].post, "OpenAPI should document structured graph POST endpoint");
   assert.ok(openapi.body.components.schemas.ProjectLookupRequest, "OpenAPI should include ProjectLookupRequest schema");
   assert.ok(openapi.body.components.schemas.RecommendationRequest, "OpenAPI should include RecommendationRequest schema");
+  assert.ok(openapi.body.components.schemas.WorkflowRequest, "OpenAPI should include WorkflowRequest schema");
   assert.ok(openapi.body.components.schemas.CompareRequest, "OpenAPI should include CompareRequest schema");
   assert.ok(openapi.body.components.schemas.AlternativesRequest, "OpenAPI should include AlternativesRequest schema");
   assert.ok(openapi.body.components.schemas.RelatedRequest, "OpenAPI should include RelatedRequest schema");
@@ -641,6 +688,14 @@ async function testMethodAndBodyValidation() {
   });
   assert.equal(recommendInvalidBody.status, 400);
   assert.equal(recommendInvalidBody.body.error.code, "invalid_recommendation_request");
+
+  const workflowInvalidBody = await request("/api/workflow", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ cloudflare_ready: "yes" })
+  });
+  assert.equal(workflowInvalidBody.status, 400);
+  assert.equal(workflowInvalidBody.body.error.code, "invalid_workflow_request");
 
   const compareInvalidJson = await request("/api/compare", {
     method: "POST",

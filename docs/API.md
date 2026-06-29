@@ -26,6 +26,30 @@ curl https://git.top/api/agent-map
 
 It maps each product concept to the matching human page, REST endpoints, MCP tools, output fields, trust fields, and recommended use. This is the machine-readable bridge between pages such as `/graph/:project` and APIs such as `/api/graph`.
 
+## Agent Workflow
+
+Use the workflow endpoint when an agent needs an end-to-end selection path instead of a single result:
+
+```sh
+curl "https://git.top/api/workflow?intent=choose%20a%20Cloudflare-ready%20agent%20framework&deployment=cloudflare&category=agent_framework&cloudflare_ready=true&limit=5"
+```
+
+Structured POST body:
+
+```sh
+curl -X POST "https://git.top/api/workflow" \
+  -H "content-type: application/json" \
+  -d '{"intent":"evaluate Claude Code alternatives","project_id":"claude-code","constraints":{"deployment":"local"},"limit":5}'
+```
+
+The response includes:
+
+- `recommended_sequence`: direct REST URLs and MCP tools for health, trends, recommendations, graph, alternatives, score, and compare.
+- `shortlist`: recommendation summaries with score, confidence, and next actions.
+- `trend_context`: compact trends to frame the decision.
+- `agent_map`: relevant surfaces an agent can call next.
+- `trust_policy`: fields to cite or disclose before presenting a recommendation.
+
 ## Response Metadata
 
 Most knowledge endpoints include `metadata`.

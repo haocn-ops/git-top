@@ -88,6 +88,16 @@ curl -X POST http://localhost:8787/mcp \
 
 Use `get_trends` before recommendations when an agent needs corpus-level direction across categories, deployment targets, languages, and rising projects.
 
+## Get Agent Workflow
+
+```sh
+curl -X POST http://localhost:8787/mcp \
+  -H "content-type: application/json" \
+  -d '{"jsonrpc":"2.0","id":42,"method":"tools/call","params":{"name":"get_agent_workflow","arguments":{"intent":"choose a Cloudflare-ready agent framework","constraints":{"deployment":"cloudflare","category":"agent_framework","cloudflare_ready":true},"limit":5}}}'
+```
+
+Use `get_agent_workflow` when an agent needs the recommended sequence across health checks, trends, recommendations, graph, alternatives, score, compare, and trust policy before answering a user.
+
 ## Find Alternatives
 
 ```sh

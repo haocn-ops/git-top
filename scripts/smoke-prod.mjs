@@ -69,6 +69,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.ok(Array.isArray(body.tools), "MCP discovery should include tools");
     assert.ok(body.tools.some((tool) => tool.name === "search_projects"), "MCP discovery should include search_projects");
     assert.ok(body.tools.some((tool) => tool.name === "get_trends"), "MCP discovery should include get_trends");
+    assert.ok(body.tools.some((tool) => tool.name === "get_agent_workflow"), "MCP discovery should include get_agent_workflow");
     assert.ok(body.tools.some((tool) => tool.name === "git_top_grp_query"), "MCP discovery should include git_top_grp_query");
     return {
       tools: body.tools.length,
@@ -125,6 +126,27 @@ export async function runSmoke(args = [], env = process.env) {
     return {
       server: initialized.body.result.serverInfo.name,
       repo: result.project.repo
+    };
+  });
+
+  await check(context, "agent_workflow", async () => {
+    const { status, body } = await getJson(
+      context,
+      `/api/workflow?intent=choose%20a%20Cloudflare-ready%20agent%20framework&deployment=cloudflare&category=agent_framework&cloudflare_ready=true&limit=3${context.allowSeed ? "" : "&require_d1=true"}`
+    );
+    assert.equal(status, 200);
+    assert.equal(body.positioning, "The Knowledge Graph of Open Source");
+    assert.ok(Array.isArray(body.recommended_sequence), "workflow should include recommended_sequence");
+    assert.ok(body.recommended_sequence.some((step) => step.mcp_tool === "get_trends"), "workflow should point agents to trends");
+    assert.ok(body.recommended_sequence.some((step) => step.mcp_tool === "recommend_project"), "workflow should point agents to recommendations");
+    assert.ok(body.recommended_sequence.some((step) => step.mcp_tool === "compare_projects"), "workflow should point agents to compare");
+    assert.ok(Array.isArray(body.shortlist), "workflow should include shortlist");
+    assert.ok(body.shortlist.length > 0, "workflow shortlist should not be empty");
+    assertMetadata(body.metadata, { allowSeed });
+    return {
+      source: body.metadata.source,
+      steps: body.recommended_sequence.length,
+      shortlist: body.shortlist.map((item) => item.project_id)
     };
   });
 

@@ -122,6 +122,37 @@ export const openApiDocument = {
         responses: { "200": { description: "Recommendations with fit profiles, adoption plans, risk flags, constraints, ranking signals, and tradeoffs" }, "400": { description: "Invalid recommendation request" } }
       }
     },
+    "/api/workflow": {
+      get: {
+        summary: "Return an agent selection workflow across trends, recommendations, graph, alternatives, score, compare, and trust checks.",
+        parameters: [
+          queryParam("intent", "Natural-language selection goal"),
+          queryParam("use_case", "Concrete project use case"),
+          queryParam("project_id", "Optional focus project or Git.Top product alias"),
+          queryParam("deployment", "Deployment target"),
+          queryParam("category", "Project category"),
+          queryParam("license", "License SPDX id or license text"),
+          queryParam("difficulty", "Difficulty level"),
+          queryParam("language", "Primary language"),
+          queryParam("cloudflare_ready", "Boolean Cloudflare readiness filter"),
+          queryParam("limit", "Maximum recommendation count"),
+          queryParam("require_d1", "Fail closed unless D1-backed data is available")
+        ],
+        responses: { "200": { description: "Guided workflow with recommended_sequence, shortlist, trend_context, agent_map, trust_policy, and metadata" } }
+      },
+      post: {
+        summary: "Return an agent selection workflow from a structured JSON body.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/WorkflowRequest" }
+            }
+          }
+        },
+        responses: { "200": { description: "Guided workflow with recommended_sequence, shortlist, trend_context, agent_map, trust_policy, and metadata" }, "400": { description: "Invalid workflow request" } }
+      }
+    },
     "/api/compare": {
       get: {
         summary: "Compare projects by deployment, maintenance, quality, agent score, decision matrix, and next actions.",
@@ -407,6 +438,36 @@ export const openApiDocument = {
         properties: {
           use_case: { type: "string" },
           useCase: { type: "string" },
+          deployment: { type: "string" },
+          category: { type: "string" },
+          license: { type: "string" },
+          difficulty: { type: "string" },
+          language: { type: "string" },
+          cloudflare_ready: { type: "boolean" },
+          limit: { type: "integer" },
+          constraints: {
+            type: "object",
+            properties: {
+              deployment: { type: "string" },
+              category: { type: "string" },
+              license: { type: "string" },
+              difficulty: { type: "string" },
+              language: { type: "string" },
+              cloudflare_ready: { type: "boolean" }
+            }
+          }
+        }
+      },
+      WorkflowRequest: {
+        type: "object",
+        properties: {
+          intent: { type: "string" },
+          goal: { type: "string" },
+          use_case: { type: "string" },
+          useCase: { type: "string" },
+          project_id: { type: "string" },
+          projectId: { type: "string" },
+          repo: { type: "string" },
           deployment: { type: "string" },
           category: { type: "string" },
           license: { type: "string" },

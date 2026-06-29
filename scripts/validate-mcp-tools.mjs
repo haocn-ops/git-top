@@ -20,6 +20,7 @@ async function testDiscovery() {
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "search_projects"));
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "git_top_grp_query"));
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_trends"));
+  assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_agent_workflow"));
   assert.equal(getDiscovery.body.openapi_url, "https://git.top/openapi.json");
   assert.equal(getDiscovery.body.api_openapi_url, "https://git.top/api/openapi.json");
   assert.equal(getDiscovery.body.schema_url, "https://git.top/api/schema/project.v2");
@@ -31,6 +32,7 @@ async function testDiscovery() {
   assert.ok(Array.isArray(getDiscovery.body.agent_api.structured_post_endpoints));
   assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/project"));
   assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/recommend"));
+  assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/workflow"));
   assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/compare"));
   assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/alternatives"));
   assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/related"));
@@ -70,6 +72,10 @@ async function testDiscovery() {
   const trendsTool = getDiscovery.body.tools.find((tool) => tool.name === "get_trends");
   assert.match(trendsTool.description, /corpus-level/);
   assert.equal(trendsTool.input_schema.properties.require_d1.type, "boolean");
+
+  const workflowTool = getDiscovery.body.tools.find((tool) => tool.name === "get_agent_workflow");
+  assert.match(workflowTool.description, /workflow/);
+  assert.equal(workflowTool.input_schema.properties.require_d1.type, "boolean");
 }
 
 async function testToolCalls() {
@@ -279,6 +285,27 @@ async function testToolCalls() {
   assert.ok(Array.isArray(trends.result.agent_briefing));
   assert.ok(trends.result.categories.length <= 3);
   assertMetadata(trends.result.metadata, "db_missing");
+
+  const workflow = await callTool("get_agent_workflow", {
+    intent: "choose a Cloudflare-ready agent framework",
+    constraints: {
+      deployment: "cloudflare",
+      category: "agent_framework",
+      cloudflare_ready: true
+    },
+    limit: 3
+  });
+  assert.equal(workflow.status, 200);
+  assert.equal(workflow.result.positioning, "The Knowledge Graph of Open Source");
+  assert.ok(Array.isArray(workflow.result.recommended_sequence));
+  assert.ok(workflow.result.recommended_sequence.some((step) => step.mcp_tool === "get_trends"));
+  assert.ok(workflow.result.recommended_sequence.some((step) => step.mcp_tool === "recommend_project"));
+  assert.ok(workflow.result.recommended_sequence.some((step) => step.mcp_tool === "compare_projects"));
+  assert.ok(Array.isArray(workflow.result.shortlist));
+  assert.ok(workflow.result.shortlist.length > 0);
+  assert.ok(Array.isArray(workflow.result.trend_context.top_categories));
+  assert.ok(workflow.result.trust_policy.production_check.includes("require_d1=true"));
+  assertMetadata(workflow.result.metadata, "db_missing");
 }
 
 async function testGrpToolValidation() {

@@ -16,6 +16,7 @@ import { toProjectKnowledgeView, withRelatedProjects } from "./project-view";
 import { buildProjectScoreExplanation } from "./score";
 import { getKnowledgeForSourcePolicy } from "./source-policy";
 import { buildTrendsView } from "./trends";
+import { buildAgentWorkflow } from "./workflow";
 import { resolveProject } from "./project-aliases";
 import type { Env, ProjectKnowledge } from "./types";
 
@@ -188,6 +189,34 @@ const tools = [
     }
   },
   {
+    name: "get_agent_workflow",
+    description: "Return a structured Git.Top workflow that guides an agent from trends to recommendations, graph, alternatives, score, compare, and trust checks.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        intent: { type: "string", description: "Natural-language selection goal." },
+        use_case: { type: "string", description: "Concrete project use case." },
+        project_id: { type: "string", description: "Optional focus project or product alias." },
+        constraints: {
+          type: "object",
+          properties: {
+            deployment: { type: "string" },
+            category: { type: "string" },
+            license: { type: "string" },
+            difficulty: { type: "string" },
+            language: { type: "string" },
+            cloudflare_ready: { type: "boolean" }
+          }
+        },
+        limit: { type: "number" },
+        require_d1: {
+          type: "boolean",
+          description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
+        }
+      }
+    }
+  },
+  {
     name: "find_alternatives",
     description: "Find alternative projects for a canonical owner/name project id or Git.Top product alias.",
     inputSchema: {
@@ -343,6 +372,16 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
             bodyExample: {
               use_case: "build Cloudflare-ready agent workflows",
               constraints: { deployment: "cloudflare", category: "agent_framework", license: "MIT", cloudflare_ready: true },
+              limit: 5
+            }
+          },
+          {
+            path: "/api/workflow",
+            method: "POST",
+            description: "Return an agent selection workflow across trends, recommendations, graph, alternatives, score, compare, and trust checks.",
+            bodyExample: {
+              intent: "choose a Cloudflare-ready agent framework",
+              constraints: { deployment: "cloudflare", category: "agent_framework", cloudflare_ready: true },
               limit: 5
             }
           },
@@ -554,6 +593,29 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
     }
     return {
       ...buildTrendsView(knowledge.projects, numberArg(args.limit) ?? 8),
+      metadata: knowledge.metadata
+    };
+  }
+
+  if (name === "get_agent_workflow") {
+    const constraints = objectArg(args.constraints);
+    const knowledge = await requireKnowledgeSource(env, args);
+    if (isToolErrorResult(knowledge)) {
+      return knowledge;
+    }
+    return {
+      ...buildAgentWorkflow(knowledge.projects, {
+        intent: stringArg(args.intent),
+        useCase: stringArg(args.use_case),
+        projectId: stringArg(args.project_id),
+        deployment: stringArg(constraints.deployment),
+        difficulty: stringArg(constraints.difficulty),
+        language: stringArg(constraints.language),
+        category: stringArg(constraints.category),
+        license: stringArg(constraints.license),
+        cloudflareReady: boolArg(constraints.cloudflare_ready),
+        limit: numberArg(args.limit)
+      }),
       metadata: knowledge.metadata
     };
   }

@@ -28,6 +28,7 @@ import { buildProjectScoreExplanation } from "./score";
 import { getKnowledgeForSourcePolicy } from "./source-policy";
 import { syncGithubProjects } from "./sync";
 import { buildTrendsView } from "./trends";
+import { buildAgentWorkflow, type AgentWorkflowInput } from "./workflow";
 import type { AgentCard, Category, Deployment, Difficulty, Env } from "./types";
 import type { ProjectKnowledgeResult } from "./knowledge-source";
 
@@ -231,6 +232,10 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
 
   if (path === "/api/recommend") {
     return handleRecommendApi(request, env);
+  }
+
+  if (path === "/api/workflow") {
+    return handleWorkflowApi(request, env);
   }
 
   if (path === "/api/compare") {
@@ -1030,6 +1035,83 @@ async function handleRecommendApi(request: Request, env: Env): Promise<Response>
     recommendations,
     metadata: knowledge.metadata
   });
+}
+
+async function handleWorkflowApi(request: Request, env: Env): Promise<Response> {
+  if (!["GET", "POST"].includes(request.method)) {
+    return errorJson(405, "method_not_allowed", "Workflow endpoint supports GET and POST.");
+  }
+
+  const parsed = request.method === "POST" ? await parseWorkflowBody(request) : { ok: true as const, input: workflowInputFromUrl(new URL(request.url)) };
+  if (!parsed.ok) {
+    return errorJson(400, parsed.code, parsed.message);
+  }
+
+  const knowledge = await requireKnowledgeSource(request, env);
+  if (knowledge instanceof Response) {
+    return knowledge;
+  }
+
+  return json({
+    ...buildAgentWorkflow(knowledge.projects, parsed.input),
+    metadata: knowledge.metadata
+  });
+}
+
+function workflowInputFromUrl(url: URL): AgentWorkflowInput {
+  return {
+    intent: url.searchParams.get("intent") ?? undefined,
+    useCase: url.searchParams.get("use_case") ?? undefined,
+    projectId: url.searchParams.get("project_id") ?? url.searchParams.get("repo") ?? undefined,
+    deployment: url.searchParams.get("deployment") ?? undefined,
+    difficulty: url.searchParams.get("difficulty") ?? undefined,
+    language: url.searchParams.get("language") ?? undefined,
+    category: url.searchParams.get("category") ?? undefined,
+    license: url.searchParams.get("license") ?? undefined,
+    cloudflareReady: parseBool(url.searchParams.get("cloudflare_ready")),
+    limit: parseLimit(url.searchParams.get("limit"))
+  };
+}
+
+async function parseWorkflowBody(
+  request: Request
+): Promise<{ ok: true; input: AgentWorkflowInput } | { ok: false; code: string; message: string }> {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return { ok: false, code: "invalid_json", message: "Workflow endpoint requires a valid JSON body." };
+  }
+  if (!body || typeof body !== "object") {
+    return { ok: false, code: "invalid_workflow_request", message: "Workflow request body must be an object." };
+  }
+
+  const data = body as Record<string, unknown>;
+  const constraints = data.constraints && typeof data.constraints === "object" ? (data.constraints as Record<string, unknown>) : {};
+  const cloudflareReady = optionalBooleanValue(data.cloudflareReady ?? data.cloudflare_ready ?? constraints.cloudflareReady ?? constraints.cloudflare_ready);
+  if (!cloudflareReady.ok) {
+    return { ok: false, code: "invalid_workflow_request", message: "cloudflare_ready must be a boolean when provided." };
+  }
+  const limit = optionalNumberValue(data.limit);
+  if (!limit.ok) {
+    return { ok: false, code: "invalid_workflow_request", message: "limit must be a number when provided." };
+  }
+
+  return {
+    ok: true,
+    input: {
+      intent: stringValue(data.intent) ?? stringValue(data.goal),
+      useCase: stringValue(data.useCase) ?? stringValue(data.use_case),
+      projectId: stringValue(data.projectId) ?? stringValue(data.project_id) ?? stringValue(data.repo),
+      deployment: stringValue(data.deployment) ?? stringValue(constraints.deployment),
+      difficulty: stringValue(data.difficulty) ?? stringValue(constraints.difficulty),
+      language: stringValue(data.language) ?? stringValue(constraints.language),
+      category: stringValue(data.category) ?? stringValue(constraints.category),
+      license: stringValue(data.license) ?? stringValue(constraints.license),
+      cloudflareReady: cloudflareReady.value,
+      limit: limit.value
+    }
+  };
 }
 
 function recommendationQueryFromUrl(url: URL): Parameters<typeof recommendProjectList>[1] {

@@ -28,6 +28,15 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     recommendedUse: "Choose candidates from use case, deployment, category, license, language, and Cloudflare-readiness constraints."
   },
   {
+    concept: "Agent workflow",
+    humanPage: "/docs",
+    rest: ["GET /api/workflow", "POST /api/workflow"],
+    mcpTools: ["get_agent_workflow"],
+    outputFields: ["summary", "recommended_sequence", "shortlist", "trend_context", "agent_map", "trust_policy"],
+    trustFields: ["metadata.source", "shortlist[].confidence", "trust_policy.disclose_when", "trend_context.stats.project_count"],
+    recommendedUse: "Start here when an agent needs a guided path from trend context to shortlist, graph, alternatives, score, compare, and trust checks."
+  },
+  {
     concept: "Alternatives",
     humanPage: "/alternatives/:project",
     rest: ["GET /api/alternatives/:project", "POST /api/alternatives"],
@@ -116,6 +125,7 @@ export function buildAgentMap() {
     recommended_agent_flow: [
       "GET /api/health and require metadata.source=d1 for high-confidence production recommendations.",
       "Use /api/agent-map or GET /mcp discovery to choose the matching human page, REST endpoint, or MCP tool.",
+      "Use /api/workflow or MCP get_agent_workflow when you need an end-to-end project selection path.",
       "Fetch project, graph, alternatives, score, and compare data before making a final recommendation.",
       "Cite metadata.source, classification evidence, quality_signal_confidence, and recommendation confidence."
     ],
