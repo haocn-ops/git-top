@@ -220,7 +220,7 @@ const tools = [
   },
   {
     name: "get_atlas",
-    description: "Return Git.Top Atlas ecosystem maps with stats, exploration paths, graph nodes, edges, representative projects, and next journey links.",
+    description: "Return Git.Top Atlas ecosystem maps with stats, exploration paths, comparison paths, graph nodes, edges, representative projects, and next journey links.",
     inputSchema: {
       type: "object",
       properties: {

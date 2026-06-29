@@ -26,7 +26,7 @@ export function buildAgentRecipes(): AgentRecipes {
   return {
     name: "Git.Top Agent Recipes",
     positioning: "The Knowledge Graph of Open Source",
-    summary: "Executable REST and MCP-oriented recipes for common open-source knowledge tasks: choose, compare, replace, inspect graph context, explore ecosystems, check trust, and plan project stacks.",
+    summary: "Executable REST and MCP-oriented recipes for common open-source knowledge tasks: choose, compare, replace, inspect graph context, explore ecosystems, map Atlas journeys, check trust, and plan project stacks.",
     recipes: [
       {
         id: "choose-cloudflare-agent-framework",
@@ -87,13 +87,25 @@ export function buildAgentRecipes(): AgentRecipes {
         id: "explore-ecosystem",
         title: "Explore An Ecosystem",
         useCase: "A user asks for a map of Cloudflare, MCP, RAG, AI agents, or Browser AI.",
-        outcome: "Return representative projects, concept nodes, exploration paths, and next journeys.",
+        outcome: "Return representative projects, concept nodes, exploration paths, comparison paths, and next journeys.",
         steps: [
-          step("Fetch Atlas", "GET", "/api/atlas/:ecosystem", "curl https://git.top/api/atlas/cloudflare?limit=8&require_d1=true", ["ecosystem.stats", "map.nodes", "map.edges", "exploration_paths"]),
-          step("Browse human map", "GET", "/atlas/:ecosystem", "curl https://git.top/atlas/cloudflare", ["representative projects", "journeys", "map"]),
+          step("Fetch Atlas", "GET", "/api/atlas/:ecosystem", "curl https://git.top/api/atlas/cloudflare?limit=8&require_d1=true", ["ecosystem.stats", "map.nodes", "map.edges", "exploration_paths", "comparison_paths"]),
+          step("Browse human map", "GET", "/atlas/:ecosystem", "curl https://git.top/atlas/cloudflare", ["representative projects", "journeys", "comparison paths", "map"]),
           step("Recommend within ecosystem", "GET", "/api/recommend", 'curl "https://git.top/api/recommend?use_case=build%20Cloudflare-ready%20AI%20agents&deployment=cloudflare&category=agent_framework&cloudflare_ready=true&require_d1=true"', ["recommendations", "fit_profile", "risk_flags"])
         ],
-        trustChecks: ["stats.project_count", "exploration_paths", "recommendations[].confidence", "metadata.source"]
+        trustChecks: ["stats.project_count", "exploration_paths", "comparison_paths[].context", "recommendations[].confidence", "metadata.source"]
+      },
+      {
+        id: "map-ecosystem-to-comparison",
+        title: "Map An Ecosystem To Comparison Paths",
+        useCase: "A user wants to move from an ecosystem map to concrete candidate comparisons.",
+        outcome: "Return ecosystem-specific comparison paths, run the selected Compare JSON, and cite why the shortlist was chosen.",
+        steps: [
+          step("Fetch journey index", "GET", "/api/journeys", "curl https://git.top/api/journeys?limit=8&require_d1=true", ["journeys", "comparison_paths", "stats.comparison_path_count", "metadata.source"]),
+          step("Fetch ecosystem map", "GET", "/api/atlas/:ecosystem", "curl https://git.top/api/atlas/cloudflare?limit=8&require_d1=true", ["ecosystem.comparison_paths", "ecosystem.map.nodes", "ecosystem.stats"]),
+          step("Run comparison path", "GET", "/api/compare", 'curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain&deployment=cloudflare&require_d1=true"', ["summary", "decision_matrix", "winner", "next_actions"])
+        ],
+        trustChecks: ["comparison_paths[].repos", "comparison_paths[].decision_focus", "decision_matrix[].tradeoffs", "metadata.source=d1"]
       },
       {
         id: "check-recommendation-trust",

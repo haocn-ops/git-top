@@ -124,7 +124,8 @@ export function buildProductRoadmap(): ProductRoadmap {
       shipped: [
         "REST endpoints cover project lookup, recommendation, workflow, alternatives, graph, compare, score, trends, atlas, journeys, quality, quickstart, recipes, and agent map.",
         "MCP tools map to the same product concepts and support D1-required strict mode.",
-        "llms.txt, llms-full.txt, OpenAPI, schema, Agent Map, Quickstart, Recipes, and workflow pages make the product machine-discoverable."
+        "llms.txt, llms-full.txt, OpenAPI, schema, Agent Map, Quickstart, Recipes, and workflow pages make the product machine-discoverable.",
+        "Quickstart and Recipes now include Atlas journeys and comparison paths as first-class agent workflows."
       ],
       next: ["Continue tightening OpenAPI examples, agent docs, MCP integration recipes, and production trust gates."],
       humanPages: ["/docs", "/quickstart", "/recipes", "/integrations", "/workflow", "/mcp", "/llms.txt"],

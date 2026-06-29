@@ -322,6 +322,7 @@ async function testQuickstartRoute() {
   assert.ok(quickstart.body.steps.length >= 8);
   assert.ok(quickstart.body.steps.some((step) => step.id === "check-data-source" && step.rest === "GET /api/health"));
   assert.ok(quickstart.body.steps.some((step) => step.mcp_tool === "get_agent_workflow"));
+  assert.ok(quickstart.body.steps.some((step) => step.id === "explore-atlas-journeys" && step.rest === "GET /api/journeys"));
   assert.ok(quickstart.body.steps.some((step) => step.rest === "POST /api/grp/query"));
   assert.ok(Array.isArray(quickstart.body.output_pattern));
   assert.ok(Array.isArray(quickstart.body.trust_policy));
@@ -338,6 +339,7 @@ async function testRecipesRoute() {
   assert.ok(Array.isArray(recipes.body.recipes));
   assert.ok(recipes.body.recipes.length >= 6);
   assert.ok(recipes.body.recipes.some((recipe) => recipe.id === "choose-cloudflare-agent-framework"));
+  assert.ok(recipes.body.recipes.some((recipe) => recipe.id === "map-ecosystem-to-comparison" && recipe.steps.some((step) => step.endpoint === "/api/journeys")));
   assert.ok(recipes.body.recipes.some((recipe) => recipe.id === "plan-with-grp" && recipe.steps.some((step) => step.method === "POST")));
   assert.ok(recipes.body.recipes.every((recipe) => Array.isArray(recipe.trust_checks) && recipe.trust_checks.length > 0));
 

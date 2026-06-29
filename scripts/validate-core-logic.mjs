@@ -162,6 +162,7 @@ async function testQuickstartRoute() {
   assert.equal(response.status, 200);
   assert.match(text, /Git\.Top Agent Quickstart/);
   assert.match(text, /Open Quickstart JSON/);
+  assert.match(text, /Explore Atlas Journeys/);
   assert.match(text, /Use GRP For Goal-Level Planning/);
 
   const api = await worker.fetch(new Request("https://git.top/api/quickstart"), {});
@@ -169,6 +170,7 @@ async function testQuickstartRoute() {
   assert.equal(api.status, 200);
   assert.equal(body.positioning, "The Knowledge Graph of Open Source");
   assert.ok(body.steps.some((step) => step.id === "compare"));
+  assert.ok(body.steps.some((step) => step.id === "explore-atlas-journeys"));
 
   const agentMap = await worker.fetch(new Request("https://git.top/api/agent-map"), {});
   const agentMapBody = await agentMap.json();
@@ -182,6 +184,7 @@ async function testRecipesRoute() {
   assert.equal(response.status, 200);
   assert.match(text, /Git\.Top Agent Recipes/);
   assert.match(text, /Choose A Cloudflare-ready Agent Framework/);
+  assert.match(text, /Map An Ecosystem To Comparison Paths/);
   assert.match(text, /Plan With Graph Reasoning/);
 
   const api = await worker.fetch(new Request("https://git.top/api/recipes"), {});
@@ -189,6 +192,7 @@ async function testRecipesRoute() {
   assert.equal(api.status, 200);
   assert.equal(body.positioning, "The Knowledge Graph of Open Source");
   assert.ok(body.recipes.some((recipe) => recipe.id === "find-project-alternatives"));
+  assert.ok(body.recipes.some((recipe) => recipe.id === "map-ecosystem-to-comparison"));
 
   const agentMap = await worker.fetch(new Request("https://git.top/api/agent-map"), {});
   const agentMapBody = await agentMap.json();

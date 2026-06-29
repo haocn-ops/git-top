@@ -106,7 +106,7 @@ curl -X POST http://localhost:8787/mcp \
   -d '{"jsonrpc":"2.0","id":43,"method":"tools/call","params":{"name":"get_atlas","arguments":{"ecosystem":"cloudflare","limit":5}}}'
 ```
 
-Use `get_atlas` when an agent wants ecosystem maps, exploration paths, map nodes, edges, representative projects, and Atlas journey links without manually calling REST endpoints first.
+Use `get_atlas` when an agent wants ecosystem maps, exploration paths, comparison paths, map nodes, edges, representative projects, and Atlas journey links without manually calling REST endpoints first.
 
 ## Get Quality Report
 

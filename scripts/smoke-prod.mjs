@@ -392,6 +392,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.equal(quickstart.status, 200);
     assert.equal(quickstart.body.positioning, "The Knowledge Graph of Open Source");
     assert.ok(quickstart.body.steps.some((step) => step.id === "check-data-source"));
+    assert.ok(quickstart.body.steps.some((step) => step.id === "explore-atlas-journeys"));
     assert.ok(quickstart.body.steps.some((step) => step.rest === "POST /api/grp/query"));
 
     return {
@@ -411,10 +412,12 @@ export async function runSmoke(args = [], env = process.env) {
     assert.equal(recipes.status, 200);
     assert.equal(recipes.body.positioning, "The Knowledge Graph of Open Source");
     assert.ok(recipes.body.recipes.some((recipe) => recipe.id === "check-recommendation-trust"));
+    assert.ok(recipes.body.recipes.some((recipe) => recipe.id === "map-ecosystem-to-comparison"));
     assert.ok(recipes.body.recipes.every((recipe) => Array.isArray(recipe.trust_checks)));
 
     return {
       recipes: recipes.body.recipes.length,
+      hasAtlasComparison: recipes.body.recipes.some((recipe) => recipe.id === "map-ecosystem-to-comparison"),
       hasGrp: recipes.body.recipes.some((recipe) => recipe.id === "plan-with-grp")
     };
   });

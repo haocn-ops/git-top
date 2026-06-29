@@ -82,6 +82,7 @@ async function testDiscovery() {
 
   const atlasTool = getDiscovery.body.tools.find((tool) => tool.name === "get_atlas");
   assert.match(atlasTool.description, /Atlas/);
+  assert.match(atlasTool.description, /comparison paths/);
   assert.equal(atlasTool.input_schema.properties.require_d1.type, "boolean");
 
   const qualityReportTool = getDiscovery.body.tools.find((tool) => tool.name === "get_quality_report");

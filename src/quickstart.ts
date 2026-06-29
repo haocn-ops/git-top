@@ -27,7 +27,7 @@ export function buildAgentQuickstart(): AgentQuickstart {
   return {
     name: "Git.Top Agent Quickstart",
     positioning: "The Knowledge Graph of Open Source",
-    summary: "A short, production-oriented path for agents and developers to move from health checks to workflow, project knowledge, recommendations, comparison, MCP, GRP, and trust evidence.",
+    summary: "A short, production-oriented path for agents and developers to move from health checks to workflow, Atlas journeys, project knowledge, recommendations, comparison, MCP, GRP, and trust evidence.",
     productionEndpoints: {
       rest: "https://git.top/api/*",
       mcp: "https://git.top/mcp",
@@ -71,6 +71,16 @@ export function buildAgentQuickstart(): AgentQuickstart {
         command: 'curl "https://git.top/api/search?category=agent_framework&deployment=cloudflare&ranking=browse&limit=10"',
         inspect: ["projects[].repo", "projects[].project_kind", "projects[].collection_metadata", "metadata.source"],
         next: "Use browse ranking for category discovery and query search for direct retrieval."
+      },
+      {
+        id: "explore-atlas-journeys",
+        title: "Explore Atlas Journeys",
+        purpose: "Start from an ecosystem map and move into ordered journeys plus comparison paths before choosing projects.",
+        rest: "GET /api/journeys",
+        mcpTool: "get_atlas",
+        command: "curl https://git.top/api/journeys?limit=8",
+        inspect: ["journeys[].steps", "comparison_paths", "comparison_paths[].api_href", "stats.comparison_path_count"],
+        next: "Use comparison_paths when the user asks for ecosystem-specific shortlists or map-to-compare decisions."
       },
       {
         id: "inspect-project",
@@ -158,7 +168,7 @@ function renderHtml(quickstart: AgentQuickstart): string {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Git.Top Agent Quickstart | REST, MCP, GRP, and Trust Checks</title>
-    <meta name="description" content="Agent quickstart for Git.Top: health, workflow, agent map, search, project lookup, recommendation, compare, quality, MCP, and GRP." />
+    <meta name="description" content="Agent quickstart for Git.Top: health, workflow, Atlas journeys, agent map, search, project lookup, recommendation, compare, quality, MCP, and GRP." />
     <link rel="canonical" href="https://git.top/quickstart" />
     <meta property="og:title" content="Git.Top Agent Quickstart" />
     <meta property="og:description" content="Use Git.Top as the Knowledge Graph of Open Source through REST, MCP, GRP, and trust checks." />

@@ -43,7 +43,7 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     mcpTools: [],
     outputFields: ["production_endpoints", "steps", "steps[].command", "steps[].inspect", "output_pattern", "trust_policy"],
     trustFields: ["trust_policy", "steps[].inspect", "production_endpoints"],
-    recommendedUse: "Use this as the shortest integration path from health checks to workflow, project lookup, recommendations, comparison, MCP, GRP, and trust checks."
+    recommendedUse: "Use this as the shortest integration path from health checks to workflow, Atlas journeys, project lookup, recommendations, comparison, MCP, GRP, and trust checks."
   },
   {
     concept: "Agent recipes",
@@ -52,7 +52,7 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     mcpTools: [],
     outputFields: ["recipes", "recipes[].steps", "recipes[].steps[].command", "recipes[].trust_checks", "recipes[].outcome"],
     trustFields: ["recipes[].trust_checks", "recipes[].steps[].inspect"],
-    recommendedUse: "Use recipes when an agent needs a repeatable workflow for choosing projects, finding alternatives, comparing shortlists, exploring ecosystems, checking trust, or planning with GRP."
+    recommendedUse: "Use recipes when an agent needs a repeatable workflow for choosing projects, finding alternatives, comparing shortlists, exploring ecosystems, mapping Atlas journeys to comparison paths, checking trust, or planning with GRP."
   },
   {
     concept: "Alternatives",
