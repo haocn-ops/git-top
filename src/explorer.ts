@@ -647,6 +647,7 @@ const html = String.raw`<!doctype html>
         </a>
         <div class="nav-links">
           <a href="/atlas">Atlas</a>
+          <a href="/recommend">Recommend</a>
           <a href="/graph">Graph</a>
           <a href="/docs">Docs</a>
           <a href="/api/search?q=cloudflare%20agent%20framework">Agent API</a>
@@ -664,6 +665,7 @@ const html = String.raw`<!doctype html>
             <a class="button primary" href="/discover">Discover Projects</a>
             <a class="button secondary" href="/graph">Explore Graph</a>
             <a class="button secondary" href="/atlas">Open Atlas</a>
+            <a class="button secondary" href="/recommend">Get Recommendations</a>
             <a class="button secondary" href="/docs">Docs</a>
             <a class="button secondary" href="/api/search?q=cloudflare%20agent%20framework">Agent API</a>
           </div>
@@ -715,6 +717,16 @@ const html = String.raw`<!doctype html>
             <a href="/alternatives/langgenius/dify"><span>Dify Alternatives</span><span>-></span></a>
             <a href="/alternatives/langchain-ai/langchain"><span>LangChain Alternatives</span><span>-></span></a>
             <a href="/alternatives/cloudflare/agents"><span>Cloudflare Agents Alternatives</span><span>-></span></a>
+          </div>
+        </article>
+        <article class="intent-card">
+          <div class="intent-card-top"><div class="feature-icon">REC</div><div><p class="eyebrow">Pick by fit</p><h2>Recommend</h2></div></div>
+          <p class="muted">Turn a use case and constraints into an explainable shortlist.</p>
+          <div class="intent-links">
+            <a href="/recommend"><span>Recommendation Engine</span><span>-></span></a>
+            <a href="/recommend?use_case=build%20Cloudflare-ready%20AI%20agents&amp;deployment=cloudflare&amp;category=agent_framework&amp;cloudflare_ready=true"><span>Cloudflare Agents</span><span>-></span></a>
+            <a href="/recommend?use_case=build%20browser%20automation%20agents&amp;deployment=docker&amp;category=browser_agent"><span>Browser Agents</span><span>-></span></a>
+            <a href="/recommend?use_case=build%20RAG%20applications&amp;deployment=local&amp;category=rag_framework"><span>RAG Stack</span><span>-></span></a>
           </div>
         </article>
         <article class="intent-card">

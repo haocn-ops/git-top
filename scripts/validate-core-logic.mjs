@@ -18,6 +18,7 @@ await testIntegrationsRoute();
 await testDiscoverRoute();
 await testAlternativesRoute();
 await testAtlasRoute();
+await testRecommendRoute();
 await testCompareRoute();
 await testSyncBatchSelection();
 await testWorkerProjectSlugLookup();
@@ -216,6 +217,22 @@ async function testAtlasRoute() {
 
   const missing = await worker.fetch(new Request("https://git.top/atlas/not-real"), {});
   assert.equal(missing.status, 404);
+}
+
+async function testRecommendRoute() {
+  const response = await worker.fetch(new Request("https://git.top/recommend"), {});
+  const text = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(text, /Recommendation Engine/);
+  assert.match(text, /Find projects by fit/);
+  assert.match(text, /Open JSON/);
+  assert.match(text, /Matched|Review/);
+
+  const filtered = await worker.fetch(new Request("https://git.top/recommend?use_case=build%20RAG%20applications&deployment=local&category=rag_framework&limit=3"), {});
+  const filteredText = await filtered.text();
+  assert.equal(filtered.status, 200);
+  assert.match(filteredText, /RAG Framework/);
+  assert.match(filteredText, /\/api\/recommend\?/);
 }
 
 async function testCompareRoute() {

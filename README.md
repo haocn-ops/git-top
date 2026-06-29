@@ -24,6 +24,7 @@ Repository: [github.com/haocn-ops/git-top](https://github.com/haocn-ops/git-top)
 ## Product Surfaces
 
 - `/discover` - browse AI agents, MCP servers, RAG, browser automation, and AI IDE projects.
+- `/recommend` - turn use cases and constraints into explainable project shortlists.
 - `/compare` - compare project shortlists.
 - `/alternatives` and `/alternatives/:project` - find replacement candidates.
 - `/graph/:project` - inspect project knowledge graphs.

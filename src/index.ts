@@ -21,6 +21,7 @@ import { renderCoveragePage } from "./coverage-page";
 import { renderProjectPage } from "./project-page";
 import { renderQualityPage } from "./quality-page";
 import { renderQualityReviewPage } from "./quality-review-page";
+import { renderRecommendPage } from "./recommend-page";
 import { renderProjectScorePage } from "./score-page";
 import { renderStatusPage } from "./status-page";
 import {
@@ -187,6 +188,10 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
 
   if (url.pathname === "/discover") {
     return renderDiscoverPage(env);
+  }
+
+  if (url.pathname === "/recommend") {
+    return renderRecommendPage(env, url);
   }
 
   if (url.pathname === "/compare") {

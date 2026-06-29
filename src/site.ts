@@ -317,6 +317,7 @@ function staticSitemapUrls(now: string): SitemapUrl[] {
     { path: "/quality/review", changefreq: "daily", priority: "0.7", lastmod: now },
     { path: "/projects", changefreq: "daily", priority: "0.9", lastmod: now },
     { path: "/discover", changefreq: "daily", priority: "0.9", lastmod: now },
+    { path: "/recommend", changefreq: "daily", priority: "0.9", lastmod: now },
     { path: "/graph", changefreq: "weekly", priority: "0.8", lastmod: now },
     { path: "/compare", changefreq: "weekly", priority: "0.8", lastmod: now },
     { path: "/atlas", changefreq: "weekly", priority: "0.9", lastmod: now },
