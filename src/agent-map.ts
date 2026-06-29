@@ -55,6 +55,15 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     recommendedUse: "Use recipes when an agent needs a repeatable workflow for choosing projects, finding alternatives, comparing shortlists, exploring ecosystems, mapping Atlas journeys to comparison paths, checking trust, or planning with GRP."
   },
   {
+    concept: "API examples",
+    humanPage: "/examples",
+    rest: ["GET /api/examples"],
+    mcpTools: [],
+    outputFields: ["examples", "examples[].command", "examples[].inspect", "examples[].trust_checks", "trust_policy"],
+    trustFields: ["examples[].trust_checks", "trust_policy", "examples[].inspect"],
+    recommendedUse: "Use examples when an agent developer needs copyable REST, MCP, and GRP calls with the fields to inspect before citing results."
+  },
+  {
     concept: "API and MCP discovery",
     humanPage: "/topics/open-source-knowledge-graph-api",
     rest: ["GET /api/agent-map", "GET /openapi.json", "GET /mcp", "GET /llms.txt", "GET /llms-full.txt"],

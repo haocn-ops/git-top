@@ -124,13 +124,14 @@ export function buildProductRoadmap(): ProductRoadmap {
       shipped: [
         "REST endpoints cover project lookup, recommendation, workflow, alternatives, graph, compare, score, trends, atlas, journeys, quality, quickstart, recipes, and agent map.",
         "MCP tools map to the same product concepts and support D1-required strict mode.",
-        "llms.txt, llms-full.txt, OpenAPI, schema, Agent Map, Quickstart, Recipes, and workflow pages make the product machine-discoverable.",
+        "llms.txt, llms-full.txt, OpenAPI, schema, Agent Map, Quickstart, Recipes, Examples, and workflow pages make the product machine-discoverable.",
         "Quickstart and Recipes now include Atlas journeys and comparison paths as first-class agent workflows.",
-        "Knowledge Graph API and MCP integration guide pages now explain the human page, REST, MCP, OpenAPI, LLM discovery, output field, and trust-field pairs."
+        "Knowledge Graph API and MCP integration guide pages now explain the human page, REST, MCP, OpenAPI, LLM discovery, output field, and trust-field pairs.",
+        "API Examples now exposes copyable REST, MCP, and GRP calls through both /examples and /api/examples."
       ],
-      next: ["Continue tightening OpenAPI examples, agent docs, MCP integration recipes, and production trust gates."],
-      humanPages: ["/docs", "/quickstart", "/recipes", "/integrations", "/workflow", "/mcp", "/topics/open-source-knowledge-graph-api", "/topics/mcp-integration-guide", "/llms.txt"],
-      apiEndpoints: ["/api/project/cloudflare/agents", "/api/recommend", "/api/workflow", "/api/quickstart", "/api/recipes", "/api/agent-map", "/openapi.json", "/mcp"],
+      next: ["Continue tightening OpenAPI schemas, MCP integration recipes, and production trust gates."],
+      humanPages: ["/docs", "/quickstart", "/recipes", "/examples", "/integrations", "/workflow", "/mcp", "/topics/open-source-knowledge-graph-api", "/topics/mcp-integration-guide", "/llms.txt"],
+      apiEndpoints: ["/api/project/cloudflare/agents", "/api/recommend", "/api/workflow", "/api/quickstart", "/api/recipes", "/api/examples", "/api/agent-map", "/openapi.json", "/mcp"],
       mcpTools: ["get_project", "recommend_project", "get_agent_workflow", "compare_projects", "get_quality_report"]
     }
   ];
@@ -157,7 +158,7 @@ export function buildProductRoadmap(): ProductRoadmap {
       "Add more decision-oriented topic pages for SEO and onboarding.",
       "Add richer Atlas journeys and ecosystem-specific comparison paths.",
       "Improve production data trust by shrinking stale sync and weak alternatives review queues.",
-      "Extend MCP and OpenAPI examples for common agent selection workflows."
+      "Extend MCP integration recipes and production trust gates for common agent selection workflows."
     ]
   };
 }

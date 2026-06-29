@@ -17,6 +17,7 @@ await testStatusRoute();
 await testIntegrationsRoute();
 await testQuickstartRoute();
 await testRecipesRoute();
+await testExamplesRoute();
 await testJourneysRoute();
 await testRoadmapRoute();
 await testDiscoverRoute();
@@ -62,6 +63,7 @@ async function testLegacyConsoleRedirects() {
   assert.match(llmsText, /Agent surface map: https:\/\/git\.top\/api\/agent-map/);
   assert.match(llmsText, /Agent quickstart: https:\/\/git\.top\/quickstart/);
   assert.match(llmsText, /Agent recipes: https:\/\/git\.top\/recipes/);
+  assert.match(llmsText, /API examples: https:\/\/git\.top\/examples/);
   assert.match(llmsText, /Atlas journeys: https:\/\/git\.top\/journeys/);
   assert.match(llmsText, /Atlas Journey Guide: https:\/\/git\.top\/topics\/atlas-journey-guide/);
   assert.match(llmsText, /Open Source Knowledge Graph API: https:\/\/git\.top\/topics\/open-source-knowledge-graph-api/);
@@ -74,6 +76,7 @@ async function testLegacyConsoleRedirects() {
   assert.match(llmsFullText, /GET \/api\/agent-map/);
   assert.match(llmsFullText, /GET \/api\/quickstart/);
   assert.match(llmsFullText, /GET \/api\/recipes/);
+  assert.match(llmsFullText, /GET \/api\/examples/);
   assert.match(llmsFullText, /GET \/api\/journeys\?limit=8/);
   assert.match(llmsFullText, /GET \/api\/roadmap/);
   assert.match(llmsFullText, /Agent Surface Map/);
@@ -204,6 +207,29 @@ async function testRecipesRoute() {
   const agentMapBody = await agentMap.json();
   assert.equal(agentMap.status, 200);
   assert.ok(agentMapBody.surfaces.some((surface) => surface.concept === "Agent recipes"));
+}
+
+async function testExamplesRoute() {
+  const response = await worker.fetch(new Request("https://git.top/examples"), {});
+  const text = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(text, /Git\.Top API Examples/);
+  assert.match(text, /Copyable REST, MCP, and GRP calls/);
+  assert.match(text, /Run a constrained selection workflow/);
+
+  const api = await worker.fetch(new Request("https://git.top/api/examples"), {});
+  const body = await api.json();
+  assert.equal(api.status, 200);
+  assert.equal(body.positioning, "The Knowledge Graph of Open Source");
+  assert.ok(body.examples.some((example) => example.id === "structured-recommend" && example.method === "POST"));
+  assert.ok(body.examples.some((example) => example.surface === "MCP" && example.endpoint === "/mcp"));
+  assert.ok(body.examples.some((example) => example.surface === "GRP" && example.endpoint === "/api/grp/query"));
+  assert.ok(Array.isArray(body.trust_policy));
+
+  const agentMap = await worker.fetch(new Request("https://git.top/api/agent-map"), {});
+  const agentMapBody = await agentMap.json();
+  assert.equal(agentMap.status, 200);
+  assert.ok(agentMapBody.surfaces.some((surface) => surface.concept === "API examples" && surface.rest.includes("GET /api/examples")));
 }
 
 async function testJourneysRoute() {

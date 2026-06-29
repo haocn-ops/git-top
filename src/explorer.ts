@@ -654,6 +654,7 @@ const html = String.raw`<!doctype html>
           <a href="/docs">Docs</a>
           <a href="/quickstart">Quickstart</a>
           <a href="/recipes">Recipes</a>
+          <a href="/examples">Examples</a>
           <a href="/topics/open-source-knowledge-graph-api">Agent API</a>
           <a href="/mcp">MCP</a>
           <a href="/api/schema/project.v2">Schema</a>
@@ -675,6 +676,7 @@ const html = String.raw`<!doctype html>
             <a class="button secondary" href="/docs">Docs</a>
             <a class="button secondary" href="/quickstart">Quickstart</a>
             <a class="button secondary" href="/recipes">Recipes</a>
+            <a class="button secondary" href="/examples">Examples</a>
             <a class="button secondary" href="/topics/open-source-knowledge-graph-api">Agent API</a>
           </div>
         </div>
@@ -748,6 +750,7 @@ const html = String.raw`<!doctype html>
             <a href="/topics/mcp-integration-guide"><span>MCP Integration Guide</span><span>-></span></a>
             <a href="/api/agent-map"><span>Agent Surface Map</span><span>-></span></a>
             <a href="/openapi.json"><span>OpenAPI JSON</span><span>-></span></a>
+            <a href="/examples"><span>API Examples</span><span>-></span></a>
             <a href="/mcp"><span>MCP Discovery</span><span>-></span></a>
             <a href="/llms.txt"><span>LLM Discovery</span><span>-></span></a>
           </div>

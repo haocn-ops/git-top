@@ -15,6 +15,7 @@ import { getSyncStatus } from "./db-sync-store";
 import { listClassificationOverrides, updateProjectAlternatives, upsertClassificationOverride } from "./db-write-store";
 import { generateAlternativesForAll } from "./alternatives";
 import { defaultSeedRepositories } from "./github";
+import { buildAgentApiExamples } from "./examples";
 import { getGovernanceSummary, listGovernanceRuns, parseGovernanceRunInput, upsertGovernanceRun } from "./governance-store";
 import { buildKnowledgeGraph, compareProjectKnowledge } from "./graph";
 import { normalizeGrpRequest, runGrpQuery } from "./grp";
@@ -304,6 +305,17 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       return errorJson(405, "method_not_allowed", "Recipes endpoint supports GET.");
     }
     return json(buildAgentRecipes(), {
+      headers: {
+        "cache-control": "public, max-age=300"
+      }
+    });
+  }
+
+  if (path === "/api/examples") {
+    if (request.method !== "GET") {
+      return errorJson(405, "method_not_allowed", "Examples endpoint supports GET.");
+    }
+    return json(buildAgentApiExamples(), {
       headers: {
         "cache-control": "public, max-age=300"
       }

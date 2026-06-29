@@ -47,6 +47,12 @@ export const openApiDocument = {
         responses: { "200": { description: "Agent recipes with use cases, outcomes, ordered REST steps, Atlas comparison path examples, command examples, inspection fields, and trust checks" } }
       }
     },
+    "/api/examples": {
+      get: {
+        summary: "Fetch copyable REST, MCP, and GRP examples for common agent workflows.",
+        responses: { "200": { description: "Agent API examples with commands, inspection fields, trust checks, and next actions" } }
+      }
+    },
     "/api/journeys": {
       get: {
         summary: "Fetch Atlas exploration journeys that connect ecosystems to recommendations, graph, alternatives, compare, score, and Agent Map surfaces.",

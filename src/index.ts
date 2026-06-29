@@ -4,6 +4,7 @@ import { renderBadge, renderOgImage } from "./assets";
 import { renderExplorer, renderGraph } from "./explorer";
 import { renderProjectGraphPage } from "./graph-page";
 import { errorJson } from "./http";
+import { renderExamplesPage } from "./examples";
 import { renderIntegrationsPage } from "./integrations-page";
 import { renderJourneysPage } from "./journeys-page";
 import {
@@ -126,6 +127,10 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
 
   if (url.pathname === "/recipes") {
     return renderRecipesPage();
+  }
+
+  if (url.pathname === "/examples") {
+    return renderExamplesPage();
   }
 
   if (url.pathname === "/journeys") {
@@ -335,7 +340,7 @@ function projectIdFromPath(pathname: string): string | null {
 
   const slug = decodeURIComponent(shortMatch[1]);
   if (
-    ["api", "mcp", "graph", "atlas", "score", "explorer", "discover", "trends", "workflow", "docs", "api-docs", "quality", "coverage", "status", "operations", "integrations", "roadmap", "quickstart", "recipes", "journeys", "categories", "deployments", "compare", "alternatives", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "favicon.ico"].includes(
+    ["api", "mcp", "graph", "atlas", "score", "explorer", "discover", "trends", "workflow", "docs", "api-docs", "quality", "coverage", "status", "operations", "integrations", "roadmap", "quickstart", "recipes", "examples", "journeys", "categories", "deployments", "compare", "alternatives", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "favicon.ico"].includes(
       slug
     )
   ) {

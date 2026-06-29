@@ -159,6 +159,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms-full\.txt<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quickstart<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/recipes<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/examples<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/journeys<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/integrations<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/status<\/loc>/);
@@ -183,6 +184,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/mcp-integration-guide<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/quickstart<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/recipes<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/examples<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/journeys<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/roadmap<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/projects\/cloudflare\/agents<\/loc>/);
@@ -190,6 +192,7 @@ export async function runSmoke(args = [], env = process.env) {
     const llms = await getText(context, "/llms.txt");
     assert.equal(llms.status, 200);
     assert.match(llms.text, /Git\.Top is an agent-native GitHub project knowledge layer/);
+    assert.match(llms.text, /API examples: https:\/\/git\.top\/examples/);
     assert.match(llms.text, /Atlas journeys: https:\/\/git\.top\/journeys/);
     assert.match(llms.text, /Open Source Knowledge Graph API: https:\/\/git\.top\/topics\/open-source-knowledge-graph-api/);
     assert.match(llms.text, /MCP Integration Guide: https:\/\/git\.top\/topics\/mcp-integration-guide/);
@@ -433,6 +436,27 @@ export async function runSmoke(args = [], env = process.env) {
       recipes: recipes.body.recipes.length,
       hasAtlasComparison: recipes.body.recipes.some((recipe) => recipe.id === "map-ecosystem-to-comparison"),
       hasGrp: recipes.body.recipes.some((recipe) => recipe.id === "plan-with-grp")
+    };
+  });
+
+  await check(context, "examples_page", async () => {
+    const { status, text } = await getText(context, "/examples");
+    assert.equal(status, 200);
+    assert.match(text, /Git\.Top API Examples/);
+    assert.match(text, /Copyable REST, MCP, and GRP calls/);
+    assert.match(text, /Run a constrained selection workflow/);
+
+    const examples = await getJson(context, "/api/examples");
+    assert.equal(examples.status, 200);
+    assert.equal(examples.body.positioning, "The Knowledge Graph of Open Source");
+    assert.ok(examples.body.examples.some((example) => example.id === "mcp-tools-list"));
+    assert.ok(examples.body.examples.some((example) => example.id === "grp-plan-stack"));
+    assert.ok(examples.body.examples.every((example) => Array.isArray(example.trust_checks)));
+
+    return {
+      examples: examples.body.examples.length,
+      hasMcp: examples.body.examples.some((example) => example.surface === "MCP"),
+      hasGrp: examples.body.examples.some((example) => example.surface === "GRP")
     };
   });
 

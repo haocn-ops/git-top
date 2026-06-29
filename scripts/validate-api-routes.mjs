@@ -12,6 +12,7 @@ await testWorkflowRoute();
 await testGraphAndQualityRoutes();
 await testQuickstartRoute();
 await testRecipesRoute();
+await testExamplesRoute();
 await testJourneysRoute();
 await testRoadmapRoute();
 await testSchemaRoutes();
@@ -349,6 +350,22 @@ async function testRecipesRoute() {
   const postRecipes = await request("/api/recipes", { method: "POST" });
   assert.equal(postRecipes.status, 405);
   assert.equal(postRecipes.body.error.code, "method_not_allowed");
+}
+
+async function testExamplesRoute() {
+  const examples = await getJson("/api/examples");
+  assert.equal(examples.status, 200);
+  assert.equal(examples.body.positioning, "The Knowledge Graph of Open Source");
+  assert.ok(Array.isArray(examples.body.examples));
+  assert.ok(examples.body.examples.length >= 8);
+  assert.ok(examples.body.examples.some((example) => example.id === "health-gate" && example.endpoint === "/api/health"));
+  assert.ok(examples.body.examples.some((example) => example.id === "mcp-tools-list" && example.surface === "MCP"));
+  assert.ok(examples.body.examples.some((example) => example.id === "grp-plan-stack" && example.endpoint === "/api/grp/query"));
+  assert.ok(examples.body.examples.every((example) => Array.isArray(example.trust_checks) && example.trust_checks.length > 0));
+
+  const postExamples = await request("/api/examples", { method: "POST" });
+  assert.equal(postExamples.status, 405);
+  assert.equal(postExamples.body.error.code, "method_not_allowed");
 }
 
 async function testJourneysRoute() {
@@ -695,6 +712,7 @@ async function testSchemaRoutes() {
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Project graph" && surface.human_page === "/graph/:project"));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Recommendations" && surface.mcp_tools.includes("recommend_project")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Agent workflow" && surface.mcp_tools.includes("get_agent_workflow")));
+  assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "API examples" && surface.rest.includes("GET /api/examples")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "API and MCP discovery" && surface.rest.includes("GET /mcp")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Recommendations" && surface.output_fields.includes("recommendations[].adoption_plan")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Open source trends" && surface.rest.includes("GET /api/trends")));
@@ -710,6 +728,7 @@ async function testOpenApiDocument() {
   assert.ok(openapi.body.paths["/api/agent-map"], "OpenAPI should document agent surface map endpoint");
   assert.ok(openapi.body.paths["/api/quickstart"], "OpenAPI should document quickstart endpoint");
   assert.ok(openapi.body.paths["/api/recipes"], "OpenAPI should document recipes endpoint");
+  assert.ok(openapi.body.paths["/api/examples"], "OpenAPI should document examples endpoint");
   assert.ok(openapi.body.paths["/api/journeys"], "OpenAPI should document Atlas journeys endpoint");
   assert.ok(openapi.body.paths["/api/roadmap"], "OpenAPI should document roadmap endpoint");
   assert.ok(openapi.body.paths["/api/quality"], "OpenAPI should document quality report endpoint");

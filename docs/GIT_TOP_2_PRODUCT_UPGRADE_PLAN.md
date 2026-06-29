@@ -234,6 +234,7 @@ Status:
 - MCP discovery and tools expose the same concepts as REST, including trends via `get_trends`, with D1-required fail-closed options for production agents.
 - `/api/agent-map` now exposes a machine-readable map from product concepts to human pages, REST endpoints, MCP tools, output fields, trust fields, and recommended use.
 - `/topics/open-source-knowledge-graph-api` and `/topics/mcp-integration-guide` now explain the REST, MCP, OpenAPI, LLM discovery, output-field, and trust-field pairs for agent developers.
+- `/examples` and `/api/examples` now expose copyable REST, MCP, and GRP examples with inspection fields, trust checks, and next actions.
 
 ## Technical Architecture
 
