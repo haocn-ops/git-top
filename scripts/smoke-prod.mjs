@@ -179,6 +179,9 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/score\/cursor<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/browser-ai-automation<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/ai-ide-coding-agents<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/open-source-llm-gateways<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/ai-observability-tools<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/ai-workflow-automation<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/atlas\/ai-ide<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/atlas\/llm-gateway<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/atlas\/ai-observability<\/loc>/);
@@ -198,6 +201,9 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(llms.text, /Git\.Top is an agent-native GitHub project knowledge layer/);
     assert.match(llms.text, /API examples: https:\/\/git\.top\/examples/);
     assert.match(llms.text, /Atlas journeys: https:\/\/git\.top\/journeys/);
+    assert.match(llms.text, /Open Source LLM Gateways: https:\/\/git\.top\/topics\/open-source-llm-gateways/);
+    assert.match(llms.text, /AI Observability Tools: https:\/\/git\.top\/topics\/ai-observability-tools/);
+    assert.match(llms.text, /AI Workflow Automation: https:\/\/git\.top\/topics\/ai-workflow-automation/);
     assert.match(llms.text, /Open Source Knowledge Graph API: https:\/\/git\.top\/topics\/open-source-knowledge-graph-api/);
     assert.match(llms.text, /MCP Integration Guide: https:\/\/git\.top\/topics\/mcp-integration-guide/);
 

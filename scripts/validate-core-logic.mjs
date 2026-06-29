@@ -294,6 +294,9 @@ async function testDiscoverRoute() {
   assert.match(homeText, /href="\/workflow"/);
   assert.match(homeText, /href="\/topics\/browser-ai-automation"/);
   assert.match(homeText, /href="\/topics\/ai-ide-coding-agents"/);
+  assert.match(homeText, /href="\/topics\/open-source-llm-gateways"/);
+  assert.match(homeText, /href="\/topics\/ai-observability-tools"/);
+  assert.match(homeText, /href="\/topics\/ai-workflow-automation"/);
   assert.match(homeText, /href="\/topics\/atlas-journey-guide"/);
   assert.match(homeText, /href="\/topics\/open-source-knowledge-graph-api"/);
   assert.match(homeText, /href="\/topics\/mcp-integration-guide"/);
@@ -306,6 +309,9 @@ async function testDiscoverRoute() {
   assert.match(text, /MCP Servers/);
   assert.match(text, /Browser Automation/);
   assert.match(text, /AI IDE/);
+  assert.match(text, /LLM Gateways/);
+  assert.match(text, /AI Observability/);
+  assert.match(text, /Workflow Automation/);
   assert.match(text, /\/api\/trends\?limit=8/);
   assert.match(text, /\/api\/search\?q=agent%20framework/);
 
@@ -320,6 +326,24 @@ async function testDiscoverRoute() {
   assert.equal(ideTopic.status, 200);
   assert.match(ideTopicText, /AI IDE and Coding Agent Projects/);
   assert.match(ideTopicText, /What To Compare/);
+
+  const gatewayTopic = await worker.fetch(new Request("https://git.top/topics/open-source-llm-gateways"), {});
+  const gatewayTopicText = await gatewayTopic.text();
+  assert.equal(gatewayTopic.status, 200);
+  assert.match(gatewayTopicText, /Open Source LLM Gateways/);
+  assert.match(gatewayTopicText, /What To Inspect/);
+
+  const observabilityTopic = await worker.fetch(new Request("https://git.top/topics/ai-observability-tools"), {});
+  const observabilityTopicText = await observabilityTopic.text();
+  assert.equal(observabilityTopic.status, 200);
+  assert.match(observabilityTopicText, /AI Observability Tools/);
+  assert.match(observabilityTopicText, /What To Inspect/);
+
+  const workflowTopic = await worker.fetch(new Request("https://git.top/topics/ai-workflow-automation"), {});
+  const workflowTopicText = await workflowTopic.text();
+  assert.equal(workflowTopic.status, 200);
+  assert.match(workflowTopicText, /AI Workflow Automation Projects/);
+  assert.match(workflowTopicText, /What To Inspect/);
 
   const atlasJourneyTopic = await worker.fetch(new Request("https://git.top/topics/atlas-journey-guide"), {});
   const atlasJourneyTopicText = await atlasJourneyTopic.text();

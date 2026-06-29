@@ -81,6 +81,33 @@ const discoverSections = [
     category: "coding_agent",
     apiPath: "/api/search?q=ai%20ide%20coding%20agent&category=coding_agent&ranking=browse&limit=12",
     guidePath: "/topics/ai-ide-coding-agents"
+  },
+  {
+    id: "llm-gateway",
+    title: "LLM Gateways",
+    description: "Model routing, provider abstraction, fallback, policy, and OpenAI-compatible gateway projects.",
+    query: "llm gateway",
+    category: "llm_gateway",
+    apiPath: "/api/search?q=llm%20gateway&category=llm_gateway&ranking=browse&limit=12",
+    guidePath: "/topics/open-source-llm-gateways"
+  },
+  {
+    id: "ai-observability",
+    title: "AI Observability",
+    description: "Tracing, evaluation, prompt logging, cost monitoring, and runtime quality tools for AI apps.",
+    query: "ai observability",
+    category: "ai_observability",
+    apiPath: "/api/search?q=ai%20observability&category=ai_observability&ranking=browse&limit=12",
+    guidePath: "/topics/ai-observability-tools"
+  },
+  {
+    id: "workflow-automation",
+    title: "Workflow Automation",
+    description: "Automation engines, integration platforms, orchestration tools, and AI workflow builders.",
+    query: "workflow automation ai",
+    category: "workflow_automation",
+    apiPath: "/api/search?q=workflow%20automation%20ai&category=workflow_automation&ranking=browse&limit=12",
+    guidePath: "/topics/ai-workflow-automation"
   }
 ];
 
@@ -255,6 +282,57 @@ const topicLandings: Record<
       {
         title: "Best Use",
         body: "Use this page for choosing developer copilots, coding agents, AI IDE backends, review assistants, and automation tools for software teams."
+      }
+    ]
+  },
+  "open-source-llm-gateways": {
+    title: "Open Source LLM Gateways",
+    subtitle: "Model routing, provider abstraction, OpenAI-compatible proxying, fallback, policy, and cost-control projects.",
+    query: "llm gateway",
+    category: "llm_gateway",
+    apiPath: "/api/search?q=llm%20gateway&category=llm_gateway&ranking=browse&limit=12",
+    sections: [
+      {
+        title: "What To Inspect",
+        body: "Compare LLM gateways by provider support, OpenAI compatibility, routing controls, fallback behavior, policy hooks, deployment target, and observability integrations."
+      },
+      {
+        title: "Best Use",
+        body: "Use this page when choosing infrastructure between AI applications and model providers, especially when teams need routing, budget control, provider failover, or a unified API surface."
+      }
+    ]
+  },
+  "ai-observability-tools": {
+    title: "AI Observability Tools",
+    subtitle: "Open-source tracing, prompt logging, evaluation, cost tracking, and runtime analysis tools for AI products.",
+    query: "ai observability",
+    category: "ai_observability",
+    apiPath: "/api/search?q=ai%20observability&category=ai_observability&ranking=browse&limit=12",
+    sections: [
+      {
+        title: "What To Inspect",
+        body: "Evaluate AI observability projects by tracing depth, prompt and completion capture, evaluation workflows, privacy controls, integrations, and whether the project is production-ready or analysis-focused."
+      },
+      {
+        title: "Best Use",
+        body: "Use this page when selecting tools for monitoring LLM apps, debugging agent runs, tracking costs, reviewing prompts, or comparing quality across model and retrieval changes."
+      }
+    ]
+  },
+  "ai-workflow-automation": {
+    title: "AI Workflow Automation Projects",
+    subtitle: "Automation engines, integration platforms, orchestration layers, and AI workflow builders for connecting tools and actions.",
+    query: "workflow automation ai",
+    category: "workflow_automation",
+    apiPath: "/api/search?q=workflow%20automation%20ai&category=workflow_automation&ranking=browse&limit=12",
+    sections: [
+      {
+        title: "What To Inspect",
+        body: "Compare workflow automation projects by integration coverage, self-hosting model, scheduling, human-in-the-loop support, AI node support, permissions, and production operations burden."
+      },
+      {
+        title: "Best Use",
+        body: "Use this page when choosing tools for agent handoffs, business process automation, AI-triggered workflows, internal operations, or no-code and low-code orchestration."
       }
     ]
   },

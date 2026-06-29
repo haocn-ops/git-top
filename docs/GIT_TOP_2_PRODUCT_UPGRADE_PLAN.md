@@ -41,6 +41,7 @@ Status:
 - Initial homepage restructuring is implemented in the Worker home surface.
 - Homepage primary modules are implemented for Discover, Compare, Alternatives, and Ecosystems.
 - Browser Automation and AI IDE discovery now have SEO-friendly topic pages instead of API-only homepage links.
+- LLM Gateway, AI Observability, and Workflow Automation now have SEO-friendly topic pages connected from Discover, Atlas, sitemap, and LLM discovery.
 - Trends is implemented at `/trends` and `/api/trends` to expose corpus-level category, deployment, language, and rising-project signals.
 - Compare pages and APIs include summary, stats, decision matrix, winner reasoning, and next-action links for shortlist decisions.
 - Remaining work: continue adding topic pages when new high-value discovery intents emerge.

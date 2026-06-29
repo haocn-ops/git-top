@@ -706,6 +706,9 @@ const html = String.raw`<!doctype html>
             <a href="/topics/open-source-rag-frameworks"><span>RAG</span><span>-></span></a>
             <a href="/topics/browser-ai-automation"><span>Browser Automation</span><span>-></span></a>
             <a href="/topics/ai-ide-coding-agents"><span>AI IDE</span><span>-></span></a>
+            <a href="/topics/open-source-llm-gateways"><span>LLM Gateways</span><span>-></span></a>
+            <a href="/topics/ai-observability-tools"><span>AI Observability</span><span>-></span></a>
+            <a href="/topics/ai-workflow-automation"><span>Workflow Automation</span><span>-></span></a>
           </div>
         </article>
         <article class="intent-card">
@@ -821,6 +824,10 @@ const html = String.raw`<!doctype html>
             <a href="/atlas#mcp"><span>MCP Ecosystem</span><span>-></span></a>
             <a href="/atlas#rag"><span>RAG Ecosystem</span><span>-></span></a>
             <a href="/atlas#browser-ai"><span>Browser AI Ecosystem</span><span>-></span></a>
+            <a href="/atlas#ai-ide"><span>AI IDE Ecosystem</span><span>-></span></a>
+            <a href="/atlas#llm-gateway"><span>LLM Gateway Ecosystem</span><span>-></span></a>
+            <a href="/atlas#ai-observability"><span>AI Observability Ecosystem</span><span>-></span></a>
+            <a href="/atlas#workflow-automation"><span>Workflow Automation Ecosystem</span><span>-></span></a>
           </div>
         </article>
       </section>
@@ -832,6 +839,9 @@ const html = String.raw`<!doctype html>
         <a class="category-chip" href="/api/search?q=RAG&ranking=browse">RAG</a>
         <a class="category-chip" href="/api/search?q=Browser%20Automation&ranking=browse">Browser Automation</a>
         <a class="category-chip" href="/api/search?q=AI%20IDE&ranking=browse">AI IDE</a>
+        <a class="category-chip" href="/api/search?q=LLM%20Gateway&ranking=browse">LLM Gateway</a>
+        <a class="category-chip" href="/api/search?q=AI%20Observability&ranking=browse">AI Observability</a>
+        <a class="category-chip" href="/api/search?q=Workflow%20Automation&ranking=browse">Workflow Automation</a>
       </section>
 
       <section id="projects">
