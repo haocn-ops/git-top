@@ -178,6 +178,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/score\/cursor<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/browser-ai-automation<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/ai-ide-coding-agents<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/atlas-journey-guide<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/quickstart<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/recipes<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/journeys<\/loc>/);
@@ -296,6 +297,7 @@ export async function runSmoke(args = [], env = process.env) {
 
   await check(context, "guide_head_requests", async () => {
     const atlasGuide = await getHead(context, "/topics/atlas-guide");
+    const atlasJourneyGuide = await getHead(context, "/topics/atlas-journey-guide");
     const graphGuide = await getHead(context, "/topics/graph-guide");
     const compareGuide = await getHead(context, "/topics/project-comparison-guide");
     const recommendationGuide = await getHead(context, "/topics/recommendation-guide");
@@ -306,6 +308,7 @@ export async function runSmoke(args = [], env = process.env) {
     const trustGuide = await getHead(context, "/topics/data-trust-guide");
 
     assert.equal(atlasGuide.status, 200);
+    assert.equal(atlasJourneyGuide.status, 200);
     assert.equal(graphGuide.status, 200);
     assert.equal(compareGuide.status, 200);
     assert.equal(recommendationGuide.status, 200);
@@ -317,6 +320,7 @@ export async function runSmoke(args = [], env = process.env) {
 
     return {
       atlas: atlasGuide.status,
+      atlasJourney: atlasJourneyGuide.status,
       graph: graphGuide.status,
       compare: compareGuide.status,
       recommendation: recommendationGuide.status,

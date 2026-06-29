@@ -63,6 +63,7 @@ async function testLegacyConsoleRedirects() {
   assert.match(llmsText, /Agent quickstart: https:\/\/git\.top\/quickstart/);
   assert.match(llmsText, /Agent recipes: https:\/\/git\.top\/recipes/);
   assert.match(llmsText, /Atlas journeys: https:\/\/git\.top\/journeys/);
+  assert.match(llmsText, /Atlas Journey Guide: https:\/\/git\.top\/topics\/atlas-journey-guide/);
   assert.match(llmsText, /Roadmap: https:\/\/git\.top\/roadmap/);
 
   const llmsFull = await worker.fetch(new Request("https://git.top/llms-full.txt"), {});
@@ -84,6 +85,7 @@ async function testLegacyConsoleRedirects() {
   assert.match(llmsFullText, /POST \/api\/score/);
   assert.match(llmsFullText, /POST \/api\/graph/);
   assert.match(llmsFullText, /GET \/api\/atlas\?limit=6/);
+  assert.match(llmsFullText, /\/topics\/atlas-journey-guide/);
   assert.match(llmsFullText, /journeys\[\]\.steps/);
   assert.match(llmsFullText, /comparison_paths/);
   assert.match(llmsFullText, /exploration_paths/);
@@ -259,6 +261,7 @@ async function testDiscoverRoute() {
   assert.match(homeText, /href="\/workflow"/);
   assert.match(homeText, /href="\/topics\/browser-ai-automation"/);
   assert.match(homeText, /href="\/topics\/ai-ide-coding-agents"/);
+  assert.match(homeText, /href="\/topics\/atlas-journey-guide"/);
 
   const response = await worker.fetch(new Request("https://git.top/discover"), {});
   const text = await response.text();
@@ -282,6 +285,13 @@ async function testDiscoverRoute() {
   assert.equal(ideTopic.status, 200);
   assert.match(ideTopicText, /AI IDE and Coding Agent Projects/);
   assert.match(ideTopicText, /What To Compare/);
+
+  const atlasJourneyTopic = await worker.fetch(new Request("https://git.top/topics/atlas-journey-guide"), {});
+  const atlasJourneyTopicText = await atlasJourneyTopic.text();
+  assert.equal(atlasJourneyTopic.status, 200);
+  assert.match(atlasJourneyTopicText, /Atlas Journey Guide/);
+  assert.match(atlasJourneyTopicText, /Comparison Paths/);
+  assert.match(atlasJourneyTopicText, /\/api\/journeys\?limit=8/);
 }
 
 async function testTrendsRoute() {

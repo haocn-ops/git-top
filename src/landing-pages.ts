@@ -320,6 +320,26 @@ const topicLandings: Record<
       }
     ]
   },
+  "atlas-journey-guide": {
+    title: "Atlas Journey Guide",
+    subtitle: "Move from open-source ecosystem maps to ordered journeys, comparison paths, and decision-ready project shortlists.",
+    query: "cloudflare agents rag mcp",
+    apiPath: "/api/journeys?limit=8",
+    sections: [
+      {
+        title: "Journey Shape",
+        body: "Start with /atlas or /api/atlas to understand an ecosystem, then use /api/journeys for ordered steps across discovery, recommendation, graph, alternatives, compare, score, and Agent Map surfaces."
+      },
+      {
+        title: "Comparison Paths",
+        body: "Use comparison_paths when an agent needs ecosystem-specific shortlists. Each path includes repos, decision_focus, context, a human Compare page, and an /api/compare URL."
+      },
+      {
+        title: "Agent Workflow",
+        body: "Agents should fetch journeys, pick a comparison path that matches the user's ecosystem or deployment target, run the Compare JSON, then inspect score and graph evidence before answering."
+      }
+    ]
+  },
   "graph-guide": {
     title: "Graph Guide",
     subtitle: "Learn how Git.Top project graphs connect related projects, alternatives, dependencies, and deployment targets.",
