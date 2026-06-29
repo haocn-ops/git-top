@@ -10,6 +10,7 @@ await testSearchAndProjectRoutes();
 await testRecommendationAndCompareRoutes();
 await testWorkflowRoute();
 await testGraphAndQualityRoutes();
+await testRoadmapRoute();
 await testSchemaRoutes();
 await testOpenApiDocument();
 await testMethodAndBodyValidation();
@@ -291,6 +292,23 @@ async function testWorkflowRoute() {
   assert.ok(focusedWorkflow.body.recommended_sequence.some((step) => step.url.includes("/api/alternatives/claude-code")));
   assert.ok(focusedWorkflow.body.recommended_sequence.some((step) => step.url.includes("/api/score/claude-code")));
   assertMetadata(focusedWorkflow.body.metadata, "db_missing");
+}
+
+async function testRoadmapRoute() {
+  const roadmap = await getJson("/api/roadmap");
+  assert.equal(roadmap.status, 200);
+  assert.equal(roadmap.body.positioning, "The Knowledge Graph of Open Source");
+  assert.ok(typeof roadmap.body.completion === "number");
+  assert.ok(Array.isArray(roadmap.body.current_focus));
+  assert.ok(Array.isArray(roadmap.body.phases));
+  assert.equal(roadmap.body.phases.length, 6);
+  assert.ok(roadmap.body.phases.some((phase) => phase.id === "agent-api" && phase.api_endpoints.includes("/api/agent-map")));
+  assert.ok(roadmap.body.phases.some((phase) => phase.id === "atlas" && phase.human_pages.includes("/atlas")));
+  assert.ok(Array.isArray(roadmap.body.agent_use));
+
+  const postRoadmap = await request("/api/roadmap", { method: "POST" });
+  assert.equal(postRoadmap.status, 405);
+  assert.equal(postRoadmap.body.error.code, "method_not_allowed");
 }
 
 async function testGraphAndQualityRoutes() {
@@ -616,6 +634,7 @@ async function testOpenApiDocument() {
   assert.equal(openapi.status, 200);
   assert.equal(openapi.body.openapi, "3.1.0");
   assert.ok(openapi.body.paths["/api/agent-map"], "OpenAPI should document agent surface map endpoint");
+  assert.ok(openapi.body.paths["/api/roadmap"], "OpenAPI should document roadmap endpoint");
   assert.ok(openapi.body.paths["/api/quality"], "OpenAPI should document quality report endpoint");
   assert.ok(openapi.body.paths["/api/quality/review"], "OpenAPI should document quality review endpoint");
   assert.ok(openapi.body.paths["/api/related/{owner}/{repo}"], "OpenAPI should document related projects endpoint");

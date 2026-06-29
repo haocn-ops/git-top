@@ -107,6 +107,15 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     outputFields: ["releaseScore", "dataTrustScore", "scoreSummary", "riskLevel", "riskSummary", "coverage", "issues"],
     trustFields: ["metadata.source", "metadata.reason", "coverage.lowConfidenceClassificationRate", "coverage.collectionReviewCount", "coverage.staleProjectRate"],
     recommendedUse: "Check whether recommendations are backed by fresh D1 data and whether corpus risk should be disclosed."
+  },
+  {
+    concept: "Product roadmap",
+    humanPage: "/roadmap",
+    rest: ["GET /api/roadmap"],
+    mcpTools: [],
+    outputFields: ["completion", "current_focus", "phases", "phases[].shipped", "phases[].next", "agent_use"],
+    trustFields: ["phases[].status", "phases[].progress", "phases[].api_endpoints", "phases[].mcp_tools"],
+    recommendedUse: "Understand which Git.Top 2.0 surfaces are implemented, active, or still being deepened before choosing an integration path."
   }
 ];
 
@@ -122,6 +131,7 @@ export function buildAgentMap() {
     schema_url: "https://git.top/api/schema/project.v2",
     llms_url: "https://git.top/llms.txt",
     llms_full_url: "https://git.top/llms-full.txt",
+    roadmap_url: "https://git.top/roadmap",
     recommended_agent_flow: [
       "GET /api/health and require metadata.source=d1 for high-confidence production recommendations.",
       "Use /api/agent-map or GET /mcp discovery to choose the matching human page, REST endpoint, or MCP tool.",

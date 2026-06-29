@@ -15,6 +15,7 @@ await testLegacyConsoleRedirects();
 await testCoverageRoute();
 await testStatusRoute();
 await testIntegrationsRoute();
+await testRoadmapRoute();
 await testDiscoverRoute();
 await testTrendsRoute();
 await testAlternativesRoute();
@@ -56,11 +57,13 @@ async function testLegacyConsoleRedirects() {
   const llmsText = await llms.text();
   assert.match(llmsText, /Full agent documentation: https:\/\/git\.top\/llms-full\.txt/);
   assert.match(llmsText, /Agent surface map: https:\/\/git\.top\/api\/agent-map/);
+  assert.match(llmsText, /Roadmap: https:\/\/git\.top\/roadmap/);
 
   const llmsFull = await worker.fetch(new Request("https://git.top/llms-full.txt"), {});
   assert.equal(llmsFull.status, 200);
   const llmsFullText = await llmsFull.text();
   assert.match(llmsFullText, /GET \/api\/agent-map/);
+  assert.match(llmsFullText, /GET \/api\/roadmap/);
   assert.match(llmsFullText, /Agent Surface Map/);
   assert.match(llmsFullText, /POST \/api\/project/);
   assert.match(llmsFullText, /GET \/api\/workflow/);
@@ -139,6 +142,27 @@ async function testIntegrationsRoute() {
   assert.match(text, /Use Git.Top as project intelligence/);
   assert.match(text, /Production Checklist/);
   assert.match(text, /REST, MCP, and GRP/);
+}
+
+async function testRoadmapRoute() {
+  const response = await worker.fetch(new Request("https://git.top/roadmap"), {});
+  const text = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(text, /Git\.Top 2\.0 Roadmap/);
+  assert.match(text, /The Knowledge Graph of Open Source/);
+  assert.match(text, /Open Roadmap JSON/);
+  assert.match(text, /Agent API/);
+
+  const api = await worker.fetch(new Request("https://git.top/api/roadmap"), {});
+  const body = await api.json();
+  assert.equal(api.status, 200);
+  assert.equal(body.positioning, "The Knowledge Graph of Open Source");
+  assert.equal(body.phases.length, 6);
+
+  const agentMap = await worker.fetch(new Request("https://git.top/api/agent-map"), {});
+  const agentMapBody = await agentMap.json();
+  assert.equal(agentMap.status, 200);
+  assert.ok(agentMapBody.surfaces.some((surface) => surface.concept === "Product roadmap"));
 }
 
 async function testDiscoverRoute() {

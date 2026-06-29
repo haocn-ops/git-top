@@ -160,6 +160,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/integrations<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/status<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/operations<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/roadmap<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quality<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/coverage<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quality\/review<\/loc>/);
@@ -174,6 +175,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/score\/cursor<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/browser-ai-automation<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/topics\/ai-ide-coding-agents<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/roadmap<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/projects\/cloudflare\/agents<\/loc>/);
 
     const llms = await getText(context, "/llms.txt");
@@ -364,6 +366,25 @@ export async function runSmoke(args = [], env = process.env) {
     return {
       hasMcpLink: text.includes("/mcp"),
       hasOpenApiLink: text.includes("/openapi.json")
+    };
+  });
+
+  await check(context, "roadmap_page", async () => {
+    const { status, text } = await getText(context, "/roadmap");
+    assert.equal(status, 200);
+    assert.match(text, /Git\.Top 2\.0 Roadmap/);
+    assert.match(text, /The Knowledge Graph of Open Source/);
+    assert.match(text, /Open Roadmap JSON/);
+
+    const roadmap = await getJson(context, "/api/roadmap");
+    assert.equal(roadmap.status, 200);
+    assert.equal(roadmap.body.positioning, "The Knowledge Graph of Open Source");
+    assert.equal(roadmap.body.phases.length, 6);
+    assert.ok(roadmap.body.phases.some((phase) => phase.id === "agent-api"));
+
+    return {
+      completion: roadmap.body.completion,
+      phases: roadmap.body.phases.length
     };
   });
 

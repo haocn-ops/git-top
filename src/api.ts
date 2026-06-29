@@ -23,6 +23,7 @@ import { openApiDocument } from "./openapi";
 import { resolveProject } from "./project-aliases";
 import { toProjectKnowledgeView, withRelatedProjects } from "./project-view";
 import { buildLowConfidenceReviewReport, buildQualityReport } from "./quality";
+import { buildProductRoadmap } from "./roadmap";
 import { agentCardJsonSchema, projectKnowledgeJsonSchema, projectV2JsonSchema } from "./schema";
 import { buildProjectScoreExplanation } from "./score";
 import { getKnowledgeForSourcePolicy } from "./source-policy";
@@ -267,6 +268,17 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       return errorJson(405, "method_not_allowed", "Agent map endpoint supports GET.");
     }
     return json(buildAgentMap(), {
+      headers: {
+        "cache-control": "public, max-age=300"
+      }
+    });
+  }
+
+  if (path === "/api/roadmap") {
+    if (request.method !== "GET") {
+      return errorJson(405, "method_not_allowed", "Roadmap endpoint supports GET.");
+    }
+    return json(buildProductRoadmap(), {
       headers: {
         "cache-control": "public, max-age=300"
       }

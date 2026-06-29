@@ -22,6 +22,7 @@ import { renderProjectPage } from "./project-page";
 import { renderQualityPage } from "./quality-page";
 import { renderQualityReviewPage } from "./quality-review-page";
 import { renderRecommendPage } from "./recommend-page";
+import { renderRoadmapPage } from "./roadmap";
 import { renderProjectScorePage } from "./score-page";
 import { renderStatusPage } from "./status-page";
 import { renderTrendsPage } from "./trends-page";
@@ -110,6 +111,10 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
 
   if (url.pathname === "/integrations") {
     return renderIntegrationsPage();
+  }
+
+  if (url.pathname === "/roadmap") {
+    return renderRoadmapPage();
   }
 
   if (url.pathname === "/atlas") {
@@ -315,7 +320,7 @@ function projectIdFromPath(pathname: string): string | null {
 
   const slug = decodeURIComponent(shortMatch[1]);
   if (
-    ["api", "mcp", "graph", "atlas", "score", "explorer", "discover", "trends", "workflow", "docs", "api-docs", "quality", "coverage", "status", "operations", "integrations", "categories", "deployments", "compare", "alternatives", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "favicon.ico"].includes(
+    ["api", "mcp", "graph", "atlas", "score", "explorer", "discover", "trends", "workflow", "docs", "api-docs", "quality", "coverage", "status", "operations", "integrations", "roadmap", "categories", "deployments", "compare", "alternatives", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "favicon.ico"].includes(
       slug
     )
   ) {

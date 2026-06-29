@@ -29,6 +29,12 @@ export const openApiDocument = {
         responses: { "200": { description: "Agent surface map for REST, MCP, and human page discovery" } }
       }
     },
+    "/api/roadmap": {
+      get: {
+        summary: "Inspect Git.Top 2.0 product roadmap progress, shipped surfaces, active work, human pages, REST endpoints, and MCP coverage.",
+        responses: { "200": { description: "Product roadmap with completion, phases, shipped work, next milestones, agent use guidance, pages, APIs, and MCP tools" } }
+      }
+    },
     "/api/search": {
       get: {
         summary: "Search project knowledge by query, category, deployment, difficulty, language, project type, confidence, and Cloudflare readiness.",
