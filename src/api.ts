@@ -8,6 +8,7 @@ import {
   searchProjectList
 } from "./project-search";
 import { buildAlternativesDecision, generateAlternativeMatches, toAlternativeMatchView } from "./alternatives";
+import { buildAgentMap } from "./agent-map";
 import { buildAtlasEcosystemView, findAtlasEcosystem, listAtlasEcosystems } from "./atlas-page";
 import { getHealth } from "./health";
 import { getSyncStatus } from "./db-sync-store";
@@ -253,6 +254,17 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
 
   if (path === "/api/score") {
     return handleScoreApi(request, env);
+  }
+
+  if (path === "/api/agent-map") {
+    if (request.method !== "GET") {
+      return errorJson(405, "method_not_allowed", "Agent map endpoint supports GET.");
+    }
+    return json(buildAgentMap(), {
+      headers: {
+        "cache-control": "public, max-age=300"
+      }
+    });
   }
 
   if (request.method !== "GET") {

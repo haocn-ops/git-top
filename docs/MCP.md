@@ -24,7 +24,9 @@ Git.Top supports a simple GET discovery response:
 curl http://localhost:8787/mcp
 ```
 
-The GET response includes the MCP endpoint, docs URL, project schema URL, health URL, quality URL, quickstart hints, example JSON-RPC payloads, and the tool list. Agents should use it as the discovery entry point before guessing routes.
+The GET response includes the MCP endpoint, docs URL, project schema URL, health URL, quality URL, agent map URL, quickstart hints, example JSON-RPC payloads, and the tool list. Agents should use it as the discovery entry point before guessing routes.
+
+The `agent_map` object is the same concept map exposed at `/api/agent-map`: it connects human pages, REST endpoints, MCP tools, output fields, and trust fields for project lookup, recommendations, alternatives, graph, compare, score, Atlas, GRP, and quality surfaces.
 
 JSON-RPC tool listing:
 

@@ -22,6 +22,10 @@ async function testDiscovery() {
   assert.equal(getDiscovery.body.openapi_url, "https://git.top/openapi.json");
   assert.equal(getDiscovery.body.api_openapi_url, "https://git.top/api/openapi.json");
   assert.equal(getDiscovery.body.schema_url, "https://git.top/api/schema/project.v2");
+  assert.equal(getDiscovery.body.agent_map_url, "https://git.top/api/agent-map");
+  assert.equal(getDiscovery.body.agent_map.positioning, "The Knowledge Graph of Open Source");
+  assert.ok(getDiscovery.body.agent_map.surfaces.some((surface) => surface.concept === "Project graph"));
+  assert.ok(getDiscovery.body.agent_map.surfaces.some((surface) => surface.mcp_tools.includes("compare_projects")));
   assert.ok(Array.isArray(getDiscovery.body.agent_api.structured_post_endpoints));
   assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/project"));
   assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/recommend"));

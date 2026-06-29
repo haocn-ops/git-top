@@ -28,6 +28,14 @@ Treat `metadata.source: "seed"` as a fallback mode. Seed data is useful for demo
 
 ## 2. Search Projects
 
+When an agent needs to choose the right surface first, fetch the machine-readable surface map:
+
+```sh
+curl https://git.top/api/agent-map
+```
+
+Use it to map product concepts to human pages, REST endpoints, MCP tools, output fields, and trust fields.
+
 Use search for direct retrieval:
 
 ```sh

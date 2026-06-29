@@ -53,10 +53,13 @@ async function testLegacyConsoleRedirects() {
   assert.equal(llms.status, 200);
   const llmsText = await llms.text();
   assert.match(llmsText, /Full agent documentation: https:\/\/git\.top\/llms-full\.txt/);
+  assert.match(llmsText, /Agent surface map: https:\/\/git\.top\/api\/agent-map/);
 
   const llmsFull = await worker.fetch(new Request("https://git.top/llms-full.txt"), {});
   assert.equal(llmsFull.status, 200);
   const llmsFullText = await llmsFull.text();
+  assert.match(llmsFullText, /GET \/api\/agent-map/);
+  assert.match(llmsFullText, /Agent Surface Map/);
   assert.match(llmsFullText, /POST \/api\/project/);
   assert.match(llmsFullText, /POST \/api\/recommend/);
   assert.match(llmsFullText, /POST \/api\/compare/);

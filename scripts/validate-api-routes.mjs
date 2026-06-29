@@ -527,12 +527,21 @@ async function testSchemaRoutes() {
   assert.deepEqual(projectSchema.body.properties.project_kind.enum, ["project", "collection"]);
   assert.equal(projectSchema.body.properties.collection_metadata.$ref, "#/$defs/collection_metadata");
   assert.equal(projectSchema.body.properties.quality_signal_confidence.type, "object");
+
+  const agentMap = await getJson("/api/agent-map");
+  assert.equal(agentMap.status, 200);
+  assert.equal(agentMap.body.positioning, "The Knowledge Graph of Open Source");
+  assert.ok(Array.isArray(agentMap.body.surfaces));
+  assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Project graph" && surface.human_page === "/graph/:project"));
+  assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Recommendations" && surface.mcp_tools.includes("recommend_project")));
+  assert.equal(agentMap.body.trust_policy.high_confidence_source, "metadata.source=d1");
 }
 
 async function testOpenApiDocument() {
   const openapi = await getJson("/api/openapi.json");
   assert.equal(openapi.status, 200);
   assert.equal(openapi.body.openapi, "3.1.0");
+  assert.ok(openapi.body.paths["/api/agent-map"], "OpenAPI should document agent surface map endpoint");
   assert.ok(openapi.body.paths["/api/quality"], "OpenAPI should document quality report endpoint");
   assert.ok(openapi.body.paths["/api/quality/review"], "OpenAPI should document quality review endpoint");
   assert.ok(openapi.body.paths["/api/related/{owner}/{repo}"], "OpenAPI should document related projects endpoint");

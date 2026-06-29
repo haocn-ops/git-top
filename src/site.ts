@@ -88,6 +88,7 @@ export function renderLlmsTxt(): Response {
       "- Docs: https://git.top/docs",
       "- Integrations: https://git.top/integrations",
       "- MCP discovery: https://git.top/mcp",
+      "- Agent surface map: https://git.top/api/agent-map",
       "- OpenAPI: https://git.top/openapi.json",
       "- Project schema: https://git.top/api/schema/project.v2",
       "- Health: https://git.top/api/health",
@@ -146,8 +147,9 @@ export function renderLlmsFullTxt(): Response {
       "3. Fetch candidate details with /api/project/:owner/:repo or MCP get_project.",
       "4. Fetch alternatives with /api/alternatives/:owner/:repo or MCP get_alternatives.",
       "5. Compare final candidates with /api/compare or MCP compare_projects.",
-      "6. Cite metadata, classification evidence, quality_signal_confidence, and freshness fields.",
-      "7. Operators can use the protected classification override API for reviewed one-off corrections from /quality/review.",
+      "6. Use /api/agent-map when an agent needs the human page, REST endpoint, MCP tool, output fields, and trust fields for a Git.Top concept.",
+      "7. Cite metadata, classification evidence, quality_signal_confidence, and freshness fields.",
+      "8. Operators can use the protected classification override API for reviewed one-off corrections from /quality/review.",
       "",
       "## REST Endpoints",
       "",
@@ -172,6 +174,7 @@ export function renderLlmsFullTxt(): Response {
       "- POST /api/graph",
       "- GET /api/atlas?limit=6",
       "- GET /api/atlas/cloudflare?limit=8",
+      "- GET /api/agent-map",
       "- GET /api/quality",
       "- GET /api/quality/review",
       "- GET /api/sync/status",
@@ -242,6 +245,10 @@ export function renderLlmsFullTxt(): Response {
       "",
       "Atlas responses expose ecosystem stats, exploration_paths, map.nodes, and map.edges so agents can move from ecosystem discovery into search, graph, alternatives, score, and compare flows.",
       "",
+      "## Agent Surface Map",
+      "",
+      "GET /api/agent-map maps Git.Top concepts to human pages, REST endpoints, MCP tools, output fields, trust fields, and recommended use. Agents should call it when choosing between project lookup, recommendations, alternatives, graph, compare, score, Atlas, GRP, and quality surfaces.",
+      "",
       "## Trust Fields",
       "",
       "- metadata.source: d1 or seed",
@@ -262,6 +269,7 @@ export function renderLlmsFullTxt(): Response {
       "- /coverage",
       "- /quality/review",
       "- /atlas",
+      "- /api/agent-map",
       "- /llms.txt",
       "- /llms-full.txt",
       "- /openapi.json",
@@ -366,6 +374,7 @@ function staticSitemapUrls(now: string): SitemapUrl[] {
     { path: "/api/governance/summary", changefreq: "daily", priority: "0.6", lastmod: now },
     { path: "/api/governance/runs", changefreq: "daily", priority: "0.6", lastmod: now },
     { path: "/api/schema/project.v2", changefreq: "weekly", priority: "0.7", lastmod: now },
+    { path: "/api/agent-map", changefreq: "weekly", priority: "0.7", lastmod: now },
     { path: "/api/openapi.json", changefreq: "weekly", priority: "0.7", lastmod: now },
     { path: "/openapi.json", changefreq: "weekly", priority: "0.7", lastmod: now },
     { path: "/mcp", changefreq: "weekly", priority: "0.7", lastmod: now },
@@ -482,7 +491,7 @@ export function renderDocsPage(): Response {
     <div class="page">
       <nav class="nav">
         <a class="brand" href="/"><span class="brand-mark">G</span><span>Git.Top</span></a>
-        <div class="nav-links"><a href="/">Home</a><a href="/projects">Projects</a><a href="/graph">Graph</a><a href="/mcp">MCP</a><a href="/api/schema/project.v2">Schema</a></div>
+        <div class="nav-links"><a href="/">Home</a><a href="/projects">Projects</a><a href="/graph">Graph</a><a href="/mcp">MCP</a><a href="/api/agent-map">Agent Map</a><a href="/api/schema/project.v2">Schema</a></div>
       </nav>
 
       <header class="hero">
@@ -519,6 +528,7 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
             <a class="pill" href="/api/quality/review">/api/quality/review</a>
             <a class="pill" href="/quality">/quality</a>
             <a class="pill" href="/coverage">/coverage</a>
+            <a class="pill" href="/api/agent-map">/api/agent-map</a>
             <a class="pill" href="/openapi.json">/openapi.json</a>
             <a class="pill" href="/api/schema/project.v2">/api/schema/project.v2</a>
             <a class="pill" href="/llms.txt">/llms.txt</a>
@@ -529,6 +539,16 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
       </section>
 
       <section class="cards">
+        <article class="panel" id="agent-map">
+          <p class="eyebrow">Agent Surface Map</p>
+          <h2>Human pages, REST, and MCP stay aligned</h2>
+          <ul>
+            <li><code>/api/agent-map</code> maps each Git.Top concept to its page, REST endpoints, MCP tools, output fields, and trust fields.</li>
+            <li>Use it when deciding whether to call project lookup, recommendations, alternatives, graph, compare, score, Atlas, GRP, or quality endpoints.</li>
+            <li>The same map is exposed through <code>GET /mcp</code> discovery for agent runtimes.</li>
+          </ul>
+        </article>
+
         <article class="panel" id="mcp">
           <p class="eyebrow">MCP</p>
           <h2>Tools agents can call</h2>

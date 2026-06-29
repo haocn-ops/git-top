@@ -16,6 +16,16 @@ https://git.top
 
 For a task-oriented walkthrough, start with [Agent Quickstart](./AGENT_QUICKSTART.md).
 
+## Agent Surface Map
+
+Use the agent map when an agent needs to choose the right Git.Top surface before making a call:
+
+```sh
+curl https://git.top/api/agent-map
+```
+
+It maps each product concept to the matching human page, REST endpoints, MCP tools, output fields, trust fields, and recommended use. This is the machine-readable bridge between pages such as `/graph/:project` and APIs such as `/api/graph`.
+
 ## Response Metadata
 
 Most knowledge endpoints include `metadata`.

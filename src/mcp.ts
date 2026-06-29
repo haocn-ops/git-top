@@ -6,6 +6,7 @@ import {
   recommendProjectList,
   searchProjectList
 } from "./project-search";
+import { buildAgentMap } from "./agent-map";
 import { buildAlternativesDecision, generateAlternativeMatches, toAlternativeMatchView } from "./alternatives";
 import type { ProjectKnowledgeResult } from "./knowledge-source";
 import { buildKnowledgeGraph, compareProjectKnowledge } from "./graph";
@@ -292,6 +293,7 @@ const tools = [
 
 export async function handleMcp(request: Request, env: Env): Promise<Response> {
   if (request.method === "GET") {
+    const agentMap = buildAgentMap();
     return json({
       name: "git-top",
       title: "Git.Top GitHub Knowledge Layer for AI Agents",
@@ -305,6 +307,8 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
       schemaUrl: "https://git.top/api/schema/project.v2",
       healthUrl: "https://git.top/api/health",
       qualityUrl: "https://git.top/api/quality",
+      agentMapUrl: "https://git.top/api/agent-map",
+      agentMap,
       agentApi: {
         openapiUrl: "https://git.top/api/openapi.json",
         structuredPostEndpoints: [

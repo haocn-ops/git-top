@@ -23,6 +23,12 @@ export const openApiDocument = {
         responses: { "200": { description: "Health response" } }
       }
     },
+    "/api/agent-map": {
+      get: {
+        summary: "Map Git.Top concepts to human pages, REST endpoints, MCP tools, output fields, trust fields, and recommended use.",
+        responses: { "200": { description: "Agent surface map for REST, MCP, and human page discovery" } }
+      }
+    },
     "/api/search": {
       get: {
         summary: "Search project knowledge by query, category, deployment, difficulty, language, project type, confidence, and Cloudflare readiness.",
