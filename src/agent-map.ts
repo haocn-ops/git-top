@@ -146,12 +146,12 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
   },
   {
     concept: "Quality and coverage",
-    humanPage: "/quality",
-    rest: ["GET /api/quality", "GET /api/quality/review", "GET /api/health", "GET /api/sync/status"],
+    humanPage: "/trust",
+    rest: ["GET /api/trust", "GET /api/quality", "GET /api/quality/review", "GET /api/health", "GET /api/sync/status"],
     mcpTools: ["get_quality_report"],
-    outputFields: ["releaseScore", "dataTrustScore", "scoreSummary", "riskLevel", "riskSummary", "improvementPlan", "coverage", "issues"],
-    trustFields: ["metadata.source", "metadata.reason", "coverage.lowConfidenceClassificationRate", "coverage.collectionReviewCount", "coverage.staleProjectRate"],
-    recommendedUse: "Check whether recommendations are backed by fresh D1 data and whether corpus risk should be disclosed."
+    outputFields: ["decision", "production_ready", "checks", "agent_policy", "releaseScore", "dataTrustScore", "riskLevel", "coverage", "issues"],
+    trustFields: ["decision", "production_ready", "checks[].status", "metadata.source", "metadata.reason", "sync.freshness", "quality.risk_level"],
+    recommendedUse: "Use the Trust Gate before high-confidence recommendations; it combines source, sync freshness, release health, data trust, and risk into one decision."
   },
   {
     concept: "Product roadmap",

@@ -33,6 +33,7 @@ import { buildProjectScoreExplanation } from "./score";
 import { getKnowledgeForSourcePolicy } from "./source-policy";
 import { syncGithubProjects } from "./sync";
 import { buildTrendsView } from "./trends";
+import { buildTrustGate } from "./trust-gate";
 import { buildAgentWorkflow, type AgentWorkflowInput } from "./workflow";
 import type { AgentCard, Category, Deployment, Difficulty, Env } from "./types";
 import type { ProjectKnowledgeResult } from "./knowledge-source";
@@ -318,6 +319,17 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     return json(buildAgentApiExamples(), {
       headers: {
         "cache-control": "public, max-age=300"
+      }
+    });
+  }
+
+  if (path === "/api/trust") {
+    if (request.method !== "GET") {
+      return errorJson(405, "method_not_allowed", "Trust gate endpoint supports GET.");
+    }
+    return json(await buildTrustGate(env), {
+      headers: {
+        "cache-control": "no-store"
       }
     });
   }

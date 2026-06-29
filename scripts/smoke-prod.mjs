@@ -163,6 +163,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/journeys<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/integrations<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/status<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/trust<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/operations<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/roadmap<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quality<\/loc>/);
@@ -193,6 +194,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/recipes<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/examples<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/journeys<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/trust<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/roadmap<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/projects\/cloudflare\/agents<\/loc>/);
 
@@ -201,6 +203,8 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(llms.text, /Git\.Top is an agent-native GitHub project knowledge layer/);
     assert.match(llms.text, /API examples: https:\/\/git\.top\/examples/);
     assert.match(llms.text, /Atlas journeys: https:\/\/git\.top\/journeys/);
+    assert.match(llms.text, /Trust gate: https:\/\/git\.top\/trust/);
+    assert.match(llms.text, /Trust gate JSON: https:\/\/git\.top\/api\/trust/);
     assert.match(llms.text, /Open Source LLM Gateways: https:\/\/git\.top\/topics\/open-source-llm-gateways/);
     assert.match(llms.text, /AI Observability Tools: https:\/\/git\.top\/topics\/ai-observability-tools/);
     assert.match(llms.text, /AI Workflow Automation: https:\/\/git\.top\/topics\/ai-workflow-automation/);
@@ -210,6 +214,7 @@ export async function runSmoke(args = [], env = process.env) {
     const { status: openapiStatus, body: openapi } = await getJson(context, "/openapi.json");
     assert.equal(openapiStatus, 200);
     assert.ok(openapi.paths["/api/quality/review"], "OpenAPI should include quality review");
+    assert.ok(openapi.paths["/api/trust"], "OpenAPI should include trust gate");
     assert.ok(openapi.paths["/api/trends"], "OpenAPI should include trends");
     assert.ok(openapi.paths["/api/governance/summary"], "OpenAPI should include governance summary");
     assert.ok(openapi.paths["/api/admin/governance/runs"], "OpenAPI should include governance run recording");
@@ -283,6 +288,28 @@ export async function runSmoke(args = [], env = process.env) {
 
     return {
       hasQualityJsonLink: text.includes("/api/quality")
+    };
+  });
+
+  await check(context, "trust_page", async () => {
+    const { status, text } = await getText(context, "/trust");
+    assert.equal(status, 200);
+    assert.match(text, /Git\.Top Trust Gate/);
+    assert.match(text, /Production-readiness gate/);
+    assert.match(text, /Trust JSON/);
+
+    const trust = await getJson(context, "/api/trust");
+    assert.equal(trust.status, 200);
+    assert.equal(trust.body.name, "Git.Top Trust Gate");
+    assert.ok(["allow", "caution", "block"].includes(trust.body.decision));
+    assert.ok(Array.isArray(trust.body.checks));
+    assert.ok(trust.body.checks.some((check) => check.id === "d1-source"));
+    assertMetadata(trust.body.metadata, { allowSeed });
+
+    return {
+      decision: trust.body.decision,
+      productionReady: trust.body.production_ready,
+      source: trust.body.metadata.source
     };
   });
 

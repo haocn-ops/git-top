@@ -128,11 +128,12 @@ export function buildProductRoadmap(): ProductRoadmap {
         "llms.txt, llms-full.txt, OpenAPI, schema, Agent Map, Quickstart, Recipes, Examples, and workflow pages make the product machine-discoverable.",
         "Quickstart and Recipes now include Atlas journeys and comparison paths as first-class agent workflows.",
         "Knowledge Graph API and MCP integration guide pages now explain the human page, REST, MCP, OpenAPI, LLM discovery, output field, and trust-field pairs.",
-        "API Examples now exposes copyable REST, MCP, and GRP calls through both /examples and /api/examples."
+        "API Examples now exposes copyable REST, MCP, and GRP calls through both /examples and /api/examples.",
+        "Trust Gate is live at /trust and /api/trust to combine D1 source, sync freshness, release score, data trust score, and risk level into one production-readiness decision."
       ],
-      next: ["Continue tightening OpenAPI schemas, MCP integration recipes, and production trust gates."],
-      humanPages: ["/docs", "/quickstart", "/recipes", "/examples", "/integrations", "/workflow", "/mcp", "/topics/open-source-knowledge-graph-api", "/topics/mcp-integration-guide", "/llms.txt"],
-      apiEndpoints: ["/api/project/cloudflare/agents", "/api/recommend", "/api/workflow", "/api/quickstart", "/api/recipes", "/api/examples", "/api/agent-map", "/openapi.json", "/mcp"],
+      next: ["Continue tightening OpenAPI schemas and MCP integration recipes for common production workflows."],
+      humanPages: ["/docs", "/quickstart", "/recipes", "/examples", "/integrations", "/workflow", "/trust", "/mcp", "/topics/open-source-knowledge-graph-api", "/topics/mcp-integration-guide", "/llms.txt"],
+      apiEndpoints: ["/api/project/cloudflare/agents", "/api/recommend", "/api/workflow", "/api/trust", "/api/quickstart", "/api/recipes", "/api/examples", "/api/agent-map", "/openapi.json", "/mcp"],
       mcpTools: ["get_project", "recommend_project", "get_agent_workflow", "compare_projects", "get_quality_report"]
     }
   ];
@@ -153,13 +154,13 @@ export function buildProductRoadmap(): ProductRoadmap {
       "Use /api/roadmap to understand which Git.Top surfaces are production-ready for a task.",
       "Use /api/agent-map to map a product concept to the matching REST endpoint, MCP tool, output fields, and trust fields.",
       "Use /api/workflow when the agent needs a guided path from trend context to shortlist, graph, alternatives, score, compare, and trust checks.",
-      "Check /api/quality and /api/health before making high-confidence production recommendations."
+      "Check /api/trust before making high-confidence production recommendations."
     ],
     nextMilestones: [
       "Add more decision-oriented topic pages for SEO and onboarding.",
       "Add richer Atlas journeys and ecosystem-specific comparison paths.",
       "Improve production data trust by shrinking stale sync and weak alternatives review queues.",
-      "Extend MCP integration recipes and production trust gates for common agent selection workflows."
+      "Extend MCP integration recipes for common agent selection workflows."
     ]
   };
 }

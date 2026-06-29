@@ -772,6 +772,8 @@ const html = String.raw`<!doctype html>
           <div class="intent-card-top"><div class="feature-icon">TRU</div><div><p class="eyebrow">Check readiness</p><h2>Trust</h2></div></div>
           <p class="muted">Inspect corpus coverage, sync freshness, governance, and low-confidence review queues.</p>
           <div class="intent-links">
+            <a href="/trust"><span>Trust Gate</span><span>-></span></a>
+            <a href="/api/trust"><span>Trust Gate JSON</span><span>-></span></a>
             <a href="/topics/data-trust-guide"><span>Data Trust Guide</span><span>-></span></a>
             <a href="/quality"><span>Quality Governance</span><span>-></span></a>
             <a href="/coverage"><span>Corpus Coverage</span><span>-></span></a>

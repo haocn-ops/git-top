@@ -236,6 +236,7 @@ Status:
 - `/api/agent-map` now exposes a machine-readable map from product concepts to human pages, REST endpoints, MCP tools, output fields, trust fields, and recommended use.
 - `/topics/open-source-knowledge-graph-api` and `/topics/mcp-integration-guide` now explain the REST, MCP, OpenAPI, LLM discovery, output-field, and trust-field pairs for agent developers.
 - `/examples` and `/api/examples` now expose copyable REST, MCP, and GRP examples with inspection fields, trust checks, and next actions.
+- `/trust` and `/api/trust` now expose a production-readiness Trust Gate that combines D1 source, sync freshness, release score, data trust score, and risk level into one agent decision.
 
 ## Technical Architecture
 

@@ -156,6 +156,30 @@ curl -X POST https://git.top/api/admin/governance/runs \
 
 The first automated tasks are `daily-production-health`, `weekly-data-governance`, `biweekly-live-check`, and `monthly-corpus-review`.
 
+## Trust Gate
+
+```sh
+curl https://git.top/api/trust
+```
+
+Use the Trust Gate before high-confidence production recommendations. It combines health, sync freshness, release score, data trust score, and risk level into one `decision`:
+
+- `allow`: use Git.Top recommendations directly when endpoint responses are D1-backed.
+- `caution`: use Git.Top as decision support, but disclose the listed caveats.
+- `block`: fail closed for high-confidence recommendations.
+
+Important fields:
+
+- `decision`
+- `production_ready`
+- `checks[].status`
+- `required_for_high_confidence`
+- `agent_policy`
+- `health`
+- `sync`
+- `quality`
+- `metadata.source`
+
 ## Search
 
 ```sh

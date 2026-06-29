@@ -673,6 +673,25 @@ async function testGraphAndQualityRoutes() {
   assert.ok(typeof quality.body.coverage.collection_review_count === "number");
   assertMetadata(quality.body.metadata, "db_missing");
 
+  const trust = await getJson("/api/trust");
+  assert.equal(trust.status, 200);
+  assert.equal(trust.body.name, "Git.Top Trust Gate");
+  assert.equal(trust.body.positioning, "The Knowledge Graph of Open Source");
+  assert.ok(["allow", "caution", "block"].includes(trust.body.decision));
+  assert.equal(typeof trust.body.production_ready, "boolean");
+  assert.ok(Array.isArray(trust.body.checks));
+  assert.ok(trust.body.checks.some((check) => check.id === "d1-source"));
+  assert.ok(trust.body.checks.some((check) => check.id === "data-trust-score"));
+  assert.ok(Array.isArray(trust.body.required_for_high_confidence));
+  assert.ok(trust.body.required_for_high_confidence.includes("metadata.source=d1"));
+  assert.ok(trust.body.agent_policy.cite.includes("metadata.source"));
+  assert.ok(trust.body.quality.release_score === quality.body.release_score);
+  assertMetadata(trust.body.metadata, "db_missing");
+
+  const postTrust = await request("/api/trust", { method: "POST" });
+  assert.equal(postTrust.status, 405);
+  assert.equal(postTrust.body.error.code, "method_not_allowed");
+
   const review = await getJson("/api/quality/review");
   assert.equal(review.status, 200);
   assert.ok(typeof review.body.project_count === "number");
@@ -735,6 +754,7 @@ async function testOpenApiDocument() {
   assert.ok(openapi.body.paths["/api/examples"], "OpenAPI should document examples endpoint");
   assert.ok(openapi.body.paths["/api/journeys"], "OpenAPI should document Atlas journeys endpoint");
   assert.ok(openapi.body.paths["/api/roadmap"], "OpenAPI should document roadmap endpoint");
+  assert.ok(openapi.body.paths["/api/trust"], "OpenAPI should document trust gate endpoint");
   assert.ok(openapi.body.paths["/api/quality"], "OpenAPI should document quality report endpoint");
   assert.ok(openapi.body.paths["/api/quality/review"], "OpenAPI should document quality review endpoint");
   assert.ok(openapi.body.paths["/api/related/{owner}/{repo}"], "OpenAPI should document related projects endpoint");

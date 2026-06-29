@@ -23,6 +23,12 @@ export const openApiDocument = {
         responses: { "200": { description: "Health response" } }
       }
     },
+    "/api/trust": {
+      get: {
+        summary: "Fetch the production-readiness Trust Gate for high-confidence agent recommendations.",
+        responses: { "200": { description: "Trust Gate decision with checks, agent policy, health, sync, quality, and metadata" } }
+      }
+    },
     "/api/agent-map": {
       get: {
         summary: "Map Git.Top concepts to human pages, REST endpoints, MCP tools, output fields, trust fields, and recommended use.",

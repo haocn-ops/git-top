@@ -30,6 +30,7 @@ import { renderRoadmapPage } from "./roadmap";
 import { renderProjectScorePage } from "./score-page";
 import { renderStatusPage } from "./status-page";
 import { renderTrendsPage } from "./trends-page";
+import { renderTrustGatePage } from "./trust-gate";
 import { renderWorkflowPage } from "./workflow-page";
 import {
   canonicalHostRedirect,
@@ -111,6 +112,10 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
 
   if (url.pathname === "/operations") {
     return renderOperationsPage(env);
+  }
+
+  if (url.pathname === "/trust") {
+    return renderTrustGatePage(env);
   }
 
   if (url.pathname === "/integrations") {
@@ -340,7 +345,7 @@ function projectIdFromPath(pathname: string): string | null {
 
   const slug = decodeURIComponent(shortMatch[1]);
   if (
-    ["api", "mcp", "graph", "atlas", "score", "explorer", "discover", "trends", "workflow", "docs", "api-docs", "quality", "coverage", "status", "operations", "integrations", "roadmap", "quickstart", "recipes", "examples", "journeys", "categories", "deployments", "compare", "alternatives", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "favicon.ico"].includes(
+    ["api", "mcp", "graph", "atlas", "score", "explorer", "discover", "trends", "workflow", "docs", "api-docs", "quality", "coverage", "status", "trust", "operations", "integrations", "roadmap", "quickstart", "recipes", "examples", "journeys", "categories", "deployments", "compare", "alternatives", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "favicon.ico"].includes(
       slug
     )
   ) {

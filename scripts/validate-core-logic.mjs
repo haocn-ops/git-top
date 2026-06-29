@@ -153,6 +153,20 @@ async function testStatusRoute() {
   assert.match(text, /Data source, sync freshness, and runtime health/);
   assert.match(text, /Sync Progress/);
   assert.match(text, /Integration Guidance/);
+
+  const trust = await worker.fetch(new Request("https://git.top/trust"), {});
+  const trustText = await trust.text();
+  assert.equal(trust.status, 200);
+  assert.match(trustText, /Git\.Top Trust Gate/);
+  assert.match(trustText, /Production-readiness gate/);
+  assert.match(trustText, /Trust JSON/);
+
+  const trustApi = await worker.fetch(new Request("https://git.top/api/trust"), {});
+  const trustBody = await trustApi.json();
+  assert.equal(trustApi.status, 200);
+  assert.equal(trustBody.name, "Git.Top Trust Gate");
+  assert.ok(["allow", "caution", "block"].includes(trustBody.decision));
+  assert.ok(trustBody.checks.some((check) => check.id === "d1-source"));
 }
 
 async function testIntegrationsRoute() {
@@ -277,6 +291,8 @@ async function testRoadmapRoute() {
   assert.ok(body.phases.some((phase) => phase.id === "atlas" && phase.human_pages.includes("/journeys")));
   assert.ok(body.phases.some((phase) => phase.id === "atlas" && phase.api_endpoints.includes("/api/journeys")));
   assert.ok(body.phases.some((phase) => phase.id === "agent-api" && phase.human_pages.includes("/topics/mcp-integration-guide")));
+  assert.ok(body.phases.some((phase) => phase.id === "agent-api" && phase.human_pages.includes("/trust")));
+  assert.ok(body.phases.some((phase) => phase.id === "agent-api" && phase.api_endpoints.includes("/api/trust")));
   assert.ok(body.completion >= 88);
 
   const agentMap = await worker.fetch(new Request("https://git.top/api/agent-map"), {});
@@ -284,6 +300,7 @@ async function testRoadmapRoute() {
   assert.equal(agentMap.status, 200);
   assert.ok(agentMapBody.surfaces.some((surface) => surface.concept === "Product roadmap"));
   assert.ok(agentMapBody.surfaces.some((surface) => surface.concept === "API and MCP discovery"));
+  assert.ok(agentMapBody.surfaces.some((surface) => surface.human_page === "/trust" && surface.rest.includes("GET /api/trust")));
 }
 
 async function testDiscoverRoute() {
@@ -292,6 +309,7 @@ async function testDiscoverRoute() {
   assert.equal(home.status, 200);
   assert.match(homeText, /href="\/discover"/);
   assert.match(homeText, /href="\/workflow"/);
+  assert.match(homeText, /href="\/trust"/);
   assert.match(homeText, /href="\/topics\/browser-ai-automation"/);
   assert.match(homeText, /href="\/topics\/ai-ide-coding-agents"/);
   assert.match(homeText, /href="\/topics\/open-source-llm-gateways"/);
