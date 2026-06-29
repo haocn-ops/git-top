@@ -200,6 +200,7 @@ export function renderLlmsFullTxt(): Response {
       "- get_alternatives",
       "- get_deployment",
       "- get_quality_score",
+      "- get_quality_report",
       "- recommend_project",
       "- find_alternatives",
       "- get_project_card",
@@ -569,7 +570,7 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
           <h2>Turn intent into a selection path</h2>
           <ul>
             <li><code>/workflow</code> and <code>/api/workflow</code> expose a guided path from trends to shortlist, graph, alternatives, score, compare, and trust policy.</li>
-            <li><code>get_agent_workflow</code> and <code>get_atlas</code> make the same workflow and Atlas map available through MCP.</li>
+            <li><code>get_agent_workflow</code>, <code>get_atlas</code>, and <code>get_quality_report</code> make workflow, Atlas, and corpus quality available through MCP.</li>
             <li>Start here when the task is broad, ambiguous, or likely to benefit from trend context before a direct recommendation.</li>
           </ul>
         </article>
@@ -580,7 +581,7 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
           <ul>
             <li><code>search_projects</code> for retrieval by query, category, deployment, language, and Cloudflare readiness.</li>
             <li><code>get_project</code> for structured project knowledge and evidence.</li>
-            <li><code>get_agent_workflow</code> and <code>get_atlas</code> for guided selection and ecosystem maps.</li>
+            <li><code>get_agent_workflow</code>, <code>get_atlas</code>, and <code>get_quality_report</code> for guided selection, ecosystem maps, and corpus trust.</li>
             <li><code>compare_projects</code> and <code>git_top_grp_query</code> for graph-grounded selection.</li>
           </ul>
         </article>

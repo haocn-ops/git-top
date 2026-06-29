@@ -22,6 +22,7 @@ async function testDiscovery() {
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_trends"));
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_agent_workflow"));
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_atlas"));
+  assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_quality_report"));
   assert.equal(getDiscovery.body.openapi_url, "https://git.top/openapi.json");
   assert.equal(getDiscovery.body.api_openapi_url, "https://git.top/api/openapi.json");
   assert.equal(getDiscovery.body.schema_url, "https://git.top/api/schema/project.v2");
@@ -82,6 +83,10 @@ async function testDiscovery() {
   const atlasTool = getDiscovery.body.tools.find((tool) => tool.name === "get_atlas");
   assert.match(atlasTool.description, /Atlas/);
   assert.equal(atlasTool.input_schema.properties.require_d1.type, "boolean");
+
+  const qualityReportTool = getDiscovery.body.tools.find((tool) => tool.name === "get_quality_report");
+  assert.match(qualityReportTool.description, /quality and coverage report/);
+  assert.equal(qualityReportTool.input_schema.properties.require_d1.type, "boolean");
 }
 
 async function testToolCalls() {
@@ -292,6 +297,19 @@ async function testToolCalls() {
   assert.ok(trends.result.categories.length <= 3);
   assertMetadata(trends.result.metadata, "db_missing");
 
+  const qualityReport = await callTool("get_quality_report", {});
+  assert.equal(qualityReport.status, 200);
+  assert.ok(typeof qualityReport.result.release_score === "number");
+  assert.ok(typeof qualityReport.result.data_trust_score === "number");
+  assert.ok(typeof qualityReport.result.risk_level === "string");
+  assert.ok(qualityReport.result.score_summary);
+  assert.ok(qualityReport.result.risk_summary);
+  assert.ok(qualityReport.result.coverage);
+  assert.ok(Array.isArray(qualityReport.result.issues));
+  assert.ok(typeof qualityReport.result.issue_count === "number");
+  assert.ok(typeof qualityReport.result.project_count === "number");
+  assertMetadata(qualityReport.result.metadata, "db_missing");
+
   const workflow = await callTool("get_agent_workflow", {
     intent: "choose a Cloudflare-ready agent framework",
     constraints: {
@@ -324,6 +342,11 @@ async function testToolCalls() {
   assert.ok(Array.isArray(atlas.result.ecosystem.exploration_journeys));
   assert.ok(atlas.result.available_ecosystems.includes("cloudflare"));
   assertMetadata(atlas.result.metadata, "db_missing");
+
+  const strictQualityReport = await callTool("get_quality_report", { require_d1: true }, mockD1Env());
+  assert.equal(strictQualityReport.status, 200);
+  assertMetadata(strictQualityReport.result.metadata, "d1_query", "d1");
+  assert.ok(typeof strictQualityReport.result.release_score === "number");
 
   const allAtlas = await callTool("get_atlas", { limit: 2 });
   assert.equal(allAtlas.status, 200);

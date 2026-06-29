@@ -44,6 +44,16 @@ curl -X POST https://git.top/mcp \
 
 The response gives a recommended sequence, shortlist, trend context, agent map hints, and trust policy.
 
+When you need corpus-wide quality or coverage before a recommendation, call `get_quality_report`:
+
+```sh
+curl -X POST https://git.top/mcp \
+  -H "content-type: application/json" \
+  -d '{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"get_quality_report","arguments":{"require_d1":true}}}'
+```
+
+Use it to inspect release score, data trust score, risk level, coverage, issue summary, and review queue size.
+
 ## 3. Explore Atlas
 
 When an agent needs an ecosystem map before choosing a repository, fetch Atlas:

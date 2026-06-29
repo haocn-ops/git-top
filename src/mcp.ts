@@ -15,6 +15,7 @@ import { normalizeGrpRequest, runGrpQuery } from "./grp";
 import { errorJson, json, rawJson, stringifyApiJson } from "./http";
 import { toProjectKnowledgeView, withRelatedProjects } from "./project-view";
 import { buildProjectScoreExplanation } from "./score";
+import { buildQualityReport } from "./quality";
 import { getKnowledgeForSourcePolicy } from "./source-policy";
 import { buildTrendsView } from "./trends";
 import { buildAgentWorkflow } from "./workflow";
@@ -231,6 +232,19 @@ const tools = [
           type: "number",
           description: "Maximum projects per ecosystem."
         },
+        require_d1: {
+          type: "boolean",
+          description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
+        }
+      }
+    }
+  },
+  {
+    name: "get_quality_report",
+    description: "Return the corpus quality and coverage report with release score, data trust score, risk level, coverage, issue summary, and review queue size.",
+    inputSchema: {
+      type: "object",
+      properties: {
         require_d1: {
           type: "boolean",
           description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
@@ -667,6 +681,17 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
     }
     return {
       ecosystems: listAtlasEcosystems().map((ecosystem) => buildAtlasEcosystemView(knowledge.projects, ecosystem, limit)),
+      metadata: knowledge.metadata
+    };
+  }
+
+  if (name === "get_quality_report") {
+    const knowledge = await requireKnowledgeSource(env, args);
+    if (isToolErrorResult(knowledge)) {
+      return knowledge;
+    }
+    return {
+      ...buildQualityReport(knowledge.projects),
       metadata: knowledge.metadata
     };
   }

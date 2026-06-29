@@ -103,9 +103,9 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     concept: "Quality and coverage",
     humanPage: "/quality",
     rest: ["GET /api/quality", "GET /api/quality/review", "GET /api/health", "GET /api/sync/status"],
-    mcpTools: [],
-    outputFields: ["release_score", "data_trust_score", "coverage", "risk_level", "issues", "sync"],
-    trustFields: ["metadata.source", "sync.health", "sync.freshness", "coverage.low_confidence_classification_rate"],
+    mcpTools: ["get_quality_report"],
+    outputFields: ["releaseScore", "dataTrustScore", "scoreSummary", "riskLevel", "riskSummary", "coverage", "issues"],
+    trustFields: ["metadata.source", "metadata.reason", "coverage.lowConfidenceClassificationRate", "coverage.collectionReviewCount", "coverage.staleProjectRate"],
     recommendedUse: "Check whether recommendations are backed by fresh D1 data and whether corpus risk should be disclosed."
   }
 ];
@@ -126,6 +126,7 @@ export function buildAgentMap() {
       "GET /api/health and require metadata.source=d1 for high-confidence production recommendations.",
       "Use /api/agent-map or GET /mcp discovery to choose the matching human page, REST endpoint, or MCP tool.",
       "Use /api/workflow or MCP get_agent_workflow when you need an end-to-end project selection path.",
+      "Use /api/quality or MCP get_quality_report when you need release score, corpus trust, coverage, and review risk before citing a recommendation.",
       "Fetch project, graph, alternatives, score, and compare data before making a final recommendation.",
       "Cite metadata.source, classification evidence, quality_signal_confidence, and recommendation confidence."
     ],

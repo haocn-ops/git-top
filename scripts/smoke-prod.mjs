@@ -71,6 +71,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.ok(body.tools.some((tool) => tool.name === "get_trends"), "MCP discovery should include get_trends");
     assert.ok(body.tools.some((tool) => tool.name === "get_agent_workflow"), "MCP discovery should include get_agent_workflow");
     assert.ok(body.tools.some((tool) => tool.name === "get_atlas"), "MCP discovery should include get_atlas");
+    assert.ok(body.tools.some((tool) => tool.name === "get_quality_report"), "MCP discovery should include get_quality_report");
     assert.ok(body.tools.some((tool) => tool.name === "git_top_grp_query"), "MCP discovery should include git_top_grp_query");
     return {
       tools: body.tools.length,
@@ -253,6 +254,29 @@ export async function runSmoke(args = [], env = process.env) {
 
     return {
       hasQualityJsonLink: text.includes("/api/quality")
+    };
+  });
+
+  await check(context, "mcp_quality_report", async () => {
+    const { status, body } = await postJson(context, "/mcp", {
+      jsonrpc: "2.0",
+      id: 6,
+      method: "tools/call",
+      params: {
+        name: "get_quality_report",
+        arguments: { require_d1: !context.allowSeed }
+      }
+    });
+    assert.equal(status, 200);
+    const result = JSON.parse(body.result.content[0].text);
+    assert.ok(typeof result.release_score === "number", "quality report should include release_score");
+    assert.ok(typeof result.data_trust_score === "number", "quality report should include data_trust_score");
+    assert.ok(typeof result.risk_level === "string", "quality report should include risk_level");
+    assert.ok(result.coverage, "quality report should include coverage");
+    assert.ok(Array.isArray(result.issues), "quality report should include issues");
+    return {
+      releaseScore: result.release_score,
+      riskLevel: result.risk_level
     };
   });
 

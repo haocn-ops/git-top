@@ -108,6 +108,16 @@ curl -X POST http://localhost:8787/mcp \
 
 Use `get_atlas` when an agent wants ecosystem maps, exploration paths, map nodes, edges, representative projects, and Atlas journey links without manually calling REST endpoints first.
 
+## Get Quality Report
+
+```sh
+curl -X POST http://localhost:8787/mcp \
+  -H "content-type: application/json" \
+  -d '{"jsonrpc":"2.0","id":44,"method":"tools/call","params":{"name":"get_quality_report","arguments":{"require_d1":true}}}'
+```
+
+Use `get_quality_report` when an agent needs release score, data trust score, risk level, coverage, issue summary, and review queue size before trusting a recommendation.
+
 ## Find Alternatives
 
 ```sh
@@ -139,6 +149,7 @@ Agents should:
 - Prefer `metadata.source === "d1"` when making high-confidence recommendations.
 - Use `require_d1: true` for production answers that should fail closed rather than fall back to seed data.
 - Treat seed fallback as useful for demos and development, but mention the fallback when presenting results.
+- Use `get_quality_report` before citing corpus-wide quality or coverage claims.
 - Inspect `classification` evidence before asserting category, difficulty, or Cloudflare readiness.
 - Inspect `quality_signal_confidence` before treating growth, commit, release, or contributor counts as complete.
 - Prefer `git_top_grp_query` for goal-level planning and `search_projects` for direct retrieval.
