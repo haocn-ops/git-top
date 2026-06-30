@@ -13,7 +13,7 @@ database_name = "git-top"
 database_id = "d37123ac-e75e-4056-bc22-68f30fc988a2"
 
 [triggers]
-crons = ["0 */12 * * *"]
+crons = ["0 * * * *"]
 
 [vars]
 # Set real values with `wrangler secret put GITHUB_TOKEN` and

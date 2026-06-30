@@ -7,7 +7,7 @@ Date: 2026-06-29
 Git.Top content is updated by a Cloudflare Worker plus D1 sync pipeline, not by a CMS.
 
 1. `data/seed-repositories.json` is the curated repository input list.
-2. Cloudflare Cron triggers the Worker every 12 hours.
+2. Cloudflare Cron triggers the Worker every hour.
 3. `src/index.ts` calls `syncGithubProjects` with lightweight GitHub signal collection.
 4. `src/sync.ts` fetches GitHub repository metadata, README/root files, recent commits, releases, and contributors.
 5. The Worker generates Agent Cards, scores, alternatives, and star snapshots.
@@ -33,7 +33,7 @@ Risk if unfixed: sync health remains noisy, and the run records many repeated fa
 
 ### P1: Full-Cycle Freshness
 
-At 500 repositories, a 12-hour cron with a small fixed batch can take weeks to refresh every project. That is acceptable for baseline coverage but too slow for trends and score freshness.
+At 500 repositories, a 12-hour cron with a small fixed batch could take weeks to refresh every project. The production schedule now runs hourly so the same conservative batch size still improves freshness materially.
 
 Risk if unfixed: hot projects and recent ecosystem shifts lag behind the public interface.
 
