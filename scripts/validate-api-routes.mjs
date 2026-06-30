@@ -422,6 +422,7 @@ async function testGraphAndQualityRoutes() {
   assert.ok(alternatives.body.alternative_matches.length <= 4, "alternatives endpoint should honor limit");
   assert.ok(typeof alternatives.body.alternative_matches[0].similarity_score === "number");
   assert.ok(typeof alternatives.body.alternative_matches[0].alternative_reason === "string");
+  assert.ok(["same_use_case", "same_category", "same_deployment", "ecosystem_adjacent"].includes(alternatives.body.alternative_matches[0].replacement_type));
   assert.ok(typeof alternatives.body.alternative_matches[0].fit_summary === "string");
   assert.ok(Array.isArray(alternatives.body.alternative_matches[0].adoption_notes));
   assert.ok(["low", "medium", "high"].includes(alternatives.body.alternative_matches[0].replacement_risk));

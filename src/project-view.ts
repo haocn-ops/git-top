@@ -12,6 +12,16 @@ export interface ProjectSummary {
   alternatives: Array<{ repo: string; reason: string }>;
 }
 
+interface ProjectSummarySource {
+  projectKind: ProjectKnowledge["agentCard"]["projectKind"];
+  category: string[];
+  overview: string;
+  useCases: string[];
+  notGoodFor: string[];
+  deployments: string[];
+  alternatives: Array<{ repo: string; reason: string }>;
+}
+
 export interface ProjectKnowledgeView {
   projectId: string;
   repo: string;
@@ -34,6 +44,7 @@ export interface ProjectKnowledgeView {
   cloudflareReady: boolean;
   useCases: string[];
   notGoodFor: string[];
+  summary: ProjectSummary;
   classification?: ProjectKnowledge["agentCard"]["classification"];
   qualitySignals: {
     stars: number;
@@ -186,7 +197,7 @@ export function toProjectKnowledgeView(item: ProjectKnowledge): ProjectKnowledge
   const gitTopScoreBreakdown = getGitTopScoreParts(item);
   const gitTopScore = calculateGitTopScoreFromParts(gitTopScoreBreakdown);
 
-  return {
+  const view = {
     projectId: item.project.fullName,
     repo: item.project.fullName,
     name: item.project.name,
@@ -226,6 +237,11 @@ export function toProjectKnowledgeView(item: ProjectKnowledge): ProjectKnowledge
     agentScoreBreakdown: getAgentScoreParts(item),
     gitTopScore,
     gitTopScoreBreakdown
+  } satisfies Omit<ProjectKnowledgeView, "summary">;
+
+  return {
+    ...view,
+    summary: buildProjectSummary(view)
   };
 }
 
@@ -243,7 +259,7 @@ export function withRelatedProjects(
   };
 }
 
-export function buildProjectSummary(view: ProjectKnowledgeView): ProjectSummary {
+export function buildProjectSummary(view: ProjectSummarySource): ProjectSummary {
   const hints = categorySummaryHints[(view.category[0] as Category | undefined) ?? "other"] ?? categorySummaryHints.other;
   return {
     tl_dr: firstSentence(view.overview),
@@ -378,7 +394,7 @@ function firstSentence(value: string): string {
   return (match?.[1] ?? trimmed).slice(0, 220);
 }
 
-function installationHint(view: ProjectKnowledgeView, fallback: string | null): string | null {
+function installationHint(view: ProjectSummarySource, fallback: string | null): string | null {
   if (view.projectKind === "collection") {
     return "Reference collection; there is no direct install step.";
   }

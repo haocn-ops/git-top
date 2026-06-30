@@ -373,7 +373,7 @@ Use alternatives when you need replacement candidates for the same job. The resp
 - `next_actions`: compare, graph, score, project, and recommendation follow-up links.
 - `comparison_links`: direct compare, graph, project, and score links for the source project.
 - `alternatives`: backward-compatible project list.
-- `alternative_matches`: enriched alternatives with `similarity_score`, `alternative_reason`, and `match_signals`.
+- `alternative_matches`: enriched alternatives with `similarity_score`, `alternative_reason`, `replacement_type`, and `match_signals`.
 
 The path form accepts either `owner/repo` or a Git.Top alias such as `claude-code`. Alias responses include `resolved_from`.
 

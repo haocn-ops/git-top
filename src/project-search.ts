@@ -651,8 +651,9 @@ function keywordOverlapScore(query: string, text: string): number {
 }
 
 function queryMatchScore(query: string, words: string[], haystack: string, item: ProjectKnowledge): number {
+  const intentBoost = queryIntentFieldBoost(words, item);
   if (haystack.includes(query)) {
-    return 1000 + item.metrics.gitScore;
+    return 1000 + intentBoost + item.metrics.gitScore;
   }
 
   const hits = words.filter((word) => haystack.includes(word)).length;
@@ -664,7 +665,28 @@ function queryMatchScore(query: string, words: string[], haystack: string, item:
   const topicHits = words.filter((word) => item.project.topics.some((topic) => normalize(topic).includes(word))).length;
   const categoryHits = words.filter((word) => normalize(item.agentCard.category).includes(word)).length;
 
-  return hits * 120 + deploymentHits * 80 + topicHits * 60 + categoryHits * 60 + specificIntentBoost(words, item) + collectionIntentBoost(words, item) + item.metrics.gitScore;
+  return hits * 120 + deploymentHits * 80 + topicHits * 60 + categoryHits * 60 + intentBoost + specificIntentBoost(words, item) + collectionIntentBoost(words, item) + item.metrics.gitScore;
+}
+
+function queryIntentFieldBoost(words: string[], item: ProjectKnowledge): number {
+  const intentWords = words.filter((word) => !broadProbeWords.has(word));
+  if (intentWords.length === 0) {
+    return 0;
+  }
+
+  const identityText = normalize([item.project.owner, item.project.name, item.project.fullName].join(" "));
+  const topicText = normalize(item.project.topics.join(" "));
+  const useCaseText = normalize(item.agentCard.useCases.join(" "));
+  const summaryText = normalize(item.agentCard.summaryForAgent);
+  const descriptionText = normalize(item.project.description);
+
+  const identityHits = intentWords.filter((word) => identityText.includes(word)).length;
+  const topicHits = intentWords.filter((word) => topicText.includes(word)).length;
+  const useCaseHits = intentWords.filter((word) => useCaseText.includes(word)).length;
+  const summaryHits = intentWords.filter((word) => summaryText.includes(word)).length;
+  const descriptionHits = intentWords.filter((word) => descriptionText.includes(word)).length;
+
+  return identityHits * 420 + topicHits * 300 + useCaseHits * 220 + summaryHits * 180 + descriptionHits * 90;
 }
 
 function specificIntentBoost(words: string[], item: ProjectKnowledge): number {
@@ -707,8 +729,9 @@ function collectionIntentBoost(words: string[], item: ProjectKnowledge): number 
 
 function browseModeQueryScore(query: string, words: string[], haystack: string, item: ProjectKnowledge): number {
   const qualityScore = browseModeQualityScore(item);
+  const intentBoost = queryIntentFieldBoost(words, item);
   if (haystack.includes(query)) {
-    return 220 + qualityScore;
+    return 220 + intentBoost + qualityScore;
   }
 
   const hits = words.filter((word) => haystack.includes(word)).length;
@@ -720,7 +743,7 @@ function browseModeQueryScore(query: string, words: string[], haystack: string, 
   const topicHits = words.filter((word) => item.project.topics.some((topic) => normalize(topic).includes(word))).length;
   const categoryHits = words.filter((word) => normalize(item.agentCard.category).includes(word)).length;
 
-  return hits * 70 + deploymentHits * 70 + topicHits * 45 + categoryHits * 65 + specificIntentBoost(words, item) + collectionIntentBoost(words, item) + qualityScore;
+  return hits * 70 + deploymentHits * 70 + topicHits * 45 + categoryHits * 65 + intentBoost + specificIntentBoost(words, item) + collectionIntentBoost(words, item) + qualityScore;
 }
 
 function isBrowseRankingQuery(filters: ProjectFilters, words: string[], limit: number): boolean {

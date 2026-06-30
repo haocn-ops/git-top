@@ -407,7 +407,67 @@ const html = String.raw`<!doctype html>
       }
 
       .project-card {
-        min-height: 292px;
+        min-height: 340px;
+      }
+
+      .project-summary {
+        display: grid;
+        gap: 8px;
+        padding-top: 10px;
+        border-top: 1px solid var(--line);
+      }
+
+      .project-summary h4 {
+        font-size: 16px;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+      }
+
+      .project-summary .summary-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+      }
+
+      .summary-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 26px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #f7faf9;
+        color: #40505a;
+        font-size: 12px;
+        font-weight: 900;
+        padding: 4px 8px;
+      }
+
+      .summary-pill.good {
+        border-color: #b7dfcc;
+        background: #eefaf4;
+        color: var(--green);
+      }
+
+      .summary-pill.warn {
+        border-color: #ead2a7;
+        background: #fff9ec;
+        color: var(--amber);
+      }
+
+      .project-summary .summary-list {
+        display: grid;
+        gap: 6px;
+      }
+
+      .project-summary .summary-list div {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .project-summary .summary-list span {
+        color: var(--muted);
       }
 
       .project-card-top,
@@ -519,6 +579,36 @@ const html = String.raw`<!doctype html>
         color: #33525a;
         font-weight: 900;
         padding: 11px;
+      }
+
+      .agent-rail {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .agent-rail a {
+        display: grid;
+        gap: 5px;
+        min-height: 74px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+        padding: 12px;
+      }
+
+      .agent-rail span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .agent-rail strong {
+        color: #33525a;
+        overflow-wrap: anywhere;
       }
 
       .search-form input,
@@ -639,6 +729,7 @@ const html = String.raw`<!doctype html>
         }
 
         .project-card-grid,
+        .agent-rail,
         .intent-grid,
         .agent-grid,
         .trust-grid,
@@ -689,6 +780,7 @@ const html = String.raw`<!doctype html>
         }
 
         .knowledge-grid,
+        .agent-rail,
         .project-card-grid,
         .intent-grid,
         .agent-grid,
@@ -728,6 +820,11 @@ const html = String.raw`<!doctype html>
             <a class="button secondary" href="/graph">Explore Graph</a>
             <a class="button secondary" href="/docs">Docs</a>
           </div>
+          <div class="agent-rail" aria-label="Agent entry points">
+            <a href="/quickstart"><span>Fast start</span><strong>Quickstart + trust checks</strong></a>
+            <a href="/api/agent-map"><span>Surface map</span><strong>REST, MCP, output fields</strong></a>
+            <a href="/trust"><span>Trust gate</span><strong>Production readiness</strong></a>
+          </div>
         </div>
 
         <div class="knowledge-preview" aria-label="Agent knowledge preview">
@@ -737,10 +834,10 @@ const html = String.raw`<!doctype html>
           </div>
           <div class="knowledge-grid">
             <div><span>What</span><strong>Cloudflare-native agent framework</strong></div>
-            <div><span>Deploy</span><strong>Cloudflare, serverless</strong></div>
-            <div><span>Quality Score</span><strong>82/100</strong></div>
-            <div><span>Agent Score</span><strong>83/100</strong></div>
-            <div><span>Relations</span><strong>Alternatives, dependencies, related projects</strong></div>
+            <div><span>Source</span><strong>D1-backed</strong></div>
+            <div><span>Install</span><strong>Cloudflare Workers deployment path</strong></div>
+            <div><span>Trust</span><strong>Trust gate + quality signals</strong></div>
+            <div><span>Next</span><strong>Quickstart, Agent Map, Project JSON</strong></div>
           </div>
         </div>
       </section>
@@ -1050,10 +1147,12 @@ const html = String.raw`<!doctype html>
           if (!response.ok) throw new Error("HTTP " + response.status);
           const data = await response.json();
           const projects = data.projects || [];
+          const source = data.metadata?.source || "unknown";
           const count = projects.length;
           searchStatus.textContent = count
-            ? 'Showing ' + count + ' results for "' + q + '".'
-            : 'No results found for "' + q + '". Try fewer filters.';
+            ? 'Showing ' + count + ' results for "' + q + '" from ' + source + '.'
+            : 'No results found for "' + q + '" from ' + source + '. Try fewer filters.';
+          grid.dataset.source = source;
           grid.innerHTML = projects.length ? projects.map(projectCard).join("") : '<div class="empty">No projects matched this query.</div>';
           if (options.reveal) {
             document.querySelector("#projects").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1065,17 +1164,39 @@ const html = String.raw`<!doctype html>
       }
 
       function projectCard(item) {
+        const repo = item.repo || item.project_id || item.projectId || item.name || "unknown";
+        const agentScore = item.agent_score ?? item.agentScore ?? "-";
+        const qualityScore = item.quality_score ?? item.qualityScore ?? "-";
+        const projectKind = item.project_kind || item.projectKind;
         const alternative = item.alternatives?.[0]?.repo || "Discoverable";
         const deploy = (item.deployments || []).slice(0, 2).join(", ") || "Unknown";
-        const kind = item.project_kind === "collection" ? "collection" : "project";
+        const kind = projectKind === "collection" ? "collection" : "project";
         const reasons = matchReasons(item).map((reason) => '<span>' + escapeHtml(reason) + '</span>').join("");
+        const summary = item.summary || {};
+        const tlDr = summary.tl_dr || item.overview || item.description || "";
+        const install = summary.install || (item.deployments || []).slice(0, 1).join(", ") || "Unknown";
+        const goodFor = (summary.good_for || item.use_cases || item.useCases || []).slice(0, 2);
+        const notGoodFor = (summary.not_good_for || item.not_good_for || item.notGoodFor || []).slice(0, 2);
+        const source = item.metadata?.source || grid.dataset.source || "d1";
+        const trust = confidenceSummary(item.classification || {});
         return '<article class="project-card">' +
-          '<div class="project-card-top"><div><p class="eyebrow">' + escapeHtml((item.category || [])[0] || kind) + '</p><h3><a href="/projects/' + escapeHtml(item.repo) + '">' + escapeHtml(item.name) + '</a></h3></div><span class="status-pill">' + escapeHtml(String(item.agent_score || "-")) + '</span></div>' +
-          '<p>' + escapeHtml(item.description || item.overview || "") + '</p>' +
+          '<div class="project-card-top"><div><p class="eyebrow">' + escapeHtml((item.category || [])[0] || kind) + '</p><h3><a href="/projects/' + escapeHtml(repo) + '">' + escapeHtml(item.name || repo) + '</a></h3></div><span class="status-pill">' + escapeHtml(String(agentScore)) + '</span></div>' +
+          '<div class="project-summary">' +
+            '<h4>' + escapeHtml(tlDr) + '</h4>' +
+            '<div class="summary-meta">' +
+              '<span class="summary-pill good">' + escapeHtml(source.toUpperCase()) + '</span>' +
+              '<span class="summary-pill">Install: ' + escapeHtml(install) + '</span>' +
+              '<span class="summary-pill">Trust: ' + escapeHtml(trust) + '</span>' +
+            '</div>' +
+            '<div class="summary-list">' +
+              '<div><span>Good for</span><strong>' + escapeHtml(goodFor.join(", ") || "Unknown") + '</strong></div>' +
+              '<div><span>Not good for</span><strong>' + escapeHtml(notGoodFor.join(", ") || "Unknown") + '</strong></div>' +
+            '</div>' +
+          '</div>' +
           '<div class="match-reasons">' + reasons + '</div>' +
           '<div class="signal-row"><span>Alternative</span><strong>' + escapeHtml(alternative) + '</strong></div>' +
           '<div class="signal-row"><span>Deploy</span><strong>' + escapeHtml(deploy) + '</strong></div>' +
-          '<div class="score-pair"><div><span>Quality</span><strong>' + escapeHtml(String(item.quality_score || "-")) + '</strong></div><div><span>Agent</span><strong>' + escapeHtml(String(item.agent_score || "-")) + '</strong></div></div>' +
+          '<div class="score-pair"><div><span>Quality</span><strong>' + escapeHtml(String(qualityScore)) + '</strong></div><div><span>Agent</span><strong>' + escapeHtml(String(agentScore)) + '</strong></div></div>' +
         '</article>';
       }
 
@@ -1084,22 +1205,23 @@ const html = String.raw`<!doctype html>
         const category = (item.category || [])[0];
         const deployments = item.deployments || [];
         const classification = item.classification || {};
+        const projectKind = item.project_kind || item.projectKind;
         if (categoryFilter.value && category === categoryFilter.value) reasons.push("category match");
         if (deploymentFilter.value && deployments.includes(deploymentFilter.value)) reasons.push("deployment match");
         if (languageFilter.value && item.language === languageFilter.value) reasons.push("language match");
         if (cloudflareFilter.checked && item.cloudflare_ready) reasons.push("Cloudflare ready");
-        if (kindFilter.value && item.project_kind === kindFilter.value) reasons.push(kindFilter.value);
+        if (kindFilter.value && projectKind === kindFilter.value) reasons.push(kindFilter.value);
         if (confidenceFilter.value) reasons.push("confidence " + confidenceSummary(classification));
         if (!reasons.length) {
           reasons.push(category || "project");
           if (deployments[0]) reasons.push(deployments[0]);
-          reasons.push(item.project_kind || "project");
+          reasons.push(projectKind || "project");
         }
         return reasons.slice(0, 4);
       }
 
       function confidenceSummary(classification) {
-        const values = [classification.category, classification.deployment, classification.difficulty, classification.cloudflare_ready]
+        const values = [classification.category, classification.deployment, classification.difficulty, classification.cloudflare_ready || classification.cloudflareReady]
           .map((signal) => signal?.confidence)
           .filter(Boolean);
         const high = values.filter((value) => value === "high").length;

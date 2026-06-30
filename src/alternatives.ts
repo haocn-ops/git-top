@@ -17,6 +17,7 @@ export interface AlternativeMatchSignals {
   sharedDeployments: string[];
   sharedUseCases: string[];
   sharedTopics: string[];
+  intentOverlap: string[];
   dependencyOverlap: string[];
   sameLanguage: boolean;
   strongerMaintenance: boolean;
@@ -93,6 +94,7 @@ export function toAlternativeMatchView(match: AlternativeMatch) {
     project_id: match.project.project.id,
     similarityScore: match.similarityScore,
     alternativeReason: match.reason,
+    replacementType: replacementType(match),
     matchSignals: match.signals,
     fitSummary: guidance.fitSummary,
     adoptionNotes: guidance.adoptionNotes,
@@ -122,11 +124,19 @@ export function alternativeAdoptionGuidance(match: AlternativeMatch) {
     notes.push(`Language changes to ${match.project.project.language}; migration cost may be higher.`);
   }
 
-  const replacementRisk = match.signals.sharedCategory && match.signals.sharedDeployments.length > 0 && match.similarityScore >= 65 ? "low" : match.similarityScore >= 45 ? "medium" : "high";
+  const type = replacementType(match);
+  const replacementRisk =
+    ["same_use_case", "same_category"].includes(type) && match.signals.sharedDeployments.length > 0 && match.similarityScore >= 65
+      ? "low"
+      : match.similarityScore >= 45
+        ? "medium"
+        : "high";
   return {
     fitSummary:
-      replacementRisk === "low"
-        ? "Strong replacement candidate with category and deployment overlap."
+      type === "same_use_case"
+        ? "Strong replacement candidate with overlapping indexed use cases."
+        : replacementRisk === "low"
+          ? "Strong replacement candidate with category and deployment overlap."
         : replacementRisk === "medium"
           ? "Useful alternative, but compare deployment, language, and dependency fit before switching."
           : "Exploratory alternative; inspect graph and score evidence before treating it as a substitute.",
@@ -188,6 +198,7 @@ function scoreAlternative(project: ProjectKnowledge, candidate: ProjectKnowledge
     score += 28;
   }
 
+  score += Math.min(24, signals.intentOverlap.length * 8);
   score += Math.min(16, signals.sharedDeployments.length * 8);
   score += Math.min(16, signals.sharedUseCases.length * 8);
   score += Math.min(12, signals.sharedTopics.length * 4);
@@ -216,6 +227,7 @@ function alternativeSignals(project: ProjectKnowledge, candidate: ProjectKnowled
     sharedDeployments: sharedValues(project.agentCard.deployment, candidate.agentCard.deployment),
     sharedUseCases: sharedValues(project.agentCard.useCases, candidate.agentCard.useCases),
     sharedTopics: sharedValues(project.project.topics, candidate.project.topics),
+    intentOverlap: sharedValues(intentTerms(project), intentTerms(candidate)),
     dependencyOverlap: sharedValues(inferredDependencyTerms(project), inferredDependencyTerms(candidate)),
     sameLanguage: Boolean(project.project.language && candidate.project.language === project.project.language),
     strongerMaintenance: candidate.metrics.maintenanceScore > project.metrics.maintenanceScore,
@@ -224,6 +236,10 @@ function alternativeSignals(project: ProjectKnowledge, candidate: ProjectKnowled
 }
 
 function buildAlternativeReason(project: ProjectKnowledge, candidate: ProjectKnowledge, signals: AlternativeMatchSignals): string {
+  if (signals.intentOverlap.length > 0 && signals.sharedCategory) {
+    return `Same ${candidate.agentCard.category.replace(/_/g, " ")} intent with ${signals.intentOverlap.slice(0, 3).join(", ")} overlap.`;
+  }
+
   if (signals.sharedCategory && signals.sharedDeployments.length > 0) {
     return `Similar ${candidate.agentCard.category.replace(/_/g, " ")} with ${signals.sharedDeployments.slice(0, 2).join("/")} deployment overlap.`;
   }
@@ -246,6 +262,44 @@ function buildAlternativeReason(project: ProjectKnowledge, candidate: ProjectKno
 
   return "Useful alternative with overlapping use cases and project signals.";
 }
+
+function replacementType(match: AlternativeMatch): "same_use_case" | "same_category" | "same_deployment" | "ecosystem_adjacent" {
+  if (match.signals.sharedUseCases.length > 0 || match.signals.intentOverlap.length > 0) {
+    return "same_use_case";
+  }
+  if (match.signals.sharedCategory) {
+    return "same_category";
+  }
+  if (match.signals.sharedDeployments.length > 0) {
+    return "same_deployment";
+  }
+  return "ecosystem_adjacent";
+}
+
+function intentTerms(item: ProjectKnowledge): string[] {
+  const text = [item.project.name, item.project.description, item.project.topics.join(" "), item.agentCard.useCases.join(" "), item.agentCard.summaryForAgent]
+    .join(" ")
+    .toLowerCase();
+  const terms = new Set<string>();
+  for (const [term, needles] of Object.entries(intentTermDictionary)) {
+    if (needles.some((needle) => text.includes(needle))) {
+      terms.add(term);
+    }
+  }
+  return Array.from(terms);
+}
+
+const intentTermDictionary: Record<string, string[]> = {
+  agent_memory: ["memory", "long-term memory", "context engine", "state management", "agent-memory", "ai-memory"],
+  rag: ["rag", "retrieval", "retrieval augmented", "document search", "knowledge grounding"],
+  browser_automation: ["browser", "playwright", "chromium", "web automation"],
+  coding_agent: ["coding", "codebase", "developer workflow", "software engineering"],
+  mcp: ["mcp", "model context protocol", "tool server", "json-rpc"],
+  llm_gateway: ["gateway", "proxy", "routing", "model provider"],
+  observability: ["trace", "tracing", "observability", "monitoring", "dashboard"],
+  workflow: ["workflow", "orchestration", "automation", "scheduled jobs"],
+  local_inference: ["local model", "local inference", "model serving", "gpu", "cuda"]
+};
 
 function inferredDependencyTerms(item: ProjectKnowledge): string[] {
   const text = [

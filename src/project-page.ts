@@ -96,11 +96,13 @@ function renderHtml({
       .button,.pill { display:inline-flex; align-items:center; justify-content:center; min-height:34px; border:1px solid var(--line); border-radius:8px; background:var(--surface); font-weight:900; padding:7px 10px; }
       .button.primary { border-color:var(--teal); background:var(--teal); color:#fff; }
       .hero { border:1px solid var(--line); border-radius:8px; background:linear-gradient(135deg,rgba(15,118,110,.12),rgba(255,255,255,.92)); box-shadow:var(--shadow); padding:22px; }
-      .score-grid,.section-grid { display:grid; gap:12px; }
+      .summary-grid,.score-grid,.section-grid { display:grid; gap:12px; }
+      .summary-grid { grid-template-columns:repeat(4,minmax(0,1fr)); margin-top:18px; }
       .score-grid { grid-template-columns:repeat(5,minmax(0,1fr)); margin-top:18px; }
       .section-grid { grid-template-columns:minmax(0,1fr) 360px; margin-top:14px; }
       .three-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:14px; }
       .panel { border:1px solid var(--line); border-radius:8px; background:var(--surface); box-shadow:var(--shadow); padding:16px; }
+      .summary-card { display:grid; gap:10px; border:1px solid var(--line); border-radius:8px; background:#fbfdfd; box-shadow:var(--shadow); padding:14px; }
       .metric { display:grid; gap:7px; min-height:110px; border:1px solid var(--line); border-radius:8px; background:#fbfdfd; padding:13px; }
       .metric span,.list span,.compare-row span { color:var(--muted); }
       .metric strong { font-size:28px; line-height:1; }
@@ -123,7 +125,7 @@ function renderHtml({
       .evidence-list div { border-top:1px solid var(--line); padding-top:9px; }
       .evidence-list div:first-child { border-top:0; padding-top:0; }
       .evidence-list span { color:var(--muted); }
-      @media (max-width:900px) { .score-grid,.section-grid,.three-grid,.facts { grid-template-columns:1fr; } }
+      @media (max-width:900px) { .summary-grid,.score-grid,.section-grid,.three-grid,.facts { grid-template-columns:1fr; } }
       @media (max-width:900px) { .trust-grid,.decision-grid { grid-template-columns:1fr; } }
     </style>
   </head>
@@ -153,6 +155,27 @@ function renderHtml({
           <a class="button" href="/score/${escapeAttr(view.repo)}">Score</a>
         </div>
       </header>
+
+      <section class="summary-grid" aria-label="Agent summary">
+        <article class="summary-card">
+          <p class="eyebrow">TL;DR</p>
+          <h2>${escapeHtml(view.summary.tl_dr)}</h2>
+          <p class="muted">${escapeHtml(view.summary.purpose)}</p>
+        </article>
+        <article class="summary-card">
+          <p class="eyebrow">Install</p>
+          <h2>${escapeHtml(view.summary.install ?? "No install hint")}</h2>
+          <div class="tag-list">${view.summary.deployment.slice(0, 4).map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>
+        </article>
+        <article class="summary-card">
+          <p class="eyebrow">Good For</p>
+          <div class="list">${view.summary.good_for.slice(0, 3).map((item) => `<div><strong>${escapeHtml(item)}</strong></div>`).join("")}</div>
+        </article>
+        <article class="summary-card">
+          <p class="eyebrow">Not Good For</p>
+          <div class="list">${view.summary.not_good_for.slice(0, 3).map((item) => `<div><strong>${escapeHtml(item)}</strong></div>`).join("")}</div>
+        </article>
+      </section>
 
       <section class="score-grid">
         ${metric("Git.Top Score", `${view.gitTopScore}/100`)}
