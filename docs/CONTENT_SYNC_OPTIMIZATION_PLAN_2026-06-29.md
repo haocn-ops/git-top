@@ -8,12 +8,13 @@ Git.Top content is updated by a Cloudflare Worker plus D1 sync pipeline, not by 
 
 1. `data/seed-repositories.json` is the curated repository input list.
 2. Cloudflare Cron triggers the Worker every hour.
-3. `src/index.ts` calls `syncGithubProjects` with lightweight GitHub signal collection.
+3. `src/index.ts` calls `syncGithubProjects` with lightweight GitHub signal collection, then runs conservative candidate discovery.
 4. `src/sync.ts` fetches GitHub repository metadata, README/root files, recent commits, releases, and contributors.
 5. The Worker generates Agent Cards, scores, alternatives, and star snapshots.
 6. `src/db-write-store.ts` writes project knowledge into D1.
 7. Public pages and APIs read D1 through `src/knowledge-source.ts`, with bundled seed fallback only when D1 is unavailable, empty, or broken.
 8. Protected admin sync is available at `/api/admin/sync` and through `pnpm sync:prod:catchup`.
+9. Protected candidate discovery is available at `/api/admin/discovery`; it rotates GitHub search queries and can add new repositories beyond the curated seed list.
 
 Production on 2026-06-29 is D1-backed with 501 knowledge-ready projects. Sync freshness is fresh, but the latest observed run was degraded by a Worker subrequest-limit failure after an oversized batch.
 
@@ -48,6 +49,12 @@ Risk if unfixed: rate-limit and subrequest pressure increase as the corpus grows
 Alternatives and graph-like relationships are updated inside project sync runs. As the corpus grows, derived knowledge should be refreshed separately from raw GitHub fetching.
 
 Risk if unfixed: every sync carries more global recomputation than necessary.
+
+### P1: Corpus Growth Beyond Curated Seed
+
+The hourly cron refreshed only repositories already present in the curated seed list or D1. That kept existing records fresh, but could not discover new projects automatically.
+
+Risk if unfixed: the project count plateaus around the seed corpus even while the ecosystem changes.
 
 ## Optimization Phases
 
@@ -120,6 +127,24 @@ Current implementation extracts alternatives rebuilding into `refreshAlternative
 
 `/api/sync/status` now includes `derived.alternatives` freshness. Alternatives are considered fresh for 7 days after the latest successful `derived:alternatives` governance run, stale after that, and unknown when no successful derived rebuild has been recorded. The public `/status` page and Trust Gate surface this signal so agents can disclose stale relationship data separately from GitHub metadata freshness.
 
+### Phase 5: Conservative Candidate Discovery
+
+Implemented after the initial sync stabilization.
+
+- Add `candidate_repositories` as an audit table for discovered repositories, source query, status, sync time, and last error.
+- Run one rotating GitHub repository search query per hourly cron invocation.
+- Sync at most five new candidates per cron run by default.
+- Skip repositories already in the curated seed list, D1 projects table, or previously synced candidate set.
+- Record every discovery attempt as `task=candidate-discovery` in governance history.
+- Expose protected `POST /api/admin/discovery` for manual discovery runs.
+
+Acceptance:
+
+- Cron keeps a five-repository hourly budget, runs candidate discovery first, and uses any remaining budget for existing-project refresh.
+- Candidate discovery failure does not break the existing project refresh path.
+- Discovery responses show the query, discovered count, selected candidates, synced projects, failed projects, and governance run.
+- Operators can inspect discovery history through `/api/governance/runs?task=candidate-discovery`.
+
 ## Operator Guidance
 
 Use these commands while Phase 1 is in place:
@@ -144,3 +169,18 @@ SYNC_SECRET=... pnpm sync:prod:catchup --rounds 10 --limit 5 --signal-depth lite
 ```
 
 Increase catch-up batch size only after recent sync runs are healthy.
+
+For a manual candidate discovery run:
+
+```sh
+curl -X POST https://git.top/api/admin/discovery \
+  -H "authorization: Bearer $SYNC_SECRET" \
+  -H "content-type: application/json" \
+  -d '{"max_candidates":5}'
+```
+
+Inspect discovery history:
+
+```sh
+curl "https://git.top/api/governance/runs?task=candidate-discovery"
+```

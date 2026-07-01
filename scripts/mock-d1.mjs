@@ -10,6 +10,7 @@ export function mockD1Env(options = {}) {
     syncRuns: [],
     governanceRuns: [],
     githubRequestCache: [],
+    candidateRepositories: [],
     knowledge: null,
     classificationOverrides: [],
     ...input
@@ -18,6 +19,9 @@ export function mockD1Env(options = {}) {
     DB: {
       prepare(sql) {
         return new MockStatement(sql, [], config);
+      },
+      async batch(statements) {
+        return Promise.all(statements.map((statement) => statement.run()));
       }
     }
   };
@@ -78,6 +82,11 @@ class MockStatement {
     if (this.sql.includes("FROM github_request_cache")) {
       return {
         results: this.config.githubRequestCache
+      };
+    }
+    if (this.sql.includes("FROM candidate_repositories")) {
+      return {
+        results: this.config.candidateRepositories
       };
     }
     return {
@@ -219,6 +228,48 @@ class MockStatement {
           this.config.githubRequestCache[index] = nextRow;
         } else {
           this.config.githubRequestCache.unshift(nextRow);
+        }
+      }
+    }
+    if (this.sql.includes("candidate_repositories")) {
+      if (this.sql.includes("UPDATE candidate_repositories")) {
+        const repository = String(this.bindings[this.bindings.length - 1]).toLowerCase();
+        const row = this.config.candidateRepositories.find((item) => String(item.repository).toLowerCase() === repository);
+        if (row) {
+          if (this.sql.includes("status = 'synced'")) {
+            row.status = "synced";
+            row.last_synced_at = this.bindings[0];
+            row.last_error = null;
+          }
+          if (this.sql.includes("status = 'failed'")) {
+            row.status = "failed";
+            row.last_error = this.bindings[0];
+          }
+        }
+      } else {
+        const [repository, category, source, source_query, stars, pushed_at, description, status, first_seen_at, last_seen_at] = this.bindings;
+        const nextRow = {
+          repository,
+          category,
+          source,
+          source_query,
+          stars,
+          pushed_at,
+          description,
+          status,
+          first_seen_at,
+          last_seen_at,
+          last_synced_at: null,
+          last_error: null
+        };
+        const index = this.config.candidateRepositories.findIndex((row) => row.repository === repository);
+        if (index >= 0) {
+          this.config.candidateRepositories[index] = {
+            ...this.config.candidateRepositories[index],
+            ...nextRow
+          };
+        } else {
+          this.config.candidateRepositories.unshift(nextRow);
         }
       }
     }

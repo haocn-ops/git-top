@@ -544,9 +544,27 @@ curl -X POST http://localhost:8787/api/admin/sync \
   -d '{"repositories":["cloudflare/agents","modelcontextprotocol/servers"],"limit":2}'
 ```
 
-Cron sync uses lightweight collection, refreshes stale priority queues before seed cursor fallback, and skips inline derived alternatives refresh. Admin sync defaults to refreshing derived alternatives for backward compatibility; pass `refresh_derived:false` for catch-up runs that should only update raw GitHub-backed project metadata.
+Cron sync uses lightweight collection with a five-repository hourly budget. It runs candidate discovery first for up to five new repositories, then uses any remaining budget to refresh stale priority queues before seed cursor fallback, and skips inline derived alternatives refresh. Admin sync defaults to refreshing derived alternatives for backward compatibility; pass `refresh_derived:false` for catch-up runs that should only update raw GitHub-backed project metadata.
 
 The response includes `github_request_metrics`, per-repository `repository_request_metrics`, and `derived_refresh`. After `migrations/0006_github_request_cache.sql` is applied, repeated syncs can send GitHub validators and reuse cached JSON for `304 Not Modified` responses.
+
+## Admin Candidate Discovery
+
+Candidate discovery requires `SYNC_SECRET`. It supplements the curated seed list by rotating GitHub search queries, storing candidates in `candidate_repositories`, and syncing up to five new repositories per run.
+
+```sh
+curl -X POST http://localhost:8787/api/admin/discovery \
+  -H "authorization: Bearer $SYNC_SECRET" \
+  -H "content-type: application/json" \
+  -d '{"max_candidates":5}'
+```
+
+Optional request fields:
+
+- `max_candidates`: maximum new candidates to sync, capped at 5.
+- `search_index`: deterministic index into the rotating query list.
+
+The response includes `query`, `discovered_count`, `selected`, `synced`, `failed`, and the recorded `candidate-discovery` governance `run`.
 
 ## Admin Derived Alternatives
 

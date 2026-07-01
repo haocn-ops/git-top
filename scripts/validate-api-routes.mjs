@@ -810,6 +810,7 @@ async function testOpenApiDocument() {
   assert.ok(openapi.body.components.schemas.RelatedRequest, "OpenAPI should include RelatedRequest schema");
   assert.ok(openapi.body.components.schemas.ScoreRequest, "OpenAPI should include ScoreRequest schema");
   assert.ok(openapi.body.components.schemas.GraphRequest, "OpenAPI should include GraphRequest schema");
+  assert.ok(openapi.body.paths["/api/admin/discovery"], "OpenAPI should document candidate discovery endpoint");
   assert.ok(openapi.body.paths["/api/admin/classification-overrides"], "OpenAPI should document classification override endpoint");
   const searchParameterNames = openapi.body.paths["/api/search"].get.parameters.map((item) => item.name);
   assert.ok(searchParameterNames.includes("project_kind"));
@@ -829,6 +830,7 @@ async function testOpenApiDocument() {
     );
   }
   assert.deepEqual(openapi.body.paths["/api/admin/classification-overrides"], openApiDocument.paths["/api/admin/classification-overrides"]);
+  assert.deepEqual(openapi.body.paths["/api/admin/discovery"], openApiDocument.paths["/api/admin/discovery"]);
   assert.equal(openapi.body.components.securitySchemes.syncSecret.scheme, "bearer");
   assert.deepEqual(openapi.body.paths["/api/quality/review"], openApiDocument.paths["/api/quality/review"]);
 }
@@ -1022,6 +1024,60 @@ async function testMethodAndBodyValidation() {
   assert.equal(alternativesRuns.status, 200);
   assert.equal(alternativesRuns.body.runs.length, 1);
   assert.equal(alternativesRuns.body.runs[0].task, "derived:alternatives");
+
+  const discoveryGet = await request("/api/admin/discovery");
+  assert.equal(discoveryGet.status, 405);
+  assert.equal(discoveryGet.body.error.code, "method_not_allowed");
+
+  const discoveryUnauthorized = await request("/api/admin/discovery", { method: "POST" });
+  assert.equal(discoveryUnauthorized.status, 401);
+  assert.equal(discoveryUnauthorized.body.error.code, "unauthorized");
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input) => {
+    const url = input instanceof Request ? input.url : input instanceof URL ? input.href : String(input);
+    if (url.startsWith("https://api.github.com/search/repositories")) {
+      return Response.json({
+        items: [
+          {
+            full_name: "cloudflare/agents",
+            description: "Build and deploy AI agents on Cloudflare.",
+            stargazers_count: 1000,
+            pushed_at: "2026-06-30T00:00:00Z",
+            archived: false,
+            disabled: false,
+            private: false,
+            fork: false
+          }
+        ]
+      });
+    }
+    return originalFetch(input);
+  };
+  try {
+    const discoveryEnv = { ...mockD1Env(), SYNC_SECRET: "test-secret" };
+    const authorizedDiscovery = await request(
+      "/api/admin/discovery",
+      {
+        method: "POST",
+        headers: {
+          authorization: "Bearer test-secret",
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ max_candidates: 1, search_index: 0 })
+      },
+      discoveryEnv
+    );
+    assert.equal(authorizedDiscovery.status, 200);
+    assert.equal(authorizedDiscovery.body.query.category, "agent_framework");
+    assert.equal(authorizedDiscovery.body.discovered_count, 1);
+    assert.deepEqual(authorizedDiscovery.body.selected, []);
+    assert.deepEqual(authorizedDiscovery.body.synced, []);
+    assert.equal(authorizedDiscovery.body.run.task, "candidate-discovery");
+    assert.equal(authorizedDiscovery.body.run.status, "skipped");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 
   const adminOverrides = await request("/api/admin/classification-overrides");
   assert.equal(adminOverrides.status, 401);

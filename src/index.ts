@@ -32,6 +32,7 @@ import { renderStatusPage } from "./status-page";
 import { renderTrendsPage } from "./trends-page";
 import { renderTrustGatePage } from "./trust-gate";
 import { renderWorkflowPage } from "./workflow-page";
+import { discoverAndSyncCandidateProjects } from "./candidate-discovery";
 import {
   canonicalHostRedirect,
   renderDocsPage,
@@ -54,9 +55,18 @@ export default {
   },
 
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(syncGithubProjects(env, { limit: scheduledSyncLimit, trigger: "cron", signalDepth: "lite" }));
+    ctx.waitUntil(runScheduledMaintenance(env));
   }
 };
+
+async function runScheduledMaintenance(env: Env): Promise<void> {
+  const discovery = await discoverAndSyncCandidateProjects(env, { trigger: "cron", maxCandidates: scheduledSyncLimit });
+  const discoveryAttempts = Array.isArray(discovery.selected) ? discovery.selected.length : 0;
+  const refreshLimit = Math.max(0, scheduledSyncLimit - discoveryAttempts);
+  if (refreshLimit > 0) {
+    await syncGithubProjects(env, { limit: refreshLimit, trigger: "cron", signalDepth: "lite" });
+  }
+}
 
 async function routeRequest(request: Request, env: Env, url: URL): Promise<Response> {
   const canonicalRedirect = canonicalHostRedirect(request, url);

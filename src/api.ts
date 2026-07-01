@@ -10,6 +10,7 @@ import {
 import { buildAlternativesDecision, generateAlternativeMatches, toAlternativeMatchView } from "./alternatives";
 import { buildAgentMap } from "./agent-map";
 import { buildAtlasEcosystemView, findAtlasEcosystem, listAtlasEcosystems } from "./atlas-page";
+import { discoverAndSyncCandidateProjects } from "./candidate-discovery";
 import { getHealth } from "./health";
 import { getSyncStatus } from "./db-sync-store";
 import { listClassificationOverrides, upsertClassificationOverride } from "./db-write-store";
@@ -93,6 +94,37 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       });
     } catch (error) {
       return errorJson(500, "alternatives_refresh_failed", formatError(error));
+    }
+  }
+
+  if (path === "/api/admin/discovery") {
+    if (request.method !== "POST") {
+      return errorJson(405, "method_not_allowed", "Candidate discovery endpoint requires POST.");
+    }
+
+    if (!isAuthorizedAdmin(request, env)) {
+      return errorJson(401, "unauthorized", "Missing or invalid admin authorization.");
+    }
+
+    let body: { maxCandidates?: number; max_candidates?: number; searchIndex?: number; search_index?: number } = {};
+    try {
+      body = (await request.json()) as { maxCandidates?: number; max_candidates?: number; searchIndex?: number; search_index?: number };
+    } catch {
+      body = {};
+    }
+
+    try {
+      return json(await discoverAndSyncCandidateProjects(env, {
+        trigger: "admin",
+        maxCandidates: typeof body.maxCandidates === "number" ? body.maxCandidates : body.max_candidates,
+        searchIndex: typeof body.searchIndex === "number" ? body.searchIndex : body.search_index
+      }), {
+        headers: {
+          "cache-control": "no-store"
+        }
+      });
+    } catch (error) {
+      return errorJson(500, "candidate_discovery_failed", formatError(error));
     }
   }
 

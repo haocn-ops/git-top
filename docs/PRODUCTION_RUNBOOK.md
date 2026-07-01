@@ -126,7 +126,7 @@ Healthy production should show:
 - `last_failed_sync_at` empty or older than the latest successful run.
 - `last_error` empty unless the most recent sync failed.
 
-Cron sync intentionally uses lightweight signal collection: it processes five repositories per invocation, reads README and root files, checks one page each for commits, releases, and contributors, and skips issue-comment deep dives. It refreshes stale hot/warm/cold repositories before falling back to the seed cursor, does not rebuild global alternatives inline, and keeps steady progress under Cloudflare Worker subrequest limits.
+Cron sync intentionally uses lightweight signal collection and keeps a five-repository hourly budget. It runs candidate discovery first for up to five new repositories, then uses any remaining budget to refresh existing hot/warm/cold repositories before falling back to the seed cursor. This keeps steady progress under Cloudflare Worker subrequest limits while allowing the corpus to grow beyond the curated seed list.
 
 Trigger a small protected sync when needed:
 
@@ -155,6 +155,23 @@ SYNC_SECRET=... pnpm sync:prod:catchup --rounds 10 --limit 5 --signal-depth lite
 The sync code caps manual catch-up batches at 50, but larger batches should be used only after checking recent `/api/sync/status` runs. If production is `degraded` with a subrequest-limit error, run `limit:1` or `limit:5` with `signal_depth:"lite"` until a successful run makes `health` return to `healthy`. Retryable platform and rate-limit failures stop the batch and do not advance the sync cursor past unprocessed repositories.
 
 Admin sync responses include `github_request_metrics`, per-repository `repository_request_metrics`, and `derived_refresh`. Use those fields to confirm that GitHub conditional requests are active and that catch-up runs intentionally skipped expensive derived rebuilds.
+
+## Candidate Discovery
+
+Candidate discovery rotates conservative GitHub search queries and records `task=candidate-discovery` governance runs. Trigger it manually when the corpus has plateaued or after applying discovery-related migrations:
+
+```sh
+curl -X POST https://git.top/api/admin/discovery \
+  -H "authorization: Bearer $SYNC_SECRET" \
+  -H "content-type: application/json" \
+  -d '{"max_candidates":5}'
+```
+
+Inspect recent discovery runs:
+
+```sh
+curl "https://git.top/api/governance/runs?task=candidate-discovery"
+```
 
 ## Derived Alternatives Refresh
 

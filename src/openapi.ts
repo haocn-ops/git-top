@@ -395,6 +395,39 @@ export const openApiDocument = {
         responses: { "200": { description: "Graph-grounded project set, plan, comparison, or stack" } }
       }
     },
+    "/api/admin/discovery": {
+      post: {
+        summary: "Discover and sync new candidate repositories from GitHub search.",
+        security: [{ syncSecret: [] }],
+        requestBody: {
+          required: false,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  max_candidates: {
+                    type: "integer",
+                    minimum: 1,
+                    maximum: 5,
+                    description: "Maximum number of new candidates to sync in this run."
+                  },
+                  search_index: {
+                    type: "integer",
+                    description: "Optional deterministic index for the rotating discovery query."
+                  }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          "200": { description: "Candidate discovery result and recorded governance run" },
+          "401": { description: "Missing or invalid admin authorization" },
+          "405": { description: "Candidate discovery requires POST" }
+        }
+      }
+    },
     "/api/admin/classification-overrides": {
       get: {
         summary: "List reviewed classification overrides.",

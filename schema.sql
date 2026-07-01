@@ -120,6 +120,21 @@ CREATE TABLE IF NOT EXISTS github_request_cache (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS candidate_repositories (
+  repository TEXT PRIMARY KEY,
+  category TEXT,
+  source TEXT NOT NULL,
+  source_query TEXT NOT NULL,
+  stars INTEGER NOT NULL DEFAULT 0,
+  pushed_at TEXT,
+  description TEXT,
+  status TEXT NOT NULL DEFAULT 'candidate',
+  first_seen_at TEXT NOT NULL,
+  last_seen_at TEXT NOT NULL,
+  last_synced_at TEXT,
+  last_error TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_projects_language ON projects(language);
 CREATE INDEX IF NOT EXISTS idx_projects_stars ON projects(stars DESC);
 CREATE INDEX IF NOT EXISTS idx_agent_cards_category ON agent_cards(category);
@@ -131,3 +146,5 @@ CREATE INDEX IF NOT EXISTS idx_classification_overrides_reviewed_at ON classific
 CREATE INDEX IF NOT EXISTS idx_governance_runs_task_started_at ON governance_runs(task, started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_governance_runs_started_at ON governance_runs(started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_github_request_cache_checked_at ON github_request_cache(checked_at DESC);
+CREATE INDEX IF NOT EXISTS idx_candidate_repositories_status ON candidate_repositories(status, last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS idx_candidate_repositories_stars ON candidate_repositories(stars DESC);
