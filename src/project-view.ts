@@ -12,6 +12,15 @@ export interface ProjectSummary {
   alternatives: Array<{ repo: string; reason: string }>;
 }
 
+export interface NormalizedEvidence {
+  classification: ProjectKnowledgeView["classification"];
+  quality_signal_confidence: ProjectKnowledgeView["qualitySignalConfidence"];
+  source_fields: string[];
+  caveats: string[];
+  confidence_reason: string;
+  last_verified_at: string | null;
+}
+
 interface ProjectSummarySource {
   projectKind: ProjectKnowledge["agentCard"]["projectKind"];
   category: string[];
@@ -79,6 +88,11 @@ export interface ProjectKnowledgeView {
     adoption: number;
     agentReadability: number;
   };
+  evidence: NormalizedEvidence;
+  caveats: string[];
+  confidenceReason: string;
+  sourceFields: string[];
+  lastVerifiedAt: string | null;
 }
 
 const categorySummaryHints: Record<
@@ -237,11 +251,17 @@ export function toProjectKnowledgeView(item: ProjectKnowledge): ProjectKnowledge
     agentScoreBreakdown: getAgentScoreParts(item),
     gitTopScore,
     gitTopScoreBreakdown
-  } satisfies Omit<ProjectKnowledgeView, "summary">;
+  } satisfies Omit<ProjectKnowledgeView, "summary" | "evidence" | "caveats" | "confidenceReason" | "sourceFields" | "lastVerifiedAt">;
+  const evidence = buildNormalizedEvidence(item, view);
 
   return {
     ...view,
-    summary: buildProjectSummary(view)
+    summary: buildProjectSummary(view),
+    evidence,
+    caveats: evidence.caveats,
+    confidenceReason: evidence.confidence_reason,
+    sourceFields: evidence.source_fields,
+    lastVerifiedAt: evidence.last_verified_at
   };
 }
 
@@ -311,6 +331,48 @@ function withDefaultConfidence(confidence: ProjectKnowledge["metrics"]["signalCo
     commits30d: confidence?.commits30d ?? "unknown",
     releases180d: confidence?.releases180d ?? "unknown",
     contributors90d: confidence?.contributors90d ?? "unknown"
+  };
+}
+
+function buildNormalizedEvidence(item: ProjectKnowledge, view: Omit<ProjectKnowledgeView, "summary" | "evidence" | "caveats" | "confidenceReason" | "sourceFields" | "lastVerifiedAt">): NormalizedEvidence {
+  const classificationSignals = Object.entries(view.classification ?? {});
+  const lowClassificationSignals = classificationSignals
+    .filter(([, signal]) => signal?.confidence === "low")
+    .map(([field]) => field);
+  const partialQualitySignals = Object.entries(view.qualitySignalConfidence ?? {})
+    .filter(([, value]) => value === "partial" || value === "unknown" || value === "estimated")
+    .map(([field]) => field);
+  const caveats = uniqueStrings([
+    ...view.notGoodFor,
+    ...(lowClassificationSignals.length ? [`Low-confidence classification fields: ${lowClassificationSignals.join(", ")}.`] : []),
+    ...(partialQualitySignals.length ? [`Partial or estimated quality signals: ${partialQualitySignals.join(", ")}.`] : []),
+    ...(view.projectKind === "collection" ? ["Collection/resource hub; not a single installable runtime."] : [])
+  ]);
+  const highSignals = classificationSignals.filter(([, signal]) => signal?.confidence === "high").length;
+  const confidenceReason =
+    highSignals >= 3 && partialQualitySignals.length <= 1
+      ? "Classification evidence and quality signals are strong enough for shortlist reasoning when metadata is current."
+      : highSignals >= 2
+        ? "Evidence is usable for comparison, but agents should cite caveats before making a strong recommendation."
+        : "Evidence is incomplete; use this project as an exploration candidate until classification and quality signals are reviewed.";
+
+  return {
+    classification: view.classification,
+    quality_signal_confidence: view.qualitySignalConfidence,
+    source_fields: [
+      "project.description",
+      "project.topics",
+      "project.language",
+      "project.license",
+      "agent_card.summary_for_agent",
+      "agent_card.use_cases",
+      "agent_card.deployment",
+      "agent_card.classification",
+      "metrics"
+    ],
+    caveats,
+    confidence_reason: confidenceReason,
+    last_verified_at: item.project.syncedAt ?? item.metrics.calculatedAt ?? null
   };
 }
 

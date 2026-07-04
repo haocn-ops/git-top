@@ -9,13 +9,14 @@ import {
 import { buildAgentMap } from "./agent-map";
 import { buildAlternativesDecision, generateAlternativeMatches, toAlternativeMatchView } from "./alternatives";
 import { buildAtlasEcosystemView, findAtlasEcosystem, listAtlasEcosystems } from "./atlas-page";
+import { buildPublicBenchmarkReportFromInputs } from "./benchmark";
 import type { ProjectKnowledgeResult } from "./knowledge-source";
 import { buildKnowledgeGraph, compareProjectKnowledge } from "./graph";
 import { normalizeGrpRequest, runGrpQuery } from "./grp";
 import { errorJson, json, rawJson, stringifyApiJson } from "./http";
 import { buildProjectSummary, toProjectKnowledgeView, withRelatedProjects } from "./project-view";
 import { buildProjectScoreExplanation } from "./score";
-import { buildQualityReport } from "./quality";
+import { buildLowConfidenceReviewReport, buildQualityReport } from "./quality";
 import { getKnowledgeForSourcePolicy } from "./source-policy";
 import { buildTrendsView } from "./trends";
 import { buildTrustGate } from "./trust-gate";
@@ -77,6 +78,20 @@ const tools = [
     name: "get_quality_report",
     description:
       "Return the corpus quality and coverage report with release score, data trust score, risk level, coverage, issue summary, and review queue size.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        require_d1: {
+          type: "boolean",
+          description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
+        }
+      }
+    }
+  },
+  {
+    name: "get_public_benchmark",
+    description:
+      "Return the public trust benchmark with eval hit rates, explanation coverage, data trust, review queue size, known limitations, and source links.",
     inputSchema: {
       type: "object",
       properties: {
@@ -406,6 +421,13 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
       agentMap,
       agentApi: {
         openapiUrl: "https://git.top/api/openapi.json",
+        responseContract: {
+          toolContentType: "application/json",
+          toolContentBlock: "content[0].text",
+          parseInstruction: "Parse JSON-RPC tools/call result.content text blocks as JSON before reading metadata or fields.",
+          strictSourceArgument: "Pass require_d1: true on tools that read project knowledge when seed fallback should fail closed.",
+          strictSourceError: { code: -32003, message: "D1-backed knowledge is required, but current source is seed." }
+        },
         structuredPostEndpoints: [
           {
             path: "/api/project",
@@ -464,6 +486,18 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
             bodyExample: { project_id: "cloudflare/agents", limit: 24 }
           },
           {
+            path: "/api/grp/query",
+            method: "POST",
+            description: "Run Graph Reasoning Protocol for graph-grounded planning, comparison, discovery, or stack composition.",
+            bodyExample: {
+              goal: "compose a Cloudflare-ready coding agent stack",
+              mode: "compose",
+              constraints: { deploy: ["cloudflare"], agent_ready: true }
+            }
+          }
+        ],
+        readEndpoints: [
+          {
             path: "/api/trends",
             method: "GET",
             description: "Inspect corpus-level category, deployment, language, rising-project, and agent-briefing trend signals.",
@@ -474,14 +508,21 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
             method: "GET",
             description: "Inspect the production-readiness Trust Gate before high-confidence recommendations.",
             bodyExample: null
+          },
+          {
+            path: "/api/benchmark",
+            method: "GET",
+            description: "Inspect public eval health, explanation coverage, data trust, review queue, and known limitations.",
+            bodyExample: null
           }
         ]
       },
       quickstart: [
       "GET /api/trust or call get_trust_gate before high-confidence production recommendations.",
+      "GET /api/benchmark or call get_public_benchmark when you need citable eval health, explanation coverage, and known limitations.",
       "GET /api/health to confirm system availability, then rely on metadata.source=d1 for production recommendations.",
       "Use agent_map.short_path first, then expand into agent_map.reference_path when you need the fuller discovery surface.",
-        "Use structured POST endpoints under agent_api.structured_post_endpoints for project, recommendation, comparison, alternatives, and graph requests.",
+        "Use structured POST endpoints under agent_api.structured_post_endpoints for project, recommendation, comparison, alternatives, graph, and GRP requests.",
         "Call tools/list to inspect available MCP tools.",
         "Call search_projects with query, category, deployment, and limit.",
         "Call get_project or compare_projects before presenting a final recommendation.",
@@ -517,6 +558,17 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
               cloudflare_ready: true
             },
             limit: 5
+          }
+        },
+        publicBenchmark: {
+          jsonrpc: "2.0",
+          id: 8,
+          method: "tools/call",
+          params: {
+            name: "get_public_benchmark",
+            arguments: {
+              require_d1: true
+            }
           }
         }
       },
@@ -716,6 +768,19 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
       ...buildQualityReport(knowledge.projects),
       metadata: knowledge.metadata
     };
+  }
+
+  if (name === "get_public_benchmark") {
+    const knowledge = await requireKnowledgeSource(env, args);
+    if (isToolErrorResult(knowledge)) {
+      return knowledge;
+    }
+    return buildPublicBenchmarkReportFromInputs(
+      buildQualityReport(knowledge.projects),
+      buildLowConfidenceReviewReport(knowledge.projects),
+      knowledge.metadata,
+      new Date().toISOString()
+    );
   }
 
   if (name === "get_trust_gate") {

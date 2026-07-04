@@ -117,6 +117,8 @@ export function renderLlmsTxt(): Response {
       "- Roadmap: https://git.top/roadmap",
       "- Agent workflow: https://git.top/workflow",
       "- Trust gate: https://git.top/trust",
+      "- Public benchmark: https://git.top/benchmark",
+      "- Public benchmark JSON: https://git.top/api/benchmark",
       "- Trust Gate Guide: https://git.top/topics/trust-gate-guide",
       "- OpenAPI: https://git.top/openapi.json",
       "- Project schema: https://git.top/api/schema/project.v2",
@@ -135,6 +137,7 @@ export function renderLlmsTxt(): Response {
       "- Prefer metadata.source=d1 for production answers.",
       "- Check /status for D1 availability, sync health, and freshness before production use.",
       "- Check /trust or /api/trust for a single production-readiness gate before high-confidence recommendations.",
+      "- Check /benchmark or /api/benchmark for public eval health, explanation coverage, data trust, review queue size, and known limitations.",
       "- Check /coverage when the question depends on corpus breadth or category representation.",
       "- Inspect classification evidence and quality_signal_confidence before citing a score.",
       "- Use /mcp for JSON-RPC tools/list and tools/call.",
@@ -238,6 +241,7 @@ export function renderLlmsFullTxt(): Response {
       "- GET /api/examples",
       "- GET /api/roadmap",
       "- GET /api/trust",
+      "- GET /api/benchmark",
       "- GET /api/quality",
       "- GET /api/quality/review",
       "- GET /api/sync/status",
@@ -345,6 +349,7 @@ export function renderLlmsFullTxt(): Response {
       "- /journeys",
       "- /status",
       "- /trust",
+      "- /benchmark",
       "- /quality",
       "- /coverage",
       "- /quality/review",
@@ -356,6 +361,7 @@ export function renderLlmsFullTxt(): Response {
       "- /api/recipes",
       "- /api/examples",
       "- /api/trust",
+      "- /api/benchmark",
       "- /api/roadmap",
       "- /llms.txt",
       "- /llms-full.txt",
@@ -428,6 +434,7 @@ function staticSitemapUrls(now: string): SitemapUrl[] {
     { path: "/roadmap", changefreq: "weekly", priority: "0.8", lastmod: now },
     { path: "/status", changefreq: "daily", priority: "0.8", lastmod: now },
     { path: "/trust", changefreq: "daily", priority: "0.8", lastmod: now },
+    { path: "/benchmark", changefreq: "daily", priority: "0.8", lastmod: now },
     { path: "/operations", changefreq: "daily", priority: "0.8", lastmod: now },
     { path: "/quality", changefreq: "daily", priority: "0.8", lastmod: now },
     { path: "/coverage", changefreq: "daily", priority: "0.8", lastmod: now },
@@ -504,6 +511,7 @@ function staticSitemapUrls(now: string): SitemapUrl[] {
     { path: "/api/trends", changefreq: "daily", priority: "0.7", lastmod: now },
     { path: "/api/workflow", changefreq: "daily", priority: "0.7", lastmod: now },
     { path: "/api/trust", changefreq: "daily", priority: "0.7", lastmod: now },
+    { path: "/api/benchmark", changefreq: "daily", priority: "0.7", lastmod: now },
     { path: "/api/quality", changefreq: "daily", priority: "0.7", lastmod: now },
     { path: "/api/governance/summary", changefreq: "daily", priority: "0.6", lastmod: now },
     { path: "/api/governance/runs", changefreq: "daily", priority: "0.6", lastmod: now },
@@ -644,6 +652,7 @@ export function renderDocsPage(): Response {
           <a class="button" href="/recipes">Agent recipes</a>
           <a class="button" href="/integrations">Integration paths</a>
           <a class="button" href="/mcp">Inspect MCP tools</a>
+          <a class="button" href="/benchmark">Public benchmark</a>
           <a class="button" href="/quality">Check quality governance</a>
         </div>
       </header>
@@ -672,6 +681,8 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
             <a class="pill" href="/recipes">/recipes</a>
             <a class="pill" href="/api/recipes">/api/recipes</a>
             <a class="pill" href="/integrations">/integrations</a>
+            <a class="pill" href="/benchmark">/benchmark</a>
+            <a class="pill" href="/api/benchmark">/api/benchmark</a>
             <a class="pill" href="/api/quality">/api/quality</a>
             <a class="pill" href="/api/quality/review">/api/quality/review</a>
             <a class="pill" href="/quality">/quality</a>
@@ -763,7 +774,7 @@ curl "https://git.top/api/compare?repos=cloudflare/agents,langchain-ai/langchain
           <ul>
             <li>Canonical host: <code>https://git.top</code></li>
             <li>Security contact: <code>security@git.top</code></li>
-            <li>Machine discovery: <code>/robots.txt</code>, <code>/sitemap.xml</code>, <code>/status</code>, <code>/quality</code>, <code>/coverage</code>, <code>/llms.txt</code>, <code>/llms-full.txt</code>, <code>/.well-known/security.txt</code>, <code>/mcp</code></li>
+            <li>Machine discovery: <code>/robots.txt</code>, <code>/sitemap.xml</code>, <code>/status</code>, <code>/trust</code>, <code>/benchmark</code>, <code>/quality</code>, <code>/coverage</code>, <code>/llms.txt</code>, <code>/llms-full.txt</code>, <code>/.well-known/security.txt</code>, <code>/mcp</code></li>
             <li>Integration contact path: <code>/integrations</code> summarizes REST, MCP, GRP, production checks, boundaries, and security contact.</li>
           </ul>
         </article>

@@ -67,8 +67,16 @@ export function buildProjectScoreExplanation(project: ProjectKnowledge) {
       not_good_for: view.notGoodFor,
       quality_signals: view.qualitySignals,
       quality_signal_confidence: view.qualitySignalConfidence,
-      classification: view.classification
+      classification: view.classification,
+      source_fields: view.sourceFields,
+      caveats: view.caveats,
+      confidence_reason: view.confidenceReason,
+      last_verified_at: view.lastVerifiedAt
     },
+    caveats: view.caveats,
+    confidence_reason: scoreConfidence.summary,
+    source_fields: view.sourceFields,
+    last_verified_at: view.lastVerifiedAt,
     links: {
       page: `/score/${view.repo}`,
       project_api: `/api/project/${view.repo}`,

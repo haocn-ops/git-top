@@ -23,6 +23,7 @@ async function testDiscovery() {
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_agent_workflow"));
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_atlas"));
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_quality_report"));
+  assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_public_benchmark"));
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_trust_gate"));
   assert.equal(getDiscovery.body.trust_url, "https://git.top/api/trust");
   assert.equal(getDiscovery.body.openapi_url, "https://git.top/openapi.json");
@@ -47,8 +48,19 @@ async function testDiscovery() {
   assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/related"));
   assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/score"));
   assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/graph"));
-  assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/trust"));
+  assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.some((endpoint) => endpoint.path === "/api/grp/query"));
+  assert.ok(getDiscovery.body.agent_api.structured_post_endpoints.every((endpoint) => endpoint.method === "POST"));
+  assert.ok(Array.isArray(getDiscovery.body.agent_api.read_endpoints));
+  assert.ok(getDiscovery.body.agent_api.read_endpoints.some((endpoint) => endpoint.path === "/api/trust"));
+  assert.ok(getDiscovery.body.agent_api.read_endpoints.some((endpoint) => endpoint.path === "/api/benchmark"));
+  assert.ok(getDiscovery.body.agent_api.read_endpoints.some((endpoint) => endpoint.path === "/api/trends"));
+  assert.ok(getDiscovery.body.agent_api.read_endpoints.every((endpoint) => endpoint.method === "GET"));
+  assert.equal(getDiscovery.body.agent_api.response_contract.tool_content_block, "content[0].text");
+  assert.equal(getDiscovery.body.agent_api.response_contract.tool_content_type, "application/json");
+  assert.match(getDiscovery.body.agent_api.response_contract.parse_instruction, /Parse JSON-RPC tools\/call result\.content text blocks as JSON/);
+  assert.equal(getDiscovery.body.agent_api.response_contract.strict_source_error.code, -32003);
   assert.ok(getDiscovery.body.quickstart.some((item) => item.includes("structured POST")));
+  assert.ok(getDiscovery.body.quickstart.some((item) => item.includes("get_public_benchmark")));
   assert.ok(getDiscovery.body.quickstart.some((item) => item.includes("get_trust_gate")));
   assert.ok(getDiscovery.body.quickstart.some((item) => item.includes("short_path")));
   assert.equal(getDiscovery.body.examples.structured_recommend.url, "https://git.top/api/recommend");
@@ -97,6 +109,10 @@ async function testDiscovery() {
   const qualityReportTool = getDiscovery.body.tools.find((tool) => tool.name === "get_quality_report");
   assert.match(qualityReportTool.description, /quality and coverage report/);
   assert.equal(qualityReportTool.input_schema.properties.require_d1.type, "boolean");
+
+  const benchmarkTool = getDiscovery.body.tools.find((tool) => tool.name === "get_public_benchmark");
+  assert.match(benchmarkTool.description, /public trust benchmark/);
+  assert.equal(benchmarkTool.input_schema.properties.require_d1.type, "boolean");
 
   const trustGateTool = getDiscovery.body.tools.find((tool) => tool.name === "get_trust_gate");
   assert.match(trustGateTool.description, /Trust Gate/);
@@ -484,10 +500,28 @@ async function testRequireD1ToolMode() {
   assert.equal(strictFallback.body.error.code, -32003);
   assert.match(strictFallback.body.error.message, /D1-backed knowledge is required/);
 
+  for (const [toolName, args] of [
+    ["get_project", { project_id: "cloudflare/agents", require_d1: true }],
+    ["recommend_project", { use_case: "cloudflare agent", require_d1: true }],
+    ["get_quality_report", { require_d1: true }],
+    ["get_public_benchmark", { require_d1: true }],
+    ["git_top_grp_query", { goal: "find cloudflare agents", mode: "find", require_d1: true }]
+  ]) {
+    const strictTool = await callTool(toolName, args);
+    assert.equal(strictTool.status, 400, `${toolName} should fail closed without D1`);
+    assert.equal(strictTool.body.error.code, -32003, `${toolName} should return d1_required MCP error`);
+  }
+
   const strictD1 = await callTool("search_projects", { query: "mock", require_d1: true }, mockD1Env());
   assert.equal(strictD1.status, 200);
   assert.equal(strictD1.result.projects.length, 1);
   assertMetadata(strictD1.result.metadata, "d1_query", "d1");
+
+  const strictBenchmarkD1 = await callTool("get_public_benchmark", { require_d1: true }, mockD1Env());
+  assert.equal(strictBenchmarkD1.status, 200);
+  assert.equal(strictBenchmarkD1.result.name, "Git.Top Public Trust Benchmark");
+  assert.equal(strictBenchmarkD1.result.evaluation.top3_hit_rate, 1);
+  assertMetadata(strictBenchmarkD1.result.metadata, "d1_query", "d1");
 
   const strictEmpty = await callTool("search_projects", { query: "cloudflare", require_d1: true }, mockD1Env("empty"));
   assert.equal(strictEmpty.status, 400);

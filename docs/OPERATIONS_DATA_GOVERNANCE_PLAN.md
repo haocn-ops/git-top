@@ -29,7 +29,7 @@ curl https://git.top/api/sync/status
 
 Automation:
 
-- GitHub Actions workflow: `.github/workflows/governance.yml`.
+- Cloudflare Worker cron: `src/scheduled-governance.ts`.
 - Task id: `daily-production-health`.
 - Result history: `/api/governance/runs?task=daily-production-health`.
 
@@ -66,7 +66,7 @@ pnpm docs:validate
 
 Automation:
 
-- GitHub Actions workflow: `.github/workflows/governance.yml`.
+- Cloudflare Worker cron: `src/scheduled-governance.ts`.
 - Task id: `weekly-data-governance`.
 - Result history: `/api/governance/runs?task=weekly-data-governance`.
 
@@ -104,9 +104,9 @@ GITHUB_TOKEN=... pnpm seed:live-check -- --fail-on-archived --fail-on-error
 
 Automation:
 
-- GitHub Actions workflow: `.github/workflows/governance.yml`.
+- Cloudflare Worker cron: `src/scheduled-governance.ts`.
 - Task id: `biweekly-live-check`.
-- Scheduled sample command: `pnpm seed:live-check -- --limit 50`.
+- Scheduled check: verifies recent sync health, seed coverage, remaining count, and priority staleness from D1.
 
 Actions:
 
@@ -128,8 +128,9 @@ pnpm quality:review
 
 Automation:
 
-- GitHub Actions workflow: `.github/workflows/governance.yml`.
+- Cloudflare Worker cron: `src/scheduled-governance.ts`.
 - Task id: `monthly-corpus-review`.
+- Scheduled check: refreshes derived alternatives and records corpus quality/risk summary from D1.
 
 Review:
 
@@ -218,14 +219,14 @@ Storage:
 
 Automation:
 
-- GitHub Actions workflow: `.github/workflows/governance.yml`.
-- Runner script: `scripts/run-governance-task.mjs`.
-- Recorder script: `scripts/record-governance-run.mjs`.
+- Cloudflare Worker cron: `src/index.ts`.
+- Worker-native governance runner: `src/scheduled-governance.ts`.
+- Optional external recorder endpoint: `/api/admin/governance/runs`.
 
-Required GitHub secrets:
+Required production secrets:
 
-- `SYNC_SECRET`: lets the workflow record governance run results.
-- `GITHUB_TOKEN`: provided by GitHub Actions; used by live repository checks.
+- `GITHUB_TOKEN`: used by Worker sync and candidate discovery.
+- `SYNC_SECRET`: protects manual admin governance and sync endpoints.
 
 ## First Execution Record
 

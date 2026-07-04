@@ -1,6 +1,6 @@
 # Git.Top Low-Confidence Review
 
-Generated at: 2026-06-29T14:09:34.316Z
+Generated at: 2026-07-04T04:07:43.986Z
 
 This report lists generated Agent Card classifications that need manual review before Git.Top scales further. It focuses on low and medium classification confidence, collection semantics, Cloudflare readiness ambiguity, and incomplete quality signals.
 

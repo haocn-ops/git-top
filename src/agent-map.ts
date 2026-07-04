@@ -33,8 +33,8 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     humanPage: "/projects/:owner/:repo",
     rest: ["GET /api/project/:owner/:repo", "GET /api/project/:project", "POST /api/project"],
     mcpTools: ["get_project", "get_project_card"],
-    outputFields: ["project", "knowledge", "related", "score", "quality_signal_confidence"],
-    trustFields: ["metadata.source", "metadata.reason", "classification.*.confidence", "quality_signal_confidence"],
+    outputFields: ["project", "knowledge", "related", "score", "quality_signal_confidence", "evidence", "caveats", "confidence_reason", "source_fields", "last_verified_at"],
+    trustFields: ["metadata.source", "metadata.reason", "classification.*.confidence", "quality_signal_confidence", "evidence.source_fields", "caveats"],
     recommendedUse: "Fetch one repository before making a recommendation or citing project facts."
   },
   {
@@ -42,8 +42,8 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     humanPage: "/recommend",
     rest: ["GET /api/recommend", "POST /api/recommend"],
     mcpTools: ["recommend_project"],
-    outputFields: ["recommendations", "recommendations[].decision_summary", "recommendations[].fit_profile", "recommendations[].adoption_plan", "recommendations[].risk_flags", "recommendations[].ranking_signals", "recommendations[].matched_constraints", "recommendations[].next_actions"],
-    trustFields: ["metadata.source", "recommendations[].confidence", "recommendations[].unmatched_constraints", "recommendations[].risk_flags"],
+    outputFields: ["recommendations", "recommendations[].decision_summary", "recommendations[].fit_profile", "recommendations[].adoption_plan", "recommendations[].risk_flags", "recommendations[].ranking_signals", "recommendations[].matched_constraints", "recommendations[].evidence", "recommendations[].caveats", "recommendations[].confidence_reason", "recommendations[].next_actions"],
+    trustFields: ["metadata.source", "recommendations[].confidence", "recommendations[].confidence_reason", "recommendations[].unmatched_constraints", "recommendations[].risk_flags", "recommendations[].evidence.source_fields"],
     recommendedUse: "Choose candidates from use case, deployment, category, license, language, and Cloudflare-readiness constraints."
   },
   {
@@ -96,8 +96,8 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     humanPage: "/alternatives/:project",
     rest: ["GET /api/alternatives/:project", "POST /api/alternatives"],
     mcpTools: ["get_alternatives", "find_alternatives"],
-    outputFields: ["summary", "stats", "alternative_matches", "alternative_matches[].fit_summary", "alternative_matches[].adoption_notes", "alternative_matches[].replacement_risk", "comparison_links", "next_actions"],
-    trustFields: ["metadata.source", "alternative_matches[].similarity_score", "alternative_matches[].match_signals", "alternative_matches[].replacement_risk"],
+    outputFields: ["summary", "stats", "alternative_matches", "alternative_matches[].fit_summary", "alternative_matches[].adoption_notes", "alternative_matches[].replacement_risk", "evidence", "caveats", "confidence_reason", "comparison_links", "next_actions"],
+    trustFields: ["metadata.source", "evidence.source_fields", "caveats", "alternative_matches[].similarity_score", "alternative_matches[].match_signals", "alternative_matches[].evidence.source_fields", "alternative_matches[].replacement_risk"],
     recommendedUse: "Find replacement candidates and move into compare, graph, score, or recommendation flows."
   },
   {
@@ -105,8 +105,8 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     humanPage: "/graph/:project",
     rest: ["GET /api/graph/:project", "GET /api/graph?repo=:project", "POST /api/graph"],
     mcpTools: ["get_project_graph"],
-    outputFields: ["summary", "graph_stats", "relationship_groups", "nodes", "edges", "next_actions"],
-    trustFields: ["metadata.source", "graph_stats.relationship_counts", "relationship_groups"],
+    outputFields: ["summary", "graph_stats", "relationship_groups", "nodes", "edges", "evidence", "caveats", "confidence_reason", "next_actions"],
+    trustFields: ["metadata.source", "evidence.source_fields", "caveats", "graph_stats.relationship_counts", "relationship_groups"],
     recommendedUse: "Inspect related projects, alternatives, dependencies, deployment targets, and use cases as first-class graph edges."
   },
   {
@@ -123,8 +123,8 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     humanPage: "/score/:project",
     rest: ["GET /api/score/:project", "POST /api/score"],
     mcpTools: ["get_quality_score"],
-    outputFields: ["git_top_score", "dimensions", "strongest_dimension", "weakest_dimension", "adoption_guidance", "risk_flags", "score_confidence"],
-    trustFields: ["metadata.source", "evidence", "related_scores", "score_confidence.level"],
+    outputFields: ["git_top_score", "dimensions", "strongest_dimension", "weakest_dimension", "adoption_guidance", "risk_flags", "score_confidence", "evidence", "caveats", "confidence_reason"],
+    trustFields: ["metadata.source", "evidence", "evidence.source_fields", "related_scores", "score_confidence.level", "caveats"],
     recommendedUse: "Explain why a project scores well or poorly across community, maintenance, documentation, stability, adoption, and agent readability."
   },
   {
@@ -159,18 +159,18 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     humanPage: "/integrations",
     rest: ["POST /api/grp/query"],
     mcpTools: ["git_top_grp_query"],
-    outputFields: ["solution_paths", "recommended_stack", "nodes", "edges", "explanation"],
-    trustFields: ["metadata.data_source", "decomposition", "confidence"],
+    outputFields: ["solution_paths", "recommended_stack", "nodes", "edges", "explanation", "evidence", "caveats", "confidence_reason"],
+    trustFields: ["metadata.data_source", "evidence.source_fields", "caveats", "source_fields"],
     recommendedUse: "Plan, compose, compare, or find project sets from a higher-level goal."
   },
   {
     concept: "Quality and coverage",
     humanPage: "/trust",
-    rest: ["GET /api/trust", "GET /api/quality", "GET /api/quality/review", "GET /api/health", "GET /api/sync/status"],
+    rest: ["GET /api/trust", "GET /api/benchmark", "GET /api/quality", "GET /api/quality/review", "GET /api/health", "GET /api/sync/status"],
     mcpTools: ["get_trust_gate", "get_quality_report"],
-    outputFields: ["decision", "production_ready", "checks", "agent_policy", "releaseScore", "dataTrustScore", "riskLevel", "coverage", "issues"],
-    trustFields: ["decision", "production_ready", "checks[].status", "metadata.source", "metadata.reason", "sync.freshness", "quality.risk_level"],
-    recommendedUse: "Use the Trust Gate before high-confidence recommendations; it combines source, sync freshness, release health, data trust, and risk into one decision."
+    outputFields: ["decision", "production_ready", "checks", "agent_policy", "evaluation", "explanations", "releaseScore", "dataTrustScore", "riskLevel", "coverage", "issues"],
+    trustFields: ["decision", "production_ready", "checks[].status", "evaluation.top3_hit_rate", "explanations.coverage", "metadata.source", "metadata.reason", "sync.freshness", "quality.risk_level"],
+    recommendedUse: "Use the Trust Gate and public benchmark before high-confidence recommendations; they combine source, sync freshness, eval health, explanation coverage, release health, data trust, and risk."
   },
   {
     concept: "Product roadmap",

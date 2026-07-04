@@ -14,7 +14,49 @@ Production base URL:
 https://git.top
 ```
 
-For a task-oriented walkthrough, start with [Agent Quickstart](./AGENT_QUICKSTART.md).
+For a task-oriented walkthrough, start with [Agent Quickstart](./AGENT_QUICKSTART.md). For copyable TypeScript and Python client patterns, see [SDK-Oriented Examples](./SDK_EXAMPLES.md).
+
+For the product assessment and agent-native improvement roadmap, see [Agent-Native Assessment and Optimization Plan](./AGENT_NATIVE_ASSESSMENT_AND_OPTIMIZATION_PLAN.md). Coding agents that modify this repository should start with [../AGENTS.md](../AGENTS.md).
+
+## Agent Contract Rules
+
+Agent-facing clients should treat these fields and behaviors as the stable trust contract:
+
+- Use `metadata.source` to distinguish D1-backed production data from seed fallback.
+- Use `require_d1=true` when a workflow should fail closed instead of returning fallback data.
+- Read `metadata.reason`, `metadata.warnings`, `metadata.truncated`, and `metadata.loaded_project_limit` before making high-confidence claims.
+- Inspect classification evidence and `quality_signal_confidence` before asserting category, deployment, Cloudflare readiness, quality, or activity.
+- Use normalized evidence fields where present: `evidence`, `caveats`, `confidence_reason`, `source_fields`, and `last_verified_at`.
+- Use `/api/trust` before high-confidence production recommendations.
+- Prefer structured fields such as recommendations, decision matrices, score dimensions, risk flags, evidence, and next actions over scraping HTML pages.
+
+Fields such as ranking order, generated summaries, and explanatory prose are advisory. Stable integrations should rely on canonical project ids, metadata, trust fields, scores, evidence, and documented request parameters.
+
+Project, recommendation, score, alternatives, graph, and GRP responses expose normalized evidence fields for agent citation:
+
+- `evidence`: classification, quality signal confidence, source fields, caveats, and verification time.
+- `caveats`: concise warnings an agent should disclose or resolve.
+- `confidence_reason`: a short explanation of why the response is high, medium, low, or review-worthy.
+- `source_fields`: the source record fields used to build the response.
+- `last_verified_at`: the best available sync or metric timestamp.
+
+## OpenAPI Examples
+
+`/openapi.json` includes compact canonical response examples for the highest-volume agent flows:
+
+- `GET /api/health`
+- `GET /api/trust`
+- `GET /api/search`
+- `GET /api/project/{owner}/{repo}`
+- `POST /api/recommend`
+- `GET /api/compare`
+- `GET /api/workflow`
+- `GET /api/alternatives/{owner}/{repo}`
+- `GET /api/graph`
+- `GET /api/score/{owner}/{repo}`
+- `GET /mcp`
+
+Use these examples as integration fixtures for client parsing and answer formatting. They are intentionally small and contract-focused; live responses may include more fields, more projects, and different ranking order.
 
 ## Agent Surface Map
 
@@ -156,16 +198,16 @@ curl "https://git.top/api/governance/runs?task=daily-production-health"
 curl "https://git.top/api/governance/runs?task=derived:alternatives"
 ```
 
-Scheduled GitHub Actions jobs record task results through the protected endpoint:
+Cloudflare Worker cron records scheduled governance results directly in D1. External or manual jobs can still record task results through the protected endpoint:
 
 ```sh
 curl -X POST https://git.top/api/admin/governance/runs \
   -H "authorization: Bearer $SYNC_SECRET" \
   -H "content-type: application/json" \
-  -d '{"task":"daily-production-health","status":"success","trigger":"github_actions","summary":{"quality_score":100}}'
+  -d '{"task":"daily-production-health","status":"success","trigger":"manual","summary":{"quality_score":100}}'
 ```
 
-The first automated tasks are `daily-production-health`, `weekly-data-governance`, `biweekly-live-check`, and `monthly-corpus-review`.
+The first Worker-native automated tasks are `daily-production-health`, `weekly-data-governance`, `biweekly-live-check`, and `monthly-corpus-review`.
 
 Derived data refreshes also record governance history. `derived:alternatives` is written by the protected alternatives refresh endpoint and is used by sync status and Trust Gate freshness checks.
 
@@ -374,6 +416,7 @@ Use alternatives when you need replacement candidates for the same job. The resp
 - `comparison_links`: direct compare, graph, project, and score links for the source project.
 - `alternatives`: backward-compatible project list.
 - `alternative_matches`: enriched alternatives with `similarity_score`, `alternative_reason`, `replacement_type`, and `match_signals`.
+- `evidence`, `caveats`, `confidence_reason`, `source_fields`, and `last_verified_at`: normalized citation and uncertainty fields for the overall decision and enriched alternative matches.
 
 The path form accepts either `owner/repo` or a Git.Top alias such as `claude-code`. Alias responses include `resolved_from`.
 
@@ -428,7 +471,7 @@ curl -X POST "http://localhost:8787/api/graph" \
   -d '{"project_id":"cloudflare/agents","limit":24}'
 ```
 
-Use graph responses when you need a project relationship model. Focused responses include `summary`, `graph_stats`, `next_actions`, `relationship_groups`, `nodes`, and `edges` across alternatives, related projects, dependencies, deployment targets, and use cases.
+Use graph responses when you need a project relationship model. Focused responses include `summary`, `graph_stats`, `next_actions`, `relationship_groups`, `nodes`, and `edges` across alternatives, related projects, dependencies, deployment targets, and use cases. They also include normalized `evidence`, `caveats`, `confidence_reason`, `source_fields`, and `last_verified_at` fields so agents can cite graph grounding and disclose weak relationship coverage.
 
 Focused graph requests accept either `repo=owner/repo`, `/api/graph/:owner/:repo`, or `/api/graph/:project` with a Git.Top alias. Alias responses include `resolved_from`.
 
@@ -493,6 +536,29 @@ Important review fields:
 
 Use `?require_d1=true` when an integration must fail closed instead of falling back to the bundled seed data.
 
+## Public Trust Benchmark
+
+```sh
+curl http://localhost:8787/api/benchmark
+curl http://localhost:8787/api/benchmark?require_d1=true
+```
+
+Use `/benchmark` or `/api/benchmark` when a user or agent needs a public, citable health summary without reading internal planning documents. The response combines current eval baseline metrics, explanation coverage, runtime data coverage, review queue size, known limitations, and links to quality/trust details.
+
+Important benchmark fields:
+
+- `evaluation.top1_hit_rate`
+- `evaluation.top3_hit_rate`
+- `evaluation.category_accuracy`
+- `evaluation.deployment_accuracy`
+- `explanations.coverage`
+- `data_coverage.release_score`
+- `data_coverage.data_trust_score`
+- `data_coverage.risk_level`
+- `review_queue.review_count`
+- `known_limitations`
+- `metadata.source`
+
 ## Schemas
 
 ```sh
@@ -512,6 +578,8 @@ curl -X POST http://localhost:8787/api/grp/query \
 ```
 
 Use `POST /api/grp/query?require_d1=true` when graph reasoning must fail closed unless the knowledge source is D1-backed.
+
+GRP responses include normalized `evidence`, `caveats`, `confidence_reason`, `source_fields`, and `last_verified_at` fields alongside `metadata.data_source`, `nodes`, `edges`, `solution_paths`, and `recommended_stack`.
 
 See `docs/GRP_EXAMPLES.md` for more examples.
 

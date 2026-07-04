@@ -1,4 +1,5 @@
 import { generateAlternativeMatches } from "./alternatives";
+import { toProjectKnowledgeView } from "./project-view";
 import type { AgentCard, ClassificationSignal, Project, ProjectKnowledge, ProjectMetrics, ProjectKind } from "./types";
 
 export interface ProjectFilters {
@@ -56,6 +57,20 @@ export interface Recommendation {
     license_fit: number;
   };
   confidence: "high" | "medium" | "low";
+  confidence_reason: string;
+  evidence: {
+    classification: ReturnType<typeof toProjectKnowledgeView>["classification"];
+    quality_signal_confidence: ReturnType<typeof toProjectKnowledgeView>["qualitySignalConfidence"];
+    source_fields: string[];
+    caveats: string[];
+    recommendation_reasons: string[];
+    ranking_signals: Recommendation["ranking_signals"];
+    matched_constraints: Recommendation["matched_constraints"];
+    unmatched_constraints: Recommendation["unmatched_constraints"];
+  };
+  caveats: string[];
+  source_fields: string[];
+  last_verified_at: string | null;
   project: Project;
   agent_card: AgentCard;
   metrics: ProjectMetrics;
@@ -286,6 +301,9 @@ export function recommendProjectList(projects: ProjectKnowledge[], query: Recomm
       const reasons = buildRecommendationReasons(item, query, rankingSignals, matchedConstraints, unmatchedConstraints);
       const tradeoffs = buildRecommendationTradeoffs(item, query, unmatchedConstraints);
       const confidence = recommendationConfidence(rankingSignals, matchedConstraints, unmatchedConstraints, query);
+      const projectView = toProjectKnowledgeView(item);
+      const caveats = sortedUnique([...tradeoffs, ...buildRecommendationRiskFlags(item, query, rankingSignals, unmatchedConstraints, confidence), ...projectView.caveats]).slice(0, 8);
+      const sourceFields = sortedUnique([...projectView.sourceFields, "recommendation.query", "recommendation.ranking_signals", "recommendation.constraints"]);
 
       return {
         project_id: item.project.id,
@@ -303,6 +321,20 @@ export function recommendProjectList(projects: ProjectKnowledge[], query: Recomm
         unmatched_constraints: unmatchedConstraints,
         ranking_signals: rankingSignals,
         confidence,
+        confidence_reason: buildRecommendationConfidenceReason(confidence, rankingSignals, matchedConstraints, unmatchedConstraints, projectView.confidenceReason),
+        evidence: {
+          classification: projectView.classification,
+          quality_signal_confidence: projectView.qualitySignalConfidence,
+          source_fields: sourceFields,
+          caveats,
+          recommendation_reasons: reasons,
+          ranking_signals: rankingSignals,
+          matched_constraints: matchedConstraints,
+          unmatched_constraints: unmatchedConstraints
+        },
+        caveats,
+        source_fields: sourceFields,
+        last_verified_at: projectView.lastVerifiedAt,
         project: item.project,
         agent_card: item.agentCard,
         metrics: item.metrics
@@ -589,6 +621,24 @@ function recommendationConfidence(
     return "medium";
   }
   return "low";
+}
+
+function buildRecommendationConfidenceReason(
+  confidence: Recommendation["confidence"],
+  rankingSignals: Recommendation["ranking_signals"],
+  matchedConstraints: Recommendation["matched_constraints"],
+  unmatchedConstraints: Recommendation["unmatched_constraints"],
+  projectConfidenceReason: string
+): string {
+  const matched = Object.keys(matchedConstraints);
+  const unmatched = Object.keys(unmatchedConstraints);
+  if (confidence === "high") {
+    return `High confidence because matched constraints (${matched.join(", ") || "quality fit"}) and ranking signals are strong; ${projectConfidenceReason}`;
+  }
+  if (confidence === "medium") {
+    return `Medium confidence because ranking signals are usable but ${unmatched.length ? `unmatched constraints need review (${unmatched.join(", ")})` : "some evidence should be reviewed"}; ${projectConfidenceReason}`;
+  }
+  return `Low confidence because use-case match is ${rankingSignals.use_case_match}/100 or constraints are weakly matched; ${projectConfidenceReason}`;
 }
 
 function projectRelationText(item: ProjectKnowledge): string {

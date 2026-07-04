@@ -35,9 +35,35 @@ for (const { file, patterns } of staleBaselinePatterns) {
   }
 }
 
+const evalQuality = await readFile(new URL("../docs/EVAL_QUALITY.md", import.meta.url), "utf8");
+const evalExplanations = await readFile(new URL("../docs/EVAL_EXPLANATIONS.md", import.meta.url), "utf8");
+const benchmarkSource = await readFile(new URL("../src/benchmark.ts", import.meta.url), "utf8");
+
+assertBenchmarkNumber("evaluationBenchmark.evaluatedCases", /Evaluated cases: (\d+)/, /evaluatedCases: (\d+)/, evalQuality, benchmarkSource);
+assertBenchmarkNumber("evaluationBenchmark.top1HitRate", /Top-1 hit rate: ([0-9.]+)/, /top1HitRate: ([0-9.]+)/, evalQuality, benchmarkSource);
+assertBenchmarkNumber("evaluationBenchmark.top3HitRate", /Top-3 hit rate: ([0-9.]+)/, /top3HitRate: ([0-9.]+)/, evalQuality, benchmarkSource);
+assertBenchmarkNumber("evaluationBenchmark.categoryAccuracy", /Category accuracy: ([0-9.]+)/, /categoryAccuracy: ([0-9.]+)/, evalQuality, benchmarkSource);
+assertBenchmarkNumber("evaluationBenchmark.deploymentAccuracy", /Deployment accuracy: ([0-9.]+)/, /deploymentAccuracy: ([0-9.]+)/, evalQuality, benchmarkSource);
+assertBenchmarkNumber("explanationBenchmark.checks", /Checks: (\d+)/, /checks: (\d+)/, evalExplanations, benchmarkSource);
+assertBenchmarkNumber("explanationBenchmark.passed", /Passed: (\d+)/, /passed: (\d+)/, evalExplanations, benchmarkSource);
+assertBenchmarkNumber("explanationBenchmark.failed", /Failed: (\d+)/, /failed: (\d+)/, evalExplanations, benchmarkSource);
+
 if (failures.length > 0) {
   console.error(failures.join("\n"));
   process.exit(1);
 }
 
 console.log("Validated generated-report baseline references in project docs.");
+
+function assertBenchmarkNumber(label, reportPattern, sourcePattern, reportContent, sourceContent) {
+  const reportValue = matchNumber(reportPattern, reportContent);
+  const sourceValue = matchNumber(sourcePattern, sourceContent);
+  if (reportValue !== sourceValue) {
+    failures.push(`${label} in src/benchmark.ts (${sourceValue}) does not match generated eval report (${reportValue}).`);
+  }
+}
+
+function matchNumber(pattern, content) {
+  const match = content.match(pattern);
+  return match ? Number(match[1]) : Number.NaN;
+}

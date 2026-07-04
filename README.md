@@ -46,18 +46,25 @@ The project intentionally does not ship a separate Next.js app. Keeping Worker-r
 
 ## Documentation
 
+- [Coding agent guide](./AGENTS.md)
+- [Agent-native assessment and optimization plan](./docs/AGENT_NATIVE_ASSESSMENT_AND_OPTIMIZATION_PLAN.md)
+- [Agent-native optimization implementation report](./docs/AGENT_NATIVE_OPTIMIZATION_IMPLEMENTATION_REPORT.md)
+- [Agent-native optimization PR summary](./docs/AGENT_NATIVE_OPTIMIZATION_PR_SUMMARY.md)
 - [Git.Top 2.0 product upgrade plan](./docs/GIT_TOP_2_PRODUCT_UPGRADE_PLAN.md)
 - [Next stage plan](./docs/NEXT_STAGE_PLAN.md)
 - [Agent friendliness optimization plan](./docs/AGENT_FRIENDLINESS_OPTIMIZATION_PLAN_2026-06-29.md)
 - [Deployment decision](./docs/DEPLOYMENT_DECISION.md)
 - [REST API guide](./docs/API.md)
 - [MCP guide](./docs/MCP.md)
+- [MCP tool behavior examples](./docs/MCP_TOOL_BEHAVIOR_EXAMPLES.md)
+- [SDK-oriented examples](./docs/SDK_EXAMPLES.md)
 - [GRP examples](./docs/GRP_EXAMPLES.md)
 - [Agent quickstart](./docs/AGENT_QUICKSTART.md)
 - [MailAgents agent workflow article](./docs/MAILAGENTS_AGENT_WORKFLOW.md)
 - [Site assessment 2026-06-21](./docs/SITE_ASSESSMENT_2026-06-21.md)
 - [Production runbook](./docs/PRODUCTION_RUNBOOK.md)
 - [Operations and data governance plan](./docs/OPERATIONS_DATA_GOVERNANCE_PLAN.md)
+- Public trust benchmark: `/benchmark` and `/api/benchmark`
 - [Data coverage report](./docs/DATA_COVERAGE.md)
 - [Seed live check report](./docs/SEED_LIVE_CHECK.md)
 - [Eval quality report](./docs/EVAL_QUALITY.md)
@@ -70,6 +77,41 @@ The project intentionally does not ship a separate Next.js app. Keeping Worker-r
 - [License](./LICENSE)
 
 ## Development
+
+For maintenance agents, start with [AGENTS.md](./AGENTS.md). It summarizes the runtime, high-risk areas, generated data, and validation tiers.
+
+Fast checks:
+
+```sh
+pnpm docs:validate
+pnpm check
+```
+
+Agent surface checks:
+
+```sh
+pnpm api:validate
+pnpm mcp:validate
+pnpm eval:explanations
+pnpm check
+```
+
+Data and local D1 checks:
+
+```sh
+pnpm db:execute
+pnpm db:seed
+pnpm db:integration
+```
+
+Release checks:
+
+```sh
+pnpm validate
+pnpm release:check
+```
+
+Common development commands:
 
 ```sh
 pnpm install
@@ -110,7 +152,7 @@ pnpm dev
 
 `pnpm quality:check` validates the production `/api/quality` endpoint at `https://git.top` by default, requires D1-backed metadata, and uses a default minimum score of `90`. Use `--base-url`, `--target`, `--min-score`, or `--allow-seed` for preview and fallback checks.
 
-Operations and data governance are exposed through `/operations`, `/api/governance/summary`, and `/api/governance/runs`. The scheduled GitHub Actions workflow in `.github/workflows/governance.yml` runs daily, weekly, biweekly, and monthly governance tasks and records results through `/api/admin/governance/runs` using `SYNC_SECRET`.
+Operations and data governance are exposed through `/operations`, `/api/governance/summary`, and `/api/governance/runs`. The Cloudflare Worker cron runs hourly maintenance plus daily, weekly, biweekly, and monthly governance checks, then records results in `governance_runs`.
 
 `pnpm release:check` runs the public V1 release gate: local validation, local D1 integration, production quality, and production smoke. Use `pnpm release:check -- --skip-prod-smoke` only when validating a build before the production deployment exists; it skips production-only checks. Use `pnpm release:check -- --base-url <origin>` to run the same gate against a Worker preview or local origin.
 
@@ -153,6 +195,7 @@ Omit `offset` to use the stored seed cursor. Cron syncs use this cursor and adva
 - `GET /api/project/:owner/:name`
 - `GET /api/health`
 - `GET /api/quality`
+- `GET /api/benchmark`
 - `GET /api/governance/summary`
 - `GET /api/governance/runs`
 - `GET /api/sync/status`

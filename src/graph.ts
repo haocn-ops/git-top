@@ -52,6 +52,16 @@ export interface ProjectGraph {
     deploymentTargets: string[];
     useCases: string[];
   };
+  evidence: {
+    sourceFields: string[];
+    caveats: string[];
+    confidenceReason: string;
+    lastVerifiedAt: string | null;
+  };
+  caveats: string[];
+  confidenceReason: string;
+  sourceFields: string[];
+  lastVerifiedAt: string | null;
   nodes: KnowledgeGraphNode[];
   edges: KnowledgeGraphEdge[];
 }
@@ -175,6 +185,7 @@ export function buildKnowledgeGraph(projects: ProjectKnowledge[], focusRepo?: st
   const outputNodes = Array.from(nodes.values());
   const outputEdges = dedupeEdges(edges);
   const relationshipGroups = focus ? graphRelationshipGroups(focus, projects) : undefined;
+  const evidence = graphEvidence(focus, outputNodes, outputEdges, relationshipGroups);
   return {
     focus: focus?.project.id ?? focusRepo,
     ...(focus
@@ -186,6 +197,11 @@ export function buildKnowledgeGraph(projects: ProjectKnowledge[], focusRepo?: st
       : {}),
     graphStats: graphStats(outputNodes, outputEdges),
     ...(relationshipGroups ? { relationshipGroups } : {}),
+    evidence,
+    caveats: evidence.caveats,
+    confidenceReason: evidence.confidenceReason,
+    sourceFields: evidence.sourceFields,
+    lastVerifiedAt: evidence.lastVerifiedAt,
     nodes: outputNodes,
     edges: outputEdges
   };
@@ -344,6 +360,42 @@ function graphNextActions(item: ProjectKnowledge): NonNullable<ProjectGraph["nex
     { label: "Explain score", href: `/score/${repo}`, kind: "score" },
     { label: "Compare shortlist", href: `/api/compare?repos=${repo}`, kind: "compare" }
   ];
+}
+
+function graphEvidence(
+  focus: ProjectKnowledge | null,
+  nodes: KnowledgeGraphNode[],
+  edges: KnowledgeGraphEdge[],
+  groups: NonNullable<ProjectGraph["relationshipGroups"]> | undefined
+): ProjectGraph["evidence"] {
+  const view = focus ? toProjectKnowledgeView(focus) : null;
+  const caveats: string[] = [];
+  if (!focus) {
+    caveats.push("Graph is corpus-level; inspect a focused project graph before citing project-specific relationships.");
+  }
+  if (edges.length === 0) {
+    caveats.push("No relationship edges are available in this graph response.");
+  }
+  if (groups && groups.alternatives.length === 0) {
+    caveats.push("No direct alternatives are indexed for the focus project.");
+  }
+  if (groups && groups.deploymentTargets.length === 0) {
+    caveats.push("No deployment targets are indexed for the focus project.");
+  }
+  const sourceFields = [
+    ...(view?.sourceFields ?? ["project.id", "agent_card.category", "agent_card.deployment", "agent_card.use_cases"]),
+    "graph.nodes",
+    "graph.edges",
+    "graph.relationship_groups"
+  ];
+  return {
+    sourceFields,
+    caveats: [...(view?.caveats ?? []), ...caveats].slice(0, 8),
+    confidenceReason: focus
+      ? `${focus.project.id} graph is grounded in indexed alternatives, related projects, deployments, dependencies, and use cases.`
+      : `Corpus graph uses ${nodes.length} nodes and ${edges.length} edges; use focused graph calls for stronger project-level evidence.`,
+    lastVerifiedAt: view?.lastVerifiedAt ?? null
+  };
 }
 
 function findProjectByAlias(projects: ProjectKnowledge[], value: string): ProjectKnowledge | null {

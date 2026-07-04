@@ -32,6 +32,20 @@ await check("project lookup exposes quality signal confidence", async () => {
   assert.equal(response.body.quality_signal_confidence.commits_30d, "complete");
 });
 
+await check("project lookup exposes normalized evidence package", async () => {
+  const response = await request(`/api/project/${encodeURIComponent(mockD1ProjectId)}`, mockD1Env());
+  assert.equal(response.status, 200);
+  assert.ok(response.body.evidence.classification.category.evidence.length > 0);
+  assert.equal(response.body.evidence.quality_signal_confidence.commits_30d, "complete");
+  assert.ok(Array.isArray(response.body.evidence.source_fields));
+  assert.ok(response.body.evidence.source_fields.includes("agent_card.classification"));
+  assert.ok(Array.isArray(response.body.caveats));
+  assert.equal(typeof response.body.confidence_reason, "string");
+  assert.ok(response.body.confidence_reason.length > 0);
+  assert.ok(Array.isArray(response.body.source_fields));
+  assert.equal(typeof response.body.last_verified_at, "string");
+});
+
 await check("recommendations include explainable ranking fields", async () => {
   const response = await request("/api/recommend?use_case=cloudflare%20agent%20framework&deployment=cloudflare&cloudflare_ready=true&limit=1");
   assert.equal(response.status, 200);
@@ -49,6 +63,66 @@ await check("recommendations include explainable ranking fields", async () => {
   assert.ok(["high", "medium", "low"].includes(recommendation.confidence));
   assert.ok(recommendation.agent_card.summary_for_agent.length > 0);
   assert.ok(Array.isArray(recommendation.agent_card.not_good_for));
+});
+
+await check("recommendations expose normalized evidence fields", async () => {
+  const response = await request("/api/recommend?use_case=cloudflare%20agent%20framework&deployment=cloudflare&cloudflare_ready=true&limit=1");
+  assert.equal(response.status, 200);
+  const recommendation = response.body.recommendations[0];
+  assert.ok(recommendation.evidence.classification.category);
+  assert.ok(recommendation.evidence.quality_signal_confidence);
+  assert.ok(Array.isArray(recommendation.evidence.source_fields));
+  assert.ok(recommendation.evidence.source_fields.includes("recommendation.ranking_signals"));
+  assert.ok(Array.isArray(recommendation.evidence.caveats));
+  assert.equal(typeof recommendation.confidence_reason, "string");
+  assert.ok(recommendation.confidence_reason.length > 0);
+  assert.ok(Array.isArray(recommendation.caveats));
+  assert.ok(Array.isArray(recommendation.source_fields));
+  assert.equal(typeof recommendation.last_verified_at, "string");
+});
+
+await check("score explanation exposes normalized evidence fields", async () => {
+  const response = await request(`/api/score/${encodeURIComponent(mockD1ProjectId)}`, mockD1Env());
+  assert.equal(response.status, 200);
+  assert.ok(Array.isArray(response.body.evidence.source_fields));
+  assert.ok(response.body.evidence.source_fields.includes("metrics"));
+  assert.ok(Array.isArray(response.body.evidence.caveats));
+  assert.equal(typeof response.body.evidence.confidence_reason, "string");
+  assert.equal(typeof response.body.evidence.last_verified_at, "string");
+  assert.ok(Array.isArray(response.body.caveats));
+  assert.equal(typeof response.body.confidence_reason, "string");
+});
+
+await check("alternatives expose normalized evidence fields", async () => {
+  const response = await request(`/api/alternatives/${encodeURIComponent(mockD1ProjectId)}?limit=2`, mockD1Env());
+  assert.equal(response.status, 200);
+  assert.ok(Array.isArray(response.body.evidence.source_fields));
+  assert.ok(response.body.evidence.source_fields.includes("alternative.match_signals"));
+  assert.ok(Array.isArray(response.body.evidence.caveats));
+  assert.equal(typeof response.body.confidence_reason, "string");
+  assert.ok(Array.isArray(response.body.caveats));
+  assert.ok(Array.isArray(response.body.source_fields));
+  assert.equal(typeof response.body.last_verified_at, "string");
+  if (response.body.alternative_matches.length > 0) {
+    const match = response.body.alternative_matches[0];
+    assert.ok(Array.isArray(match.evidence.source_fields));
+    assert.ok(match.evidence.source_fields.includes("alternative.similarity_score"));
+    assert.equal(typeof match.confidence_reason, "string");
+    assert.ok(Array.isArray(match.caveats));
+  }
+});
+
+await check("graph responses expose normalized evidence fields", async () => {
+  const response = await request(`/api/graph/${encodeURIComponent(mockD1ProjectId)}?limit=8`, mockD1Env());
+  assert.equal(response.status, 200);
+  assert.ok(Array.isArray(response.body.evidence.source_fields));
+  assert.ok(response.body.evidence.source_fields.includes("graph.nodes"));
+  assert.ok(response.body.evidence.source_fields.includes("graph.edges"));
+  assert.ok(Array.isArray(response.body.evidence.caveats));
+  assert.equal(typeof response.body.confidence_reason, "string");
+  assert.ok(Array.isArray(response.body.caveats));
+  assert.ok(Array.isArray(response.body.source_fields));
+  assert.equal(typeof response.body.last_verified_at, "string");
 });
 
 await check("quality report exposes score and risk explanation", async () => {
@@ -99,6 +173,14 @@ await check("GRP exposes graph reasoning and data-source metadata", async () => 
   assert.ok(projectNode, "expected at least one project node");
   assert.ok(projectNode.reasons.length > 0);
   assert.ok(projectNode.score.final_score >= 0);
+  assert.ok(Array.isArray(response.body.evidence.source_fields));
+  assert.ok(response.body.evidence.source_fields.includes("grp.nodes"));
+  assert.ok(response.body.evidence.source_fields.includes("grp.edges"));
+  assert.ok(Array.isArray(response.body.evidence.caveats));
+  assert.equal(typeof response.body.confidence_reason, "string");
+  assert.ok(Array.isArray(response.body.caveats));
+  assert.ok(Array.isArray(response.body.source_fields));
+  assert.equal(typeof response.body.last_verified_at, "string");
 });
 
 await writeFile(reportPath, `${toMarkdown(checks)}\n`);

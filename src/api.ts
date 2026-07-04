@@ -10,6 +10,7 @@ import {
 import { buildAlternativesDecision, generateAlternativeMatches, toAlternativeMatchView } from "./alternatives";
 import { buildAgentMap } from "./agent-map";
 import { buildAtlasEcosystemView, findAtlasEcosystem, listAtlasEcosystems } from "./atlas-page";
+import { buildPublicBenchmarkReportFromInputs } from "./benchmark";
 import { discoverAndSyncCandidateProjects } from "./candidate-discovery";
 import { getHealth } from "./health";
 import { getSyncStatus } from "./db-sync-store";
@@ -427,6 +428,26 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       return knowledge;
     }
     return json({ ...buildLowConfidenceReviewReport(knowledge.projects), metadata: knowledge.metadata }, {
+      headers: {
+        "cache-control": "no-store"
+      }
+    });
+  }
+
+  if (path === "/api/benchmark") {
+    if (request.method !== "GET") {
+      return errorJson(405, "method_not_allowed", "Benchmark endpoint supports GET.");
+    }
+    const knowledge = await requireKnowledgeSource(request, env);
+    if (knowledge instanceof Response) {
+      return knowledge;
+    }
+    return json(buildPublicBenchmarkReportFromInputs(
+      buildQualityReport(knowledge.projects),
+      buildLowConfidenceReviewReport(knowledge.projects),
+      knowledge.metadata,
+      new Date().toISOString()
+    ), {
       headers: {
         "cache-control": "no-store"
       }
@@ -1013,6 +1034,11 @@ function alternativesResponse(
     stats: decision.stats,
     nextActions: decision.nextActions,
     comparisonLinks: decision.comparisonLinks,
+    evidence: decision.evidence,
+    caveats: decision.caveats,
+    confidenceReason: decision.confidenceReason,
+    sourceFields: decision.sourceFields,
+    lastVerifiedAt: decision.lastVerifiedAt,
     alternatives: matches.map((match) => toProjectKnowledgeView(match.project)),
     alternativeMatches: matches.map(toAlternativeMatchView),
     ...(resolvedFrom ? { resolvedFrom } : {}),

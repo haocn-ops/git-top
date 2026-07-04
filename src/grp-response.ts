@@ -15,6 +15,16 @@ export interface GrpResponse {
   alternatives: GrpAlternative[];
   comparison?: GrpComparison;
   explanation: string[];
+  evidence: {
+    sourceFields: string[];
+    caveats: string[];
+    confidenceReason: string;
+    lastVerifiedAt: string | null;
+  };
+  caveats: string[];
+  confidenceReason: string;
+  sourceFields: string[];
+  lastVerifiedAt: string | null;
   metadata: {
     version: "grp.v1";
     generatedAt: string;

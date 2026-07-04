@@ -1,6 +1,6 @@
 # Git.Top Eval Quality
 
-Generated at: 2026-06-30T00:08:13.734Z
+Generated at: 2026-07-04T04:07:43.094Z
 
 This report summarizes the CI-safe recommendation and classification baseline. Evaluation knowledge is built from hand-authored seed projects first and generated Agent Card fixtures for the full seed list second.
 
@@ -66,4 +66,4 @@ Case | Type | Top-1 | Top-3 | Category | Deployment | Cloudflare Ready | Unaccep
 `search-lightweight-cloudflare-workers-agent` | search | yes | yes | yes | yes | yes | 0 | `cloudflare/agents`
 `search-github-mcp-automation` | search | yes | yes | yes | yes | yes | 0 | `github/github-mcp-server`, `idosal/git-mcp`, `cloudflare/mcp-server-cloudflare`, `PrefectHQ/fastmcp`, `Portkey-AI/mcp-tool-filter`
 `search-cloudflare-mcp-workers` | search | yes | yes | yes | yes | yes | 0 | `cloudflare/mcp-server-cloudflare`
-`recommend-local-rag-with-observability` | recommend | yes | yes | yes | yes | yes | 0 | `langchain-ai/langchain`, `run-llama/llama_index`, `SigNoz/signoz`, `modelcontextprotocol/servers`, `deepset-ai/haystack`
+`recommend-local-rag-with-observability` | recommend | yes | yes | yes | yes | yes | 0 | `langchain-ai/langchain`, `run-llama/llama_index`, `modelcontextprotocol/servers`, `SigNoz/signoz`, `deepset-ai/haystack`

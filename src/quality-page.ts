@@ -89,7 +89,7 @@ function renderHtml(
     <div class="page">
       <nav class="nav">
         <a class="brand" href="/"><span class="brand-mark">G</span><span>Git.Top</span></a>
-        <div class="nav-links"><a href="/docs">Docs</a><a href="/projects">Projects</a><a href="/mcp">MCP</a><a href="/api/quality">JSON</a></div>
+        <div class="nav-links"><a href="/docs">Docs</a><a href="/benchmark">Benchmark</a><a href="/projects">Projects</a><a href="/mcp">MCP</a><a href="/api/quality">JSON</a></div>
       </nav>
 
       <header class="hero">
@@ -98,6 +98,7 @@ function renderHtml(
         <p class="lead">Use this page before treating a project recommendation as high-confidence. Release health and data trust are separate: a deployment can have no blocking quality issues while the corpus still carries review risk.</p>
         <div class="actions">
           <a class="button primary" href="/api/quality">Open quality JSON</a>
+          <a class="button" href="/benchmark">Public benchmark</a>
           <a class="button" href="/coverage">Corpus coverage</a>
           <a class="button" href="/quality/review">Review queue</a>
           <a class="button" href="/docs#scoring">Scoring methodology</a>
@@ -125,7 +126,7 @@ function renderHtml(
           <p class="eyebrow">Source Metadata</p>
           <h2>${escapeHtml(metadata.source)} / ${escapeHtml(metadata.reason)}</h2>
           <p class="muted">${metadata.projectCount} knowledge-ready projects. Generated at ${escapeHtml(metadata.generatedAt)}.</p>
-          <div class="pills"><a class="pill" href="/api/health">Health</a><a class="pill" href="/api/quality">Quality JSON</a><a class="pill" href="/api/quality/review">Review JSON</a><a class="pill" href="/llms.txt">llms.txt</a></div>
+          <div class="pills"><a class="pill" href="/api/health">Health</a><a class="pill" href="/api/benchmark">Benchmark JSON</a><a class="pill" href="/api/quality">Quality JSON</a><a class="pill" href="/api/quality/review">Review JSON</a><a class="pill" href="/llms.txt">llms.txt</a></div>
         </aside>
       </section>
 

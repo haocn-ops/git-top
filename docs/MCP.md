@@ -14,7 +14,21 @@ Production endpoint:
 https://git.top/mcp
 ```
 
-For the fastest agent integration path, start with [Agent Quickstart](./AGENT_QUICKSTART.md).
+For the fastest agent integration path, start with [Agent Quickstart](./AGENT_QUICKSTART.md). For REST and MCP client snippets in TypeScript and Python, see [SDK-Oriented Examples](./SDK_EXAMPLES.md). For expected MCP result shapes and strict-mode behavior, see [MCP Tool Behavior Examples](./MCP_TOOL_BEHAVIOR_EXAMPLES.md).
+
+For the agent-native product assessment and improvement roadmap, see [Agent-Native Assessment and Optimization Plan](./AGENT_NATIVE_ASSESSMENT_AND_OPTIMIZATION_PLAN.md).
+
+## MCP Contract Rules
+
+MCP clients should:
+
+- Treat `GET /mcp` as discovery and JSON-RPC `tools/list` as the executable tool schema source.
+- Parse `tools/call` result `content[].text` blocks as JSON. Git.Top tool payloads are JSON strings inside MCP text content for broad client compatibility.
+- Inspect `metadata.source`, trust fields, classification evidence, and `quality_signal_confidence` before presenting high-confidence recommendations.
+- Pass `require_d1: true` when fallback seed data should fail closed.
+- Prefer `get_agent_workflow` for multi-step decisions and direct tools such as `search_projects`, `get_project`, `recommend_project`, and `compare_projects` for focused retrieval.
+
+When strict source mode fails, Git.Top returns a JSON-RPC error with code `-32003` and a message explaining that D1-backed knowledge is required. Treat that as a fail-closed result, not as an empty recommendation set.
 
 ## List Tools
 
@@ -27,6 +41,13 @@ curl http://localhost:8787/mcp
 The GET response includes the MCP endpoint, docs URL, project schema URL, health URL, quality URL, agent map URL, quickstart hints, example JSON-RPC payloads, and the tool list. Agents should use it as the discovery entry point before guessing routes. Treat `agent_map.short_path` as the first pass and `agent_map.reference_path` as the expansion path.
 
 The `agent_map` object is the same concept map exposed at `/api/agent-map`: it connects human pages, REST endpoints, MCP tools, output fields, and trust fields for project lookup, recommendations, alternatives, graph, compare, score, Atlas, GRP, and quality surfaces.
+
+The `agent_api.response_contract` object in `GET /mcp` documents how to parse tool calls:
+
+- `tool_content_block`: `content[0].text`
+- `tool_content_type`: `application/json`
+- `strict_source_argument`: pass `require_d1: true` when seed fallback should fail closed.
+- `strict_source_error.code`: `-32003`
 
 JSON-RPC tool listing:
 
@@ -130,6 +151,16 @@ curl -X POST http://localhost:8787/mcp \
 
 Use `get_quality_report` when an agent needs detailed release score, data trust score, risk level, coverage, issue summary, and review queue size after checking the Trust Gate.
 
+## Get Public Benchmark
+
+```sh
+curl -X POST http://localhost:8787/mcp \
+  -H "content-type: application/json" \
+  -d '{"jsonrpc":"2.0","id":46,"method":"tools/call","params":{"name":"get_public_benchmark","arguments":{"require_d1":true}}}'
+```
+
+Use `get_public_benchmark` when an agent needs citable eval health, explanation coverage, data trust, review queue size, and known limitations before presenting Git.Top as a dependable external source.
+
 ## Find Alternatives
 
 ```sh
@@ -168,4 +199,4 @@ Agents should:
 - Start with `agent_map.short_path`, then read `agent_map.reference_path` when you need the fuller discovery surface.
 - Use `ranking: "browse"` for broad scoped discovery, and omit it when the user names a specific project, owner, technology, or package.
 
-When a tool returns text content, parse it as JSON and inspect `metadata` before presenting conclusions. High-confidence production answers should be backed by `metadata.source: "d1"`.
+When a tool returns text content, parse it as JSON and inspect `metadata` before presenting conclusions. High-confidence production answers should be backed by `metadata.source: "d1"`. If JSON parsing fails, treat the result as a client/tool contract error and retry or fall back to REST.

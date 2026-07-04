@@ -51,6 +51,16 @@ export interface AlternativesDecision {
     project: string;
     score: string;
   };
+  evidence: {
+    sourceFields: string[];
+    caveats: string[];
+    confidenceReason: string;
+    lastVerifiedAt: string | null;
+  };
+  caveats: string[];
+  confidenceReason: string;
+  sourceFields: string[];
+  lastVerifiedAt: string | null;
 }
 
 export function generateAlternativesForAll(projects: ProjectKnowledge[], limit = 3): AlternativesResult {
@@ -88,8 +98,10 @@ export function generateAlternativeMatches(project: ProjectKnowledge, allProject
 
 export function toAlternativeMatchView(match: AlternativeMatch) {
   const guidance = alternativeAdoptionGuidance(match);
+  const view = toProjectKnowledgeView(match.project);
+  const caveats = [...guidance.adoptionNotes, ...view.caveats].slice(0, 8);
   return {
-    ...toProjectKnowledgeView(match.project),
+    ...view,
     projectId: match.project.project.id,
     project_id: match.project.project.id,
     similarityScore: match.similarityScore,
@@ -98,7 +110,18 @@ export function toAlternativeMatchView(match: AlternativeMatch) {
     matchSignals: match.signals,
     fitSummary: guidance.fitSummary,
     adoptionNotes: guidance.adoptionNotes,
-    replacementRisk: guidance.replacementRisk
+    replacementRisk: guidance.replacementRisk,
+    evidence: {
+      ...view.evidence,
+      source_fields: [...view.sourceFields, "alternative.match_signals", "alternative.similarity_score", "alternative.replacement_type"],
+      caveats,
+      confidence_reason: alternativeConfidenceReason(match, guidance.replacementRisk),
+      last_verified_at: view.lastVerifiedAt
+    },
+    caveats,
+    confidenceReason: alternativeConfidenceReason(match, guidance.replacementRisk),
+    sourceFields: [...view.sourceFields, "alternative.match_signals", "alternative.similarity_score", "alternative.replacement_type"],
+    lastVerifiedAt: view.lastVerifiedAt
   };
 }
 
@@ -173,8 +196,60 @@ export function buildAlternativesDecision(project: ProjectKnowledge, matches: Al
       graph: `/graph/${source.repo}`,
       project: `/projects/${source.repo}`,
       score: `/score/${source.repo}`
-    }
+    },
+    evidence: {
+      sourceFields: [...source.sourceFields, "alternative.match_signals", "alternative.similarity_score", "alternative.replacement_type"],
+      caveats: alternativesCaveats(matches),
+      confidenceReason: alternativesConfidenceReason(matches),
+      lastVerifiedAt: source.lastVerifiedAt
+    },
+    caveats: alternativesCaveats(matches),
+    confidenceReason: alternativesConfidenceReason(matches),
+    sourceFields: [...source.sourceFields, "alternative.match_signals", "alternative.similarity_score", "alternative.replacement_type"],
+    lastVerifiedAt: source.lastVerifiedAt
   };
+}
+
+function alternativesCaveats(matches: AlternativeMatch[]): string[] {
+  const caveats: string[] = [];
+  if (matches.length === 0) {
+    caveats.push("No indexed alternative candidates met the similarity threshold.");
+  }
+  if (matches.some((match) => replacementType(match) === "ecosystem_adjacent")) {
+    caveats.push("Some candidates are ecosystem-adjacent rather than direct replacements.");
+  }
+  if (matches.some((match) => match.signals.sharedDeployments.length === 0)) {
+    caveats.push("At least one candidate lacks indexed deployment overlap; verify runtime fit.");
+  }
+  if (matches.some((match) => !match.signals.sameLanguage)) {
+    caveats.push("At least one candidate changes primary language; migration cost may be higher.");
+  }
+  return caveats.slice(0, 5);
+}
+
+function alternativesConfidenceReason(matches: AlternativeMatch[]): string {
+  const top = matches[0];
+  if (!top) {
+    return "No alternative exceeded the indexed similarity threshold; use graph and related projects for exploration.";
+  }
+  const type = replacementType(top);
+  if (top.similarityScore >= 65 && ["same_use_case", "same_category"].includes(type)) {
+    return `Top alternative has ${top.similarityScore}/100 similarity with ${type.replace(/_/g, " ")} evidence.`;
+  }
+  if (top.similarityScore >= 45) {
+    return `Top alternative has ${top.similarityScore}/100 similarity, but deployment, language, or dependency fit should be reviewed.`;
+  }
+  return `Top alternative has weak similarity at ${top.similarityScore}/100; treat as exploration evidence.`;
+}
+
+function alternativeConfidenceReason(match: AlternativeMatch, replacementRisk: string): string {
+  if (replacementRisk === "low") {
+    return `Low replacement risk: ${match.similarityScore}/100 similarity with category or use-case overlap.`;
+  }
+  if (replacementRisk === "medium") {
+    return `Medium replacement risk: ${match.similarityScore}/100 similarity; compare deployment, language, and dependency fit.`;
+  }
+  return `High replacement risk: ${match.similarityScore}/100 similarity with limited direct replacement evidence.`;
 }
 
 function alternativeMatch(project: ProjectKnowledge, candidate: ProjectKnowledge, explicitReason: string | undefined): AlternativeMatch {

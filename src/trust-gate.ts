@@ -74,6 +74,7 @@ export async function buildTrustGate(env: Env): Promise<TrustGateView> {
     },
     nextActions: [
       { label: "Health JSON", href: "/api/health", kind: "health" },
+      { label: "Public Benchmark", href: "/benchmark", kind: "benchmark" },
       { label: "Quality JSON", href: "/api/quality", kind: "quality" },
       { label: "Sync Status", href: "/api/sync/status", kind: "sync" },
       { label: "Quality Review", href: "/quality/review", kind: "review" },
@@ -226,7 +227,7 @@ function renderHtml(gate: TrustGateView): string {
     <div class="page">
       <nav class="nav">
         <a class="brand" href="/"><span class="brand-mark">G</span><span>Git.Top</span></a>
-        <div class="nav-links"><a href="/status">Status</a><a href="/quality">Quality</a><a href="/coverage">Coverage</a><a href="/docs">Docs</a></div>
+        <div class="nav-links"><a href="/status">Status</a><a href="/benchmark">Benchmark</a><a href="/quality">Quality</a><a href="/coverage">Coverage</a><a href="/docs">Docs</a></div>
       </nav>
 
       <header class="hero">
@@ -236,6 +237,7 @@ function renderHtml(gate: TrustGateView): string {
         <p class="lead">${escapeHtml(gate.summary)}</p>
         <div class="actions">
           <a class="button primary" href="/api/trust">Trust JSON</a>
+          <a class="button" href="/benchmark">Public benchmark</a>
           <a class="button" href="/api/health">Health</a>
           <a class="button" href="/api/quality">Quality</a>
           <a class="button" href="/api/sync/status">Sync</a>

@@ -1,6 +1,7 @@
 import { handleApi } from "./api";
 import { renderAtlasEcosystemPage, renderAtlasPage } from "./atlas-page";
 import { renderBadge, renderOgImage } from "./assets";
+import { renderBenchmarkPage } from "./benchmark-page";
 import { renderExplorer, renderGraph } from "./explorer";
 import { renderProjectGraphPage } from "./graph-page";
 import { errorJson } from "./http";
@@ -44,6 +45,7 @@ import {
   withSiteHeaders
 } from "./site";
 import { scheduledSyncLimit, syncGithubProjects } from "./sync";
+import { runScheduledGovernance } from "./scheduled-governance";
 import type { Env } from "./types";
 
 export default {
@@ -66,6 +68,7 @@ async function runScheduledMaintenance(env: Env): Promise<void> {
   if (refreshLimit > 0) {
     await syncGithubProjects(env, { limit: refreshLimit, trigger: "cron", signalDepth: "lite" });
   }
+  await runScheduledGovernance(env);
 }
 
 async function routeRequest(request: Request, env: Env, url: URL): Promise<Response> {
@@ -126,6 +129,10 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
 
   if (url.pathname === "/trust") {
     return renderTrustGatePage(env);
+  }
+
+  if (url.pathname === "/benchmark") {
+    return renderBenchmarkPage(env);
   }
 
   if (url.pathname === "/integrations") {
@@ -355,7 +362,7 @@ function projectIdFromPath(pathname: string): string | null {
 
   const slug = decodeURIComponent(shortMatch[1]);
   if (
-    ["api", "mcp", "graph", "atlas", "score", "explorer", "discover", "trends", "workflow", "docs", "api-docs", "quality", "coverage", "status", "trust", "operations", "integrations", "roadmap", "quickstart", "recipes", "examples", "journeys", "categories", "deployments", "compare", "alternatives", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "favicon.ico"].includes(
+    ["api", "mcp", "graph", "atlas", "score", "explorer", "discover", "trends", "workflow", "docs", "api-docs", "quality", "coverage", "status", "trust", "benchmark", "operations", "integrations", "roadmap", "quickstart", "recipes", "examples", "journeys", "categories", "deployments", "compare", "alternatives", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "favicon.ico"].includes(
       slug
     )
   ) {

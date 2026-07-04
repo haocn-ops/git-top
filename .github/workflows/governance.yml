@@ -1,11 +1,6 @@
 name: Governance
 
 on:
-  schedule:
-    - cron: "17 1 * * *"
-    - cron: "31 2 * * 1"
-    - cron: "47 3 1,15 * *"
-    - cron: "5 4 1 * *"
   workflow_dispatch:
     inputs:
       task:
@@ -28,19 +23,7 @@ jobs:
       - id: task
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            task="${{ inputs.task }}"
-          elif [ "${{ github.event.schedule }}" = "17 1 * * *" ]; then
-            task="daily-production-health"
-          elif [ "${{ github.event.schedule }}" = "31 2 * * 1" ]; then
-            task="weekly-data-governance"
-          elif [ "${{ github.event.schedule }}" = "47 3 1,15 * *" ]; then
-            task="biweekly-live-check"
-          elif [ "${{ github.event.schedule }}" = "5 4 1 * *" ]; then
-            task="monthly-corpus-review"
-          else
-            task="daily-production-health"
-          fi
+          task="${{ inputs.task }}"
           echo "task=$task" >> "$GITHUB_OUTPUT"
 
   governance:

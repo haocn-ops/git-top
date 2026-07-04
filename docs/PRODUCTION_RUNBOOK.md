@@ -67,13 +67,13 @@ The quality gate defaults to `https://git.top/api/quality`, requires D1-backed m
 
 The current V1 release policy is manual deploy with scripted gates. Do not enable CI-driven production deploys until D1 migration order, production secrets, and rollback ownership are explicit in the CI workflow.
 
-GitHub Actions runs the local public V1 release gate with production smoke disabled:
+GitHub Actions can run the local public V1 release gate with production smoke disabled when Actions is enabled for the account:
 
 ```sh
 pnpm release:check -- --skip-prod-smoke
 ```
 
-This catches validation and local D1 integration regressions on PRs without depending on production state.
+This catches validation and local D1 integration regressions on PRs without depending on production state. Scheduled governance does not depend on GitHub Actions; it runs inside the Cloudflare Worker cron and records D1 governance runs directly.
 
 For a preview or local Worker:
 
@@ -93,7 +93,7 @@ Production and preview checks require D1-backed responses by default. Add `--all
 pnpm release:check -- --base-url http://localhost:8787 --allow-seed
 ```
 
-GitHub Actions also supports a manual preview check: run the `Validate` workflow with `smoke_base_url` set to the preview Worker origin. Set `allow_seed` only for intentional fallback previews.
+GitHub Actions also supports a manual preview check when available: run the `Validate` workflow with `smoke_base_url` set to the preview Worker origin. Set `allow_seed` only for intentional fallback previews.
 
 The smoke check verifies:
 

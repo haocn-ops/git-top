@@ -10,6 +10,7 @@ await testSearchAndProjectRoutes();
 await testRecommendationAndCompareRoutes();
 await testWorkflowRoute();
 await testGraphAndQualityRoutes();
+await testBenchmarkRoute();
 await testQuickstartRoute();
 await testRecipesRoute();
 await testExamplesRoute();
@@ -107,6 +108,13 @@ async function testSearchAndProjectRoutes() {
   assert.ok(typeof project.body.related[0].reason === "string");
   assert.equal(project.body.classification.category.confidence, "low");
   assert.equal(project.body.quality_signal_confidence.stars_30d_delta, "estimated");
+  assert.ok(project.body.evidence.classification.category);
+  assert.ok(Array.isArray(project.body.evidence.source_fields));
+  assert.ok(project.body.evidence.source_fields.includes("agent_card.classification"));
+  assert.ok(Array.isArray(project.body.caveats));
+  assert.equal(typeof project.body.confidence_reason, "string");
+  assert.ok(Array.isArray(project.body.source_fields));
+  assert.ok(project.body.last_verified_at);
   assertMetadata(project.body.metadata, "db_missing");
 
   const encodedProject = await getJson(`/api/project/${encodeURIComponent("cloudflare/agents")}`);
@@ -183,6 +191,11 @@ async function testRecommendationAndCompareRoutes() {
   assert.ok(typeof recommend.body.recommendations[0].matched_constraints === "object");
   assert.ok(typeof recommend.body.recommendations[0].ranking_signals.use_case_match === "number");
   assert.ok(["high", "medium", "low"].includes(recommend.body.recommendations[0].confidence));
+  assert.equal(typeof recommend.body.recommendations[0].confidence_reason, "string");
+  assert.ok(recommend.body.recommendations[0].evidence.classification.category);
+  assert.ok(recommend.body.recommendations[0].evidence.source_fields.includes("recommendation.ranking_signals"));
+  assert.ok(Array.isArray(recommend.body.recommendations[0].caveats));
+  assert.ok(recommend.body.recommendations[0].last_verified_at);
   assertMetadata(recommend.body.metadata, "db_missing");
 
   const filteredRecommend = await getJson("/api/recommend?category=agent_framework&license=MIT&limit=3");
@@ -309,6 +322,32 @@ async function testWorkflowRoute() {
   assert.ok(focusedWorkflow.body.recommended_sequence.some((step) => step.url.includes("/api/alternatives/claude-code")));
   assert.ok(focusedWorkflow.body.recommended_sequence.some((step) => step.url.includes("/api/score/claude-code")));
   assertMetadata(focusedWorkflow.body.metadata, "db_missing");
+
+  const grp = await request("/api/grp/query", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      goal: "find a Cloudflare-ready agent framework",
+      mode: "find",
+      constraints: {
+        deploy: ["cloudflare"],
+        agent_ready: true
+      }
+    })
+  });
+  assert.equal(grp.status, 200);
+  assert.equal(grp.body.metadata.version, "grp.v1");
+  assert.ok(Array.isArray(grp.body.nodes));
+  assert.ok(Array.isArray(grp.body.edges));
+  assert.ok(Array.isArray(grp.body.evidence.source_fields));
+  assert.ok(grp.body.evidence.source_fields.includes("grp.nodes"));
+  assert.ok(grp.body.evidence.source_fields.includes("grp.edges"));
+  assert.ok(Array.isArray(grp.body.evidence.caveats));
+  assert.equal(typeof grp.body.confidence_reason, "string");
+  assert.ok(Array.isArray(grp.body.caveats));
+  assert.ok(Array.isArray(grp.body.source_fields));
+  assert.ok(grp.body.last_verified_at);
+  assertMetadata(grp.body.metadata.data_source, "db_missing");
 }
 
 async function testRoadmapRoute() {
@@ -427,6 +466,17 @@ async function testGraphAndQualityRoutes() {
   assert.ok(Array.isArray(alternatives.body.alternative_matches[0].adoption_notes));
   assert.ok(["low", "medium", "high"].includes(alternatives.body.alternative_matches[0].replacement_risk));
   assert.ok(alternatives.body.alternative_matches[0].match_signals && typeof alternatives.body.alternative_matches[0].match_signals === "object");
+  assert.ok(Array.isArray(alternatives.body.evidence.source_fields));
+  assert.ok(alternatives.body.evidence.source_fields.includes("alternative.match_signals"));
+  assert.ok(Array.isArray(alternatives.body.evidence.caveats));
+  assert.equal(typeof alternatives.body.confidence_reason, "string");
+  assert.ok(Array.isArray(alternatives.body.caveats));
+  assert.ok(Array.isArray(alternatives.body.source_fields));
+  assert.ok(alternatives.body.last_verified_at);
+  assert.ok(Array.isArray(alternatives.body.alternative_matches[0].evidence.source_fields));
+  assert.ok(alternatives.body.alternative_matches[0].evidence.source_fields.includes("alternative.similarity_score"));
+  assert.equal(typeof alternatives.body.alternative_matches[0].confidence_reason, "string");
+  assert.ok(Array.isArray(alternatives.body.alternative_matches[0].caveats));
   assertMetadata(alternatives.body.metadata, "db_missing");
 
   const aliasAlternatives = await getJson("/api/alternatives/claude-code?limit=4");
@@ -472,6 +522,14 @@ async function testGraphAndQualityRoutes() {
   assert.ok(Array.isArray(graph.body.relationship_groups.dependencies));
   assert.ok(Array.isArray(graph.body.relationship_groups.deployment_targets));
   assert.ok(graph.body.relationship_groups.deployment_targets.includes("cloudflare"));
+  assert.ok(Array.isArray(graph.body.evidence.source_fields));
+  assert.ok(graph.body.evidence.source_fields.includes("graph.nodes"));
+  assert.ok(graph.body.evidence.source_fields.includes("graph.edges"));
+  assert.ok(Array.isArray(graph.body.evidence.caveats));
+  assert.equal(typeof graph.body.confidence_reason, "string");
+  assert.ok(Array.isArray(graph.body.caveats));
+  assert.ok(Array.isArray(graph.body.source_fields));
+  assert.ok(graph.body.last_verified_at);
   assertMetadata(graph.body.metadata, "db_missing");
 
   const aliasGraph = await getJson("/api/graph?repo=claude-code&limit=8");
@@ -616,6 +674,13 @@ async function testGraphAndQualityRoutes() {
   assert.ok(["high", "medium", "low"].includes(score.body.score_confidence.level));
   assert.ok(Array.isArray(score.body.score_confidence.evidence_checklist));
   assert.ok(score.body.score_confidence.evidence_checklist.some((item) => item.signal === "Classification evidence"));
+  assert.ok(Array.isArray(score.body.evidence.source_fields));
+  assert.ok(score.body.evidence.source_fields.includes("metrics"));
+  assert.ok(Array.isArray(score.body.evidence.caveats));
+  assert.equal(typeof score.body.evidence.confidence_reason, "string");
+  assert.ok(score.body.evidence.last_verified_at);
+  assert.ok(Array.isArray(score.body.caveats));
+  assert.equal(typeof score.body.confidence_reason, "string");
   assert.ok(Array.isArray(score.body.next_actions));
   assert.ok(score.body.next_actions.some((action) => action.kind === "alternatives"));
   assert.ok(score.body.links.compare_api.includes("/api/compare"));
@@ -727,6 +792,34 @@ async function testGraphAndQualityRoutes() {
   assertMetadata(review.body.metadata, "db_missing");
 }
 
+async function testBenchmarkRoute() {
+  const benchmark = await getJson("/api/benchmark");
+  assert.equal(benchmark.status, 200);
+  assert.equal(benchmark.body.name, "Git.Top Public Trust Benchmark");
+  assert.equal(typeof benchmark.body.summary, "string");
+  assert.equal(benchmark.body.evaluation.evaluated_cases, 28);
+  assert.equal(benchmark.body.evaluation.top3_hit_rate, 1);
+  assert.ok(benchmark.body.evaluation.top1_hit_rate > 0.9);
+  assert.equal(benchmark.body.evaluation.unacceptable_hit_count, 0);
+  assert.ok(Array.isArray(benchmark.body.evaluation.review_focus));
+  assert.equal(benchmark.body.explanations.checks, 12);
+  assert.equal(benchmark.body.explanations.passed, 12);
+  assert.equal(benchmark.body.explanations.failed, 0);
+  assert.equal(benchmark.body.explanations.coverage, 1);
+  assert.ok(typeof benchmark.body.data_coverage.release_score === "number");
+  assert.ok(typeof benchmark.body.data_coverage.data_trust_score === "number");
+  assert.ok(["low", "medium", "high"].includes(benchmark.body.data_coverage.risk_level));
+  assert.ok(typeof benchmark.body.review_queue.review_count === "number");
+  assert.ok(Array.isArray(benchmark.body.known_limitations));
+  assert.ok(benchmark.body.known_limitations.length > 0);
+  assert.equal(benchmark.body.links.html, "/benchmark");
+  assertMetadata(benchmark.body.metadata, "db_missing");
+
+  const postBenchmark = await request("/api/benchmark", { method: "POST" });
+  assert.equal(postBenchmark.status, 405);
+  assert.equal(postBenchmark.body.error.code, "method_not_allowed");
+}
+
 async function testSchemaRoutes() {
   const agentCardSchema = await getJson("/api/schema/agent-card.v1");
   assert.equal(agentCardSchema.status, 200);
@@ -759,6 +852,7 @@ async function testSchemaRoutes() {
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "API and MCP discovery" && surface.rest.includes("GET /mcp")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Recommendations" && surface.output_fields.includes("recommendations[].adoption_plan")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Open source trends" && surface.rest.includes("GET /api/trends")));
+  assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Quality and coverage" && surface.rest.includes("GET /api/benchmark")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Alternatives" && surface.output_fields.includes("alternative_matches[].replacement_risk")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Score explanation" && surface.output_fields.includes("score_confidence")));
   assert.ok(Array.isArray(agentMap.body.short_path));
@@ -779,6 +873,7 @@ async function testOpenApiDocument() {
   assert.ok(openapi.body.paths["/api/journeys"], "OpenAPI should document Atlas journeys endpoint");
   assert.ok(openapi.body.paths["/api/roadmap"], "OpenAPI should document roadmap endpoint");
   assert.ok(openapi.body.paths["/api/trust"], "OpenAPI should document trust gate endpoint");
+  assert.ok(openapi.body.paths["/api/benchmark"], "OpenAPI should document benchmark endpoint");
   assert.ok(openapi.body.paths["/api/quality"], "OpenAPI should document quality report endpoint");
   assert.ok(openapi.body.paths["/api/quality/review"], "OpenAPI should document quality review endpoint");
   assert.ok(openapi.body.paths["/api/related/{owner}/{repo}"], "OpenAPI should document related projects endpoint");
@@ -810,6 +905,117 @@ async function testOpenApiDocument() {
   assert.ok(openapi.body.components.schemas.RelatedRequest, "OpenAPI should include RelatedRequest schema");
   assert.ok(openapi.body.components.schemas.ScoreRequest, "OpenAPI should include ScoreRequest schema");
   assert.ok(openapi.body.components.schemas.GraphRequest, "OpenAPI should include GraphRequest schema");
+  assert.ok(openapi.body.components.schemas.GrpRequest, "OpenAPI should include GrpRequest schema");
+  assert.ok(openapi.body.components.schemas.McpJsonRpcRequest, "OpenAPI should include McpJsonRpcRequest schema");
+  assert.ok(openapi.body.components.schemas.McpJsonRpcSuccessResponse, "OpenAPI should include McpJsonRpcSuccessResponse schema");
+  assert.ok(openapi.body.components.schemas.McpJsonRpcErrorResponse, "OpenAPI should include McpJsonRpcErrorResponse schema");
+  assertPublicGetResponseSchemas(openapi.body);
+  assertPublicPostContracts(openapi.body);
+  assertOpenApiResponseSchema(openapi.body, "/api/health", "get", "HealthResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/trust", "get", "TrustGateResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/benchmark", "get", "BenchmarkResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/search", "get", "SearchResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/project/{owner}/{repo}", "get", "ProjectResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/project/{project}", "get", "ProjectResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/project", "post", "ProjectResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/recommend", "get", "RecommendationResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/recommend", "post", "RecommendationResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/compare", "get", "CompareResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/compare", "post", "CompareResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/quality", "get", "QualityReportResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/quality/review", "get", "QualityReviewResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/agent-map", "get", "AgentMapResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/roadmap", "get", "RoadmapResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/quickstart", "get", "QuickstartResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/recipes", "get", "RecipesResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/examples", "get", "ExamplesResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/trending", "get", "TrendingResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/trends", "get", "TrendsResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/workflow", "get", "WorkflowResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/workflow", "post", "WorkflowResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/alternatives/{owner}/{repo}", "get", "AlternativesResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/alternatives/{project}", "get", "AlternativesResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/alternatives", "post", "AlternativesResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/related/{owner}/{repo}", "get", "RelatedResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/related/{project}", "get", "RelatedResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/related", "post", "RelatedResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/score/{owner}/{repo}", "get", "ScoreResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/score/{project}", "get", "ScoreResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/score", "post", "ScoreResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/graph", "get", "GraphResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/graph", "post", "GraphResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/graph/{owner}/{repo}", "get", "GraphResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/graph/{project}", "get", "GraphResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/atlas", "get", "AtlasResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/atlas/{ecosystem}", "get", "AtlasResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/journeys", "get", "AtlasJourneysResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/grp/query", "post", "GrpResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/sync/status", "get", "SyncStatusResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/governance/summary", "get", "GovernanceSummaryResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/governance/runs", "get", "GovernanceRunsResponse");
+  assertOpenApiResponseSchema(openapi.body, "/mcp", "get", "McpDiscoveryResponse");
+  assertOpenApiResponseSchema(openapi.body, "/mcp", "post", "McpJsonRpcSuccessResponse");
+  assertOpenApiResponseSchema(openapi.body, "/mcp", "post", "McpJsonRpcErrorResponse", "400");
+  assertOpenApiResponseExample(openapi.body, "/api/health", "get", ["metadata"]);
+  assertOpenApiResponseExample(openapi.body, "/api/trust", "get", ["decision", "required_for_high_confidence"]);
+  assertOpenApiResponseExample(openapi.body, "/api/benchmark", "get", ["evaluation", "explanations", "known_limitations", "metadata"]);
+  assertOpenApiResponseExample(openapi.body, "/api/search", "get", ["projects", "metadata"]);
+  assertOpenApiResponseExample(openapi.body, "/api/trending", "get", ["projects", "metadata"]);
+  assertOpenApiResponseExample(openapi.body, "/api/trends", "get", ["summary", "trend_signals", "metadata"]);
+  assertOpenApiResponseExample(openapi.body, "/api/roadmap", "get", ["phases", "agent_use"]);
+  assertOpenApiResponseExample(openapi.body, "/api/quickstart", "get", ["steps", "trust_policy"]);
+  assertOpenApiResponseExample(openapi.body, "/api/recipes", "get", ["recipes", "trust_policy"]);
+  assertOpenApiResponseExample(openapi.body, "/api/examples", "get", ["examples", "trust_policy"]);
+  assertOpenApiResponseExample(openapi.body, "/api/project/{owner}/{repo}", "get", ["summary", "quality_signal_confidence", "metadata"]);
+  assertOpenApiResponseExample(openapi.body, "/api/recommend", "post", ["recommendations", "metadata"]);
+  assertOpenApiResponseExample(openapi.body, "/api/compare", "get", ["decision_matrix", "metadata"]);
+  assertOpenApiResponseExample(openapi.body, "/api/workflow", "get", ["recommended_sequence", "trust_policy", "metadata"]);
+  assertOpenApiResponseExample(openapi.body, "/api/alternatives/{owner}/{repo}", "get", ["alternative_matches", "metadata"]);
+  assertOpenApiResponseExample(openapi.body, "/api/graph", "get", ["nodes", "edges", "metadata"]);
+  assertOpenApiResponseExample(openapi.body, "/api/score/{owner}/{repo}", "get", ["score_confidence", "metadata"]);
+  assertOpenApiResponseExample(openapi.body, "/api/grp/query", "post", ["nodes", "edges", "evidence", "metadata"]);
+  assertOpenApiResponseExample(openapi.body, "/api/quality/review", "get", ["review_count", "items", "metadata"]);
+  assertOpenApiResponseExample(openapi.body, "/mcp", "get", ["endpoint", "tools"]);
+  assert.equal(openapi.body.components.schemas.Metadata.properties.source.enum[0], "d1");
+  assert.ok(openapi.body.components.schemas.Metadata.properties.warnings, "OpenAPI Metadata should document warnings");
+  assert.ok(openapi.body.components.schemas.ErrorResponse.properties.code, "OpenAPI should include a machine-readable error code field");
+  assert.ok(openapi.body.components.schemas.ProjectCard.properties.quality_signal_confidence, "ProjectCard should document quality_signal_confidence");
+  assert.ok(openapi.body.components.schemas.RecommendationResponse.properties.recommendations, "RecommendationResponse should document recommendations");
+  assert.ok(openapi.body.components.schemas.TrustGateResponse.properties.required_for_high_confidence, "TrustGateResponse should document high-confidence requirements");
+  assert.ok(openapi.body.components.schemas.QualityReportResponse.properties.data_trust_score, "QualityReportResponse should separate data_trust_score from release_score");
+  assert.ok(openapi.body.components.schemas.QualityReviewResponse.properties.review_count, "QualityReviewResponse should document review_count");
+  assert.ok(openapi.body.components.schemas.BenchmarkResponse.properties.known_limitations, "BenchmarkResponse should document known limitations");
+  assert.ok(openapi.body.components.schemas.TrendsResponse.properties.trend_signals, "TrendsResponse should document trend_signals");
+  assert.ok(openapi.body.components.schemas.RoadmapResponse.properties.phases, "RoadmapResponse should document phases");
+  assert.ok(openapi.body.components.schemas.WorkflowResponse.properties.recommended_sequence, "WorkflowResponse should document recommended_sequence");
+  assert.ok(openapi.body.components.schemas.AlternativesResponse.properties.alternative_matches, "AlternativesResponse should document enriched alternative matches");
+  assert.ok(openapi.body.components.schemas.AlternativesResponse.properties.evidence, "AlternativesResponse should document normalized evidence");
+  assert.ok(openapi.body.components.schemas.AlternativeMatch.allOf[1].properties.evidence, "AlternativeMatch should document normalized evidence");
+  assert.ok(openapi.body.components.schemas.GraphResponse.properties.relationship_groups, "GraphResponse should document relationship groups");
+  assert.ok(openapi.body.components.schemas.GraphResponse.properties.evidence, "GraphResponse should document normalized evidence");
+  assert.ok(openapi.body.components.schemas.ScoreResponse.properties.score_confidence, "ScoreResponse should document score confidence");
+  assert.ok(openapi.body.components.schemas.AtlasResponse.properties.ecosystems, "AtlasResponse should document ecosystem lists");
+  assert.ok(openapi.body.components.schemas.AgentMapResponse.properties.trust_policy, "AgentMapResponse should document trust_policy");
+  assert.ok(openapi.body.components.schemas.GrpResponse.properties.metadata, "GrpResponse should document reasoning metadata");
+  assert.ok(openapi.body.components.schemas.GrpResponse.properties.evidence, "GrpResponse should document normalized evidence");
+  assert.equal(openapi.body.components.schemas.GrpResponse.properties.explanation.type, "array", "GrpResponse explanation should match runtime string[] shape");
+  assert.ok(openapi.body.components.schemas.McpDiscoveryResponse.properties.tools, "McpDiscoveryResponse should document tools");
+  assert.equal(openapi.body.paths["/mcp"].post.requestBody.content["application/json"].schema.$ref, "#/components/schemas/McpJsonRpcRequest");
+  assert.ok(openapi.body.paths["/mcp"].post.responses["202"], "POST /mcp should document notifications/initialized 202 response");
+  assert.equal(openapi.body.paths["/api/grp/query"].post.requestBody.content["application/json"].schema.$ref, "#/components/schemas/GrpRequest");
+  assert.deepEqual(openapi.body.components.schemas.GrpRequest.properties.mode.enum, ["plan", "compare", "find", "compose"]);
+  assert.deepEqual(openapi.body.components.schemas.McpJsonRpcRequest.properties.method.enum, ["initialize", "notifications/initialized", "tools/list", "tools/call"]);
+  assert.ok(openapi.body.components.schemas.McpJsonRpcSuccessResponse.properties.result.anyOf, "MCP success result should allow multiple JSON-RPC result shapes");
+  assert.match(
+    openapi.body.components.schemas.McpJsonRpcSuccessResponse.description,
+    /result\.content\[0\]\.text/,
+    "McpJsonRpcSuccessResponse should document JSON text content parsing"
+  );
+  assert.match(
+    openapi.body.components.schemas.McpJsonRpcErrorResponse.properties.error.properties.code.description,
+    /-32003/,
+    "McpJsonRpcErrorResponse should document strict D1 error code"
+  );
   assert.ok(openapi.body.paths["/api/admin/discovery"], "OpenAPI should document candidate discovery endpoint");
   assert.ok(openapi.body.paths["/api/admin/classification-overrides"], "OpenAPI should document classification override endpoint");
   const searchParameterNames = openapi.body.paths["/api/search"].get.parameters.map((item) => item.name);
@@ -833,6 +1039,48 @@ async function testOpenApiDocument() {
   assert.deepEqual(openapi.body.paths["/api/admin/discovery"], openApiDocument.paths["/api/admin/discovery"]);
   assert.equal(openapi.body.components.securitySchemes.syncSecret.scheme, "bearer");
   assert.deepEqual(openapi.body.paths["/api/quality/review"], openApiDocument.paths["/api/quality/review"]);
+}
+
+function assertOpenApiResponseSchema(document, path, method, schemaName, status = "200") {
+  const schema = document.paths[path][method].responses[status].content["application/json"].schema;
+  assert.equal(schema.$ref, `#/components/schemas/${schemaName}`, `${method.toUpperCase()} ${path} should document ${schemaName}`);
+  assert.ok(document.components.schemas[schemaName], `OpenAPI should include ${schemaName} schema`);
+}
+
+function assertPublicGetResponseSchemas(document) {
+  for (const [path, methods] of Object.entries(document.paths)) {
+    if (!methods.get || path.startsWith("/api/admin/") || path.startsWith("/api/schema/")) {
+      continue;
+    }
+    const schema = methods.get.responses?.["200"]?.content?.["application/json"]?.schema;
+    assert.ok(schema?.$ref, `GET ${path} should document a shared response schema`);
+    const schemaName = schema.$ref.replace("#/components/schemas/", "");
+    assert.ok(document.components.schemas[schemaName], `GET ${path} references missing schema ${schemaName}`);
+  }
+}
+
+function assertPublicPostContracts(document) {
+  for (const [path, methods] of Object.entries(document.paths)) {
+    if (!methods.post || path.startsWith("/api/admin/")) {
+      continue;
+    }
+    const requestSchema = methods.post.requestBody?.content?.["application/json"]?.schema;
+    assert.ok(requestSchema?.$ref, `POST ${path} should document a shared JSON request schema`);
+    const requestSchemaName = requestSchema.$ref.replace("#/components/schemas/", "");
+    assert.ok(document.components.schemas[requestSchemaName], `POST ${path} references missing request schema ${requestSchemaName}`);
+    const responseSchema = methods.post.responses?.["200"]?.content?.["application/json"]?.schema;
+    assert.ok(responseSchema?.$ref, `POST ${path} should document a shared 200 response schema`);
+    const responseSchemaName = responseSchema.$ref.replace("#/components/schemas/", "");
+    assert.ok(document.components.schemas[responseSchemaName], `POST ${path} references missing response schema ${responseSchemaName}`);
+  }
+}
+
+function assertOpenApiResponseExample(document, path, method, keys) {
+  const example = document.paths[path][method].responses["200"].content["application/json"].example;
+  assert.ok(example, `${method.toUpperCase()} ${path} should include a canonical response example`);
+  for (const key of keys) {
+    assert.ok(Object.hasOwn(example, key), `${method.toUpperCase()} ${path} response example should include ${key}`);
+  }
 }
 
 async function testMethodAndBodyValidation() {
@@ -1139,10 +1387,26 @@ async function testRequireD1Mode() {
   assert.equal(strictProjectFallback.status, 503);
   assert.equal(strictProjectFallback.body.error.code, "d1_required");
 
+  for (const path of [
+    "/api/recommend?use_case=cloudflare%20agent&require_d1=true",
+    "/api/quality?require_d1=true",
+    "/api/benchmark?require_d1=true",
+    "/api/graph/cloudflare/agents?require_d1=true"
+  ]) {
+    const strictResponse = await getJson(path);
+    assert.equal(strictResponse.status, 503, `${path} should fail closed without D1`);
+    assert.equal(strictResponse.body.error.code, "d1_required");
+  }
+
   const strictD1 = await request("/api/search?q=mock&require_d1=true", {}, mockD1Env());
   assert.equal(strictD1.status, 200);
   assert.equal(strictD1.body.projects.length, 1);
   assertMetadata(strictD1.body.metadata, "d1_query", "d1");
+
+  const strictBenchmarkD1 = await request("/api/benchmark?require_d1=true", {}, mockD1Env());
+  assert.equal(strictBenchmarkD1.status, 200);
+  assert.equal(strictBenchmarkD1.body.name, "Git.Top Public Trust Benchmark");
+  assertMetadata(strictBenchmarkD1.body.metadata, "d1_query", "d1");
 
   const strictEmpty = await request("/api/search?q=cloudflare&require_d1=true", {}, mockD1Env("empty"));
   assert.equal(strictEmpty.status, 503);
