@@ -76,7 +76,9 @@ async function testLegacyConsoleRedirects() {
   const auth = await worker.fetch(new Request("https://git.top/auth.md"), {});
   assert.equal(auth.status, 200);
   assert.match(auth.headers.get("content-type") ?? "", /text\/markdown/);
-  assert.match(await auth.text(), /Public No-Auth Surfaces/);
+  const authText = await auth.text();
+  assert.match(authText, /# Auth\.md/);
+  assert.match(authText, /Public No-Auth Surfaces/);
 
   const agentManifest = await worker.fetch(new Request("https://git.top/.well-known/agents.json"), {});
   assert.equal(agentManifest.status, 200);
@@ -86,9 +88,16 @@ async function testLegacyConsoleRedirects() {
 
   const apiCatalog = await worker.fetch(new Request("https://git.top/.well-known/api-catalog.json"), {});
   assert.equal(apiCatalog.status, 200);
+  assert.match(apiCatalog.headers.get("content-type") ?? "", /application\/linkset\+json/);
   const apiCatalogBody = await apiCatalog.json();
   assert.equal(apiCatalogBody.schema_version, "api-catalog.v1");
   assert.equal(apiCatalogBody.openapi_url, "https://git.top/openapi.json");
+  assert.ok(Array.isArray(apiCatalogBody.linkset));
+  assert.equal(apiCatalogBody.linkset[0]["service-desc"][0].href, "https://git.top/openapi.json");
+
+  const apiCatalogAlias = await worker.fetch(new Request("https://git.top/.well-known/api-catalog"), {});
+  assert.equal(apiCatalogAlias.status, 200);
+  assert.match(apiCatalogAlias.headers.get("content-type") ?? "", /application\/linkset\+json/);
 
   const mcpCard = await worker.fetch(new Request("https://git.top/.well-known/mcp.json"), {});
   assert.equal(mcpCard.status, 200);
@@ -101,6 +110,26 @@ async function testLegacyConsoleRedirects() {
   const skillsBody = await skills.json();
   assert.equal(skillsBody.schema_version, "agent-skills.v1");
   assert.ok(skillsBody.skills.some((skill) => skill.id === "discover_open_source_projects"));
+
+  const skillsIndex = await worker.fetch(new Request("https://git.top/.well-known/agent-skills/index.json"), {});
+  assert.equal(skillsIndex.status, 200);
+  const skillsIndexBody = await skillsIndex.json();
+  assert.equal(skillsIndexBody.schema_version, "agent-skills-index.v0.2");
+  assert.ok(skillsIndexBody.$schema);
+  assert.ok(skillsIndexBody.skills.every((skill) => skill.type === "skill-md" && /^[a-f0-9]{64}$/.test(skill.sha256)));
+
+  const skillDoc = await worker.fetch(new Request("https://git.top/.well-known/agent-skills/discover-open-source-projects/SKILL.md"), {});
+  assert.equal(skillDoc.status, 200);
+  assert.match(skillDoc.headers.get("content-type") ?? "", /text\/markdown/);
+  assert.match(await skillDoc.text(), /# Discover Open Source Projects/);
+
+  const a2aCard = await worker.fetch(new Request("https://git.top/.well-known/agent-card.json"), {});
+  assert.equal(a2aCard.status, 200);
+  const a2aCardBody = await a2aCard.json();
+  assert.equal(a2aCardBody.name, "git-top");
+  assert.equal(a2aCardBody.version, "0.1.0");
+  assert.ok(Array.isArray(a2aCardBody.supportedInterfaces));
+  assert.ok(a2aCardBody.skills.some((skill) => skill.id === "discover-open-source-projects"));
 
   const llms = await worker.fetch(new Request("https://git.top/llms.txt"), {});
   assert.equal(llms.status, 200);
@@ -394,6 +423,8 @@ async function testDiscoverRoute() {
   assert.match(homeText, /href="\/topics\/atlas-journey-guide"/);
   assert.match(homeText, /href="\/topics\/open-source-knowledge-graph-api"/);
   assert.match(homeText, /href="\/topics\/mcp-integration-guide"/);
+  assert.match(homeText, /navigator\.modelContext\.registerTool/);
+  assert.match(homeText, /git_top_search_projects/);
 
   const response = await worker.fetch(new Request("https://git.top/discover"), {});
   const text = await response.text();

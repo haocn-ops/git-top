@@ -1120,6 +1120,8 @@ const html = String.raw`<!doctype html>
       const cloudflareFilter = document.querySelector("#cloudflare-filter");
       const searchStatus = document.querySelector("#search-status");
 
+      registerWebMcpTools();
+
       form.addEventListener("submit", (event) => {
         event.preventDefault();
         loadProjects({ reveal: true });
@@ -1129,6 +1131,33 @@ const html = String.raw`<!doctype html>
       });
 
       loadProjects();
+
+      function registerWebMcpTools() {
+        if (!("modelContext" in navigator) || !navigator.modelContext || !navigator.modelContext.registerTool) {
+          return;
+        }
+        navigator.modelContext.registerTool({
+          name: "git_top_search_projects",
+          description: "Search Git.Top public project intelligence by query, category, deployment, language, and Cloudflare readiness.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              query: { type: "string", description: "Search query or project discovery goal." },
+              limit: { type: "number", description: "Maximum number of projects to return." }
+            },
+            required: ["query"]
+          },
+          execute: async function(input) {
+            const params = new URLSearchParams({ q: input.query, limit: String(input.limit || 5) });
+            const response = await fetch("/api/search?" + params.toString(), { headers: { accept: "application/json" } });
+            if (!response.ok) {
+              return { error: "Git.Top search failed", status: response.status };
+            }
+            return response.json();
+          },
+          annotations: { readOnlyHint: true }
+        });
+      }
 
       async function loadProjects(options = {}) {
         const q = query.value.trim() || "agent";
@@ -1400,7 +1429,34 @@ const graphHtml = String.raw`<!doctype html>
       const agentScore = document.querySelector("#agent-score");
       const scoreList = document.querySelector("#score-list");
       const compare = document.querySelector("#compare");
+      registerWebMcpTools();
       init();
+      function registerWebMcpTools() {
+        if (!("modelContext" in navigator) || !navigator.modelContext || !navigator.modelContext.registerTool) {
+          return;
+        }
+        navigator.modelContext.registerTool({
+          name: "git_top_search_projects",
+          description: "Search Git.Top public project intelligence by query, category, deployment, language, and Cloudflare readiness.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              query: { type: "string", description: "Search query or project discovery goal." },
+              limit: { type: "number", description: "Maximum number of projects to return." }
+            },
+            required: ["query"]
+          },
+          execute: async function(input) {
+            const params = new URLSearchParams({ q: input.query, limit: String(input.limit || 5) });
+            const response = await fetch("/api/search?" + params.toString(), { headers: { accept: "application/json" } });
+            if (!response.ok) {
+              return { error: "Git.Top search failed", status: response.status };
+            }
+            return response.json();
+          },
+          annotations: { readOnlyHint: true }
+        });
+      }
       async function init() {
         try {
           const [graph, project, comparison] = await Promise.all([

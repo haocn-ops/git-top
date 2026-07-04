@@ -15,6 +15,98 @@ const agentDiscoveryLinks = [
   '<https://git.top/auth.md>; rel="authorization"; type="text/markdown"'
 ];
 
+const agentSkillDocuments = [
+  {
+    id: "discover-open-source-projects",
+    name: "discover-open-source-projects",
+    description: "Find candidate GitHub projects by use case, category, deployment target, language, and Cloudflare readiness.",
+    content: [
+      "# Discover Open Source Projects",
+      "",
+      "Use this skill when an agent needs to find candidate GitHub repositories for a task, compare discovery options, or build a shortlist for deeper inspection.",
+      "",
+      "## Inputs",
+      "",
+      "- Query or user goal",
+      "- Optional category, deployment target, language, and Cloudflare readiness constraints",
+      "- Optional limit",
+      "",
+      "## Procedure",
+      "",
+      "1. Check `https://git.top/api/trust` before high-confidence production recommendations.",
+      "2. Query `https://git.top/api/search?q={query}&limit=5` or call MCP `search_projects`.",
+      "3. Prefer results whose `metadata.source` is `d1` and whose classification evidence matches the user goal.",
+      "4. Use `https://git.top/api/project/{owner}/{repo}` or MCP `get_project` before making final claims.",
+      "",
+      "## Outputs",
+      "",
+      "- Candidate repositories",
+      "- Category, deployment, and Cloudflare readiness evidence",
+      "- Quality signal confidence and metadata source",
+      ""
+    ].join("\n")
+  },
+  {
+    id: "recommend-project-stack",
+    name: "recommend-project-stack",
+    description: "Return ranked project recommendations with fit profiles, tradeoffs, adoption plans, risk flags, and next actions.",
+    content: [
+      "# Recommend Project Stack",
+      "",
+      "Use this skill when an agent needs to recommend open-source projects for a concrete implementation goal.",
+      "",
+      "## Inputs",
+      "",
+      "- Use case or goal",
+      "- Optional constraints such as category, deployment, language, license, and Cloudflare readiness",
+      "- Optional strict data-source requirement",
+      "",
+      "## Procedure",
+      "",
+      "1. Check `https://git.top/api/trust` and only make high-confidence claims when the trust gate allows it.",
+      "2. POST to `https://git.top/api/recommend` or call MCP `recommend_project`.",
+      "3. Inspect `decision_summary`, `fit_profile`, `adoption_plan`, `risk_flags`, and `matched_constraints`.",
+      "4. Use compare or graph endpoints for final shortlists.",
+      "",
+      "## Outputs",
+      "",
+      "- Ranked recommendations",
+      "- Reasons, tradeoffs, risk flags, and next actions",
+      "- Data source and evidence metadata",
+      ""
+    ].join("\n")
+  },
+  {
+    id: "check-trust-and-quality",
+    name: "check-trust-and-quality",
+    description: "Verify data source, freshness, benchmark health, quality scores, known limitations, and review queues.",
+    content: [
+      "# Check Trust And Quality",
+      "",
+      "Use this skill before relying on Git.Top results in a production workflow.",
+      "",
+      "## Inputs",
+      "",
+      "- Optional project id",
+      "- Optional requirement for D1-backed data",
+      "",
+      "## Procedure",
+      "",
+      "1. GET `https://git.top/api/health` and confirm `db=available`.",
+      "2. GET `https://git.top/api/trust` or call MCP `get_trust_gate`.",
+      "3. GET `https://git.top/api/benchmark` or call MCP `get_public_benchmark` for public evaluation health.",
+      "4. Inspect `metadata.source`, sync freshness, known limitations, quality confidence, and review queues.",
+      "",
+      "## Outputs",
+      "",
+      "- Trust decision and checks",
+      "- Public benchmark status",
+      "- Quality and review guidance",
+      ""
+    ].join("\n")
+  }
+];
+
 export function canonicalHostRedirect(request: Request, url: URL): Response | null {
   const host = normalizeHostname(request.headers.get("host") ?? url.hostname);
   const clientIp = request.headers.get("cf-connecting-ip");
@@ -96,7 +188,7 @@ export function renderRobotsTxt(): Response {
 export function renderAuthMarkdown(): Response {
   return text(
     [
-      "# Git.Top Auth Policy",
+      "# Auth.md",
       "",
       "Git.Top exposes public read-only discovery, REST, and MCP surfaces for agents. Public endpoints do not require user login, OAuth, API keys, or cookies.",
       "",
@@ -239,6 +331,46 @@ export function renderApiCatalog(): Response {
         public_endpoints: true,
         protected_prefixes: ["/api/admin/"]
       },
+      linkset: [
+        {
+          anchor: "https://git.top/",
+          "service-desc": [
+            {
+              href: "https://git.top/openapi.json",
+              type: "application/vnd.oai.openapi+json",
+              title: "Git.Top OpenAPI"
+            }
+          ],
+          "service-doc": [
+            {
+              href: "https://git.top/docs",
+              type: "text/html",
+              title: "Git.Top Documentation"
+            }
+          ],
+          status: [
+            {
+              href: "https://git.top/api/health",
+              type: "application/json",
+              title: "Git.Top Health"
+            }
+          ],
+          auth: [
+            {
+              href: "https://git.top/auth.md",
+              type: "text/markdown",
+              title: "Auth.md"
+            }
+          ],
+          "mcp-server": [
+            {
+              href: "https://git.top/.well-known/mcp.json",
+              type: "application/json",
+              title: "Git.Top MCP Server Card"
+            }
+          ]
+        }
+      ],
       related: {
         mcp_server_card: "https://git.top/.well-known/mcp.json",
         mcp_endpoint: "https://git.top/mcp",
@@ -264,8 +396,106 @@ export function renderApiCatalog(): Response {
         }
       ]
     },
+    300,
+    "application/linkset+json; charset=utf-8"
+  );
+}
+
+export function renderA2aAgentCard(): Response {
+  return json(
+    {
+      protocolVersion: "0.3.0",
+      name: "git-top",
+      title: "Git.Top Project Intelligence Agent",
+      version: "0.1.0",
+      description: "Agent interface for GitHub project discovery, recommendations, alternatives, comparison, graph reasoning, quality checks, and trust preflight.",
+      url: "https://git.top",
+      supportedInterfaces: [
+        {
+          url: "https://git.top/mcp",
+          transport: "mcp-streamable-http",
+          protocol: "mcp",
+          protocolVersion: "2025-06-18"
+        },
+        {
+          url: "https://git.top/openapi.json",
+          transport: "https",
+          protocol: "openapi",
+          protocolVersion: "3.1.0"
+        }
+      ],
+      capabilities: {
+        streaming: false,
+        pushNotifications: false,
+        stateTransitionHistory: false,
+        extensions: [
+          {
+            uri: "https://git.top/.well-known/mcp.json",
+            description: "MCP server card"
+          },
+          {
+            uri: "https://git.top/.well-known/agent-skills/index.json",
+            description: "Agent Skills discovery index"
+          }
+        ]
+      },
+      skills: [
+        {
+          id: "discover-open-source-projects",
+          name: "Discover open-source projects",
+          description: "Find candidate GitHub repositories by use case, category, deployment target, language, and Cloudflare readiness.",
+          tags: ["github", "search", "open-source", "project-discovery"],
+          examples: ["Find Cloudflare-ready agent frameworks", "Search for MCP servers with deployment evidence"]
+        },
+        {
+          id: "recommend-project-stack",
+          name: "Recommend a project stack",
+          description: "Rank project candidates with fit profiles, tradeoffs, adoption plans, risk flags, and next actions.",
+          tags: ["recommendation", "comparison", "agent-workflow"],
+          examples: ["Recommend a browser automation stack", "Compare LangChain alternatives"]
+        },
+        {
+          id: "check-trust-and-quality",
+          name: "Check trust and quality",
+          description: "Verify data source, freshness, benchmark health, quality signals, known limitations, and review queues.",
+          tags: ["trust", "quality", "benchmark"],
+          examples: ["Check whether results are D1-backed", "Inspect public benchmark status"]
+        }
+      ]
+    },
     300
   );
+}
+
+export async function renderAgentSkillsIndex(): Promise<Response> {
+  const skills = await Promise.all(
+    agentSkillDocuments.map(async (skill) => ({
+      name: skill.name,
+      type: "skill-md",
+      description: skill.description,
+      url: `https://git.top/.well-known/agent-skills/${skill.id}/SKILL.md`,
+      sha256: await sha256Hex(skill.content)
+    }))
+  );
+
+  return json(
+    {
+      $schema: "https://agentskills.io/schemas/agent-skills-index.v0.2.json",
+      schema_version: "agent-skills-index.v0.2",
+      name: "git-top",
+      description: "Agent Skills for Git.Top public REST and MCP project-intelligence workflows.",
+      skills
+    },
+    300
+  );
+}
+
+export function renderAgentSkillDocument(id: string): Response | null {
+  const skill = agentSkillDocuments.find((item) => item.id === id);
+  if (!skill) {
+    return null;
+  }
+  return text(skill.content, "text/markdown; charset=utf-8");
 }
 
 export function renderMcpServerCard(): Response {
@@ -847,9 +1077,18 @@ function staticSitemapUrls(now: string): SitemapUrl[] {
     { path: "/.well-known/security.txt", changefreq: "monthly", priority: "0.4", lastmod: now },
     { path: "/.well-known/auth.md", changefreq: "weekly", priority: "0.5", lastmod: now },
     { path: "/.well-known/agents.json", changefreq: "weekly", priority: "0.6", lastmod: now },
+    { path: "/.well-known/agent-card.json", changefreq: "weekly", priority: "0.6", lastmod: now },
     { path: "/.well-known/api-catalog.json", changefreq: "weekly", priority: "0.6", lastmod: now },
+    { path: "/.well-known/api-catalog", changefreq: "weekly", priority: "0.6", lastmod: now },
     { path: "/.well-known/mcp.json", changefreq: "weekly", priority: "0.6", lastmod: now },
-    { path: "/.well-known/skills.json", changefreq: "weekly", priority: "0.6", lastmod: now }
+    { path: "/.well-known/skills.json", changefreq: "weekly", priority: "0.6", lastmod: now },
+    { path: "/.well-known/agent-skills/index.json", changefreq: "weekly", priority: "0.6", lastmod: now },
+    ...agentSkillDocuments.map((skill) => ({
+      path: `/.well-known/agent-skills/${skill.id}/SKILL.md`,
+      changefreq: "weekly",
+      priority: "0.5",
+      lastmod: now
+    }))
   ];
 }
 
@@ -1123,10 +1362,18 @@ function text(body: string, contentType: string): Response {
   });
 }
 
-function json(body: unknown, maxAgeSeconds: number): Response {
+async function sha256Hex(value: string): Promise<string> {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function json(body: unknown, maxAgeSeconds: number, contentType = "application/json; charset=utf-8"): Response {
   return new Response(JSON.stringify(body, null, 2), {
     headers: {
-      "content-type": "application/json; charset=utf-8",
+      "content-type": contentType,
       "cache-control": `public, max-age=${maxAgeSeconds}`
     }
   });

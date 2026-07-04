@@ -199,9 +199,11 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/roadmap<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/auth\.md<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/\.well-known\/agents\.json<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/\.well-known\/agent-card\.json<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/\.well-known\/api-catalog\.json<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/\.well-known\/mcp\.json<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/\.well-known\/skills\.json<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/\.well-known\/agent-skills\/index\.json<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/projects\/cloudflare\/agents<\/loc>/);
 
     const root = await getText(context, "/", { headers: { accept: "text/markdown" } });
@@ -220,6 +222,7 @@ export async function runSmoke(args = [], env = process.env) {
     const auth = await getText(context, "/auth.md");
     assert.equal(auth.status, 200);
     assert.match(auth.headers.get("content-type") ?? "", /text\/markdown/);
+    assert.match(auth.text, /# Auth\.md/);
     assert.match(auth.text, /Public No-Auth Surfaces/);
 
     const { status: agentManifestStatus, body: agentManifest } = await getJson(context, "/.well-known/agents.json");
@@ -227,9 +230,11 @@ export async function runSmoke(args = [], env = process.env) {
     assert.equal(agentManifest.schema_version, "agent-manifest.v1");
     assert.equal(agentManifest.preferred_entrypoints.openapi, "https://git.top/openapi.json");
 
-    const { status: apiCatalogStatus, body: apiCatalog } = await getJson(context, "/.well-known/api-catalog.json");
+    const { status: apiCatalogStatus, body: apiCatalog, headers: apiCatalogHeaders } = await getJson(context, "/.well-known/api-catalog");
     assert.equal(apiCatalogStatus, 200);
+    assert.match(apiCatalogHeaders.get("content-type") ?? "", /application\/linkset\+json/);
     assert.equal(apiCatalog.schema_version, "api-catalog.v1");
+    assert.ok(Array.isArray(apiCatalog.linkset));
     assert.equal(apiCatalog.openapi_url, "https://git.top/openapi.json");
 
     const { status: mcpCardStatus, body: mcpCard } = await getJson(context, "/.well-known/mcp.json");
@@ -241,6 +246,21 @@ export async function runSmoke(args = [], env = process.env) {
     assert.equal(skillsStatus, 200);
     assert.equal(skills.schema_version, "agent-skills.v1");
     assert.ok(skills.skills.some((skill) => skill.id === "discover_open_source_projects"));
+
+    const { status: skillsIndexStatus, body: skillsIndex } = await getJson(context, "/.well-known/agent-skills/index.json");
+    assert.equal(skillsIndexStatus, 200);
+    assert.equal(skillsIndex.schema_version, "agent-skills-index.v0.2");
+    assert.ok(skillsIndex.$schema);
+    assert.ok(skillsIndex.skills.every((skill) => skill.type === "skill-md" && /^[a-f0-9]{64}$/.test(skill.sha256)));
+
+    const skillDoc = await getText(context, "/.well-known/agent-skills/discover-open-source-projects/SKILL.md");
+    assert.equal(skillDoc.status, 200);
+    assert.match(skillDoc.text, /# Discover Open Source Projects/);
+
+    const { status: a2aStatus, body: a2a } = await getJson(context, "/.well-known/agent-card.json");
+    assert.equal(a2aStatus, 200);
+    assert.equal(a2a.name, "git-top");
+    assert.ok(Array.isArray(a2a.supportedInterfaces));
 
     const llms = await getText(context, "/llms.txt");
     assert.equal(llms.status, 200);
@@ -790,6 +810,7 @@ async function requestJson(context, path, init) {
     }
     return {
       status: response.status,
+      headers: response.headers,
       body
     };
   } finally {

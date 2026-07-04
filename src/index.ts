@@ -36,8 +36,11 @@ import { renderWorkflowPage } from "./workflow-page";
 import { discoverAndSyncCandidateProjects } from "./candidate-discovery";
 import {
   canonicalHostRedirect,
+  renderA2aAgentCard,
   renderAgentManifest,
   renderAgentMarkdownIndex,
+  renderAgentSkillDocument,
+  renderAgentSkillsIndex,
   renderAgentSkills,
   renderApiCatalog,
   renderAuthMarkdown,
@@ -117,6 +120,10 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
     return renderAgentManifest();
   }
 
+  if (url.pathname === "/.well-known/agent-card.json") {
+    return renderA2aAgentCard();
+  }
+
   if (url.pathname === "/api-catalog.json" || url.pathname === "/.well-known/api-catalog.json" || url.pathname === "/.well-known/api-catalog") {
     return renderApiCatalog();
   }
@@ -127,6 +134,18 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
 
   if (url.pathname === "/skills.json" || url.pathname === "/.well-known/skills.json" || url.pathname === "/.well-known/agent-skills.json") {
     return renderAgentSkills();
+  }
+
+  if (url.pathname === "/.well-known/agent-skills/index.json" || url.pathname === "/.well-known/skills/index.json") {
+    return renderAgentSkillsIndex();
+  }
+
+  const agentSkillMatch = url.pathname.match(/^\/\.well-known\/agent-skills\/([^/]+)\/SKILL\.md$/);
+  if (agentSkillMatch) {
+    const response = renderAgentSkillDocument(decodeURIComponent(agentSkillMatch[1]));
+    if (response) {
+      return response;
+    }
   }
 
   if (url.pathname === "/llms.txt") {
@@ -403,7 +422,7 @@ function projectIdFromPath(pathname: string): string | null {
 
   const slug = decodeURIComponent(shortMatch[1]);
   if (
-    ["api", "mcp", "graph", "atlas", "score", "explorer", "discover", "trends", "workflow", "docs", "api-docs", "quality", "coverage", "status", "trust", "benchmark", "operations", "integrations", "roadmap", "quickstart", "recipes", "examples", "journeys", "categories", "deployments", "compare", "alternatives", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "auth.md", "index.md", "docs.md", "agents.json", "api-catalog.json", "mcp.json", "skills.json", "favicon.ico"].includes(
+    ["api", "mcp", "graph", "atlas", "score", "explorer", "discover", "trends", "workflow", "docs", "api-docs", "quality", "coverage", "status", "trust", "benchmark", "operations", "integrations", "roadmap", "quickstart", "recipes", "examples", "journeys", "categories", "deployments", "compare", "alternatives", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "auth.md", "index.md", "docs.md", "agents.json", "agent-card.json", "api-catalog.json", "mcp.json", "skills.json", "favicon.ico"].includes(
       slug
     )
   ) {
