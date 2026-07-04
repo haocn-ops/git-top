@@ -4,6 +4,17 @@ import type { Env, ProjectKnowledge } from "./types";
 
 const siteOrigin = "https://git.top";
 
+const agentDiscoveryLinks = [
+  '<https://git.top/llms.txt>; rel="llms"; type="text/plain"',
+  '<https://git.top/llms-full.txt>; rel="llms-full"; type="text/plain"',
+  '<https://git.top/openapi.json>; rel="service-desc"; type="application/json"; title="Git.Top OpenAPI"',
+  '<https://git.top/.well-known/api-catalog.json>; rel="api-catalog"; type="application/json"',
+  '<https://git.top/.well-known/agents.json>; rel="agent-manifest"; type="application/json"',
+  '<https://git.top/.well-known/mcp.json>; rel="mcp-server"; type="application/json"',
+  '<https://git.top/.well-known/skills.json>; rel="agent-skills"; type="application/json"',
+  '<https://git.top/auth.md>; rel="authorization"; type="text/markdown"'
+];
+
 export function canonicalHostRedirect(request: Request, url: URL): Response | null {
   const host = normalizeHostname(request.headers.get("host") ?? url.hostname);
   const clientIp = request.headers.get("cf-connecting-ip");
@@ -43,6 +54,8 @@ function isLocalHostname(value: string): boolean {
 
 export function withSiteHeaders(response: Response): Response {
   const headers = new Headers(response.headers);
+  const existingLink = headers.get("link");
+  headers.set("link", existingLink ? `${existingLink}, ${agentDiscoveryLinks.join(", ")}` : agentDiscoveryLinks.join(", "));
   headers.set("strict-transport-security", "max-age=31536000; includeSubDomains; preload");
   headers.set("x-content-type-options", "nosniff");
   headers.set("x-frame-options", "DENY");
@@ -66,6 +79,7 @@ export function renderRobotsTxt(): Response {
       "Allow: /",
       "Disallow: /api/admin/",
       "Disallow: /api/grp/query",
+      "Content-Signal: ai-train=yes, search=yes, ai-input=yes",
       "Sitemap: https://git.top/sitemap.xml",
       "",
       "User-agent: GPTBot",
@@ -76,6 +90,302 @@ export function renderRobotsTxt(): Response {
       ""
     ].join("\n"),
     "text/plain; charset=utf-8"
+  );
+}
+
+export function renderAuthMarkdown(): Response {
+  return text(
+    [
+      "# Git.Top Auth Policy",
+      "",
+      "Git.Top exposes public read-only discovery, REST, and MCP surfaces for agents. Public endpoints do not require user login, OAuth, API keys, or cookies.",
+      "",
+      "## Public No-Auth Surfaces",
+      "",
+      "- `GET /openapi.json` and `GET /api/openapi.json` describe the public REST contract.",
+      "- `GET /mcp` returns MCP discovery, tool schemas, examples, and public integration metadata.",
+      "- `POST /mcp` accepts public JSON-RPC MCP calls for `initialize`, `notifications/initialized`, `tools/list`, and `tools/call`.",
+      "- `GET /llms.txt`, `GET /llms-full.txt`, `GET /api/agent-map`, `GET /api/quickstart`, `GET /api/recipes`, `GET /api/examples`, `GET /api/journeys`, `GET /api/trust`, `GET /api/benchmark`, and `GET /api/quality` are public.",
+      "",
+      "## Protected Operator Surfaces",
+      "",
+      "- `/api/admin/*` endpoints are operator-only and require an internal bearer token derived from `SYNC_SECRET`.",
+      "- Admin endpoints are not part of the public agent integration path and are intentionally omitted from no-auth quickstarts.",
+      "",
+      "## Agent Trust Guidance",
+      "",
+      "- Agents should call `GET /api/health` and `GET /api/trust` before high-confidence production recommendations.",
+      "- Agents can pass `require_d1=true` on REST reads or `require_d1: true` in MCP tool arguments when seed fallback should fail closed.",
+      "- Public project records include metadata and evidence fields so agents can explain recommendations without private credentials.",
+      "",
+      "## Contacts",
+      "",
+      "- Security contact: `security@git.top`",
+      "- Security policy: https://git.top/.well-known/security.txt",
+      "- Integration guide: https://git.top/integrations",
+      ""
+    ].join("\n"),
+    "text/markdown; charset=utf-8"
+  );
+}
+
+export function renderAgentMarkdownIndex(): Response {
+  return text(
+    [
+      "# Git.Top Agent Entry Point",
+      "",
+      "Git.Top is an agent-native GitHub project knowledge layer for open-source discovery, comparison, deployment fit, alternatives, quality signals, and MCP access.",
+      "",
+      "## Preferred Agent Flow",
+      "",
+      "1. Check `GET /api/health` and `GET /api/trust`.",
+      "2. Read `GET /api/agent-map` for the shortest useful route across REST and MCP surfaces.",
+      "3. Use `GET /openapi.json` for REST clients or `GET /mcp` for MCP tool discovery.",
+      "4. Use `GET /llms.txt` first, then `GET /llms-full.txt` for the full operating guide.",
+      "5. Pass strict source controls such as `require_d1=true` or `require_d1: true` when seed fallback should fail closed.",
+      "",
+      "## Discovery URLs",
+      "",
+      "- llms.txt: https://git.top/llms.txt",
+      "- Full agent guide: https://git.top/llms-full.txt",
+      "- OpenAPI: https://git.top/openapi.json",
+      "- API catalog: https://git.top/.well-known/api-catalog.json",
+      "- MCP server card: https://git.top/.well-known/mcp.json",
+      "- MCP endpoint: https://git.top/mcp",
+      "- Agent skills: https://git.top/.well-known/skills.json",
+      "- Auth policy: https://git.top/auth.md",
+      "- Agent manifest: https://git.top/.well-known/agents.json",
+      "- Sitemap: https://git.top/sitemap.xml",
+      "- Robots and Content-Signal policy: https://git.top/robots.txt",
+      "",
+      "## Public Capabilities",
+      "",
+      "- Search open-source projects by query, category, deployment, language, and Cloudflare readiness.",
+      "- Retrieve structured project knowledge, evidence, metrics, graph relationships, alternatives, and score explanations.",
+      "- Build agent workflows for recommendation, comparison, graph reasoning, ecosystem exploration, quality review, and trust preflight.",
+      ""
+    ].join("\n"),
+    "text/markdown; charset=utf-8"
+  );
+}
+
+export function renderAgentManifest(): Response {
+  return json(
+    {
+      schema_version: "agent-manifest.v1",
+      name: "git-top",
+      title: "Git.Top",
+      url: "https://git.top",
+      description: "Agent-native GitHub project knowledge layer for open-source discovery, comparison, deployment fit, alternatives, quality signals, and MCP access.",
+      preferred_entrypoints: {
+        markdown: "https://git.top/index.md",
+        llms_txt: "https://git.top/llms.txt",
+        llms_full_txt: "https://git.top/llms-full.txt",
+        openapi: "https://git.top/openapi.json",
+        api_catalog: "https://git.top/.well-known/api-catalog.json",
+        mcp_server_card: "https://git.top/.well-known/mcp.json",
+        mcp_endpoint: "https://git.top/mcp",
+        skills: "https://git.top/.well-known/skills.json",
+        auth: "https://git.top/auth.md",
+        sitemap: "https://git.top/sitemap.xml",
+        robots: "https://git.top/robots.txt"
+      },
+      auth: {
+        public_read_only: "none",
+        public_mcp: "none",
+        operator_admin: "bearer SYNC_SECRET",
+        policy_url: "https://git.top/auth.md"
+      },
+      capabilities: [
+        "project_search",
+        "project_lookup",
+        "recommendations",
+        "comparison",
+        "alternatives",
+        "project_graph",
+        "quality_scoring",
+        "trust_preflight",
+        "ecosystem_atlas",
+        "agent_workflow",
+        "grp_query"
+      ],
+      discovery: {
+        link_header: agentDiscoveryLinks,
+        well_known: [
+          "https://git.top/.well-known/agents.json",
+          "https://git.top/.well-known/api-catalog.json",
+          "https://git.top/.well-known/mcp.json",
+          "https://git.top/.well-known/skills.json",
+          "https://git.top/.well-known/auth.md"
+        ]
+      }
+    },
+    300
+  );
+}
+
+export function renderApiCatalog(): Response {
+  return json(
+    {
+      schema_version: "api-catalog.v1",
+      name: "git-top-public-api",
+      title: "Git.Top Public Agent API",
+      description: "Public REST API for agent-native open-source project intelligence.",
+      base_url: "https://git.top",
+      openapi_url: "https://git.top/openapi.json",
+      auth_url: "https://git.top/auth.md",
+      authentication: {
+        type: "none",
+        public_endpoints: true,
+        protected_prefixes: ["/api/admin/"]
+      },
+      related: {
+        mcp_server_card: "https://git.top/.well-known/mcp.json",
+        mcp_endpoint: "https://git.top/mcp",
+        llms_txt: "https://git.top/llms.txt",
+        agent_map: "https://git.top/api/agent-map"
+      },
+      api_groups: [
+        {
+          id: "trust-and-discovery",
+          methods: ["GET /api/health", "GET /api/trust", "GET /api/benchmark", "GET /api/agent-map", "GET /api/quickstart", "GET /api/examples"]
+        },
+        {
+          id: "project-intelligence",
+          methods: ["GET /api/search", "GET /api/project/{owner}/{repo}", "POST /api/project", "GET /api/recommend", "POST /api/recommend", "GET /api/compare", "POST /api/compare"]
+        },
+        {
+          id: "graph-and-quality",
+          methods: ["GET /api/graph", "POST /api/graph", "GET /api/alternatives/{owner}/{repo}", "POST /api/alternatives", "GET /api/score/{owner}/{repo}", "POST /api/score", "GET /api/quality"]
+        },
+        {
+          id: "ecosystem-and-workflow",
+          methods: ["GET /api/atlas", "GET /api/journeys", "GET /api/workflow", "POST /api/workflow", "POST /api/grp/query"]
+        }
+      ]
+    },
+    300
+  );
+}
+
+export function renderMcpServerCard(): Response {
+  return json(
+    {
+      schema_version: "mcp-server-card.v1",
+      name: "git-top",
+      title: "Git.Top MCP",
+      description: "Public MCP tools for GitHub project discovery, recommendations, alternatives, graph reasoning, quality, and trust preflight.",
+      protocol: "mcp",
+      protocol_version: "2025-06-18",
+      transport: {
+        type: "streamable-http",
+        endpoint: "https://git.top/mcp",
+        methods: ["GET", "POST"]
+      },
+      authentication: {
+        type: "none",
+        policy_url: "https://git.top/auth.md"
+      },
+      discovery_url: "https://git.top/mcp",
+      openapi_url: "https://git.top/openapi.json",
+      docs_url: "https://git.top/docs#mcp",
+      capabilities: {
+        tools: true,
+        resources: false,
+        prompts: false
+      },
+      tools: [
+        "search_projects",
+        "get_project",
+        "get_alternatives",
+        "get_related_projects",
+        "get_deployment",
+        "get_quality_score",
+        "recommend_project",
+        "get_trends",
+        "get_agent_workflow",
+        "get_atlas",
+        "get_quality_report",
+        "get_trust_gate",
+        "find_alternatives",
+        "get_project_card",
+        "get_project_graph",
+        "compare_projects",
+        "git_top_grp_query",
+        "get_public_benchmark"
+      ]
+    },
+    300
+  );
+}
+
+export function renderAgentSkills(): Response {
+  return json(
+    {
+      schema_version: "agent-skills.v1",
+      name: "git-top",
+      title: "Git.Top Agent Skills",
+      description: "Reusable public skills that agents can perform through Git.Top REST and MCP surfaces.",
+      auth: {
+        type: "none",
+        policy_url: "https://git.top/auth.md"
+      },
+      skills: [
+        {
+          id: "discover_open_source_projects",
+          name: "Discover open-source projects",
+          description: "Find candidate GitHub projects by use case, category, deployment target, language, and Cloudflare readiness.",
+          entrypoints: [
+            { type: "rest", method: "GET", url: "https://git.top/api/search?q={query}&limit=5" },
+            { type: "mcp_tool", endpoint: "https://git.top/mcp", name: "search_projects" }
+          ],
+          outputs: ["projects", "metadata", "classification", "quality_signal_confidence"]
+        },
+        {
+          id: "recommend_project_stack",
+          name: "Recommend a project stack",
+          description: "Return ranked recommendations with fit profiles, tradeoffs, adoption plans, risk flags, and next actions.",
+          entrypoints: [
+            { type: "rest", method: "POST", url: "https://git.top/api/recommend" },
+            { type: "mcp_tool", endpoint: "https://git.top/mcp", name: "recommend_project" }
+          ],
+          outputs: ["recommendations", "decision_summary", "fit_profile", "adoption_plan", "risk_flags"]
+        },
+        {
+          id: "compare_projects",
+          name: "Compare projects",
+          description: "Compare shortlisted projects with decision matrices, winner reasoning, score explanations, and graph-aware next actions.",
+          entrypoints: [
+            { type: "rest", method: "POST", url: "https://git.top/api/compare" },
+            { type: "mcp_tool", endpoint: "https://git.top/mcp", name: "compare_projects" }
+          ],
+          outputs: ["summary", "decision_matrix", "ordered_projects", "winner", "reasoning"]
+        },
+        {
+          id: "inspect_project_graph",
+          name: "Inspect a project graph",
+          description: "Retrieve focused graph relationships across alternatives, related projects, deployment targets, dependencies, and use cases.",
+          entrypoints: [
+            { type: "rest", method: "POST", url: "https://git.top/api/graph" },
+            { type: "mcp_tool", endpoint: "https://git.top/mcp", name: "get_project_graph" }
+          ],
+          outputs: ["summary", "graph_stats", "relationship_groups", "nodes", "edges"]
+        },
+        {
+          id: "check_trust_and_quality",
+          name: "Check trust and quality",
+          description: "Verify D1 source availability, freshness, public benchmark health, quality scores, known limitations, and review queues.",
+          entrypoints: [
+            { type: "rest", method: "GET", url: "https://git.top/api/trust" },
+            { type: "rest", method: "GET", url: "https://git.top/api/benchmark" },
+            { type: "mcp_tool", endpoint: "https://git.top/mcp", name: "get_trust_gate" },
+            { type: "mcp_tool", endpoint: "https://git.top/mcp", name: "get_public_benchmark" }
+          ],
+          outputs: ["decision", "checks", "benchmark", "quality", "metadata"]
+        }
+      ]
+    },
+    300
   );
 }
 
@@ -524,11 +834,22 @@ function staticSitemapUrls(now: string): SitemapUrl[] {
     { path: "/api/roadmap", changefreq: "weekly", priority: "0.7", lastmod: now },
     { path: "/api/openapi.json", changefreq: "weekly", priority: "0.7", lastmod: now },
     { path: "/openapi.json", changefreq: "weekly", priority: "0.7", lastmod: now },
+    { path: "/api-catalog.json", changefreq: "weekly", priority: "0.7", lastmod: now },
+    { path: "/agents.json", changefreq: "weekly", priority: "0.7", lastmod: now },
+    { path: "/mcp.json", changefreq: "weekly", priority: "0.7", lastmod: now },
+    { path: "/skills.json", changefreq: "weekly", priority: "0.7", lastmod: now },
+    { path: "/auth.md", changefreq: "weekly", priority: "0.7", lastmod: now },
+    { path: "/index.md", changefreq: "weekly", priority: "0.7", lastmod: now },
     { path: "/mcp", changefreq: "weekly", priority: "0.7", lastmod: now },
     { path: "/llms.txt", changefreq: "weekly", priority: "0.8", lastmod: now },
     { path: "/llms-full.txt", changefreq: "weekly", priority: "0.8", lastmod: now },
     { path: "/robots.txt", changefreq: "monthly", priority: "0.4", lastmod: now },
-    { path: "/.well-known/security.txt", changefreq: "monthly", priority: "0.4", lastmod: now }
+    { path: "/.well-known/security.txt", changefreq: "monthly", priority: "0.4", lastmod: now },
+    { path: "/.well-known/auth.md", changefreq: "weekly", priority: "0.5", lastmod: now },
+    { path: "/.well-known/agents.json", changefreq: "weekly", priority: "0.6", lastmod: now },
+    { path: "/.well-known/api-catalog.json", changefreq: "weekly", priority: "0.6", lastmod: now },
+    { path: "/.well-known/mcp.json", changefreq: "weekly", priority: "0.6", lastmod: now },
+    { path: "/.well-known/skills.json", changefreq: "weekly", priority: "0.6", lastmod: now }
   ];
 }
 
@@ -798,6 +1119,15 @@ function text(body: string, contentType: string): Response {
     headers: {
       "content-type": contentType,
       "cache-control": "public, max-age=300"
+    }
+  });
+}
+
+function json(body: unknown, maxAgeSeconds: number): Response {
+  return new Response(JSON.stringify(body, null, 2), {
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": `public, max-age=${maxAgeSeconds}`
     }
   });
 }

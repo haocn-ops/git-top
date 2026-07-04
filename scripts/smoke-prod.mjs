@@ -197,7 +197,50 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/journeys<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/trust<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/api\/roadmap<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/auth\.md<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/\.well-known\/agents\.json<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/\.well-known\/api-catalog\.json<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/\.well-known\/mcp\.json<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/\.well-known\/skills\.json<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/projects\/cloudflare\/agents<\/loc>/);
+
+    const root = await getText(context, "/", { headers: { accept: "text/markdown" } });
+    assert.equal(root.status, 200);
+    assert.match(root.headers.get("content-type") ?? "", /text\/markdown/);
+    assert.match(root.headers.get("link") ?? "", /rel="llms"/);
+    assert.match(root.headers.get("link") ?? "", /rel="api-catalog"/);
+    assert.match(root.headers.get("link") ?? "", /rel="mcp-server"/);
+    assert.match(root.headers.get("link") ?? "", /rel="agent-skills"/);
+    assert.match(root.text, /# Git\.Top Agent Entry Point/);
+
+    const robots = await getText(context, "/robots.txt");
+    assert.equal(robots.status, 200);
+    assert.match(robots.text, /Content-Signal: ai-train=yes, search=yes, ai-input=yes/);
+
+    const auth = await getText(context, "/auth.md");
+    assert.equal(auth.status, 200);
+    assert.match(auth.headers.get("content-type") ?? "", /text\/markdown/);
+    assert.match(auth.text, /Public No-Auth Surfaces/);
+
+    const { status: agentManifestStatus, body: agentManifest } = await getJson(context, "/.well-known/agents.json");
+    assert.equal(agentManifestStatus, 200);
+    assert.equal(agentManifest.schema_version, "agent-manifest.v1");
+    assert.equal(agentManifest.preferred_entrypoints.openapi, "https://git.top/openapi.json");
+
+    const { status: apiCatalogStatus, body: apiCatalog } = await getJson(context, "/.well-known/api-catalog.json");
+    assert.equal(apiCatalogStatus, 200);
+    assert.equal(apiCatalog.schema_version, "api-catalog.v1");
+    assert.equal(apiCatalog.openapi_url, "https://git.top/openapi.json");
+
+    const { status: mcpCardStatus, body: mcpCard } = await getJson(context, "/.well-known/mcp.json");
+    assert.equal(mcpCardStatus, 200);
+    assert.equal(mcpCard.schema_version, "mcp-server-card.v1");
+    assert.equal(mcpCard.transport.endpoint, "https://git.top/mcp");
+
+    const { status: skillsStatus, body: skills } = await getJson(context, "/.well-known/skills.json");
+    assert.equal(skillsStatus, 200);
+    assert.equal(skills.schema_version, "agent-skills.v1");
+    assert.ok(skills.skills.some((skill) => skill.id === "discover_open_source_projects"));
 
     const llms = await getText(context, "/llms.txt");
     assert.equal(llms.status, 200);
@@ -686,8 +729,8 @@ async function getJson(context, path) {
   return requestJson(context, path, { method: "GET" });
 }
 
-async function getText(context, path) {
-  return requestText(context, path, { method: "GET" });
+async function getText(context, path, init = {}) {
+  return requestText(context, path, { method: "GET", ...init });
 }
 
 async function getHead(context, path) {
@@ -722,6 +765,7 @@ async function requestText(context, path, init) {
     });
     return {
       status: response.status,
+      headers: response.headers,
       text: await response.text()
     };
   } finally {

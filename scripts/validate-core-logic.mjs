@@ -55,8 +55,52 @@ async function testLegacyConsoleRedirects() {
 
   const docs = await worker.fetch(new Request("https://git.top/docs"), {});
   assert.equal(docs.status, 200);
+  assert.match(docs.headers.get("link") ?? "", /rel="llms"/);
+  assert.match(docs.headers.get("link") ?? "", /rel="mcp-server"/);
+  assert.match(docs.headers.get("link") ?? "", /rel="agent-skills"/);
   const docsText = await docs.text();
   assert.match(docsText, /<link rel="canonical" href="https:\/\/git\.top\/docs"/);
+
+  const markdownHome = await worker.fetch(new Request("https://git.top/", { headers: { accept: "text/markdown" } }), {});
+  assert.equal(markdownHome.status, 200);
+  assert.match(markdownHome.headers.get("content-type") ?? "", /text\/markdown/);
+  const markdownHomeText = await markdownHome.text();
+  assert.match(markdownHomeText, /# Git\.Top Agent Entry Point/);
+  assert.match(markdownHomeText, /MCP server card: https:\/\/git\.top\/\.well-known\/mcp\.json/);
+
+  const robots = await worker.fetch(new Request("https://git.top/robots.txt"), {});
+  assert.equal(robots.status, 200);
+  const robotsText = await robots.text();
+  assert.match(robotsText, /Content-Signal: ai-train=yes, search=yes, ai-input=yes/);
+
+  const auth = await worker.fetch(new Request("https://git.top/auth.md"), {});
+  assert.equal(auth.status, 200);
+  assert.match(auth.headers.get("content-type") ?? "", /text\/markdown/);
+  assert.match(await auth.text(), /Public No-Auth Surfaces/);
+
+  const agentManifest = await worker.fetch(new Request("https://git.top/.well-known/agents.json"), {});
+  assert.equal(agentManifest.status, 200);
+  const agentManifestBody = await agentManifest.json();
+  assert.equal(agentManifestBody.schema_version, "agent-manifest.v1");
+  assert.equal(agentManifestBody.preferred_entrypoints.openapi, "https://git.top/openapi.json");
+
+  const apiCatalog = await worker.fetch(new Request("https://git.top/.well-known/api-catalog.json"), {});
+  assert.equal(apiCatalog.status, 200);
+  const apiCatalogBody = await apiCatalog.json();
+  assert.equal(apiCatalogBody.schema_version, "api-catalog.v1");
+  assert.equal(apiCatalogBody.openapi_url, "https://git.top/openapi.json");
+
+  const mcpCard = await worker.fetch(new Request("https://git.top/.well-known/mcp.json"), {});
+  assert.equal(mcpCard.status, 200);
+  const mcpCardBody = await mcpCard.json();
+  assert.equal(mcpCardBody.schema_version, "mcp-server-card.v1");
+  assert.equal(mcpCardBody.transport.endpoint, "https://git.top/mcp");
+
+  const skills = await worker.fetch(new Request("https://git.top/.well-known/skills.json"), {});
+  assert.equal(skills.status, 200);
+  const skillsBody = await skills.json();
+  assert.equal(skillsBody.schema_version, "agent-skills.v1");
+  assert.ok(skillsBody.skills.some((skill) => skill.id === "discover_open_source_projects"));
 
   const llms = await worker.fetch(new Request("https://git.top/llms.txt"), {});
   assert.equal(llms.status, 200);

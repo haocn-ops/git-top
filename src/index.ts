@@ -36,9 +36,15 @@ import { renderWorkflowPage } from "./workflow-page";
 import { discoverAndSyncCandidateProjects } from "./candidate-discovery";
 import {
   canonicalHostRedirect,
+  renderAgentManifest,
+  renderAgentMarkdownIndex,
+  renderAgentSkills,
+  renderApiCatalog,
+  renderAuthMarkdown,
   renderDocsPage,
   renderLlmsFullTxt,
   renderLlmsTxt,
+  renderMcpServerCard,
   renderRobotsTxt,
   renderSecurityTxt,
   renderSitemapXml,
@@ -99,6 +105,30 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
     return renderSecurityTxt();
   }
 
+  if (url.pathname === "/auth.md" || url.pathname === "/.well-known/auth.md") {
+    return renderAuthMarkdown();
+  }
+
+  if (url.pathname === "/index.md" || url.pathname === "/docs.md") {
+    return renderAgentMarkdownIndex();
+  }
+
+  if (url.pathname === "/agents.json" || url.pathname === "/.well-known/agents.json" || url.pathname === "/.well-known/agent.json") {
+    return renderAgentManifest();
+  }
+
+  if (url.pathname === "/api-catalog.json" || url.pathname === "/.well-known/api-catalog.json" || url.pathname === "/.well-known/api-catalog") {
+    return renderApiCatalog();
+  }
+
+  if (url.pathname === "/mcp.json" || url.pathname === "/.well-known/mcp.json" || url.pathname === "/.well-known/mcp") {
+    return renderMcpServerCard();
+  }
+
+  if (url.pathname === "/skills.json" || url.pathname === "/.well-known/skills.json" || url.pathname === "/.well-known/agent-skills.json") {
+    return renderAgentSkills();
+  }
+
   if (url.pathname === "/llms.txt") {
     return renderLlmsTxt();
   }
@@ -108,6 +138,9 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
   }
 
   if (url.pathname === "/docs" || url.pathname === "/api-docs") {
+    if (wantsMarkdown(request)) {
+      return renderAgentMarkdownIndex();
+    }
     return renderDocsPage();
   }
 
@@ -228,6 +261,9 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
   }
 
   if (url.pathname === "/" || url.pathname === "/explorer") {
+    if (url.pathname === "/" && wantsMarkdown(request)) {
+      return renderAgentMarkdownIndex();
+    }
     return renderExplorer();
   }
 
@@ -300,6 +336,11 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
   return errorJson(404, "not_found", "Route not found.");
 }
 
+function wantsMarkdown(request: Request): boolean {
+  const accept = request.headers.get("accept") ?? "";
+  return /\btext\/markdown\b/i.test(accept);
+}
+
 function legacyConsoleRedirect(url: URL): Response | null {
   const target = legacyConsoleRedirects[url.pathname];
   if (!target) {
@@ -362,7 +403,7 @@ function projectIdFromPath(pathname: string): string | null {
 
   const slug = decodeURIComponent(shortMatch[1]);
   if (
-    ["api", "mcp", "graph", "atlas", "score", "explorer", "discover", "trends", "workflow", "docs", "api-docs", "quality", "coverage", "status", "trust", "benchmark", "operations", "integrations", "roadmap", "quickstart", "recipes", "examples", "journeys", "categories", "deployments", "compare", "alternatives", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "favicon.ico"].includes(
+    ["api", "mcp", "graph", "atlas", "score", "explorer", "discover", "trends", "workflow", "docs", "api-docs", "quality", "coverage", "status", "trust", "benchmark", "operations", "integrations", "roadmap", "quickstart", "recipes", "examples", "journeys", "categories", "deployments", "compare", "alternatives", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "auth.md", "index.md", "docs.md", "agents.json", "api-catalog.json", "mcp.json", "skills.json", "favicon.ico"].includes(
       slug
     )
   ) {
