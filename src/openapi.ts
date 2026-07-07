@@ -1063,6 +1063,7 @@ export const openApiDocument = {
         properties: {
           latest_runs: { type: "array", items: { type: "object", additionalProperties: true } },
           tasks: { type: "array", items: { type: "object", additionalProperties: true } },
+          missing_tasks: { type: "array", items: { type: "object", additionalProperties: true } },
           health: { type: "object", additionalProperties: true }
         },
         additionalProperties: true

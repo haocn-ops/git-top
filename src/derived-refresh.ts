@@ -4,8 +4,17 @@ import { upsertGovernanceRun } from "./governance-store";
 import { getKnowledgeForSourcePolicy } from "./source-policy";
 import type { Env } from "./types";
 
-export async function refreshAlternativesDerivedData(env: Env, trigger: "admin" | "cron" | "manual" = "manual") {
+interface RefreshAlternativesOptions {
+  recordRun?: boolean;
+}
+
+export async function refreshAlternativesDerivedData(
+  env: Env,
+  trigger: "admin" | "cron" | "manual" = "manual",
+  options: RefreshAlternativesOptions = {}
+) {
   const startedAt = new Date().toISOString();
+  const recordRun = options.recordRun ?? true;
   const knowledgePolicy = await getKnowledgeForSourcePolicy(env);
   if (!knowledgePolicy.ok) {
     throw new Error(`Knowledge source unavailable: ${knowledgePolicy.failure.metadata.reason}`);
@@ -15,20 +24,22 @@ export async function refreshAlternativesDerivedData(env: Env, trigger: "admin" 
   const result = generateAlternativesForAll(knowledge.projects);
   const updated = await updateProjectAlternatives(env, result.updates);
   const finishedAt = new Date().toISOString();
-  const run = await upsertGovernanceRun(env, {
-    task: "derived:alternatives",
-    status: "success",
-    trigger,
-    startedAt,
-    finishedAt,
-    summary: {
-      updated,
-      candidate_count: result.updates.length,
-      project_count: knowledge.projects.length,
-      source: knowledge.metadata.source,
-      source_reason: knowledge.metadata.reason
-    }
-  });
+  const run = recordRun
+    ? await upsertGovernanceRun(env, {
+        task: "derived:alternatives",
+        status: "success",
+        trigger,
+        startedAt,
+        finishedAt,
+        summary: {
+          updated,
+          candidate_count: result.updates.length,
+          project_count: knowledge.projects.length,
+          source: knowledge.metadata.source,
+          source_reason: knowledge.metadata.reason
+        }
+      })
+    : null;
 
   return {
     updated,

@@ -1,4 +1,5 @@
 import { rowToGovernanceRun, type GovernanceRunRow } from "./db-mapping";
+import { scheduledGovernanceDefinitions, type GovernanceCadence } from "./governance-schedule";
 import type { Env, GovernanceRun, GovernanceRunStatus, GovernanceRunTrigger } from "./types";
 
 export interface GovernanceRunInput {
@@ -21,6 +22,18 @@ export interface GovernanceSummary {
   latestByTask: GovernanceRun[];
   statusCounts: Record<GovernanceRunStatus, number>;
   failedTasks: GovernanceRun[];
+  missingTasks: MissingGovernanceTask[];
+}
+
+export interface MissingGovernanceTask {
+  task: string;
+  cadence: GovernanceCadence;
+  expectedIntervalHours: number;
+  missingAfterHours: number;
+  latestRun: GovernanceRun | null;
+  lastSuccessfulRunAt: string | null;
+  hoursSinceLastSuccess: number | null;
+  reason: string;
 }
 
 const validStatuses = new Set<GovernanceRunStatus>(["success", "failed", "running", "skipped"]);
@@ -122,7 +135,7 @@ export async function getLatestGovernanceRunByTask(env: Env, task: string): Prom
   return getLatestGovernanceRun(env, task);
 }
 
-export async function getGovernanceSummary(env: Env): Promise<GovernanceSummary> {
+export async function getGovernanceSummary(env: Env, now = new Date()): Promise<GovernanceSummary> {
   const runs = await listGovernanceRuns(env, 100);
   const latestByTaskMap = new Map<string, GovernanceRun>();
   const statusCounts: Record<GovernanceRunStatus, number> = {
@@ -140,15 +153,65 @@ export async function getGovernanceSummary(env: Env): Promise<GovernanceSummary>
   }
 
   const latestByTask = Array.from(latestByTaskMap.values()).sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt));
+  const missingTasks = buildMissingTasks(runs, latestByTaskMap, now);
 
   return {
-    generatedAt: new Date().toISOString(),
+    generatedAt: now.toISOString(),
     runCount: runs.length,
     latestRun: runs[0] ?? null,
     latestByTask,
     statusCounts,
-    failedTasks: latestByTask.filter((run) => run.status === "failed")
+    failedTasks: latestByTask.filter((run) => run.status === "failed"),
+    missingTasks
   };
+}
+
+function buildMissingTasks(runs: GovernanceRun[], latestByTaskMap: Map<string, GovernanceRun>, now: Date): MissingGovernanceTask[] {
+  const nowMs = now.getTime();
+  return scheduledGovernanceDefinitions.flatMap<MissingGovernanceTask>((definition) => {
+    const latestRun = latestByTaskMap.get(definition.task) ?? null;
+    const latestSuccess = runs
+      .filter((run) => run.task === definition.task && run.status === "success")
+      .sort((a, b) => Date.parse(b.finishedAt) - Date.parse(a.finishedAt))[0];
+
+    if (!latestSuccess) {
+      return [
+        {
+          task: definition.task,
+          cadence: definition.cadence,
+          expectedIntervalHours: definition.expectedIntervalHours,
+          missingAfterHours: definition.missingAfterHours,
+          latestRun,
+          lastSuccessfulRunAt: null,
+          hoursSinceLastSuccess: null,
+          reason: `No successful ${definition.cadence} run recorded.`
+        }
+      ];
+    }
+
+    const finishedMs = Date.parse(latestSuccess.finishedAt);
+    if (!Number.isFinite(finishedMs)) {
+      return [];
+    }
+
+    const hoursSinceLastSuccess = Math.floor(Math.max(0, nowMs - finishedMs) / (60 * 60 * 1000));
+    if (hoursSinceLastSuccess <= definition.missingAfterHours) {
+      return [];
+    }
+
+    return [
+      {
+        task: definition.task,
+        cadence: definition.cadence,
+        expectedIntervalHours: definition.expectedIntervalHours,
+        missingAfterHours: definition.missingAfterHours,
+        latestRun,
+        lastSuccessfulRunAt: latestSuccess.finishedAt,
+        hoursSinceLastSuccess,
+        reason: `Last successful ${definition.cadence} run is ${hoursSinceLastSuccess}h old.`
+      }
+    ];
+  });
 }
 
 export function parseGovernanceRunInput(body: unknown): { ok: true; input: GovernanceRunInput } | { ok: false; message: string } {

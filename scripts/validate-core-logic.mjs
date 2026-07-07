@@ -79,6 +79,8 @@ async function testLegacyConsoleRedirects() {
   const authText = await auth.text();
   assert.match(authText, /# Auth\.md/);
   assert.match(authText, /Public No-Auth Surfaces/);
+  assert.match(authText, /agent_auth:/);
+  assert.match(authText, /registration_required: false/);
 
   const agentManifest = await worker.fetch(new Request("https://git.top/.well-known/agents.json"), {});
   assert.equal(agentManifest.status, 200);

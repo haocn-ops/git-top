@@ -152,7 +152,11 @@ async function testHealthCountSemantics() {
 }
 
 async function testSyncStatusMapping() {
-  const derivedSuccessAt = "2026-06-29T00:00:00Z";
+  const nowMs = Date.now();
+  const latestFailedAt = new Date(nowMs - 60 * 60 * 1000).toISOString();
+  const previousSuccessAt = new Date(nowMs - 2 * 60 * 60 * 1000).toISOString();
+  const derivedSuccessAt = new Date(nowMs - 60 * 60 * 1000).toISOString();
+  const derivedFailedAt = new Date(nowMs - 48 * 60 * 60 * 1000).toISOString();
   const status = await getSyncStatus(
     mockD1Env({
       cursor: 3,
@@ -161,14 +165,14 @@ async function testSyncStatusMapping() {
           id: "latest_failed",
           synced_count: 0,
           failed_count: 1,
-          finished_at: "2026-06-20T02:00:00Z",
+          finished_at: latestFailedAt,
           failed_json: JSON.stringify([{ repository: mockD1ProjectId, error: "rate limited" }])
         }),
         syncRunRow({
           id: "previous_success",
           synced_count: 2,
           failed_count: 0,
-          finished_at: "2026-06-20T01:00:00Z"
+          finished_at: previousSuccessAt
         })
       ],
       governanceRuns: [
@@ -177,14 +181,15 @@ async function testSyncStatusMapping() {
           task: "derived:alternatives",
           status: "failed",
           trigger: "admin",
-          started_at: "2026-06-10T00:00:00Z",
-          finished_at: "2026-06-10T00:00:10Z"
+          started_at: derivedFailedAt,
+          finished_at: derivedFailedAt
         }),
         governanceRunRow({
           id: "derived_alternatives",
           task: "derived:alternatives",
           status: "success",
           trigger: "admin",
+          started_at: derivedSuccessAt,
           finished_at: derivedSuccessAt
         })
       ]
@@ -196,9 +201,9 @@ async function testSyncStatusMapping() {
   assert.equal(status.health, "degraded");
   assert.equal(status.syncedCount, 1);
   assert.equal(status.indexedCount, 1);
-  assert.equal(status.lastSuccessfulSyncAt, "2026-06-20T01:00:00Z");
+  assert.equal(status.lastSuccessfulSyncAt, previousSuccessAt);
   assert.equal(typeof status.hoursSinceSuccessfulSync, "number");
-  assert.equal(status.lastFailedSyncAt, "2026-06-20T02:00:00Z");
+  assert.equal(status.lastFailedSyncAt, latestFailedAt);
   assert.equal(status.lastError?.repository, mockD1ProjectId);
   assert.equal(status.nextBatchWraps, true);
   assert.deepEqual(status.nextBatch, ["d/d", "e/e", "f/f", mockD1ProjectId, "b/b"]);

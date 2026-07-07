@@ -1624,6 +1624,8 @@ async function testGovernanceRunsWithMockD1() {
   assert.equal(summary.body.status_counts.success, 1);
   assert.equal(summary.body.status_counts.failed, 1);
   assert.equal(summary.body.failed_tasks.length, 1);
+  assert.ok(Array.isArray(summary.body.missing_tasks));
+  assert.ok(summary.body.missing_tasks.some((task) => task.task === "derived:alternatives"));
 
   const invalid = await request(
     "/api/admin/governance/runs",

@@ -36,6 +36,8 @@ function renderHtml({
 }): string {
   const latestTasks = governance.latestByTask.slice(0, 10);
   const failedTasks = governance.failedTasks.slice(0, 6);
+  const missingTasks = governance.missingTasks.slice(0, 6);
+  const actionItems = [...failedTasks.map(runActionRow), ...missingTasks.map(missingTaskRow)];
   const topIssues = quality.issues.slice(0, 6);
 
   return String.raw`<!doctype html>
@@ -118,7 +120,7 @@ function renderHtml({
         ${metric("Runtime", health.ok ? "OK" : "CHECK", `D1 ${health.db}; source ${health.metadata.source}.`)}
         ${metric("Quality", `${quality.score}/100`, `${quality.errorCount} errors / ${quality.warningCount} warnings.`)}
         ${metric("Sync", `${sync.health} / ${sync.freshness}`, sync.lastSuccessfulSyncAt ? `Last success ${sync.lastSuccessfulSyncAt}.` : "No success recorded.")}
-        ${metric("Automation", `${governance.statusCounts.failed} failed`, `${governance.runCount} recorded governance runs.`)}
+        ${metric("Automation", `${governance.statusCounts.failed} failed`, `${governance.missingTasks.length} missing cadence checks; ${governance.runCount} recorded runs.`)}
       </section>
 
       <section class="grid">
@@ -138,6 +140,7 @@ function renderHtml({
           ["Success", String(governance.statusCounts.success)],
           ["Failed", String(governance.statusCounts.failed)],
           ["Skipped", String(governance.statusCounts.skipped)],
+          ["Missing cadence", String(governance.missingTasks.length)],
           ["Last run", governance.latestRun ? `${governance.latestRun.task} / ${governance.latestRun.status}` : "No run history"]
         ])}
       </section>
@@ -152,9 +155,9 @@ function renderHtml({
         </article>
         <aside class="panel">
           <p class="eyebrow">Action Needed</p>
-          <h2>${failedTasks.length ? "Failed tasks" : "No failed tasks"}</h2>
+          <h2>${actionItems.length ? "Automation attention" : "No failed or missing tasks"}</h2>
           <div class="rows">
-            ${failedTasks.length ? failedTasks.map(runRow).join("") : `<div class="row"><strong>Automation history is clean.</strong><span>Keep watching quality risk and sync freshness during the daily operations check.</span></div>`}
+            ${actionItems.length ? actionItems.join("") : `<div class="row"><strong>Automation history is clean.</strong><span>Keep watching quality risk and sync freshness during the daily operations check.</span></div>`}
           </div>
         </aside>
       </section>
@@ -200,6 +203,15 @@ function runRow(run: GovernanceRun): string {
     .join("; ");
   const link = run.reportUrl ? ` <a href="${escapeAttr(run.reportUrl)}">Report</a>` : "";
   return `<div class="row issue ${escapeAttr(run.status)}"><strong class="status-${escapeAttr(run.status)}">${escapeHtml(run.task)} · ${escapeHtml(run.status)}</strong><span>${escapeHtml(run.finishedAt)} · ${run.durationMs}ms · ${escapeHtml(summary || run.error || "No summary")}${link}</span></div>`;
+}
+
+function runActionRow(run: GovernanceRun): string {
+  return runRow(run);
+}
+
+function missingTaskRow(task: Awaited<ReturnType<typeof getGovernanceSummary>>["missingTasks"][number]): string {
+  const lastSuccess = task.lastSuccessfulRunAt ?? "never";
+  return `<div class="row issue failed"><strong class="status-failed">${escapeHtml(task.task)} · missing</strong><span>${escapeHtml(task.reason)} Last success: ${escapeHtml(lastSuccess)}; cadence: ${escapeHtml(task.cadence)}.</span></div>`;
 }
 
 function issueRow(issue: QualityReport["issues"][number]): string {

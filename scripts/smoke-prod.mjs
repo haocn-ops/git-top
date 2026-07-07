@@ -224,6 +224,8 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(auth.headers.get("content-type") ?? "", /text\/markdown/);
     assert.match(auth.text, /# Auth\.md/);
     assert.match(auth.text, /Public No-Auth Surfaces/);
+    assert.match(auth.text, /agent_auth:/);
+    assert.match(auth.text, /registration_required: false/);
 
     const { status: agentManifestStatus, body: agentManifest } = await getJson(context, "/.well-known/agents.json");
     assert.equal(agentManifestStatus, 200);

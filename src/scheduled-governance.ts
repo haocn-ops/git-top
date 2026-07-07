@@ -5,11 +5,12 @@ import { buildQualityReport } from "./quality";
 import { refreshAlternativesDerivedData } from "./derived-refresh";
 import { getSyncStatus } from "./db-sync-store";
 import { upsertGovernanceRun } from "./governance-store";
+import { scheduledGovernanceDefinition, type GovernanceCadence } from "./governance-schedule";
 import type { Env, GovernanceRunStatus } from "./types";
 
 interface ScheduledGovernanceTask {
   task: string;
-  cadence: "daily" | "weekly" | "biweekly" | "monthly";
+  cadence: GovernanceCadence;
   shouldRun(date: Date): boolean;
   run(env: Env): Promise<Record<string, unknown>>;
 }
@@ -21,26 +22,27 @@ interface ScheduledGovernanceResult {
 
 const scheduledGovernanceTasks: ScheduledGovernanceTask[] = [
   {
-    task: "daily-production-health",
-    cadence: "daily",
+    ...scheduledGovernanceDefinition("daily-production-health"),
     shouldRun: (date) => date.getUTCHours() === 1,
     run: runDailyProductionHealth
   },
   {
-    task: "weekly-data-governance",
-    cadence: "weekly",
+    ...scheduledGovernanceDefinition("weekly-data-governance"),
     shouldRun: (date) => date.getUTCDay() === 1 && date.getUTCHours() === 2,
     run: runWeeklyDataGovernance
   },
   {
-    task: "biweekly-live-check",
-    cadence: "biweekly",
+    ...scheduledGovernanceDefinition("derived:alternatives"),
+    shouldRun: (date) => date.getUTCDay() === 1 && date.getUTCHours() === 2,
+    run: runWeeklyAlternativesRefresh
+  },
+  {
+    ...scheduledGovernanceDefinition("biweekly-live-check"),
     shouldRun: (date) => [1, 15].includes(date.getUTCDate()) && date.getUTCHours() === 3,
     run: runBiweeklyLiveCheck
   },
   {
-    task: "monthly-corpus-review",
-    cadence: "monthly",
+    ...scheduledGovernanceDefinition("monthly-corpus-review"),
     shouldRun: (date) => date.getUTCDate() === 1 && date.getUTCHours() === 4,
     run: runMonthlyCorpusReview
   }
@@ -188,6 +190,17 @@ async function runBiweeklyLiveCheck(env: Env): Promise<Record<string, unknown>> 
     cursor: sync.cursor,
     priority_stale_counts: sync.priority?.staleCounts,
     last_successful_sync_at: sync.lastSuccessfulSyncAt
+  };
+}
+
+async function runWeeklyAlternativesRefresh(env: Env): Promise<Record<string, unknown>> {
+  const alternatives = await refreshAlternativesDerivedData(env, "cron", { recordRun: false });
+  return {
+    updated: alternatives.updated,
+    candidate_count: alternatives.updates.length,
+    project_count: alternatives.metadata.projectCount,
+    source: alternatives.metadata.source,
+    source_reason: alternatives.metadata.reason
   };
 }
 
