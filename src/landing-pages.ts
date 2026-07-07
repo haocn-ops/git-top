@@ -373,6 +373,16 @@ const topicLandings: Record<
     title: "Open Source Knowledge Graph API",
     subtitle: "Use Git.Top as an agent-readable API layer for project knowledge, alternatives, graphs, scores, recommendations, Atlas journeys, and MCP tools.",
     query: "agent framework knowledge graph api",
+    projectIds: [
+      "cloudflare/agents",
+      "modelcontextprotocol/servers",
+      "langchain-ai/langchain",
+      "run-llama/llama_index",
+      "qdrant/qdrant",
+      "langfuse/langfuse",
+      "openai/codex",
+      "cloudflare/mcp-server-cloudflare"
+    ],
     apiPath: "/api/agent-map",
     sections: [
       {
