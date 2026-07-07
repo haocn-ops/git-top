@@ -741,6 +741,10 @@ export async function renderTopicLandingPage(env: Env, slug: string): Promise<Re
   );
 }
 
+export function hasTopicLandingPage(slug: string): boolean {
+  return Boolean(topicLandings[normalizeSlug(slug).replace("/", "-")]);
+}
+
 function renderAlternativesHtml({
   title,
   subtitle,

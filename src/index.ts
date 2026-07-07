@@ -15,6 +15,7 @@ import {
   renderCompareIndexPage,
   renderCompareLandingPage,
   renderDiscoverPage,
+  hasTopicLandingPage,
   renderTopicLandingPage
 } from "./landing-pages";
 import { handleMcp } from "./mcp";
@@ -273,6 +274,15 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
 
   const topicLanding = url.pathname.match(/^\/topics\/([^/]+)$/);
   if (topicLanding) {
+    if (request.method === "HEAD") {
+      return new Response(null, {
+        status: hasTopicLandingPage(decodeURIComponent(topicLanding[1])) ? 200 : 404,
+        headers: {
+          "cache-control": "public, max-age=180",
+          "content-type": "text/html; charset=utf-8"
+        }
+      });
+    }
     const response = await renderTopicLandingPage(env, decodeURIComponent(topicLanding[1]));
     if (response) {
       return response;
