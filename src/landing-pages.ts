@@ -163,6 +163,7 @@ const topicLandings: Record<
     category?: string;
     deployment?: string;
     cloudflareReady?: boolean;
+    projectIds?: string[];
     apiPath: string;
     sections: Array<{ title: string; body: string }>;
   }
@@ -538,8 +539,8 @@ const topicLandings: Record<
   "alternatives-engine-guide": {
     title: "Alternatives Engine Guide",
     subtitle: "How Git.Top finds adjacent projects, replacement candidates, and comparable open-source tools.",
-    query: "alternatives",
     apiPath: "/alternatives",
+    projectIds: ["langchain-ai/langchain", "run-llama/llama_index", "cloudflare/agents", "browser-use/browser-use", "modelcontextprotocol/servers", "qdrant/qdrant"],
     sections: [
       {
         title: "Matching Signals",
@@ -703,7 +704,9 @@ export async function renderTopicLandingPage(env: Env, slug: string): Promise<Re
   }
   const knowledge = await listProjectKnowledgeWithMeta(env);
   const projects =
-    normalizeSlug(slug) === "langchain-alternatives"
+    config.projectIds
+      ? config.projectIds.map((id) => findProject(knowledge.projects, id)).filter((item): item is ProjectKnowledge => item !== null)
+      : normalizeSlug(slug) === "langchain-alternatives"
       ? findAlternativesFromList(knowledge.projects, "langchain-ai/langchain", 12)
       : normalizeSlug(slug) === "github-project-alternatives-api"
         ? findAlternativesFromList(knowledge.projects, "cloudflare/agents", 12)
