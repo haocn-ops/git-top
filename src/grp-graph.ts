@@ -16,7 +16,8 @@ export function expandGraph(
   projects: ProjectKnowledge[],
   seeds: ScoredProject[],
   decomposition: GoalDecomposition,
-  request: GrpRequest
+  request: GrpRequest,
+  lookupProjects: ProjectKnowledge[] = projects
 ): GrpGraph {
   const nodes = new Map<string, GrpNode>();
   const edges: GrpEdge[] = [];
@@ -52,7 +53,7 @@ export function expandGraph(
     }
 
     for (const alternative of alternativesFor(entry.item, projects).slice(0, 4)) {
-      const alternativeProject = projects.find((item) => item.project.id === alternative.project_id || item.project.fullName === alternative.project_id);
+      const alternativeProject = lookupProjects.find((item) => item.project.id === alternative.project_id || item.project.fullName === alternative.project_id);
       const alternativeNode = alternativeProject
         ? toProjectNode(alternativeProject, decomposition, request, "find")
         : conceptNode(alternative.project_id, "project", [alternative.reason], 55);

@@ -23,12 +23,12 @@ export function runGrpQuery(projects: ProjectKnowledge[], request: GrpRequest): 
   const decomposition = decomposeGoal(request);
   const candidatePool = selectGrpCandidatePool(projects, decomposition, request, mode);
   const seeds = retrieveSeeds(candidatePool, decomposition, request, mode);
-  const graph = expandGraph(candidatePool, seeds, decomposition, request);
-  const comparison = mode === "compare" ? buildComparison(candidatePool, seeds, request) : undefined;
+  const graph = expandGraph(candidatePool, seeds, decomposition, request, projects);
+  const comparison = mode === "compare" ? buildComparison(candidatePool, seeds, request, projects) : undefined;
   const solutionPaths = mode === "find" || mode === "compare" ? [] : buildSolutionPaths(graph.nodes, graph.edges, decomposition, mode, request.constraints);
   const stackSourceNodes = mode === "compose" ? graph.nodes : solutionPaths[0]?.nodes ?? graph.nodes;
   const recommendedStack = mode === "compare" ? [] : composeRecommendedStack(stackSourceNodes, decomposition, mode, request.constraints);
-  const alternatives = buildAlternatives(candidatePool, seeds, recommendedStack);
+  const alternatives = buildAlternatives(candidatePool, seeds, recommendedStack, projects);
   const resultType = resultTypeForMode(mode);
   const evidence = grpEvidence(seeds, graph.nodes, graph.edges, solutionPaths, recommendedStack);
 

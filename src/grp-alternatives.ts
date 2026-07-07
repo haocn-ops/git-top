@@ -3,7 +3,12 @@ import type { ScoredProject } from "./grp-candidates";
 import type { GrpAlternative, StackRole } from "./grp-types";
 import type { ProjectKnowledge } from "./types";
 
-export function buildAlternatives(projects: ProjectKnowledge[], seeds: ScoredProject[], stack: StackRole[]): GrpAlternative[] {
+export function buildAlternatives(
+  projects: ProjectKnowledge[],
+  seeds: ScoredProject[],
+  stack: StackRole[],
+  lookupProjects: ProjectKnowledge[] = projects
+): GrpAlternative[] {
   const selected = new Set(stack.map((item) => item.nodeId));
   const matchedSeeds = seeds.filter((entry) => selected.has(entry.node.id));
   const sourceSeeds = matchedSeeds.length > 0 ? matchedSeeds : seeds.slice(0, 6);
@@ -16,7 +21,7 @@ export function buildAlternatives(projects: ProjectKnowledge[], seeds: ScoredPro
         .map((alternative) => ({
           projectId: alternative.project_id,
           reason: alternative.reason,
-          score: projects.find((project) => project.project.id === alternative.project_id)?.metrics.gitScore
+          score: lookupProjects.find((project) => project.project.id === alternative.project_id)?.metrics.gitScore
         }))
     }))
     .filter((item) => item.alternatives.length > 0);

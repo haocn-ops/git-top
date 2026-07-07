@@ -5,16 +5,22 @@ import type { GrpRequest } from "./grp-request";
 import type { GrpComparison } from "./grp-types";
 import type { ProjectKnowledge } from "./types";
 
-export function buildComparison(projects: ProjectKnowledge[], seeds: ScoredProject[], request: GrpRequest): GrpComparison {
+export function buildComparison(
+  projects: ProjectKnowledge[],
+  seeds: ScoredProject[],
+  request: GrpRequest,
+  lookupProjects: ProjectKnowledge[] = projects
+): GrpComparison {
+  const decomposition = decomposeGoal(request);
   const terms = parseComparisonTerms(request.goal);
-  const termMatches = terms.map((term) => ({ term, project: findProjectForTerm(projects, term) }));
+  const termMatches = terms.map((term) => ({ term, project: findProjectForTerm(lookupProjects, term) }));
   const matched = termMatches
     .filter((entry): entry is { term: string; project: ProjectKnowledge } => Boolean(entry.project))
     .map((entry) => ({
       item: entry.project,
-      node: toProjectNode(entry.project, decomposeGoal(request), request, "compare")
+      node: toProjectNode(entry.project, decomposition, request, "compare")
     }));
-  const named = seeds.filter((entry) => isNamedInGoal(entry.item, request.goal));
+  const named = namedProjects(lookupProjects, request, decomposition);
   const compared = terms.length >= 2 ? matched : (named.length >= 2 ? named : seeds.slice(0, 3)).slice(0, 4);
   const projectSummaries: GrpComparison["projects"] = compared.map((entry) => {
     const deployment = entry.item.agentCard.deployment;
@@ -58,6 +64,15 @@ export function buildComparison(projects: ProjectKnowledge[], seeds: ScoredProje
       ? `${winner} has the strongest GRP score among indexed compared projects for this goal and constraints.`
       : "No indexed projects were found for the named comparison terms."
   };
+}
+
+function namedProjects(projects: ProjectKnowledge[], request: GrpRequest, decomposition: ReturnType<typeof decomposeGoal>): ScoredProject[] {
+  return projects
+    .filter((item) => isNamedInGoal(item, request.goal))
+    .map((item) => ({
+      item,
+      node: toProjectNode(item, decomposition, request, "compare")
+    }));
 }
 
 function comparisonStrengths(entry: ScoredProject): string[] {
@@ -122,6 +137,11 @@ function intersectSets(sets: Array<Set<string>>): string[] {
 
 function parseComparisonTerms(goal: string): string[] {
   const normalized = goal.replace(/\s+/g, " ").trim();
+  const compareAndMatch = normalized.match(/^compare\s+(.+?)\s+and\s+(.+?)(?:\s+(?:for|on)\s+.+)?$/i);
+  if (compareAndMatch) {
+    return [compareAndMatch[1], compareAndMatch[2]].map(cleanComparisonTerm).filter((part) => part.length > 1).slice(0, 4);
+  }
+
   const parts = normalized.split(/\s+(?:vs\.?|versus|compared to)\s+/i);
   if (parts.length < 2) {
     return [];
@@ -129,9 +149,13 @@ function parseComparisonTerms(goal: string): string[] {
 
   return parts
     .flatMap((part) => part.split(/\s*,\s*/))
-    .map((part) => part.replace(/\s+for\s+.+$/i, "").replace(/\s+on\s+.+$/i, "").trim())
+    .map(cleanComparisonTerm)
     .filter((part) => part.length > 1)
     .slice(0, 4);
+}
+
+function cleanComparisonTerm(term: string): string {
+  return term.replace(/\s+for\s+.+$/i, "").replace(/\s+on\s+.+$/i, "").trim();
 }
 
 function findProjectForTerm(projects: ProjectKnowledge[], term: string): ProjectKnowledge | undefined {

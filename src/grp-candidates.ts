@@ -18,6 +18,13 @@ export function selectGrpCandidatePool(projects: ProjectKnowledge[], decompositi
   }
 
   const limit = mode === "compare" || mode === "find" ? exactModeCandidatePoolLimit : defaultCandidatePoolLimit;
+  const selected = new Map<string, ProjectKnowledge>();
+  for (const item of projects) {
+    if (isMandatoryPoolProject(item, request)) {
+      selected.set(item.project.id, item);
+    }
+  }
+
   const scored = projects
     .map((item, index) => ({
       item,
@@ -26,16 +33,14 @@ export function selectGrpCandidatePool(projects: ProjectKnowledge[], decompositi
     }))
     .sort((a, b) => b.score - a.score || b.item.metrics.gitScore - a.item.metrics.gitScore || a.index - b.index);
 
-  const selected = scored.slice(0, limit);
-  const selectedIds = new Set(selected.map((entry) => entry.item.project.id));
   for (const entry of scored) {
-    if (entry.score >= 180 && !selectedIds.has(entry.item.project.id)) {
-      selected.push(entry);
-      selectedIds.add(entry.item.project.id);
+    if (selected.size >= limit) {
+      break;
     }
+    selected.set(entry.item.project.id, entry.item);
   }
 
-  return selected.map((entry) => entry.item);
+  return Array.from(selected.values());
 }
 
 export function retrieveSeeds(projects: ProjectKnowledge[], decomposition: GoalDecomposition, request: GrpRequest, mode: GrpMode): ScoredProject[] {
@@ -145,6 +150,10 @@ function poolScoreForProject(item: ProjectKnowledge, decomposition: GoalDecompos
   }
 
   return score;
+}
+
+function isMandatoryPoolProject(item: ProjectKnowledge, request: GrpRequest): boolean {
+  return isNamedInGoal(item, request.goal) || request.context?.previous_selected_projects?.some((projectId) => sameProjectId(item, projectId)) === true;
 }
 
 function sameProjectId(item: ProjectKnowledge, projectId: string): boolean {

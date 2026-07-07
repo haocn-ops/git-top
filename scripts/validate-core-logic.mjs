@@ -1076,6 +1076,7 @@ async function testGrpQueries() {
   assert.equal(findResult.resultType, "project_set");
   assert.ok(findResult.nodes.some((node) => node.repo === "cloudflare/agents"));
   assert.ok(findResult.metadata.candidateCount > 0);
+  assert.ok(findResult.metadata.candidatePoolCount <= 220);
 
   const compareRequest = normalizeGrpRequest({
     goal: "Compare cloudflare/agents and run-llama/llama_index for Cloudflare deployment",
@@ -1091,6 +1092,8 @@ async function testGrpQueries() {
   assert.ok(compareResult.comparison);
   assert.ok(compareResult.comparison.projects.length >= 2);
   assert.ok(compareResult.comparison.projects.some((project) => project.id === "cloudflare/agents"));
+  assert.ok(compareResult.comparison.projects.some((project) => project.id === "run-llama/llama_index"));
+  assert.ok(compareResult.metadata.candidatePoolCount <= 220);
 }
 
 function makeSearchFixture(id, overrides) {
