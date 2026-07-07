@@ -144,7 +144,7 @@ function isLocalHostname(value: string): boolean {
   return value === "localhost" || value.endsWith(".localhost") || value === "::1" || value.startsWith("127.");
 }
 
-export function withSiteHeaders(response: Response): Response {
+export function withSiteHeaders(response: Response, request?: Request): Response {
   const headers = new Headers(response.headers);
   const existingLink = headers.get("link");
   headers.set("link", existingLink ? `${existingLink}, ${agentDiscoveryLinks.join(", ")}` : agentDiscoveryLinks.join(", "));
@@ -157,11 +157,32 @@ export function withSiteHeaders(response: Response): Response {
     "content-security-policy",
     "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
   );
+  if (request && isPublicCorsPath(new URL(request.url).pathname)) {
+    headers.set("access-control-allow-origin", "*");
+    headers.set("access-control-allow-methods", "GET, POST, OPTIONS");
+    headers.set("access-control-allow-headers", "accept, content-type");
+    headers.set("access-control-max-age", "86400");
+  }
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
     headers
   });
+}
+
+export function isPublicCorsPath(pathname: string): boolean {
+  if (pathname.startsWith("/api/admin/")) {
+    return false;
+  }
+  return (
+    pathname.startsWith("/api/") ||
+    pathname === "/mcp" ||
+    pathname === "/openapi.json" ||
+    pathname === "/llms.txt" ||
+    pathname === "/llms-full.txt" ||
+    pathname === "/auth.md" ||
+    pathname.startsWith("/.well-known/")
+  );
 }
 
 export function renderRobotsTxt(): Response {

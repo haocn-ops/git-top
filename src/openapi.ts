@@ -829,7 +829,7 @@ export const openApiDocument = {
               adoption_plan: { type: "array", items: { type: "string" } },
               risk_flags: { type: "array", items: { type: "string" } },
               matched_constraints: { type: "object", additionalProperties: true },
-              unmatched_constraints: { type: "array", items: { type: "string" } },
+              unmatched_constraints: { type: "object", additionalProperties: true },
               ranking_signals: { type: "object", additionalProperties: { type: "number" } },
               confidence: { type: "string", enum: ["high", "medium", "low"] },
               confidence_reason: { type: "string" },

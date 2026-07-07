@@ -52,6 +52,7 @@ import {
   renderRobotsTxt,
   renderSecurityTxt,
   renderSitemapXml,
+  isPublicCorsPath,
   withSiteHeaders
 } from "./site";
 import { scheduledSyncLimit, syncGithubProjects } from "./sync";
@@ -63,7 +64,7 @@ export default {
     const url = new URL(request.url);
 
     const response = await routeRequest(request, env, url);
-    return withSiteHeaders(response);
+    return withSiteHeaders(response, request);
   },
 
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
@@ -85,6 +86,10 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
   const canonicalRedirect = canonicalHostRedirect(request, url);
   if (canonicalRedirect) {
     return canonicalRedirect;
+  }
+
+  if (request.method === "OPTIONS" && isPublicCorsPath(url.pathname)) {
+    return new Response(null, { status: 204 });
   }
 
   const legacyRedirect = legacyConsoleRedirect(url);

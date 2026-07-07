@@ -1,5 +1,5 @@
 import { generateAlternativeMatches } from "./alternatives";
-import { toProjectKnowledgeView } from "./project-view";
+import { toProjectKnowledgeView, type ProjectKnowledgeView } from "./project-view";
 import type { AgentCard, ClassificationSignal, Project, ProjectKnowledge, ProjectMetrics, ProjectKind } from "./types";
 
 export interface ProjectFilters {
@@ -26,7 +26,7 @@ export interface RecommendationQuery {
   limit?: number;
 }
 
-export interface Recommendation {
+export interface Recommendation extends ProjectKnowledgeView {
   project_id: string;
   projectId: string;
   score: number;
@@ -58,7 +58,7 @@ export interface Recommendation {
   };
   confidence: "high" | "medium" | "low";
   confidence_reason: string;
-  evidence: {
+  evidence: ProjectKnowledgeView["evidence"] & {
     classification: ReturnType<typeof toProjectKnowledgeView>["classification"];
     quality_signal_confidence: ReturnType<typeof toProjectKnowledgeView>["qualitySignalConfidence"];
     source_fields: string[];
@@ -306,6 +306,7 @@ export function recommendProjectList(projects: ProjectKnowledge[], query: Recomm
       const sourceFields = sortedUnique([...projectView.sourceFields, "recommendation.query", "recommendation.ranking_signals", "recommendation.constraints"]);
 
       return {
+        ...projectView,
         project_id: item.project.id,
         projectId: item.project.id,
         score,
@@ -330,7 +331,9 @@ export function recommendProjectList(projects: ProjectKnowledge[], query: Recomm
           recommendation_reasons: reasons,
           ranking_signals: rankingSignals,
           matched_constraints: matchedConstraints,
-          unmatched_constraints: unmatchedConstraints
+          unmatched_constraints: unmatchedConstraints,
+          confidence_reason: projectView.confidenceReason,
+          last_verified_at: projectView.lastVerifiedAt
         },
         caveats,
         source_fields: sourceFields,

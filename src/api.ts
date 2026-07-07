@@ -534,22 +534,15 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
   }
 
   if (path === "/api/search") {
+    const parsed = searchFiltersFromUrl(url);
+    if (!parsed.ok) {
+      return errorJson(400, parsed.code, parsed.message);
+    }
     const knowledge = await requireKnowledgeSource(request, env);
     if (knowledge instanceof Response) {
       return knowledge;
     }
-    const filters = {
-      q: url.searchParams.get("q") ?? url.searchParams.get("query") ?? undefined,
-      category: url.searchParams.get("category") ?? undefined,
-      deployment: url.searchParams.get("deployment") ?? undefined,
-      difficulty: url.searchParams.get("difficulty") ?? undefined,
-      cloudflareReady: parseBool(url.searchParams.get("cloudflare_ready")),
-      language: url.searchParams.get("language") ?? undefined,
-      projectKind: url.searchParams.get("project_kind") ?? undefined,
-      minConfidence: url.searchParams.get("min_confidence") ?? undefined,
-      ranking: url.searchParams.get("ranking") ?? undefined,
-      limit: parseLimit(url.searchParams.get("limit"))
-    };
+    const filters = parsed.filters;
     const results = searchProjectList(knowledge.projects, {
       ...filters
     });
@@ -1150,7 +1143,7 @@ async function handleRecommendApi(request: Request, env: Env): Promise<Response>
     return errorJson(405, "method_not_allowed", "Recommendation endpoint supports GET and POST.");
   }
 
-  const parsed = request.method === "POST" ? await parseRecommendationBody(request) : { ok: true as const, query: recommendationQueryFromUrl(new URL(request.url)) };
+  const parsed = request.method === "POST" ? await parseRecommendationBody(request) : recommendationQueryFromUrl(new URL(request.url));
   if (!parsed.ok) {
     return errorJson(400, parsed.code, parsed.message);
   }
@@ -1173,7 +1166,7 @@ async function handleWorkflowApi(request: Request, env: Env): Promise<Response> 
     return errorJson(405, "method_not_allowed", "Workflow endpoint supports GET and POST.");
   }
 
-  const parsed = request.method === "POST" ? await parseWorkflowBody(request) : { ok: true as const, input: workflowInputFromUrl(new URL(request.url)) };
+  const parsed = request.method === "POST" ? await parseWorkflowBody(request) : workflowInputFromUrl(new URL(request.url));
   if (!parsed.ok) {
     return errorJson(400, parsed.code, parsed.message);
   }
@@ -1189,18 +1182,57 @@ async function handleWorkflowApi(request: Request, env: Env): Promise<Response> 
   });
 }
 
-function workflowInputFromUrl(url: URL): AgentWorkflowInput {
+function searchFiltersFromUrl(
+  url: URL
+): { ok: true; filters: Parameters<typeof searchProjectList>[1] } | { ok: false; code: string; message: string } {
+  const cloudflareReady = parseBooleanQueryParam(url, "cloudflare_ready", "invalid_search_request");
+  if (!cloudflareReady.ok) {
+    return cloudflareReady;
+  }
+  const limit = parseLimitQueryParam(url, "invalid_search_request");
+  if (!limit.ok) {
+    return limit;
+  }
   return {
-    intent: url.searchParams.get("intent") ?? undefined,
-    useCase: url.searchParams.get("use_case") ?? undefined,
-    projectId: url.searchParams.get("project_id") ?? url.searchParams.get("repo") ?? undefined,
-    deployment: url.searchParams.get("deployment") ?? undefined,
-    difficulty: url.searchParams.get("difficulty") ?? undefined,
-    language: url.searchParams.get("language") ?? undefined,
-    category: url.searchParams.get("category") ?? undefined,
-    license: url.searchParams.get("license") ?? undefined,
-    cloudflareReady: parseBool(url.searchParams.get("cloudflare_ready")),
-    limit: parseLimit(url.searchParams.get("limit"))
+    ok: true,
+    filters: {
+      q: url.searchParams.get("q") ?? url.searchParams.get("query") ?? undefined,
+      category: url.searchParams.get("category") ?? undefined,
+      deployment: url.searchParams.get("deployment") ?? undefined,
+      difficulty: url.searchParams.get("difficulty") ?? undefined,
+      cloudflareReady: cloudflareReady.value,
+      language: url.searchParams.get("language") ?? undefined,
+      projectKind: url.searchParams.get("project_kind") ?? undefined,
+      minConfidence: url.searchParams.get("min_confidence") ?? undefined,
+      ranking: url.searchParams.get("ranking") ?? undefined,
+      limit: limit.value
+    }
+  };
+}
+
+function workflowInputFromUrl(url: URL): { ok: true; input: AgentWorkflowInput } | { ok: false; code: string; message: string } {
+  const cloudflareReady = parseBooleanQueryParam(url, "cloudflare_ready", "invalid_workflow_request");
+  if (!cloudflareReady.ok) {
+    return cloudflareReady;
+  }
+  const limit = parseLimitQueryParam(url, "invalid_workflow_request");
+  if (!limit.ok) {
+    return limit;
+  }
+  return {
+    ok: true,
+    input: {
+      intent: url.searchParams.get("intent") ?? undefined,
+      useCase: url.searchParams.get("use_case") ?? undefined,
+      projectId: url.searchParams.get("project_id") ?? url.searchParams.get("repo") ?? undefined,
+      deployment: url.searchParams.get("deployment") ?? undefined,
+      difficulty: url.searchParams.get("difficulty") ?? undefined,
+      language: url.searchParams.get("language") ?? undefined,
+      category: url.searchParams.get("category") ?? undefined,
+      license: url.searchParams.get("license") ?? undefined,
+      cloudflareReady: cloudflareReady.value,
+      limit: limit.value
+    }
   };
 }
 
@@ -1223,9 +1255,9 @@ async function parseWorkflowBody(
   if (!cloudflareReady.ok) {
     return { ok: false, code: "invalid_workflow_request", message: "cloudflare_ready must be a boolean when provided." };
   }
-  const limit = optionalNumberValue(data.limit);
+  const limit = optionalLimitValue(data.limit);
   if (!limit.ok) {
-    return { ok: false, code: "invalid_workflow_request", message: "limit must be a number when provided." };
+    return { ok: false, code: "invalid_workflow_request", message: "limit must be an integer from 1 to 100 when provided." };
   }
 
   return {
@@ -1245,16 +1277,29 @@ async function parseWorkflowBody(
   };
 }
 
-function recommendationQueryFromUrl(url: URL): Parameters<typeof recommendProjectList>[1] {
+function recommendationQueryFromUrl(
+  url: URL
+): { ok: true; query: Parameters<typeof recommendProjectList>[1] } | { ok: false; code: string; message: string } {
+  const cloudflareReady = parseBooleanQueryParam(url, "cloudflare_ready", "invalid_recommendation_request");
+  if (!cloudflareReady.ok) {
+    return cloudflareReady;
+  }
+  const limit = parseLimitQueryParam(url, "invalid_recommendation_request");
+  if (!limit.ok) {
+    return limit;
+  }
   return {
-    useCase: url.searchParams.get("use_case") ?? undefined,
-    deployment: url.searchParams.get("deployment") ?? undefined,
-    difficulty: url.searchParams.get("difficulty") ?? undefined,
-    language: url.searchParams.get("language") ?? undefined,
-    category: url.searchParams.get("category") ?? undefined,
-    license: url.searchParams.get("license") ?? undefined,
-    cloudflareReady: parseBool(url.searchParams.get("cloudflare_ready")),
-    limit: parseLimit(url.searchParams.get("limit"))
+    ok: true,
+    query: {
+      useCase: url.searchParams.get("use_case") ?? undefined,
+      deployment: url.searchParams.get("deployment") ?? undefined,
+      difficulty: url.searchParams.get("difficulty") ?? undefined,
+      language: url.searchParams.get("language") ?? undefined,
+      category: url.searchParams.get("category") ?? undefined,
+      license: url.searchParams.get("license") ?? undefined,
+      cloudflareReady: cloudflareReady.value,
+      limit: limit.value
+    }
   };
 }
 
@@ -1277,9 +1322,9 @@ async function parseRecommendationBody(
   if (!cloudflareReady.ok) {
     return { ok: false, code: "invalid_recommendation_request", message: "cloudflare_ready must be a boolean when provided." };
   }
-  const limit = optionalNumberValue(data.limit);
+  const limit = optionalLimitValue(data.limit);
   if (!limit.ok) {
-    return { ok: false, code: "invalid_recommendation_request", message: "limit must be a number when provided." };
+    return { ok: false, code: "invalid_recommendation_request", message: "limit must be an integer from 1 to 100 when provided." };
   }
 
   return {
@@ -1308,11 +1353,46 @@ function optionalNumberValue(value: unknown): { ok: true; value?: number } | { o
   return typeof value === "number" && Number.isFinite(value) ? { ok: true, value } : { ok: false };
 }
 
+function optionalLimitValue(value: unknown): { ok: true; value?: number } | { ok: false } {
+  if (value === undefined || value === null) {
+    return { ok: true };
+  }
+  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 100 ? { ok: true, value } : { ok: false };
+}
+
 function optionalBooleanValue(value: unknown): { ok: true; value?: boolean } | { ok: false } {
   if (value === undefined || value === null) {
     return { ok: true };
   }
   return typeof value === "boolean" ? { ok: true, value } : { ok: false };
+}
+
+function parseBooleanQueryParam(
+  url: URL,
+  name: string,
+  code: string
+): { ok: true; value?: boolean } | { ok: false; code: string; message: string } {
+  if (!url.searchParams.has(name)) {
+    return { ok: true };
+  }
+  const value = url.searchParams.get(name);
+  const parsed = parseBool(value);
+  if (typeof parsed !== "boolean") {
+    return { ok: false, code, message: `${name} must be a boolean value: true or false.` };
+  }
+  return { ok: true, value: parsed };
+}
+
+function parseLimitQueryParam(url: URL, code: string): { ok: true; value?: number } | { ok: false; code: string; message: string } {
+  if (!url.searchParams.has("limit")) {
+    return { ok: true };
+  }
+  const value = url.searchParams.get("limit");
+  const parsed = parseLimit(value);
+  if (parsed === undefined || !Number.isInteger(parsed) || parsed < 1 || parsed > 100) {
+    return { ok: false, code, message: "limit must be an integer from 1 to 100 when provided." };
+  }
+  return { ok: true, value: parsed };
 }
 
 function requiresD1(request: Request): boolean {

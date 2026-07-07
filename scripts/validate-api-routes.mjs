@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { handleApi } from "../src/api.ts";
+import worker from "../src/index.ts";
 import { openApiDocument } from "../src/openapi.ts";
 import { governanceRunRow, mockD1Env, mockD1ProjectId, syncRunRow } from "./mock-d1.mjs";
 
@@ -19,6 +20,7 @@ await testRoadmapRoute();
 await testSchemaRoutes();
 await testOpenApiDocument();
 await testMethodAndBodyValidation();
+await testCorsHeaders();
 await testMockD1Source();
 await testRequireD1Mode();
 await testD1FallbackReasons();
@@ -88,6 +90,14 @@ async function testSearchAndProjectRoutes() {
   assert.equal(emptySearch.body.projects.length, 0);
   assert.match(emptySearch.body.search.empty_reason, /No projects matched/);
   assert.ok(emptySearch.body.search.suggestions.some((item) => item.includes("category='agent_framework'")));
+
+  const invalidSearchLimit = await getJson("/api/search?q=cloudflare&limit=-1");
+  assert.equal(invalidSearchLimit.status, 400);
+  assert.equal(invalidSearchLimit.body.error.code, "invalid_search_request");
+
+  const invalidSearchBoolean = await getJson("/api/search?q=cloudflare&cloudflare_ready=definitely");
+  assert.equal(invalidSearchBoolean.status, 400);
+  assert.equal(invalidSearchBoolean.body.error.code, "invalid_search_request");
 
   const project = await getJson("/api/project/cloudflare/agents");
   assert.equal(project.status, 200);
@@ -181,6 +191,10 @@ async function testRecommendationAndCompareRoutes() {
   assert.equal(recommend.status, 200);
   assert.ok(Array.isArray(recommend.body.recommendations));
   assert.ok(recommend.body.recommendations.length > 0, "recommend should return seed recommendations");
+  assert.equal(typeof recommend.body.recommendations[0].project_id, "string");
+  assert.equal(typeof recommend.body.recommendations[0].repo, "string");
+  assert.equal(typeof recommend.body.recommendations[0].name, "string");
+  assert.equal(recommend.body.recommendations[0].project_id, recommend.body.recommendations[0].repo);
   assert.ok(Array.isArray(recommend.body.recommendations[0].reasons));
   assert.ok(typeof recommend.body.recommendations[0].decision_summary === "string");
   assert.ok(recommend.body.recommendations[0].fit_profile && typeof recommend.body.recommendations[0].fit_profile.primary_fit === "string");
@@ -197,6 +211,10 @@ async function testRecommendationAndCompareRoutes() {
   assert.ok(Array.isArray(recommend.body.recommendations[0].caveats));
   assert.ok(recommend.body.recommendations[0].last_verified_at);
   assertMetadata(recommend.body.metadata, "db_missing");
+
+  const invalidRecommendLimit = await getJson("/api/recommend?limit=abc");
+  assert.equal(invalidRecommendLimit.status, 400);
+  assert.equal(invalidRecommendLimit.body.error.code, "invalid_recommendation_request");
 
   const filteredRecommend = await getJson("/api/recommend?category=agent_framework&license=MIT&limit=3");
   assert.equal(filteredRecommend.status, 200);
@@ -226,10 +244,20 @@ async function testRecommendationAndCompareRoutes() {
   assert.equal(postRecommend.body.query.cloudflare_ready, true);
   assert.ok(postRecommend.body.recommendations.length > 0);
   assert.ok(postRecommend.body.recommendations.length <= 2);
+  assert.equal(typeof postRecommend.body.recommendations[0].repo, "string");
+  assert.equal(typeof postRecommend.body.recommendations[0].name, "string");
   assert.ok(typeof postRecommend.body.recommendations[0].decision_summary === "string");
   assert.ok(Array.isArray(postRecommend.body.recommendations[0].adoption_plan));
   assert.ok(postRecommend.body.recommendations[0].next_actions.some((action) => action.kind === "score"));
   assertMetadata(postRecommend.body.metadata, "db_missing");
+
+  const invalidPostRecommend = await request("/api/recommend", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ limit: -1 })
+  });
+  assert.equal(invalidPostRecommend.status, 400);
+  assert.equal(invalidPostRecommend.body.error.code, "invalid_recommendation_request");
 
   const compare = await getJson("/api/compare?repos=cloudflare/agents,run-llama/llama_index&deployment=cloudflare");
   assert.equal(compare.status, 200);
@@ -1334,6 +1362,46 @@ async function testMethodAndBodyValidation() {
   const adminGovernance = await request("/api/admin/governance/runs", { method: "POST" });
   assert.equal(adminGovernance.status, 401);
   assert.equal(adminGovernance.body.error.code, "unauthorized");
+}
+
+async function testCorsHeaders() {
+  const publicPreflight = await worker.fetch(
+    new Request("https://git.top/api/search", {
+      method: "OPTIONS",
+      headers: {
+        origin: "https://example.com",
+        "access-control-request-method": "GET"
+      }
+    }),
+    env
+  );
+  assert.equal(publicPreflight.status, 204);
+  assert.equal(publicPreflight.headers.get("access-control-allow-origin"), "*");
+  assert.match(publicPreflight.headers.get("access-control-allow-methods") ?? "", /GET/);
+
+  const publicGet = await worker.fetch(
+    new Request("https://git.top/api/search?q=cloudflare&limit=1", {
+      headers: {
+        origin: "https://example.com"
+      }
+    }),
+    env
+  );
+  assert.equal(publicGet.status, 200);
+  assert.equal(publicGet.headers.get("access-control-allow-origin"), "*");
+
+  const adminPreflight = await worker.fetch(
+    new Request("https://git.top/api/admin/discovery", {
+      method: "OPTIONS",
+      headers: {
+        origin: "https://example.com",
+        "access-control-request-method": "POST"
+      }
+    }),
+    env
+  );
+  assert.notEqual(adminPreflight.status, 204);
+  assert.equal(adminPreflight.headers.get("access-control-allow-origin"), null);
 }
 
 async function testMockD1Source() {
