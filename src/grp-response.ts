@@ -29,6 +29,7 @@ export interface GrpResponse {
     version: "grp.v1";
     generatedAt: string;
     candidateCount: number;
+    candidatePoolCount: number;
     maxDepth: number;
   };
 }

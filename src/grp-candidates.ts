@@ -9,6 +9,35 @@ export interface ScoredProject {
   node: GrpNode;
 }
 
+const defaultCandidatePoolLimit = 160;
+const exactModeCandidatePoolLimit = 220;
+
+export function selectGrpCandidatePool(projects: ProjectKnowledge[], decomposition: GoalDecomposition, request: GrpRequest, mode: GrpMode): ProjectKnowledge[] {
+  if (projects.length <= defaultCandidatePoolLimit) {
+    return projects;
+  }
+
+  const limit = mode === "compare" || mode === "find" ? exactModeCandidatePoolLimit : defaultCandidatePoolLimit;
+  const scored = projects
+    .map((item, index) => ({
+      item,
+      index,
+      score: poolScoreForProject(item, decomposition, request)
+    }))
+    .sort((a, b) => b.score - a.score || b.item.metrics.gitScore - a.item.metrics.gitScore || a.index - b.index);
+
+  const selected = scored.slice(0, limit);
+  const selectedIds = new Set(selected.map((entry) => entry.item.project.id));
+  for (const entry of scored) {
+    if (entry.score >= 180 && !selectedIds.has(entry.item.project.id)) {
+      selected.push(entry);
+      selectedIds.add(entry.item.project.id);
+    }
+  }
+
+  return selected.map((entry) => entry.item);
+}
+
 export function retrieveSeeds(projects: ProjectKnowledge[], decomposition: GoalDecomposition, request: GrpRequest, mode: GrpMode): ScoredProject[] {
   const scored = projects.map((item) => ({
     item,
@@ -55,6 +84,74 @@ export function isNamedInGoal(item: ProjectKnowledge, goal: string): boolean {
   return [item.project.id, item.project.fullName, item.project.name, item.project.fullName.replace("/", " "), item.project.fullName.replace("/", "-")]
     .map(normalizeToken)
     .some((alias) => alias.length > 2 && normalized.includes(alias));
+}
+
+function poolScoreForProject(item: ProjectKnowledge, decomposition: GoalDecomposition, request: GrpRequest): number {
+  let score = Math.round(item.metrics.gitScore * 0.35 + item.metrics.maintenanceScore * 0.25);
+
+  if (isNamedInGoal(item, request.goal)) {
+    score += 240;
+  }
+  if (request.context?.previous_selected_projects?.some((projectId) => sameProjectId(item, projectId))) {
+    score += 180;
+  }
+  if (request.constraints?.category && item.agentCard.category === request.constraints.category) {
+    score += 120;
+  }
+  if (request.constraints?.language && normalizeToken(item.project.language ?? "") === request.constraints.language) {
+    score += 45;
+  }
+  if (request.constraints?.license && normalizeToken(item.project.license ?? "") === request.constraints.license) {
+    score += 28;
+  }
+  if (request.constraints?.agent_ready && (item.agentCard.category.includes("agent") || item.agentCard.summaryForAgent.length > 80)) {
+    score += 55;
+  }
+
+  for (const deployment of request.constraints?.deploy ?? []) {
+    if (item.agentCard.deployment.includes(deployment as never)) {
+      score += 90;
+    } else if (deployment === "cloudflare" && item.agentCard.cloudflareReady) {
+      score += 90;
+    } else if (deployment === "cloud" && item.agentCard.deployment.some((value) => ["cloud", "serverless", "cloudflare", "vercel"].includes(value))) {
+      score += 42;
+    } else if (deployment === "serverless" && item.agentCard.deployment.some((value) => ["serverless", "cloudflare", "vercel"].includes(value))) {
+      score += 42;
+    }
+  }
+
+  if (item.agentCard.cloudflareReady && (request.goal.toLowerCase().includes("cloudflare") || decomposition.requiredCapabilities.includes("cloudflare"))) {
+    score += 70;
+  }
+  if (decomposition.requiredCapabilities.includes(item.agentCard.category)) {
+    score += 95;
+  }
+  for (const deployment of item.agentCard.deployment) {
+    if (decomposition.requiredCapabilities.includes(deployment)) {
+      score += 65;
+    }
+  }
+
+  const text = poolText(item);
+  for (const capability of decomposition.requiredCapabilities) {
+    if (text.includes(capability.replace(/_/g, " "))) {
+      score += 38;
+    }
+  }
+  for (const keyword of decomposition.keywords) {
+    if (text.includes(keyword)) {
+      score += 22;
+    }
+  }
+
+  return score;
+}
+
+function sameProjectId(item: ProjectKnowledge, projectId: string): boolean {
+  const wanted = normalizeToken(projectId);
+  return [item.project.id, item.project.fullName, item.project.name, item.project.fullName.replace("/", " "), item.project.fullName.replace("/", "-")]
+    .map(normalizeToken)
+    .some((alias) => alias === wanted || alias.includes(wanted) || wanted.includes(alias));
 }
 
 function relevanceScoreForProject(item: ProjectKnowledge, decomposition: GoalDecomposition, request: GrpRequest): number {
@@ -193,6 +290,22 @@ function projectText(item: ProjectKnowledge): string {
     item.project.description,
     item.project.language,
     item.project.license,
+    item.project.topics.join(" "),
+    item.agentCard.category,
+    item.agentCard.deployment.join(" "),
+    item.agentCard.useCases.join(" "),
+    item.agentCard.summaryForAgent
+  ]
+    .join(" ")
+    .toLowerCase();
+}
+
+function poolText(item: ProjectKnowledge): string {
+  return [
+    item.project.id,
+    item.project.name,
+    item.project.description,
+    item.project.language,
     item.project.topics.join(" "),
     item.agentCard.category,
     item.agentCard.deployment.join(" "),
