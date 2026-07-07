@@ -160,10 +160,14 @@ function cleanComparisonTerm(term: string): string {
 
 function findProjectForTerm(projects: ProjectKnowledge[], term: string): ProjectKnowledge | undefined {
   const wanted = normalizeToken(term);
+  const aliasesFor = (item: ProjectKnowledge) =>
+    [item.project.id, item.project.fullName, item.project.name, item.project.fullName.replace("/", " "), item.project.fullName.replace("/", "-")].map(normalizeToken);
+  const exact = projects.find((item) => aliasesFor(item).some((alias) => alias === wanted));
+  if (exact) {
+    return exact;
+  }
   return projects.find((item) =>
-    [item.project.id, item.project.fullName, item.project.name, item.project.fullName.replace("/", " "), item.project.fullName.replace("/", "-")]
-      .map(normalizeToken)
-      .some((alias) => alias === wanted || alias.includes(wanted) || wanted.includes(alias))
+    aliasesFor(item).some((alias) => alias.includes(wanted) || (wanted.length >= 6 && alias.length >= 6 && wanted.includes(alias)))
   );
 }
 

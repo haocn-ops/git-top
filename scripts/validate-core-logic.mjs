@@ -1094,6 +1094,14 @@ async function testGrpQueries() {
   assert.ok(compareResult.comparison.projects.some((project) => project.id === "cloudflare/agents"));
   assert.ok(compareResult.comparison.projects.some((project) => project.id === "run-llama/llama_index"));
   assert.ok(compareResult.metadata.candidatePoolCount <= 220);
+
+  const exactCompareProjects = [
+    makeSearchFixture("livekit/agents", { description: "LiveKit agents", stars: 1000, gitScore: 80, maintenanceScore: 80 }),
+    makeSearchFixture("cloudflare/agents", { description: "Cloudflare agents", stars: 900, gitScore: 70, maintenanceScore: 70 }),
+    makeSearchFixture("run-llama/llama_index", { description: "LlamaIndex RAG framework", category: "rag_framework", stars: 800, gitScore: 65, maintenanceScore: 65 })
+  ];
+  const exactCompareResult = runGrpQuery(exactCompareProjects, compareRequest.request);
+  assert.deepEqual(exactCompareResult.comparison?.projects.map((project) => project.id), ["cloudflare/agents", "run-llama/llama_index"]);
 }
 
 function makeSearchFixture(id, overrides) {
