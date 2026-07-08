@@ -144,7 +144,7 @@ async function searchGithubCandidates(env: Env, query: string, category: Categor
   url.searchParams.set("per_page", "25");
 
   const response = await fetch(url, {
-    headers: githubHeaders()
+    headers: githubHeaders(env)
   });
   if (!response.ok) {
     throw new Error(`GitHub candidate search ${response.status} for ${query}: ${await response.text()}`);

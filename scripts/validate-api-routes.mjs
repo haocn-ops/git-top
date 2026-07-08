@@ -1310,9 +1310,12 @@ async function testMethodAndBodyValidation() {
   assert.equal(discoveryUnauthorized.body.error.code, "unauthorized");
 
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (input) => {
+  let githubSearchAuthorization = null;
+  globalThis.fetch = async (input, init) => {
     const url = input instanceof Request ? input.url : input instanceof URL ? input.href : String(input);
     if (url.startsWith("https://api.github.com/search/repositories")) {
+      const headers = new Headers(input instanceof Request ? input.headers : init?.headers);
+      githubSearchAuthorization = headers.get("authorization");
       return Response.json({
         items: [
           {
@@ -1331,7 +1334,7 @@ async function testMethodAndBodyValidation() {
     return originalFetch(input);
   };
   try {
-    const discoveryEnv = { ...mockD1Env(), SYNC_SECRET: "test-secret" };
+    const discoveryEnv = { ...mockD1Env(), SYNC_SECRET: "test-secret", GITHUB_TOKEN: "github-token" };
     const authorizedDiscovery = await request(
       "/api/admin/discovery",
       {
@@ -1351,6 +1354,7 @@ async function testMethodAndBodyValidation() {
     assert.deepEqual(authorizedDiscovery.body.synced, []);
     assert.equal(authorizedDiscovery.body.run.task, "candidate-discovery");
     assert.equal(authorizedDiscovery.body.run.status, "skipped");
+    assert.equal(githubSearchAuthorization, "Bearer github-token");
   } finally {
     globalThis.fetch = originalFetch;
   }
