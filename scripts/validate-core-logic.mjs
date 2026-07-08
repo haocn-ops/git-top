@@ -73,6 +73,17 @@ async function testLegacyConsoleRedirects() {
   const robotsText = await robots.text();
   assert.match(robotsText, /Content-Signal: ai-train=yes, search=yes, ai-input=yes/);
 
+  const rootSecurityTxt = await worker.fetch(new Request("https://git.top/security.txt"), {});
+  assert.equal(rootSecurityTxt.status, 200);
+  assert.match(rootSecurityTxt.headers.get("content-type") ?? "", /text\/plain/);
+  const rootSecurityText = await rootSecurityTxt.text();
+  assert.match(rootSecurityText, /Contact: mailto:security@git\.top/);
+
+  const wellKnownSecurityTxt = await worker.fetch(new Request("https://git.top/.well-known/security.txt"), {});
+  assert.equal(wellKnownSecurityTxt.status, 200);
+  const wellKnownSecurityText = await wellKnownSecurityTxt.text();
+  assert.match(wellKnownSecurityText, /Canonical: https:\/\/git\.top\/\.well-known\/security\.txt/);
+
   const auth = await worker.fetch(new Request("https://git.top/auth.md"), {});
   assert.equal(auth.status, 200);
   assert.match(auth.headers.get("content-type") ?? "", /text\/markdown/);

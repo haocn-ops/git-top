@@ -110,7 +110,7 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
     return renderSitemapXml(env);
   }
 
-  if (url.pathname === "/.well-known/security.txt") {
+  if (url.pathname === "/security.txt" || url.pathname === "/.well-known/security.txt") {
     return renderSecurityTxt();
   }
 
