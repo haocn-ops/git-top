@@ -48,6 +48,8 @@ try {
   await testHealth(origin);
   await testSearch(origin);
   await testProject(origin);
+  await testAgentDataSemantics(origin);
+  await testFeedbackValidation(origin);
   await testQuality(origin);
   await testSyncStatus(origin);
   await testGovernance(origin);
@@ -64,6 +66,9 @@ try {
           "/api/health",
           "/api/search",
           "/api/project/:owner/:repo",
+          "/api/projects",
+          "/api/changes",
+          "/api/feedback/proposals",
           "/api/quality",
           "/api/sync/status",
           "/api/governance/summary",
@@ -115,6 +120,45 @@ async function testProject(baseUrl) {
   assert.deepEqual(body.category, ["ai_observability"]);
   assert.equal(body.classification.category.confidence, "high");
   assert.equal(body.quality_signal_confidence.commits_30d, "complete");
+}
+
+async function testAgentDataSemantics(baseUrl) {
+  const batch = await postJson(`${baseUrl}/api/projects?require_d1=true`, {
+    project_ids: ["langfuse/langfuse", "missing/project"],
+    profile: "evidence"
+  });
+  assert.equal(batch.status, 200);
+  assert.equal(batch.body.projects[0].project_id, "langfuse/langfuse");
+  assert.ok(batch.body.projects[0].evidence);
+  assert.deepEqual(batch.body.missing, ["missing/project"]);
+  assert.equal(batch.body.metadata.source, "d1");
+
+  const first = await getJson(`${baseUrl}/api/changes?limit=2`);
+  assert.equal(first.status, 200);
+  assert.equal(first.body.changes.length, 2);
+  assert.equal(first.body.page.has_more, true);
+  assert.ok(first.body.page.next_cursor);
+  assert.equal(first.body.retention.days, 30);
+  assert.equal(first.body.metadata.source, "d1");
+
+  const second = await getJson(`${baseUrl}/api/changes?limit=2&cursor=${encodeURIComponent(first.body.page.next_cursor)}`);
+  assert.equal(second.status, 200);
+  assert.equal(second.body.changes.length, 2);
+  assert.notEqual(second.body.changes[0].cursor, first.body.changes[0].cursor);
+}
+
+async function testFeedbackValidation(baseUrl) {
+  const response = await postJson(`${baseUrl}/api/feedback/proposals`, {
+    project_id: "langfuse/langfuse",
+    feedback_type: "metadata",
+    proposed: { homepage_url: "https://langfuse.com" },
+    evidence: [{ url: "https://github.com/langfuse/langfuse", field: "homepage" }],
+    rationale: "The canonical repository links to the project homepage."
+  });
+  assert.equal(response.status, 200);
+  assert.equal(response.body.persisted, false);
+  assert.equal(response.body.review_required, true);
+  assert.ok(response.body.proposal.fingerprint);
 }
 
 async function testQuality(baseUrl) {
@@ -174,6 +218,8 @@ async function testMcp(baseUrl) {
   assert.equal(discovery.status, 200);
   assert.ok(discovery.body.tools.some((tool) => tool.name === "search_projects"));
   assert.ok(discovery.body.tools.some((tool) => tool.name === "git_top_grp_query"));
+  assert.ok(discovery.body.tools.some((tool) => tool.name === "get_projects_batch"));
+  assert.ok(discovery.body.tools.some((tool) => tool.name === "get_project_changes"));
 
   const list = await postJson(`${baseUrl}/mcp`, {
     jsonrpc: "2.0",

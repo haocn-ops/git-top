@@ -52,7 +52,7 @@ test("worker scheduled governance skips non-governance hours", async () => {
   assert.equal(config.governanceRuns.length, 0);
 });
 
-test("worker scheduled governance refreshes alternatives on the weekly governance cadence", async () => {
+test("worker scheduled governance leaves alternatives to the hourly incremental runner", async () => {
   const now = "2026-07-06T02:00:00.000Z";
   const config = {
     governanceRuns: []
@@ -61,19 +61,12 @@ test("worker scheduled governance refreshes alternatives on the weekly governanc
 
   const results = await runScheduledGovernance(env, new Date(now));
 
-  assert.deepEqual(results, [
-    { task: "weekly-data-governance", status: "success" },
-    { task: "derived:alternatives", status: "success" }
-  ]);
+  assert.deepEqual(results, [{ task: "weekly-data-governance", status: "success" }]);
   const weeklyRun = config.governanceRuns.find((run) => run.task === "weekly-data-governance");
   assert.equal(weeklyRun.status, "success");
   assert.equal(JSON.parse(weeklyRun.summary_json).cadence, "weekly");
 
-  const alternativesRuns = config.governanceRuns.filter((run) => run.task === "derived:alternatives");
-  assert.equal(alternativesRuns.length, 1);
-  assert.equal(alternativesRuns[0].id, "derived:alternatives:2026-07-06T02");
-  assert.equal(alternativesRuns[0].status, "success");
-  assert.equal(JSON.parse(alternativesRuns[0].summary_json).source, "d1");
+  assert.equal(config.governanceRuns.some((run) => run.task === "derived:alternatives"), false);
 });
 
 test("governance summary reports scheduled tasks without recent successful runs", async () => {

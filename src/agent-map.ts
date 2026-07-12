@@ -31,11 +31,29 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
   {
     concept: "Project knowledge",
     humanPage: "/projects/:owner/:repo",
-    rest: ["GET /api/project/:owner/:repo", "GET /api/project/:project", "POST /api/project"],
-    mcpTools: ["get_project", "get_project_card"],
+    rest: ["GET /api/project/:owner/:repo", "GET /api/project/:project", "POST /api/project", "GET /api/projects", "POST /api/projects"],
+    mcpTools: ["get_project", "get_project_card", "get_projects_batch"],
     outputFields: ["project", "knowledge", "related", "score", "quality_signal_confidence", "evidence", "caveats", "confidence_reason", "source_fields", "last_verified_at"],
     trustFields: ["metadata.source", "metadata.reason", "classification.*.confidence", "quality_signal_confidence", "evidence.source_fields", "caveats"],
     recommendedUse: "Fetch one repository before making a recommendation or citing project facts."
+  },
+  {
+    concept: "Project change feed",
+    humanPage: "/status",
+    rest: ["GET /api/changes"],
+    mcpTools: ["get_project_changes"],
+    outputFields: ["changes", "changes[].cursor", "changes[].project_id", "changes[].change_type", "changes[].changed_fields", "changes[].tombstone", "page.next_cursor", "retention"],
+    trustFields: ["metadata.source", "metadata.snapshot_id", "changes[].occurred_at", "retention.earliest_guaranteed_at"],
+    recommendedUse: "Incrementally update an agent cache and remove deleted projects using explicit tombstones instead of re-fetching the whole corpus."
+  },
+  {
+    concept: "Agent feedback proposals",
+    humanPage: "/quality/review",
+    rest: ["POST /api/feedback/proposals"],
+    mcpTools: ["propose_project_feedback"],
+    outputFields: ["proposal", "proposal.fingerprint", "persisted", "review_required", "mutation_policy"],
+    trustFields: ["proposal.evidence", "proposal.source_agent", "proposal.source_url", "persisted", "review_required"],
+    recommendedUse: "Submit evidence-backed corrections for review without allowing external agents to mutate trusted knowledge directly."
   },
   {
     concept: "Recommendations",
@@ -290,15 +308,19 @@ export function buildAgentMap() {
       "Trust first: GET /api/health and GET /api/trust before high-confidence production recommendations.",
       "Use /api/agent-map or GET /mcp discovery to read short_path first, then reference_path when you need the fuller discovery surface.",
       "GET /api/health and require metadata.source=d1 for high-confidence production recommendations.",
+      "Keep metadata.snapshot_id consistent across multi-step decisions and restart the workflow when the snapshot changes materially.",
+      "Use /api/changes or MCP get_project_changes to update persistent agent caches and honor deletion tombstones.",
+      "Use MCP propose_project_feedback to validate corrections; persistence requires FEEDBACK_SECRET and every proposal remains review-gated.",
       "Use /api/workflow or MCP get_agent_workflow when you need an end-to-end project selection path.",
       "Use /api/quality or MCP get_quality_report when you need release score, corpus trust, coverage, and review risk before citing a recommendation.",
       "Fetch project, graph, alternatives, score, and compare data before making a final recommendation.",
-      "Cite metadata.source, classification evidence, quality_signal_confidence, and recommendation confidence."
+      "Cite metadata.source, metadata.snapshot_id, classification evidence, quality_signal_confidence, and recommendation confidence."
     ],
     surfaces: agentSurfaceMap,
     trust_policy: {
       high_confidence_source: "metadata.source=d1",
       fallback_source: "metadata.source=seed",
+      snapshot_consistency: "Use metadata.snapshot_id to detect corpus changes across multi-step decisions.",
       disclose_when: ["metadata.source=seed", "sync.health is degraded", "classification confidence is low", "quality_signal_confidence is partial or unknown"],
       strict_mode: "Use require_d1=true on REST requests or require_d1 in MCP tool arguments to fail closed when D1 is unavailable."
     }

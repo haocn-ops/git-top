@@ -1,6 +1,6 @@
 # Git.Top Data Coverage
 
-Generated at: 2026-07-12T12:30:44.724Z
+Generated at: 2026-07-12T13:56:23.697Z
 
 This report summarizes the curated seed repository list. It is a heuristic coverage report, not a replacement for live GitHub sync or generated Agent Card classification.
 

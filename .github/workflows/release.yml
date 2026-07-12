@@ -1,0 +1,113 @@
+name: Release
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      migration_file:
+        description: "Optional additive, backward-compatible D1 migration, for example migrations/0012_feedback_proposals.sql."
+        required: false
+        type: string
+
+concurrency:
+  group: git-top-${{ github.event_name == 'workflow_dispatch' && 'production' || format('preview-{0}', github.event.pull_request.number) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  preview:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.23.0
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - name: Validate
+        run: pnpm release:check -- --skip-prod-smoke
+      - name: Check preview credentials
+        id: cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Preview upload skipped until CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are configured."
+          fi
+      - name: Upload preview version
+        if: steps.cloudflare.outputs.enabled == 'true'
+        id: preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          alias="pr-${{ github.event.pull_request.number }}"
+          output="$(pnpm exec wrangler versions upload --preview-alias "$alias" --message "PR #${{ github.event.pull_request.number }} ${GITHUB_SHA}")"
+          echo "$output"
+          url="$(echo "$output" | sed -nE 's#.*(https://[^ ]+\.workers\.dev).*#\1#p' | tail -1)"
+          test -n "$url"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+      - name: Preview smoke
+        if: steps.cloudflare.outputs.enabled == 'true'
+        run: pnpm release:check -- --base-url "${{ steps.preview.outputs.url }}"
+
+  production:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.23.0
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - name: Pre-deploy release gate
+        run: pnpm release:check -- --skip-prod-smoke
+      - name: Apply selected migration, deploy, verify, and rollback on failure
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          MIGRATION_FILE: ${{ inputs.migration_file }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          previous="$(pnpm exec wrangler versions list --json | jq -r 'if type == "array" then .[0].id else .items[0].id end')"
+          test -n "$previous"
+
+          if [ -n "$MIGRATION_FILE" ]; then
+            [[ "$MIGRATION_FILE" =~ ^migrations/[0-9]{4}_[A-Za-z0-9_-]+\.sql$ ]]
+            test -f "$MIGRATION_FILE"
+            pnpm exec wrangler d1 execute git-top --remote --file="$MIGRATION_FILE"
+          fi
+
+          deployed=false
+          rollback() {
+            if [ "$deployed" = true ]; then
+              pnpm exec wrangler rollback "$previous" --yes --message "Automatic rollback after failed production smoke for ${GITHUB_SHA}"
+            fi
+          }
+          trap rollback ERR
+
+          pnpm run deploy
+          deployed=true
+          pnpm smoke:prod
+          pnpm quality:check
+          trap - ERR

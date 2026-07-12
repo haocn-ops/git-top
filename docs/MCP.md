@@ -25,8 +25,10 @@ MCP clients should:
 - Treat `GET /mcp` as discovery and JSON-RPC `tools/list` as the executable tool schema source.
 - Parse `tools/call` result `content[].text` blocks as JSON. Git.Top tool payloads are JSON strings inside MCP text content for broad client compatibility.
 - Inspect `metadata.source`, trust fields, classification evidence, and `quality_signal_confidence` before presenting high-confidence recommendations.
+- Preserve `metadata.snapshot_id` across multi-tool workflows; re-run dependent steps when the corpus snapshot changes.
 - Pass `require_d1: true` when fallback seed data should fail closed.
 - Prefer `get_agent_workflow` for multi-step decisions and direct tools such as `search_projects`, `get_project`, `recommend_project`, and `compare_projects` for focused retrieval.
+- Use `get_projects_batch` for up to 20 snapshot-consistent project reads and `get_project_changes` to incrementally update caches and honor deletion tombstones.
 
 When strict source mode fails, Git.Top returns a JSON-RPC error with code `-32003` and a message explaining that D1-backed knowledge is required. Treat that as a fail-closed result, not as an empty recommendation set.
 
@@ -48,6 +50,9 @@ The `agent_api.response_contract` object in `GET /mcp` documents how to parse to
 - `tool_content_type`: `application/json`
 - `strict_source_argument`: pass `require_d1: true` when seed fallback should fail closed.
 - `strict_source_error.code`: `-32003`
+- `batch_project_limit`: `20`
+- `project_profiles`: `compact`, `decision`, and `evidence`
+- `change_feed`: opaque cursor, 30-day retention, and deletion tombstones
 
 JSON-RPC tool listing:
 
@@ -92,6 +97,36 @@ curl -X POST http://localhost:8787/mcp \
 `get_project` also accepts `{"owner":"cloudflare","repo":"agents"}`, `{"repo":"cloudflare/agents"}`, and Git.Top product aliases such as `{"project_id":"claude-code"}` for clients starting from product names instead of canonical GitHub owner/repo identifiers.
 
 The tool result includes a top-level `summary` object with `tl_dr`, `purpose`, `install`, `inputs`, `outputs`, `good_for`, `not_good_for`, `deployment`, and `alternatives`. Use that object for first-pass agent reasoning, then inspect `project.classification`, `project.quality_signal_confidence`, `resolved_from`, and `metadata.source` before making high-confidence claims.
+
+## Batch Projects
+
+```sh
+curl -X POST http://localhost:8787/mcp \
+  -H "content-type: application/json" \
+  -d '{"jsonrpc":"2.0","id":31,"method":"tools/call","params":{"name":"get_projects_batch","arguments":{"project_ids":["cloudflare/agents","openai/codex"],"profile":"evidence","require_d1":true}}}'
+```
+
+The tool accepts 1 to 20 canonical IDs and returns all results under one `metadata.snapshot_id`. Use `compact` for cache hydration, `decision` for selection, and `evidence` for citation checks.
+
+## Project Changes
+
+```sh
+curl -X POST http://localhost:8787/mcp \
+  -H "content-type: application/json" \
+  -d '{"jsonrpc":"2.0","id":32,"method":"tools/call","params":{"name":"get_project_changes","arguments":{"limit":50}}}'
+```
+
+Pass the returned opaque `page.next_cursor` as `cursor` on the next call even when `has_more=false`. Remove cached projects when an event has `tombstone=true`. The D1-only feed exposes its actual retention lower bound in `retention.earliest_guaranteed_at`.
+
+## Propose Project Feedback
+
+```sh
+curl -X POST http://localhost:8787/mcp \
+  -H "content-type: application/json" \
+  -d '{"jsonrpc":"2.0","id":33,"method":"tools/call","params":{"name":"propose_project_feedback","arguments":{"project_id":"cloudflare/agents","feedback_type":"classification","proposed":{"category":"agent_framework"},"evidence":[{"url":"https://github.com/cloudflare/agents","field":"README"}],"rationale":"The README explicitly describes an agent framework."}}}'
+```
+
+The MCP tool validates and fingerprints only. It returns the authenticated REST submission endpoint and never mutates trusted knowledge. Persisted proposals require `FEEDBACK_SECRET`, then a separate administrator decision using `SYNC_SECRET`.
 
 ## Recommend Project
 

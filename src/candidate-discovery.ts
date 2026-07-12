@@ -31,6 +31,17 @@ interface CandidateRepository {
   description: string;
 }
 
+export interface CandidateAdmissionDecision {
+  admitted: boolean;
+  reasons: string[];
+  signals: {
+    active: boolean;
+    relevant: boolean;
+    described: boolean;
+    authority: boolean;
+  };
+}
+
 const discoveryQueries: Array<{ category: Category; query: string }> = [
   { category: "agent_framework", query: "ai agent framework" },
   { category: "coding_agent", query: "coding agent llm" },
@@ -60,9 +71,21 @@ export async function discoverAndSyncCandidateProjects(env: Env, options: Candid
     const maxCandidates = normalizeLimit(options.maxCandidates, 1, 5);
     const discovered = await searchGithubCandidates(env, query.query, query.category);
     const existing = await listExistingRepositories(env);
-    const selected = discovered.filter((candidate) => !existing.has(candidate.repository.toLowerCase())).slice(0, maxCandidates);
+    const newCandidates = discovered.filter((candidate) => !existing.has(candidate.repository.toLowerCase()));
+    const admissionByRepository = new Map(
+      newCandidates.map((candidate) => [candidate.repository.toLowerCase(), evaluateCandidateAdmission(candidate)] as const)
+    );
+    const admitted = newCandidates.filter((candidate) => admissionByRepository.get(candidate.repository.toLowerCase())?.admitted);
+    const selected = admitted.slice(0, maxCandidates);
+    const selectedIds = new Set(selected.map((candidate) => candidate.repository.toLowerCase()));
+    const quarantined = newCandidates
+      .filter((candidate) => !selectedIds.has(candidate.repository.toLowerCase()))
+      .map((candidate) => ({
+        ...toCandidateResponse(candidate),
+        admission: admissionByRepository.get(candidate.repository.toLowerCase()) ?? null
+      }));
 
-    await upsertCandidateRepositories(env, discovered, new Set(selected.map((candidate) => candidate.repository.toLowerCase())));
+    await upsertCandidateRepositories(env, discovered, selectedIds, admissionByRepository);
 
     let synced: string[] = [];
     let failed: Array<{ repository: string; error: string }> = [];
@@ -93,6 +116,8 @@ export async function discoverAndSyncCandidateProjects(env: Env, options: Candid
         query: query.query,
         category: query.category,
         discovered: discovered.length,
+        admitted: admitted.map((candidate) => candidate.repository),
+        quarantined,
         selected: selected.map((candidate) => candidate.repository),
         synced,
         failed
@@ -104,6 +129,7 @@ export async function discoverAndSyncCandidateProjects(env: Env, options: Candid
       query,
       discovered_count: discovered.length,
       selected: selected.map(toCandidateResponse),
+      quarantined,
       synced,
       failed,
       run
@@ -204,7 +230,12 @@ async function listExistingRepositories(env: Env): Promise<Set<string>> {
   return existing;
 }
 
-async function upsertCandidateRepositories(env: Env, candidates: CandidateRepository[], selected: Set<string>): Promise<void> {
+async function upsertCandidateRepositories(
+  env: Env,
+  candidates: CandidateRepository[],
+  selected: Set<string>,
+  admissionByRepository: Map<string, CandidateAdmissionDecision>
+): Promise<void> {
   if (candidates.length === 0) {
     return;
   }
@@ -214,8 +245,8 @@ async function upsertCandidateRepositories(env: Env, candidates: CandidateReposi
       env.DB!.prepare(
         `INSERT INTO candidate_repositories (
           repository, category, source, source_query, stars, pushed_at, description, status,
-          first_seen_at, last_seen_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          admission_json, first_seen_at, last_seen_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(repository) DO UPDATE SET
           category = excluded.category,
           source = excluded.source,
@@ -224,6 +255,7 @@ async function upsertCandidateRepositories(env: Env, candidates: CandidateReposi
           pushed_at = excluded.pushed_at,
           description = excluded.description,
           status = CASE WHEN candidate_repositories.status = 'synced' THEN candidate_repositories.status ELSE excluded.status END,
+          admission_json = excluded.admission_json,
           last_seen_at = excluded.last_seen_at`
       ).bind(
         candidate.repository,
@@ -233,13 +265,53 @@ async function upsertCandidateRepositories(env: Env, candidates: CandidateReposi
         candidate.stars,
         candidate.pushedAt,
         candidate.description,
-        selected.has(candidate.repository.toLowerCase()) ? "candidate" : "seen",
+        selected.has(candidate.repository.toLowerCase()) ? "approved" : "quarantined",
+        JSON.stringify(admissionByRepository.get(candidate.repository.toLowerCase()) ?? {
+          admitted: false,
+          reasons: ["Repository is already indexed or was not evaluated in this discovery run."],
+          signals: {}
+        }),
         now,
         now
       )
     )
   ).catch(() => undefined);
 }
+
+export function evaluateCandidateAdmission(candidate: CandidateRepository, now = new Date()): CandidateAdmissionDecision {
+  const pushedAt = candidate.pushedAt ? Date.parse(candidate.pushedAt) : Number.NaN;
+  const active = Number.isFinite(pushedAt) && now.getTime() - pushedAt <= 180 * 24 * 60 * 60 * 1000;
+  const described = candidate.description.trim().length >= 20;
+  const authority = candidate.stars >= minimumStarsForCategory(candidate.category);
+  const corpus = `${candidate.repository} ${candidate.description}`.toLowerCase();
+  const relevant = admissionHints[candidate.category].some((hint) => corpus.includes(hint));
+  const signals = { active, relevant, described, authority };
+  const reasons = Object.entries(signals)
+    .filter(([, matched]) => !matched)
+    .map(([signal]) => `Failed ${signal} admission signal.`);
+  return {
+    admitted: Object.values(signals).every(Boolean),
+    reasons: reasons.length ? reasons : ["Passed activity, relevance, description, and authority admission signals."],
+    signals
+  };
+}
+
+const admissionHints: Record<Category, string[]> = {
+  agent_framework: ["agent", "multi-agent", "tool calling"],
+  coding_agent: ["coding", "code", "developer", "ide"],
+  browser_agent: ["browser", "playwright", "web automation"],
+  rag_framework: ["rag", "retrieval", "knowledge"],
+  vector_database: ["vector", "embedding", "similarity search"],
+  llm_gateway: ["gateway", "proxy", "router", "openai compatible"],
+  llm_eval: ["eval", "benchmark", "test"],
+  prompt_tooling: ["prompt", "structured output", "guardrail"],
+  workflow_automation: ["workflow", "automation", "orchestration"],
+  local_llm_runtime: ["local llm", "inference", "model serving"],
+  ai_app_template: ["template", "starter", "app"],
+  mcp_server: ["mcp", "model context protocol"],
+  ai_observability: ["observability", "trace", "monitoring"],
+  other: []
+};
 
 async function markCandidateSyncResults(env: Env, synced: string[], failed: Array<{ repository: string; error: string }>): Promise<void> {
   const now = new Date().toISOString();

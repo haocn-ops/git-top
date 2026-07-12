@@ -10,6 +10,9 @@ export interface KnowledgeMetadata {
   reason: KnowledgeSourceReason;
   projectCount: number;
   generatedAt: string;
+  snapshotId: string;
+  latestSyncedAt: string | null;
+  schemaVersion: "git-top.knowledge.v1";
   loadedProjectLimit?: number;
   truncated?: boolean;
   warnings?: string[];
@@ -39,6 +42,7 @@ export async function listProjectKnowledgeWithMeta(env: Env): Promise<ProjectKno
 
     const projects = results.map(rowToKnowledge);
     const truncated = rows.truncated;
+    const latestSyncedAt = latestProjectSync(projects);
     const warnings = truncated
       ? [`D1 knowledge results reached the ${maxKnowledgeProjects} project load limit; search and recommendations may not include every indexed project.`]
       : undefined;
@@ -49,6 +53,9 @@ export async function listProjectKnowledgeWithMeta(env: Env): Promise<ProjectKno
         reason: "d1_query",
         projectCount: projects.length,
         generatedAt: new Date().toISOString(),
+        snapshotId: knowledgeSnapshotId("d1", projects.length, latestSyncedAt),
+        latestSyncedAt,
+        schemaVersion: "git-top.knowledge.v1",
         loadedProjectLimit: maxKnowledgeProjects,
         truncated,
         ...(warnings ? { warnings } : {})
@@ -70,14 +77,29 @@ export async function getKnowledgeReadyProjectCount(env: Env): Promise<number> {
 }
 
 export function seedMetadata(reason: KnowledgeSourceReason, error?: unknown): KnowledgeMetadata {
+  const latestSyncedAt = latestProjectSync(seedProjects);
   return {
     source: "seed",
     reason,
     projectCount: seedProjects.length,
     generatedAt: new Date().toISOString(),
+    snapshotId: knowledgeSnapshotId("seed", seedProjects.length, latestSyncedAt),
+    latestSyncedAt,
+    schemaVersion: "git-top.knowledge.v1",
     warnings: [seedWarning(reason)],
     ...(error ? { error: formatError(error) } : {})
   };
+}
+
+function latestProjectSync(projects: ProjectKnowledge[]): string | null {
+  return projects.reduce<string | null>((latest, project) => {
+    const value = project.project.syncedAt;
+    return !latest || Date.parse(value) > Date.parse(latest) ? value : latest;
+  }, null);
+}
+
+function knowledgeSnapshotId(source: KnowledgeSource, projectCount: number, latestSyncedAt: string | null): string {
+  return `${source}:${projectCount}:${latestSyncedAt ?? "unknown"}`;
 }
 
 interface ProjectKnowledgeRows {

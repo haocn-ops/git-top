@@ -25,6 +25,9 @@ async function testDiscovery() {
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_quality_report"));
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_public_benchmark"));
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_trust_gate"));
+  assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_projects_batch"));
+  assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_project_changes"));
+  assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "propose_project_feedback"));
   assert.equal(getDiscovery.body.trust_url, "https://git.top/api/trust");
   assert.equal(getDiscovery.body.openapi_url, "https://git.top/openapi.json");
   assert.equal(getDiscovery.body.api_openapi_url, "https://git.top/api/openapi.json");
@@ -150,6 +153,24 @@ async function testToolCalls() {
   assert.ok(project.result.project.related.length > 0);
   assert.equal(project.result.project.classification.category.confidence, "low");
   assertMetadata(project.result.metadata, "db_missing");
+
+  const batchProjects = await callTool("get_projects_batch", { project_ids: ["cloudflare/agents", "missing/project"], profile: "compact" });
+  assert.equal(batchProjects.status, 200);
+  assert.equal(batchProjects.result.projects[0].project_id, "cloudflare/agents");
+  assert.deepEqual(batchProjects.result.missing, ["missing/project"]);
+  assertMetadata(batchProjects.result.metadata, "db_missing");
+
+  const feedback = await callTool("propose_project_feedback", {
+    project_id: "cloudflare/agents",
+    feedback_type: "classification",
+    proposed: { category: "agent_framework" },
+    evidence: [{ url: "https://github.com/cloudflare/agents", field: "README" }],
+    rationale: "The README explicitly describes an agent framework."
+  });
+  assert.equal(feedback.status, 200);
+  assert.equal(feedback.result.persisted, false);
+  assert.equal(feedback.result.review_required, true);
+  assert.match(feedback.result.submit.authorization, /FEEDBACK_SECRET/);
 
   const splitProject = await callTool("get_project", { owner: "cloudflare", repo: "agents" });
   assert.equal(splitProject.status, 200);
@@ -593,6 +614,8 @@ function assertMetadata(metadata, reason, source = "seed") {
   assert.equal(metadata.reason, reason);
   assert.ok(metadata.project_count > 0, "metadata.project_count should be positive");
   assert.ok(typeof metadata.generated_at === "string", "metadata.generated_at should be present");
+  assert.ok(typeof metadata.snapshot_id === "string", "metadata.snapshot_id should be present");
+  assert.equal(metadata.schema_version, "git-top.knowledge.v1");
 }
 
 function mockCollectionKnowledge(id) {

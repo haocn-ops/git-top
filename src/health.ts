@@ -4,6 +4,7 @@ import { seedProjects } from "./seed";
 import { syncFreshness, syncHealth } from "./sync-status";
 import type { KnowledgeMetadata } from "./knowledge-source";
 import type { Env } from "./types";
+import { getOperationalStorageStats, type OperationalStorageStats } from "./storage-maintenance";
 
 export interface HealthStatus {
   ok: boolean;
@@ -16,6 +17,7 @@ export interface HealthStatus {
   syncFreshness?: "fresh" | "stale" | "unknown";
   lastSuccessfulSyncAt?: string | null;
   hoursSinceSuccessfulSync?: number | null;
+  operationalStorage?: OperationalStorageStats;
   metadata: KnowledgeMetadata;
 }
 
@@ -32,16 +34,18 @@ export async function getHealth(env: Env): Promise<HealthStatus> {
       syncFreshness: "unknown",
       lastSuccessfulSyncAt: null,
       hoursSinceSuccessfulSync: null,
+      operationalStorage: await getOperationalStorageStats(env),
       metadata: seedMetadata("db_missing")
     };
   }
 
   try {
-    const [rawCountRow, knowledgeReadyCount, cursor, recentRuns] = await Promise.all([
-      env.DB.prepare("SELECT COUNT(*) AS count FROM projects").first<{ count: number }>(),
+    const [rawCountRow, knowledgeReadyCount, cursor, recentRuns, operationalStorage] = await Promise.all([
+      env.DB.prepare("SELECT COUNT(*) AS count, MAX(synced_at) AS latest_synced_at FROM projects").first<{ count: number; latest_synced_at: string | null }>(),
       getKnowledgeReadyProjectCount(env),
       getSyncCursor(env),
-      listSyncRuns(env, 10)
+      listSyncRuns(env, 10),
+      getOperationalStorageStats(env)
     ]);
     const rawProjectCount = rawCountRow?.count ?? 0;
     const warnings =
@@ -60,6 +64,7 @@ export async function getHealth(env: Env): Promise<HealthStatus> {
       syncFreshness: freshness.status,
       lastSuccessfulSyncAt: freshness.lastSuccessfulSyncAt,
       hoursSinceSuccessfulSync: freshness.hoursSinceSuccessfulSync,
+      operationalStorage,
       metadata:
         knowledgeReadyCount > 0
           ? {
@@ -67,6 +72,9 @@ export async function getHealth(env: Env): Promise<HealthStatus> {
               reason: "d1_query",
               projectCount: knowledgeReadyCount,
               generatedAt: new Date().toISOString(),
+              snapshotId: `d1:${knowledgeReadyCount}:${rawCountRow?.latest_synced_at ?? "unknown"}`,
+              latestSyncedAt: rawCountRow?.latest_synced_at ?? null,
+              schemaVersion: "git-top.knowledge.v1",
               ...(warnings ? { warnings } : {})
             }
           : seedMetadata("db_empty")
@@ -83,6 +91,7 @@ export async function getHealth(env: Env): Promise<HealthStatus> {
       syncFreshness: "unknown",
       lastSuccessfulSyncAt: null,
       hoursSinceSuccessfulSync: null,
+      operationalStorage: await getOperationalStorageStats(env),
       metadata: seedMetadata("db_error", error)
     };
   }

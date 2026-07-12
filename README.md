@@ -49,6 +49,7 @@ The project intentionally does not ship a separate Next.js app. Keeping Worker-r
 - [Coding agent guide](./AGENTS.md)
 - [Agent-native assessment and optimization plan](./docs/AGENT_NATIVE_ASSESSMENT_AND_OPTIMIZATION_PLAN.md)
 - [Site assessment and improvement plan 2026-07-12](./docs/SITE_ASSESSMENT_AND_IMPROVEMENT_PLAN_2026-07-12.md)
+- [Automated operations and agent friendliness plan 2026-07-12](./docs/AUTOMATED_OPERATIONS_AND_AGENT_FRIENDLINESS_PLAN_2026-07-12.md)
 - [Agent-native optimization implementation report](./docs/AGENT_NATIVE_OPTIMIZATION_IMPLEMENTATION_REPORT.md)
 - [Agent-native optimization PR summary](./docs/AGENT_NATIVE_OPTIMIZATION_PR_SUMMARY.md)
 - [Git.Top 2.0 product upgrade plan](./docs/GIT_TOP_2_PRODUCT_UPGRADE_PLAN.md)

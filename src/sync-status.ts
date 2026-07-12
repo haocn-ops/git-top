@@ -18,6 +18,14 @@ export interface DerivedFreshnessStatus {
     hoursSinceSuccessfulRun: number | null;
     lastRunStatus: GovernanceRun["status"] | null;
     staleAfterHours: number;
+    progress: {
+      status: GovernanceRun["status"] | null;
+      complete: boolean;
+      offset: number;
+      nextOffset: number;
+      projectCount: number;
+      updatedAt: string | null;
+    };
   };
 }
 
@@ -124,6 +132,8 @@ function hoursBetween(startIso: string, endIso: string): number {
 
 function derivedFreshness(runs: GovernanceRun[]): DerivedFreshnessStatus {
   const alternativesRuns = runs.filter((run) => run.task === "derived:alternatives");
+  const progressRun = runs.find((run) => run.task === "derived:alternatives-progress") ?? null;
+  const progressSummary = progressRun?.summary ?? {};
   const latestRun = alternativesRuns[0] ?? null;
   const lastSuccessfulRun = alternativesRuns.find((run) => run.status === "success") ?? null;
   const staleAfterHours = 24 * 7;
@@ -141,7 +151,19 @@ function derivedFreshness(runs: GovernanceRun[]): DerivedFreshnessStatus {
       lastSuccessfulRunAt: lastSuccessfulRun?.finishedAt ?? null,
       hoursSinceSuccessfulRun,
       lastRunStatus: latestRun?.status ?? null,
-      staleAfterHours
+      staleAfterHours,
+      progress: {
+        status: progressRun?.status ?? null,
+        complete: progressSummary.complete === true,
+        offset: numericSummaryValue(progressSummary.offset),
+        nextOffset: numericSummaryValue(progressSummary.next_offset),
+        projectCount: numericSummaryValue(progressSummary.project_count),
+        updatedAt: progressRun?.finishedAt ?? null
+      }
     }
   };
+}
+
+function numericSummaryValue(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }

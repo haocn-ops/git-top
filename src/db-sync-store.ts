@@ -12,12 +12,16 @@ export interface StarDeltaSnapshot {
 }
 
 export async function getSyncCursor(env: Env): Promise<number> {
+  return getSyncStateNumber(env, "seed_cursor");
+}
+
+export async function getSyncStateNumber(env: Env, key: string): Promise<number> {
   if (!env.DB) {
     return 0;
   }
 
   try {
-    const row = await env.DB.prepare("SELECT value FROM sync_state WHERE key = ?").bind("seed_cursor").first<{ value: string }>();
+    const row = await env.DB.prepare("SELECT value FROM sync_state WHERE key = ?").bind(key).first<{ value: string }>();
     const parsed = Number(row?.value ?? 0);
     return Number.isFinite(parsed) ? Math.max(0, Math.trunc(parsed)) : 0;
   } catch {
@@ -26,15 +30,33 @@ export async function getSyncCursor(env: Env): Promise<number> {
 }
 
 export async function setSyncCursor(env: Env, cursor: number): Promise<void> {
+  await setSyncStateValue(env, "seed_cursor", String(Math.max(0, Math.trunc(cursor))));
+}
+
+export async function getSyncStateValue(env: Env, key: string): Promise<string | null> {
+  if (!env.DB) {
+    return null;
+  }
+
+  try {
+    const row = await env.DB.prepare("SELECT value FROM sync_state WHERE key = ?").bind(key).first<{ value: string }>();
+    return row?.value ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setSyncStateValue(env: Env, key: string, value: string): Promise<void> {
   if (!env.DB) {
     return;
   }
 
   await env.DB.prepare(
-    `INSERT OR REPLACE INTO sync_state (key, value, updated_at)
-     VALUES (?, ?, ?)`
+    `INSERT INTO sync_state (key, value, updated_at)
+     VALUES (?, ?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
   )
-    .bind("seed_cursor", String(Math.max(0, Math.trunc(cursor))), new Date().toISOString())
+    .bind(key, value, new Date().toISOString())
     .run();
 }
 
@@ -88,13 +110,14 @@ export async function listSyncRuns(env: Env, limit = 10): Promise<SyncRun[]> {
 }
 
 export async function getSyncStatus(env: Env, seedRepositories: string[] = []): Promise<SyncStatus> {
-  const [cursor, recentRuns, indexedCount, seedSyncedCount, knowledge, derivedRuns] = await Promise.all([
+  const [cursor, recentRuns, indexedCount, seedSyncedCount, knowledge, derivedRun, derivedProgressRun] = await Promise.all([
     getSyncCursor(env),
     listSyncRuns(env, 10),
     getSyncedProjectCount(env),
     getSyncedSeedProjectCount(env, seedRepositories),
     listProjectKnowledgeWithMeta(env),
-    getLatestGovernanceRun(env, "derived:alternatives")
+    getLatestGovernanceRun(env, "derived:alternatives"),
+    getLatestGovernanceRun(env, "derived:alternatives-progress")
   ]);
   return buildSyncStatus({
     cursor,
@@ -103,7 +126,7 @@ export async function getSyncStatus(env: Env, seedRepositories: string[] = []): 
     seedSyncedCount,
     seedRepositories,
     priority: buildSyncPrioritySummary(knowledge.projects),
-    derivedRuns: derivedRuns ? [derivedRuns] : []
+    derivedRuns: [derivedRun, derivedProgressRun].filter((run): run is NonNullable<typeof run> => run !== null)
   });
 }
 

@@ -1,2 +1,8 @@
 GITHUB_TOKEN=github_pat_replace_me
 SYNC_SECRET=replace-with-a-local-sync-secret
+# Optional HTTPS endpoint for structured scheduled-governance failure alerts.
+OPERATIONS_ALERT_WEBHOOK=
+# Optional HTTPS endpoint for the daily structured operations digest.
+OPERATIONS_DIGEST_WEBHOOK=
+# Optional bearer secret required before validated agent feedback is persisted.
+FEEDBACK_SECRET=

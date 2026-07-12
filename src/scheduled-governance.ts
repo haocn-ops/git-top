@@ -2,11 +2,11 @@ import { defaultSeedRepositories } from "./github";
 import { getHealth } from "./health";
 import { listProjectKnowledgeWithMeta } from "./knowledge-source";
 import { buildQualityReport } from "./quality";
-import { refreshAlternativesDerivedData } from "./derived-refresh";
 import { getSyncStatus } from "./db-sync-store";
-import { upsertGovernanceRun } from "./governance-store";
+import { getGovernanceSummary, upsertGovernanceRun } from "./governance-store";
 import { scheduledGovernanceDefinition, type GovernanceCadence } from "./governance-schedule";
 import type { Env, GovernanceRunStatus } from "./types";
+import { sendOperationsAlert, sendOperationsDigest } from "./operations-alert";
 
 interface ScheduledGovernanceTask {
   task: string;
@@ -30,11 +30,6 @@ const scheduledGovernanceTasks: ScheduledGovernanceTask[] = [
     ...scheduledGovernanceDefinition("weekly-data-governance"),
     shouldRun: (date) => date.getUTCDay() === 1 && date.getUTCHours() === 2,
     run: runWeeklyDataGovernance
-  },
-  {
-    ...scheduledGovernanceDefinition("derived:alternatives"),
-    shouldRun: (date) => date.getUTCDay() === 1 && date.getUTCHours() === 2,
-    run: runWeeklyAlternativesRefresh
   },
   {
     ...scheduledGovernanceDefinition("biweekly-live-check"),
@@ -82,6 +77,21 @@ async function recordScheduledGovernanceTask(
         ...summary
       }
     });
+    if (task.task === "daily-production-health") {
+      const governance = await getGovernanceSummary(env);
+      await sendOperationsDigest(env, {
+        occurredAt: finishedAt,
+        summary: {
+          production_health: summary,
+          automation: {
+            run_count: governance.runCount,
+            latest_by_task: governance.latestByTask.map((run) => ({ task: run.task, status: run.status, finished_at: run.finishedAt, summary: run.summary })),
+            failed_tasks: governance.failedTasks.map((run) => ({ task: run.task, finished_at: run.finishedAt, error: run.error })),
+            missing_tasks: governance.missingTasks.map((item) => ({ task: item.task, reason: item.reason }))
+          }
+        }
+      });
+    }
     return { task: task.task, status: "success" };
   } catch (error) {
     const finishedAt = new Date().toISOString();
@@ -99,6 +109,13 @@ async function recordScheduledGovernanceTask(
         runner: "cloudflare_worker"
       },
       error: formatError(error)
+    });
+    await sendOperationsAlert(env, {
+      task: task.task,
+      status: "failed",
+      error: formatError(error),
+      summary: { cadence: task.cadence, scheduled_at: scheduledAt.toISOString() },
+      occurredAt: finishedAt
     });
     return { task: task.task, status: "failed" };
   }
@@ -141,7 +158,9 @@ async function runDailyProductionHealth(env: Env): Promise<Record<string, unknow
     risk_level: quality.riskLevel,
     issue_count: quality.issueCount,
     error_count: quality.errorCount,
-    warning_count: quality.warningCount
+    warning_count: quality.warningCount,
+    operational_storage: health.operationalStorage ?? null,
+    derived: sync.derived ?? null
   };
 }
 
@@ -193,22 +212,8 @@ async function runBiweeklyLiveCheck(env: Env): Promise<Record<string, unknown>> 
   };
 }
 
-async function runWeeklyAlternativesRefresh(env: Env): Promise<Record<string, unknown>> {
-  const alternatives = await refreshAlternativesDerivedData(env, "cron", { recordRun: false });
-  return {
-    updated: alternatives.updated,
-    candidate_count: alternatives.updates.length,
-    project_count: alternatives.metadata.projectCount,
-    source: alternatives.metadata.source,
-    source_reason: alternatives.metadata.reason
-  };
-}
-
 async function runMonthlyCorpusReview(env: Env): Promise<Record<string, unknown>> {
-  const [knowledge, alternatives] = await Promise.all([
-    listProjectKnowledgeWithMeta(env),
-    refreshAlternativesDerivedData(env, "cron")
-  ]);
+  const knowledge = await listProjectKnowledgeWithMeta(env);
   const quality = buildQualityReport(knowledge.projects);
 
   return {
@@ -221,10 +226,7 @@ async function runMonthlyCorpusReview(env: Env): Promise<Record<string, unknown>
       priority: item.priority,
       title: item.title,
       target: item.target
-    })),
-    alternatives_updated: alternatives.updated,
-    alternatives_candidate_count: alternatives.updates.length,
-    alternatives_source: alternatives.metadata.source
+    }))
   };
 }
 

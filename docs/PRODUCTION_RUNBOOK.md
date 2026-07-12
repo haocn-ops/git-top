@@ -44,6 +44,26 @@ wrangler d1 execute git-top --remote --file=./migrations/0008_operational_data_r
 
 The migration preserves projects, Agent Cards, metrics, classification overrides, and candidate records. After applying it, deploy the Worker and trigger a small lite sync before starting catch-up rounds.
 
+Apply the candidate admission migration before deploying automated quarantine and approval states:
+
+```sh
+wrangler d1 execute git-top --remote --file=./migrations/0010_candidate_admission.sql
+```
+
+Apply the project change-feed migration before deploying `/api/changes`, `get_project_changes`, or health reads that count retained events:
+
+```sh
+wrangler d1 execute git-top --remote --file=./migrations/0011_project_change_feed.sql
+```
+
+The migration installs project, classification, score, and deletion triggers. It does not backfill historical events. After deployment, verify a normal sync creates events and confirm `retention.days=30`; consumers offline beyond that window must rebuild their cache from batch project reads.
+
+Apply the feedback proposal migration before deploying feedback persistence, admin review, or health reads that count pending proposals:
+
+```sh
+wrangler d1 execute git-top --remote --file=./migrations/0012_feedback_proposals.sql
+```
+
 When coverage is complete but sync freshness is stale, force one full seed refresh cycle instead of stopping at `remaining_count=0`:
 
 ```sh
@@ -81,6 +101,21 @@ wrangler secret put GITHUB_TOKEN
 wrangler secret put SYNC_SECRET
 ```
 
+Optional active operations alert sink:
+
+```sh
+wrangler secret put OPERATIONS_ALERT_WEBHOOK
+```
+
+Optional daily digest and authenticated feedback intake:
+
+```sh
+wrangler secret put OPERATIONS_DIGEST_WEBHOOK
+wrangler secret put FEEDBACK_SECRET
+```
+
+Webhook destinations must be HTTPS. Scheduled governance and incremental alternatives failures send a best-effort structured JSON alert without suppressing the original D1 governance record. The daily digest contains production health, sync and derived status, storage capacity, and recent governance task summaries.
+
 ## Post-Deploy Smoke
 
 Run the read-only production smoke check:
@@ -97,7 +132,7 @@ pnpm quality:check
 
 The quality gate defaults to `https://git.top/api/quality`, requires D1-backed metadata, and fails when the score is below `MIN_QUALITY_SCORE` or `--min-score` (default `90`). Error and warning issues reduce the score; info issues remain visible as review guidance without reducing the release score.
 
-The current V1 release policy is manual deploy with scripted gates. Do not enable CI-driven production deploys until D1 migration order, production secrets, and rollback ownership are explicit in the CI workflow.
+The Release workflow supports same-repository PR preview uploads and manually dispatched production delivery. Configure `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as GitHub secrets, then protect the GitHub `production` Environment with required reviewers. The environment and account ID are configured for this repository; `CLOUDFLARE_API_TOKEN` must still be added before the workflow can upload. Production dispatch accepts at most one explicit migration path matching `migrations/NNNN_name.sql`; migrations must be additive and backward compatible because Worker rollback does not reverse D1 schema changes. A failed production smoke or quality check automatically rolls the Worker back to the version captured before deployment.
 
 GitHub Actions can run the local public V1 release gate with production smoke disabled when Actions is enabled for the account:
 
@@ -199,6 +234,8 @@ curl -X POST https://git.top/api/admin/discovery \
   -d '{"max_candidates":5}'
 ```
 
+Discovered repositories are stored as `quarantined` by default. Only repositories that pass activity, relevance, description, and minimum-authority admission signals become `approved` and enter the sync path. Inspect the governance run summary for `admitted`, `quarantined`, and structured admission reasons.
+
 Inspect recent discovery runs:
 
 ```sh
@@ -207,11 +244,12 @@ curl "https://git.top/api/governance/runs?task=candidate-discovery"
 
 ## Derived Alternatives Refresh
 
-Global alternatives are derived from the current project corpus. Refresh them separately after catch-up syncs or when `/api/sync/status` reports stale alternatives:
+Global alternatives are derived from the current project corpus. The hourly Worker cron advances a persisted 15-project cursor and records `derived:alternatives` success only after the complete corpus cycle finishes. Inspect `derived.alternatives.progress` in sync status for partial progress.
+
+For manual recovery, use the bounded workflow:
 
 ```sh
-curl -X POST https://git.top/api/admin/alternatives \
-  -H "authorization: Bearer $SYNC_SECRET"
+SYNC_SECRET=... pnpm alternatives:prod:refresh
 ```
 
 The refresh records a governance run with `task=derived:alternatives`:
@@ -221,6 +259,8 @@ curl "https://git.top/api/governance/runs?task=derived:alternatives"
 ```
 
 The Trust Gate checks derived alternatives freshness separately from raw GitHub metadata freshness, so a stale alternatives warning does not necessarily mean repository metadata sync is stale.
+
+`/api/health` also exposes `operational_storage` with GitHub cache entry count, cache body bytes, the 1,500-entry retention target, the 2,500-entry alert budget, utilization, and retained history counts. Alert before utilization reaches `warning` or `critical`.
 
 ## Data Quality Check
 

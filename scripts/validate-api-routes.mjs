@@ -39,6 +39,7 @@ async function testSeedMetadata() {
   assert.equal(health.body.knowledge_ready_project_count, health.body.project_count);
   assert.equal(health.body.sync_health, "unknown");
   assert.equal(health.body.sync_freshness, "unknown");
+  assert.equal(health.body.operational_storage.status, "unknown");
   assert.equal(health.body.last_successful_sync_at, null);
   assert.equal(health.body.hours_since_successful_sync, null);
   assertMetadata(health.body.metadata, "db_missing");
@@ -156,6 +157,33 @@ async function testSearchAndProjectRoutes() {
   assert.ok(Array.isArray(postProject.body.related));
   assert.ok(postProject.body.related.length <= 3);
   assertMetadata(postProject.body.metadata, "db_missing");
+
+  const batchProjects = await request("/api/projects", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ project_ids: ["cloudflare/agents", "missing/project"], profile: "compact" })
+  });
+  assert.equal(batchProjects.status, 200);
+  assert.equal(batchProjects.body.projects[0].project_id, "cloudflare/agents");
+  assert.deepEqual(batchProjects.body.missing, ["missing/project"]);
+  assert.equal(batchProjects.body.profile, "compact");
+  assertMetadata(batchProjects.body.metadata, "db_missing");
+
+  const feedback = await request("/api/feedback/proposals", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      project_id: "cloudflare/agents",
+      feedback_type: "classification",
+      proposed: { category: "agent_framework" },
+      evidence: [{ url: "https://github.com/cloudflare/agents", field: "README" }],
+      rationale: "The README explicitly describes an agent framework."
+    })
+  });
+  assert.equal(feedback.status, 200);
+  assert.equal(feedback.body.persisted, false);
+  assert.equal(feedback.body.review_required, true);
+  assert.ok(feedback.body.proposal.fingerprint);
 
   const aliasPostProject = await request("/api/project", {
     method: "POST",
@@ -917,6 +945,9 @@ async function testOpenApiDocument() {
   assert.ok(openapi.body.paths["/api/atlas"], "OpenAPI should document Atlas endpoint");
   assert.ok(openapi.body.paths["/api/atlas/{ecosystem}"], "OpenAPI should document Atlas ecosystem endpoint");
   assert.ok(openapi.body.paths["/api/project"].post, "OpenAPI should document structured project POST endpoint");
+  assert.ok(openapi.body.paths["/api/projects"].post, "OpenAPI should document batch project lookup");
+  assert.ok(openapi.body.paths["/api/changes"].get, "OpenAPI should document the project change feed");
+  assert.ok(openapi.body.paths["/api/feedback/proposals"].post, "OpenAPI should document structured feedback proposals");
   assert.ok(openapi.body.paths["/api/recommend"].post, "OpenAPI should document structured recommend POST endpoint");
   assert.ok(openapi.body.paths["/api/workflow"].post, "OpenAPI should document structured workflow POST endpoint");
   assert.ok(openapi.body.paths["/api/trends"], "OpenAPI should document trends endpoint");
@@ -931,6 +962,9 @@ async function testOpenApiDocument() {
   assert.ok(openapi.body.paths["/api/score"].post, "OpenAPI should document structured score POST endpoint");
   assert.ok(openapi.body.paths["/api/graph"].post, "OpenAPI should document structured graph POST endpoint");
   assert.ok(openapi.body.components.schemas.ProjectLookupRequest, "OpenAPI should include ProjectLookupRequest schema");
+  assert.ok(openapi.body.components.schemas.ProjectsBatchRequest, "OpenAPI should include ProjectsBatchRequest schema");
+  assert.ok(openapi.body.components.schemas.ProjectChangesResponse, "OpenAPI should include ProjectChangesResponse schema");
+  assert.ok(openapi.body.components.schemas.FeedbackProposalRequest, "OpenAPI should include FeedbackProposalRequest schema");
   assert.ok(openapi.body.components.schemas.RecommendationRequest, "OpenAPI should include RecommendationRequest schema");
   assert.ok(openapi.body.components.schemas.WorkflowRequest, "OpenAPI should include WorkflowRequest schema");
   assert.ok(openapi.body.components.schemas.CompareRequest, "OpenAPI should include CompareRequest schema");
@@ -951,6 +985,9 @@ async function testOpenApiDocument() {
   assertOpenApiResponseSchema(openapi.body, "/api/project/{owner}/{repo}", "get", "ProjectResponse");
   assertOpenApiResponseSchema(openapi.body, "/api/project/{project}", "get", "ProjectResponse");
   assertOpenApiResponseSchema(openapi.body, "/api/project", "post", "ProjectResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/projects", "post", "ProjectsBatchResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/changes", "get", "ProjectChangesResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/feedback/proposals", "post", "FeedbackProposalResponse");
   assertOpenApiResponseSchema(openapi.body, "/api/recommend", "get", "RecommendationResponse");
   assertOpenApiResponseSchema(openapi.body, "/api/recommend", "post", "RecommendationResponse");
   assertOpenApiResponseSchema(openapi.body, "/api/compare", "get", "CompareResponse");
@@ -1442,6 +1479,8 @@ async function testMockD1Source() {
   assert.equal(health.body.project_count, 1);
   assert.equal(health.body.sync_health, "unknown");
   assert.equal(health.body.sync_freshness, "unknown");
+  assert.equal(health.body.operational_storage.status, "healthy");
+  assert.equal(typeof health.body.operational_storage.github_cache_body_bytes, "number");
   assertMetadata(health.body.metadata, "d1_query", "d1");
 
   const search = await request("/api/search?q=mock&limit=5", {}, d1Env);
@@ -1569,6 +1608,7 @@ async function testSyncStatusWithMockD1() {
   assert.ok(Array.isArray(healthy.body.priority.priority_preview));
   assert.equal(healthy.body.derived.alternatives.freshness, "fresh");
   assert.equal(healthy.body.derived.alternatives.last_run_status, "success");
+  assert.ok(healthy.body.derived.alternatives.progress);
 
   const degraded = await request(
     "/api/sync/status",
@@ -1783,6 +1823,8 @@ function assertMetadata(metadata, reason, source = "seed") {
   assert.equal(metadata.reason, reason);
   assert.ok(metadata.project_count > 0, "metadata.project_count should be positive");
   assert.ok(typeof metadata.generated_at === "string", "metadata.generated_at should be present");
+  assert.ok(typeof metadata.snapshot_id === "string", "metadata.snapshot_id should be present");
+  assert.equal(metadata.schema_version, "git-top.knowledge.v1");
   if (source === "seed") {
     assert.ok(Array.isArray(metadata.warnings), "metadata.warnings should be an array");
   }

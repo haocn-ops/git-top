@@ -5,12 +5,15 @@ export function mockD1Env(options = {}) {
   const config = {
     mode: "rows",
     cursor: 0,
+    syncState: {},
     rawProjectCount: null,
     starSnapshot: null,
     syncRuns: [],
     governanceRuns: [],
     githubRequestCache: [],
     candidateRepositories: [],
+    projectChanges: [],
+    feedbackProposals: [],
     knowledge: null,
     classificationOverrides: [],
     ...input
@@ -89,6 +92,19 @@ class MockStatement {
         results: this.config.candidateRepositories
       };
     }
+    if (this.sql.includes("FROM project_changes")) {
+      const [afterId, since, , limit] = this.bindings;
+      const rows = this.config.projectChanges
+        .filter((row) => Number(row.id) > Number(afterId ?? 0) && (!since || Date.parse(row.occurred_at) >= Date.parse(String(since))))
+        .sort((a, b) => Number(a.id) - Number(b.id))
+        .slice(0, Number(limit ?? this.config.projectChanges.length));
+      return { results: rows };
+    }
+    if (this.sql.includes("FROM feedback_proposals")) {
+      const status = this.sql.includes("WHERE status = ?") ? String(this.bindings[0]) : null;
+      const limit = Number(this.bindings[this.bindings.length - 1] ?? this.config.feedbackProposals.length);
+      return { results: this.config.feedbackProposals.filter((row) => !status || row.status === status).slice(0, limit) };
+    }
     return {
       results: []
     };
@@ -97,6 +113,17 @@ class MockStatement {
   async first() {
     if (this.config.mode === "error") {
       throw new Error("mock d1 failure");
+    }
+    if (this.sql.includes("AS cache_entries")) {
+      return {
+        cache_entries: this.config.githubRequestCache.length,
+        cache_body_bytes: this.config.githubRequestCache.reduce((sum, row) => sum + Buffer.byteLength(row.body_json ?? ""), 0),
+        star_snapshot_count: this.config.starSnapshot ? 1 : 0,
+        sync_run_count: this.config.syncRuns.length,
+        governance_run_count: this.config.governanceRuns.length,
+        project_change_count: this.config.projectChanges.length,
+        feedback_proposal_count: this.config.feedbackProposals.filter((row) => row.status === "proposed").length
+      };
     }
     if (this.sql.includes("COUNT(*) AS count") && this.sql.includes("JOIN agent_cards") && this.sql.includes("JOIN project_metrics")) {
       return {
@@ -110,15 +137,19 @@ class MockStatement {
         count: this.config.mode === "empty" ? 0 : count
       };
     }
-    if (this.sql.includes("COUNT(*) AS count FROM projects")) {
+    if (this.sql.includes("COUNT(*) AS count") && this.sql.includes("FROM projects")) {
+      const latestSyncedAt = this.rows().reduce((latest, row) => !latest || Date.parse(row.synced_at) > Date.parse(latest) ? row.synced_at : latest, null);
       return {
-        count: this.config.mode === "empty" ? 0 : this.config.rawProjectCount ?? this.config.knowledge?.length ?? 1
+        count: this.config.mode === "empty" ? 0 : this.config.rawProjectCount ?? this.config.knowledge?.length ?? 1,
+        latest_synced_at: this.config.mode === "empty" ? null : latestSyncedAt
       };
     }
     if (this.sql.includes("FROM sync_state")) {
-      return {
-        value: String(this.config.cursor)
-      };
+      const key = String(this.bindings[0]);
+      if (key === "seed_cursor") {
+        return { value: String(this.config.cursor) };
+      }
+      return Object.hasOwn(this.config.syncState, key) ? { value: String(this.config.syncState[key]) } : null;
     }
     if (this.sql.includes("FROM star_snapshots")) {
       return this.config.starSnapshot;
@@ -133,6 +164,12 @@ class MockStatement {
         .slice()
         .sort((a, b) => Date.parse(b.started_at) - Date.parse(a.started_at));
       return rows[0] ?? null;
+    }
+    if (this.sql.includes("FROM feedback_proposals")) {
+      if (this.sql.includes("fingerprint = ?")) {
+        return this.config.feedbackProposals.find((row) => row.fingerprint === this.bindings[0]) ?? null;
+      }
+      return this.config.feedbackProposals.find((row) => row.id === this.bindings[0]) ?? null;
     }
     return null;
   }
@@ -183,6 +220,13 @@ class MockStatement {
         this.config.governanceRuns.unshift(nextRow);
       }
     }
+    if (this.sql.includes("INTO sync_state")) {
+      const [key, value] = this.bindings;
+      this.config.syncState[String(key)] = String(value);
+      if (String(key) === "seed_cursor") {
+        this.config.cursor = Number(value);
+      }
+    }
     if (this.sql.includes("INTO classification_overrides") || this.sql.includes("FROM classification_overrides")) {
       const [
         project_id,
@@ -214,6 +258,18 @@ class MockStatement {
       } else {
         this.config.classificationOverrides.unshift(nextRow);
       }
+    }
+    if (this.sql.includes("INTO feedback_proposals")) {
+      const [id, fingerprint, project_id, feedback_type, proposed_json, evidence_json, rationale, source_agent, source_url, status, created_at, updated_at, reviewed_by, reviewed_at, review_notes] = this.bindings;
+      const nextRow = { id, fingerprint, project_id, feedback_type, proposed_json, evidence_json, rationale, source_agent, source_url, status, created_at, updated_at, reviewed_by, reviewed_at, review_notes };
+      const index = this.config.feedbackProposals.findIndex((row) => row.fingerprint === fingerprint);
+      if (index >= 0) this.config.feedbackProposals[index] = { ...this.config.feedbackProposals[index], ...nextRow };
+      else this.config.feedbackProposals.unshift(nextRow);
+    }
+    if (this.sql.includes("UPDATE feedback_proposals")) {
+      const [status, reviewed_by, reviewed_at, review_notes, updated_at, id] = this.bindings;
+      const row = this.config.feedbackProposals.find((item) => item.id === id && item.status === "proposed");
+      if (row) Object.assign(row, { status, reviewed_by, reviewed_at, review_notes, updated_at });
     }
     if (this.sql.includes("github_request_cache")) {
       if (this.sql.includes("UPDATE github_request_cache SET checked_at")) {
@@ -257,7 +313,7 @@ class MockStatement {
           }
         }
       } else {
-        const [repository, category, source, source_query, stars, pushed_at, description, status, first_seen_at, last_seen_at] = this.bindings;
+        const [repository, category, source, source_query, stars, pushed_at, description, status, admission_json, first_seen_at, last_seen_at] = this.bindings;
         const nextRow = {
           repository,
           category,
@@ -267,6 +323,7 @@ class MockStatement {
           pushed_at,
           description,
           status,
+          admission_json,
           first_seen_at,
           last_seen_at,
           last_synced_at: null,

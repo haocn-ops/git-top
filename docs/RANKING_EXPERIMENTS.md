@@ -1,6 +1,6 @@
 # Git.Top Ranking Experiments
 
-Generated at: 2026-07-12T12:18:49.862Z
+Generated at: 2026-07-12T13:06:59.276Z
 
 Offline ranking experiments compare candidate search ranking strategies against both the CI-safe eval and the broader local eval. These experiments do not change runtime search behavior.
 

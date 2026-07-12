@@ -58,6 +58,8 @@ import {
 import { scheduledSyncLimit, syncGithubProjects } from "./sync";
 import { runScheduledGovernance } from "./scheduled-governance";
 import { pruneOperationalData } from "./storage-maintenance";
+import { refreshAlternativesIncremental } from "./derived-refresh";
+import { sendOperationsAlert } from "./operations-alert";
 import type { Env } from "./types";
 
 export default {
@@ -80,6 +82,15 @@ async function runScheduledMaintenance(env: Env): Promise<void> {
   const refreshLimit = Math.max(0, scheduledSyncLimit - discoveryAttempts);
   if (refreshLimit > 0) {
     await syncGithubProjects(env, { limit: refreshLimit, trigger: "cron", signalDepth: "lite" });
+  }
+  try {
+    await refreshAlternativesIncremental(env);
+  } catch (error) {
+    await sendOperationsAlert(env, {
+      task: "derived:alternatives-progress",
+      status: "failed",
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
   await runScheduledGovernance(env);
 }

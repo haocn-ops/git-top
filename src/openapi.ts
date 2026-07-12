@@ -122,6 +122,50 @@ export const openApiDocument = {
         }
       }
     },
+    "/api/projects": {
+      get: {
+        summary: "Fetch up to 20 canonical projects in one snapshot-consistent response.",
+        parameters: [
+          queryParam("ids", "Comma-separated canonical owner/repo identifiers"),
+          queryParam("profile", "Response profile: compact, decision, or evidence"),
+          queryParam("require_d1", "Fail closed unless D1-backed data is available")
+        ],
+        responses: { "200": jsonResponse("Batch project response", "#/components/schemas/ProjectsBatchResponse"), "400": jsonResponse("Invalid batch request", "#/components/schemas/ErrorResponse") }
+      },
+      post: {
+        summary: "Fetch up to 20 canonical projects from a structured request using one corpus snapshot.",
+        parameters: [queryParam("require_d1", "Fail closed unless D1-backed data is available")],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/ProjectsBatchRequest" } } }
+        },
+        responses: { "200": jsonResponse("Batch project response", "#/components/schemas/ProjectsBatchResponse"), "400": jsonResponse("Invalid batch request", "#/components/schemas/ErrorResponse") }
+      }
+    },
+    "/api/changes": {
+      get: {
+        summary: "Read D1 project changes with cursor pagination and deletion tombstones.",
+        parameters: [
+          queryParam("cursor", "Opaque next_cursor from a previous response"),
+          queryParam("since", "Optional ISO-8601 lower bound"),
+          queryParam("limit", "Page size from 1 to 100")
+        ],
+        responses: { "200": jsonResponse("Project change feed", "#/components/schemas/ProjectChangesResponse"), "400": jsonResponse("Invalid cursor, timestamp, or limit", "#/components/schemas/ErrorResponse") }
+      }
+    },
+    "/api/feedback/proposals": {
+      post: {
+        summary: "Validate a structured agent correction proposal; persist only with FEEDBACK_SECRET authorization.",
+        security: [{}, { feedbackSecret: [] }],
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/FeedbackProposalRequest" } } } },
+        responses: {
+          "200": jsonResponse("Validated proposal that was not persisted", "#/components/schemas/FeedbackProposalResponse"),
+          "202": jsonResponse("Authenticated proposal persisted for review", "#/components/schemas/FeedbackProposalResponse"),
+          "400": jsonResponse("Invalid proposal", "#/components/schemas/ErrorResponse"),
+          "401": jsonResponse("Invalid feedback authorization", "#/components/schemas/ErrorResponse")
+        }
+      }
+    },
     "/api/trending": {
       get: {
         summary: "List trending projects from the loaded knowledge set.",
@@ -579,6 +623,11 @@ export const openApiDocument = {
         type: "http",
         scheme: "bearer",
         description: "Admin endpoints require the SYNC_SECRET bearer token."
+      },
+      feedbackSecret: {
+        type: "http",
+        scheme: "bearer",
+        description: "Optional FEEDBACK_SECRET. Without it, proposals are validated and fingerprinted but not persisted."
       }
     },
     schemas: {
@@ -591,6 +640,9 @@ export const openApiDocument = {
           reason: { type: "string" },
           project_count: { type: "integer" },
           generated_at: { type: "string", format: "date-time" },
+          snapshot_id: { type: "string", description: "Stable identity for the corpus snapshot used by this response." },
+          latest_synced_at: { type: ["string", "null"], format: "date-time" },
+          schema_version: { type: "string", enum: ["git-top.knowledge.v1"] },
           loaded_project_limit: {
             type: "integer",
             description: "Maximum D1 knowledge rows loaded into the bounded ranking set when present."
@@ -633,6 +685,23 @@ export const openApiDocument = {
           sync_freshness: { type: "string" },
           last_successful_sync_at: { type: ["string", "null"], format: "date-time" },
           hours_since_successful_sync: { type: ["number", "null"] },
+          operational_storage: {
+            type: "object",
+            properties: {
+              status: { type: "string", enum: ["healthy", "warning", "critical", "unknown"] },
+              github_cache_entries: { type: "integer" },
+              github_cache_body_bytes: { type: "integer" },
+              github_cache_max_entries: { type: "integer" },
+              github_cache_retention_entries: { type: "integer" },
+              github_cache_body_budget_bytes: { type: "integer" },
+              utilization: { type: "number" },
+              star_snapshot_count: { type: "integer" },
+              sync_run_count: { type: "integer" },
+              governance_run_count: { type: "integer" },
+              project_change_count: { type: "integer" },
+              feedback_proposal_count: { type: "integer" }
+            }
+          },
           metadata: { $ref: "#/components/schemas/Metadata" }
         },
         additionalProperties: true
@@ -822,6 +891,82 @@ export const openApiDocument = {
           metadata: { $ref: "#/components/schemas/Metadata" }
         },
         additionalProperties: true
+      },
+      ProjectsBatchRequest: {
+        type: "object",
+        required: ["project_ids"],
+        properties: {
+          project_ids: { type: "array", minItems: 1, maxItems: 20, uniqueItems: true, items: { type: "string", pattern: "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" } },
+          profile: { type: "string", enum: ["compact", "decision", "evidence"], default: "compact" }
+        }
+      },
+      ProjectsBatchResponse: {
+        type: "object",
+        required: ["profile", "requested_count", "found_count", "projects", "missing", "metadata"],
+        properties: {
+          profile: { type: "string", enum: ["compact", "decision", "evidence"] },
+          requested_count: { type: "integer" },
+          found_count: { type: "integer" },
+          projects: { type: "array", items: { type: "object", additionalProperties: true } },
+          missing: { type: "array", items: { type: "string" } },
+          metadata: { $ref: "#/components/schemas/Metadata" }
+        }
+      },
+      ProjectChangesResponse: {
+        type: "object",
+        required: ["changes", "page", "retention", "metadata"],
+        properties: {
+          changes: {
+            type: "array",
+            items: {
+              type: "object",
+              required: ["cursor", "project_id", "change_type", "changed_fields", "occurred_at", "tombstone"],
+              properties: {
+                cursor: { type: "string", description: "Opaque cursor for this event." },
+                project_id: { type: "string" },
+                change_type: { type: "string", enum: ["added", "updated", "classification_changed", "score_changed", "deleted"] },
+                changed_fields: { type: "array", items: { type: "string" } },
+                before: { type: ["object", "null"], additionalProperties: true },
+                after: { type: ["object", "null"], additionalProperties: true },
+                occurred_at: { type: "string", format: "date-time" },
+                tombstone: { type: "boolean" }
+              }
+            }
+          },
+          page: {
+            type: "object",
+            properties: { limit: { type: "integer" }, has_more: { type: "boolean" }, next_cursor: { type: "string", description: "Opaque polling cursor returned even when has_more is false." } }
+          },
+          retention: {
+            type: "object",
+            properties: { days: { type: "integer", enum: [30] }, earliest_guaranteed_at: { type: "string", format: "date-time" } }
+          },
+          metadata: { $ref: "#/components/schemas/Metadata" }
+        }
+      },
+      FeedbackProposalRequest: {
+        type: "object",
+        required: ["project_id", "feedback_type", "proposed", "evidence", "rationale"],
+        properties: {
+          project_id: { type: "string", pattern: "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+          feedback_type: { type: "string", enum: ["classification", "alternative", "metadata", "stale", "other"] },
+          proposed: { type: "object", minProperties: 1, additionalProperties: true },
+          evidence: { type: "array", minItems: 1, maxItems: 10, items: { type: "object", additionalProperties: true } },
+          rationale: { type: "string", minLength: 12, maxLength: 2000 },
+          source_agent: { type: "string", maxLength: 200 },
+          source_url: { type: "string", format: "uri" }
+        }
+      },
+      FeedbackProposalResponse: {
+        type: "object",
+        required: ["proposal", "persisted", "review_required", "mutation_policy", "authorization"],
+        properties: {
+          proposal: { type: "object", additionalProperties: true },
+          persisted: { type: "boolean" },
+          review_required: { type: "boolean", enum: [true] },
+          mutation_policy: { type: "string" },
+          authorization: { type: "string" }
+        }
       },
       RecommendationResponse: {
         type: "object",
@@ -1827,6 +1972,18 @@ function healthExample() {
     sync_freshness: "fresh",
     last_successful_sync_at: "2026-07-04T00:00:00.000Z",
     hours_since_successful_sync: 1,
+    operational_storage: {
+      status: "healthy",
+      github_cache_entries: 1200,
+      github_cache_body_bytes: 32000000,
+      github_cache_max_entries: 2500,
+      github_cache_retention_entries: 1500,
+      github_cache_body_budget_bytes: 163840000,
+      utilization: 0.48,
+      star_snapshot_count: 500,
+      sync_run_count: 120,
+      governance_run_count: 40
+    },
     metadata: metadataExample()
   };
 }

@@ -12,7 +12,16 @@ import { buildAgentMap } from "./agent-map";
 import { buildAtlasEcosystemView, findAtlasEcosystem, listAtlasEcosystems } from "./atlas-page";
 import { buildPublicBenchmarkReportFromInputs } from "./benchmark";
 import { discoverAndSyncCandidateProjects } from "./candidate-discovery";
+import { listProjectChanges, maxProjectChangesPageSize } from "./change-feed";
 import { getHealth } from "./health";
+import {
+  buildFeedbackProposal,
+  listFeedbackProposals,
+  parseFeedbackProposal,
+  parseFeedbackStatus,
+  persistFeedbackProposal,
+  reviewFeedbackProposal
+} from "./feedback-proposals";
 import { getSyncStatus } from "./db-sync-store";
 import { listClassificationOverrides, upsertClassificationOverride } from "./db-write-store";
 import { maxAlternativesRefreshBatchSize, refreshAlternativesDerivedData } from "./derived-refresh";
@@ -25,6 +34,7 @@ import { errorJson, json, parseBool, parseLimit, rawJson } from "./http";
 import { buildAtlasJourneysView } from "./journeys-page";
 import { openApiDocument } from "./openapi";
 import { resolveProject } from "./project-aliases";
+import { parseProjectResponseProfile, projectProfileView, type ProjectResponseProfile } from "./project-profiles";
 import { buildProjectSummary, toProjectKnowledgeView, withRelatedProjects } from "./project-view";
 import { buildLowConfidenceReviewReport, buildQualityReport } from "./quality";
 import { buildAgentQuickstart } from "./quickstart";
@@ -240,6 +250,39 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     }
   }
 
+  if (path === "/api/admin/feedback-proposals") {
+    if (!["GET", "POST"].includes(request.method)) {
+      return errorJson(405, "method_not_allowed", "Feedback proposal administration supports GET and POST.");
+    }
+    if (!isAuthorizedAdmin(request, env)) {
+      return errorJson(401, "unauthorized", "Missing or invalid admin authorization.");
+    }
+    if (request.method === "GET") {
+      const statusValue = url.searchParams.get("status");
+      const status = statusValue ? parseFeedbackStatus(statusValue) : undefined;
+      if (statusValue && !status) {
+        return errorJson(400, "invalid_feedback_status", "status must be proposed, accepted, or rejected.");
+      }
+      return json({ proposals: await listFeedbackProposals(env, { status: status ?? undefined, limit: parseLimit(url.searchParams.get("limit")) ?? 50 }) }, { headers: { "cache-control": "no-store" } });
+    }
+    let body: unknown;
+    try { body = await request.json(); } catch { return errorJson(400, "invalid_json", "Feedback review requires a valid JSON body."); }
+    const value = body && typeof body === "object" ? body as Record<string, unknown> : {};
+    const id = typeof value.id === "string" ? value.id.trim() : "";
+    const status = value.status === "accepted" || value.status === "rejected" ? value.status : null;
+    const reviewedBy = typeof value.reviewed_by === "string" ? value.reviewed_by.trim().slice(0, 200) : "";
+    if (!id || !status || !reviewedBy) {
+      return errorJson(400, "invalid_feedback_review", "id, status=accepted|rejected, and reviewed_by are required.");
+    }
+    const proposal = await reviewFeedbackProposal(env, {
+      id,
+      status,
+      reviewedBy,
+      reviewNotes: typeof value.review_notes === "string" ? value.review_notes.slice(0, 2000) : null
+    });
+    return proposal ? json({ proposal }, { headers: { "cache-control": "no-store" } }) : errorJson(404, "feedback_proposal_not_found", `Feedback proposal ${id} was not found.`);
+  }
+
   if (path === "/api/grp/query") {
     if (request.method !== "POST") {
       return errorJson(405, "method_not_allowed", "GRP query endpoint requires POST.");
@@ -300,6 +343,36 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
 
   if (path === "/api/project") {
     return handleProjectLookupApi(request, env);
+  }
+
+  if (path === "/api/feedback/proposals") {
+    if (request.method !== "POST") {
+      return errorJson(405, "method_not_allowed", "Feedback proposal endpoint requires POST.");
+    }
+    let body: unknown;
+    try { body = await request.json(); } catch { return errorJson(400, "invalid_json", "Feedback proposal endpoint requires a valid JSON body."); }
+    const parsed = parseFeedbackProposal(body);
+    if (!parsed.ok) {
+      return errorJson(400, "invalid_feedback_proposal", parsed.message);
+    }
+    const proposal = await buildFeedbackProposal(parsed.input);
+    const auth = request.headers.get("authorization");
+    if (auth && !isAuthorizedFeedback(request, env)) {
+      return errorJson(401, "unauthorized", "Invalid feedback authorization.");
+    }
+    const persisted = isAuthorizedFeedback(request, env);
+    const result = persisted ? await persistFeedbackProposal(env, proposal) : proposal;
+    return json({
+      proposal: result,
+      persisted,
+      review_required: true,
+      mutation_policy: "Accepted feedback remains a proposal until an administrator reviews it; submission never mutates project knowledge directly.",
+      authorization: persisted ? "accepted" : "Bearer FEEDBACK_SECRET is required to persist this validated proposal."
+    }, { status: persisted ? 202 : 200, headers: { "cache-control": "no-store" } });
+  }
+
+  if (path === "/api/projects") {
+    return handleProjectsBatchApi(request, env);
   }
 
   if (path === "/api/related") {
@@ -405,6 +478,29 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
         "cache-control": "no-store"
       }
     });
+  }
+
+  if (path === "/api/changes") {
+    const policy = await getKnowledgeForSourcePolicy(env, { requireD1: true });
+    if (!policy.ok) {
+      return sourcePolicyError(policy.failure);
+    }
+    const limit = url.searchParams.has("limit") ? Number(url.searchParams.get("limit")) : undefined;
+    if (limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > maxProjectChangesPageSize)) {
+      return errorJson(400, "invalid_change_feed_request", `limit must be an integer from 1 to ${maxProjectChangesPageSize}.`);
+    }
+    try {
+      return json({
+        ...(await listProjectChanges(env, {
+          cursor: url.searchParams.get("cursor") ?? undefined,
+          since: url.searchParams.get("since") ?? undefined,
+          limit
+        })),
+        metadata: policy.knowledge.metadata
+      }, { headers: { "cache-control": "no-store" } });
+    } catch (error) {
+      return errorJson(400, "invalid_change_feed_request", formatError(error));
+    }
   }
 
   if (path === "/api/governance/runs") {
@@ -855,6 +951,77 @@ async function handleProjectLookupApi(request: Request, env: Env): Promise<Respo
     return errorJson(404, "project_not_found", `Project ${parsed.input.projectId} was not found.`);
   }
   return projectLookupResponse(resolution.project, knowledge.projects, parsed.input.relatedLimit ?? 8, knowledge.metadata, resolvedFrom(resolution));
+}
+
+async function handleProjectsBatchApi(request: Request, env: Env): Promise<Response> {
+  if (!["GET", "POST"].includes(request.method)) {
+    return errorJson(405, "method_not_allowed", "Batch project lookup supports GET and POST.");
+  }
+  const parsed = request.method === "POST" ? await parseProjectsBatchBody(request) : parseProjectsBatchUrl(new URL(request.url));
+  if (!parsed.ok) {
+    return errorJson(400, "invalid_projects_batch_request", parsed.message);
+  }
+  const knowledge = await requireKnowledgeSource(request, env);
+  if (knowledge instanceof Response) {
+    return knowledge;
+  }
+  const found: unknown[] = [];
+  const missing: string[] = [];
+  for (const projectId of parsed.input.projectIds) {
+    const project = getProjectKnowledgeFromList(knowledge.projects, projectId);
+    if (project) {
+      found.push(projectProfileView(project, parsed.input.profile));
+    } else {
+      missing.push(projectId);
+    }
+  }
+  return json({
+    profile: parsed.input.profile,
+    requested_count: parsed.input.projectIds.length,
+    found_count: found.length,
+    projects: found,
+    missing,
+    metadata: knowledge.metadata
+  });
+}
+
+type ProjectsBatchInput = { projectIds: string[]; profile: ProjectResponseProfile };
+
+async function parseProjectsBatchBody(request: Request): Promise<{ ok: true; input: ProjectsBatchInput } | { ok: false; message: string }> {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return { ok: false, message: "Batch project lookup requires a valid JSON body." };
+  }
+  if (!body || typeof body !== "object") {
+    return { ok: false, message: "Request body must be an object." };
+  }
+  const data = body as Record<string, unknown>;
+  return validateProjectsBatchInput(data.project_ids ?? data.projectIds, data.profile);
+}
+
+function parseProjectsBatchUrl(url: URL): { ok: true; input: ProjectsBatchInput } | { ok: false; message: string } {
+  const ids = (url.searchParams.get("ids") ?? "").split(",").map((value) => value.trim()).filter(Boolean);
+  return validateProjectsBatchInput(ids, url.searchParams.get("profile") ?? undefined);
+}
+
+function validateProjectsBatchInput(
+  value: unknown,
+  profileValue: unknown
+): { ok: true; input: ProjectsBatchInput } | { ok: false; message: string } {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 20 || value.some((item) => typeof item !== "string" || !item.trim())) {
+    return { ok: false, message: "project_ids must contain 1 to 20 non-empty canonical owner/repo identifiers." };
+  }
+  const projectIds = [...new Set(value.map((item) => String(item).trim()))];
+  if (projectIds.some((item) => !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(item))) {
+    return { ok: false, message: "Each project_id must be a canonical owner/repo identifier." };
+  }
+  const profile = profileValue === undefined || profileValue === null ? "compact" : parseProjectResponseProfile(profileValue);
+  if (!profile) {
+    return { ok: false, message: "profile must be compact, decision, or evidence." };
+  }
+  return { ok: true, input: { projectIds, profile } };
 }
 
 async function parseProjectLookupBody(
@@ -1426,6 +1593,10 @@ function isAuthorizedAdmin(request: Request, env: Env): boolean {
   const auth = request.headers.get("authorization") ?? "";
   const expected = `Bearer ${env.SYNC_SECRET}`;
   return auth === expected;
+}
+
+function isAuthorizedFeedback(request: Request, env: Env): boolean {
+  return Boolean(env.FEEDBACK_SECRET && request.headers.get("authorization") === `Bearer ${env.FEEDBACK_SECRET}`);
 }
 
 function isProjectKnowledge(value: ReturnType<typeof getProjectKnowledgeFromList>): value is NonNullable<ReturnType<typeof getProjectKnowledgeFromList>> {

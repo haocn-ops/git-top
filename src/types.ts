@@ -172,6 +172,9 @@ export interface Env {
   DB?: D1Database;
   GITHUB_TOKEN?: string;
   SYNC_SECRET?: string;
+  OPERATIONS_ALERT_WEBHOOK?: string;
+  OPERATIONS_DIGEST_WEBHOOK?: string;
+  FEEDBACK_SECRET?: string;
 }
 
 export interface GithubRepository {

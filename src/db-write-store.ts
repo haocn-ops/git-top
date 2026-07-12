@@ -137,11 +137,22 @@ export async function upsertProjectKnowledge(env: Env, knowledge: ProjectKnowled
       project.syncedAt
     ),
     env.DB.prepare(
-      `INSERT OR REPLACE INTO project_metrics (
+      `INSERT INTO project_metrics (
         project_id, stars_30d_delta, commits_30d, releases_180d, contributors_90d,
         issue_first_response_median_hours, recent_push_days, git_score,
         maintenance_score, signal_confidence_json, calculated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(project_id) DO UPDATE SET
+        stars_30d_delta = excluded.stars_30d_delta,
+        commits_30d = excluded.commits_30d,
+        releases_180d = excluded.releases_180d,
+        contributors_90d = excluded.contributors_90d,
+        issue_first_response_median_hours = excluded.issue_first_response_median_hours,
+        recent_push_days = excluded.recent_push_days,
+        git_score = excluded.git_score,
+        maintenance_score = excluded.maintenance_score,
+        signal_confidence_json = excluded.signal_confidence_json,
+        calculated_at = excluded.calculated_at`
     ).bind(
       metrics.projectId,
       metrics.stars30dDelta,
@@ -156,11 +167,25 @@ export async function upsertProjectKnowledge(env: Env, knowledge: ProjectKnowled
       metrics.calculatedAt
     ),
     env.DB.prepare(
-    `INSERT OR REPLACE INTO agent_cards (
+    `INSERT INTO agent_cards (
         project_id, project_kind, collection_json, category, difficulty, deployment_json, cloudflare_ready,
         use_cases_json, not_good_for_json, alternatives_json, summary_for_agent,
         classification_json, schema_version, generated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(project_id) DO UPDATE SET
+        project_kind = excluded.project_kind,
+        collection_json = excluded.collection_json,
+        category = excluded.category,
+        difficulty = excluded.difficulty,
+        deployment_json = excluded.deployment_json,
+        cloudflare_ready = excluded.cloudflare_ready,
+        use_cases_json = excluded.use_cases_json,
+        not_good_for_json = excluded.not_good_for_json,
+        alternatives_json = excluded.alternatives_json,
+        summary_for_agent = excluded.summary_for_agent,
+        classification_json = excluded.classification_json,
+        schema_version = excluded.schema_version,
+        generated_at = excluded.generated_at`
     ).bind(
       agentCard.projectId,
       agentCard.projectKind ?? "project",

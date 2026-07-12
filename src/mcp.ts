@@ -10,11 +10,14 @@ import { buildAgentMap } from "./agent-map";
 import { buildAlternativesDecision, generateAlternativeMatches, toAlternativeMatchView } from "./alternatives";
 import { buildAtlasEcosystemView, findAtlasEcosystem, listAtlasEcosystems } from "./atlas-page";
 import { buildPublicBenchmarkReportFromInputs } from "./benchmark";
+import { buildFeedbackProposal, parseFeedbackProposal } from "./feedback-proposals";
+import { listProjectChanges, maxProjectChangesPageSize } from "./change-feed";
 import type { ProjectKnowledgeResult } from "./knowledge-source";
 import { buildKnowledgeGraph, compareProjectKnowledge } from "./graph";
 import { normalizeGrpRequest, runGrpQuery } from "./grp";
 import { errorJson, json, rawJson, stringifyApiJson } from "./http";
 import { buildProjectSummary, toProjectKnowledgeView, withRelatedProjects } from "./project-view";
+import { parseProjectResponseProfile, projectProfileView } from "./project-profiles";
 import { buildProjectScoreExplanation } from "./score";
 import { buildLowConfidenceReviewReport, buildQualityReport } from "./quality";
 import { getKnowledgeForSourcePolicy } from "./source-policy";
@@ -121,6 +124,48 @@ const tools = [
         }
       },
       anyOf: [{ required: ["project_id"] }, { required: ["repo"] }, { required: ["owner", "repo"] }]
+    }
+  },
+  {
+    name: "get_projects_batch",
+    description: "Fetch 1 to 20 canonical owner/repo projects in one snapshot-consistent call using compact, decision, or evidence response profiles.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_ids: { type: "array", minItems: 1, maxItems: 20, items: { type: "string" } },
+        profile: { type: "string", enum: ["compact", "decision", "evidence"], default: "compact" },
+        require_d1: { type: "boolean", description: "Fail closed unless the tool result is backed by D1 instead of seed fallback." }
+      },
+      required: ["project_ids"]
+    }
+  },
+  {
+    name: "get_project_changes",
+    description: "Read the D1-backed project change feed with opaque cursor pagination, deletion tombstones, and an explicit 30-day retention contract.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        cursor: { type: "string", description: "Opaque next_cursor returned by a previous call." },
+        since: { type: "string", description: "Optional ISO-8601 lower bound." },
+        limit: { type: "number", minimum: 1, maximum: 100 }
+      }
+    }
+  },
+  {
+    name: "propose_project_feedback",
+    description: "Validate and normalize a structured correction proposal without mutating Git.Top knowledge. Authorized persistence uses POST /api/feedback/proposals with FEEDBACK_SECRET.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_id: { type: "string" },
+        feedback_type: { type: "string", enum: ["classification", "alternative", "metadata", "stale", "other"] },
+        proposed: { type: "object" },
+        evidence: { type: "array", minItems: 1, maxItems: 10, items: { type: "object" } },
+        rationale: { type: "string" },
+        source_agent: { type: "string" },
+        source_url: { type: "string" }
+      },
+      required: ["project_id", "feedback_type", "proposed", "evidence", "rationale"]
     }
   },
   {
@@ -426,7 +471,11 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
           toolContentBlock: "content[0].text",
           parseInstruction: "Parse JSON-RPC tools/call result.content text blocks as JSON before reading metadata or fields.",
           strictSourceArgument: "Pass require_d1: true on tools that read project knowledge when seed fallback should fail closed.",
-          strictSourceError: { code: -32003, message: "D1-backed knowledge is required, but current source is seed." }
+          strictSourceError: { code: -32003, message: "D1-backed knowledge is required, but current source is seed." },
+          batchProjectLimit: 20,
+          projectProfiles: ["compact", "decision", "evidence"],
+          changeFeed: { cursor: "opaque", retentionDays: 30, tombstones: true },
+          feedbackPolicy: { validatePublicly: true, persistenceAuth: "FEEDBACK_SECRET", reviewRequired: true, mutatesKnowledgeDirectly: false }
         },
         structuredPostEndpoints: [
           {
@@ -434,6 +483,18 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
             method: "POST",
             description: "Fetch one project knowledge record with related projects, scores, evidence, and metadata.",
             bodyExample: { project_id: "cloudflare/agents", related_limit: 8 }
+          },
+          {
+            path: "/api/projects",
+            method: "POST",
+            description: "Fetch up to 20 canonical projects from one snapshot with compact, decision, or evidence profiles.",
+            bodyExample: { project_ids: ["cloudflare/agents", "openai/codex"], profile: "decision" }
+          },
+          {
+            path: "/api/feedback/proposals",
+            method: "POST",
+            description: "Validate structured evidence-backed corrections; FEEDBACK_SECRET is required before persistence and admin review remains mandatory.",
+            bodyExample: { project_id: "cloudflare/agents", feedback_type: "classification", proposed: { category: "agent_framework" }, evidence: [{ url: "https://github.com/cloudflare/agents", field: "README" }], rationale: "The README explicitly describes an agent framework." }
           },
           {
             path: "/api/recommend",
@@ -498,6 +559,12 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
         ],
         readEndpoints: [
           {
+            path: "/api/changes",
+            method: "GET",
+            description: "Consume project additions, updates, score or classification changes, and deletion tombstones with cursor pagination.",
+            bodyExample: null
+          },
+          {
             path: "/api/trends",
             method: "GET",
             description: "Inspect corpus-level category, deployment, language, rising-project, and agent-briefing trend signals.",
@@ -521,12 +588,15 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
       "GET /api/trust or call get_trust_gate before high-confidence production recommendations.",
       "GET /api/benchmark or call get_public_benchmark when you need citable eval health, explanation coverage, and known limitations.",
       "GET /api/health to confirm system availability, then rely on metadata.source=d1 for production recommendations.",
+      "Keep metadata.snapshot_id consistent across multi-tool decisions and restart dependent steps when the snapshot changes.",
+      "Use get_projects_batch for snapshot-consistent reads and get_project_changes for incremental cache updates and deletion tombstones.",
+      "Use propose_project_feedback to normalize evidence-backed corrections; it validates only and never mutates trusted knowledge.",
       "Use agent_map.short_path first, then expand into agent_map.reference_path when you need the fuller discovery surface.",
         "Use structured POST endpoints under agent_api.structured_post_endpoints for project, recommendation, comparison, alternatives, graph, and GRP requests.",
         "Call tools/list to inspect available MCP tools.",
         "Call search_projects with query, category, deployment, and limit.",
         "Call get_project or compare_projects before presenting a final recommendation.",
-        "Cite metadata, classification evidence, and quality_signal_confidence in high-confidence answers."
+        "Cite metadata.source, metadata.snapshot_id, classification evidence, and quality_signal_confidence in high-confidence answers."
       ],
       examples: {
         toolsList: {
@@ -672,6 +742,69 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
       summary: projectView ? buildProjectSummary(projectView) : null,
       resolved_from: resolution ? mcpResolvedFrom(resolution) : null,
       metadata: knowledge.metadata
+    };
+  }
+
+  if (name === "get_projects_batch") {
+    const projectIds = arrayArg(args.project_ids);
+    if (projectIds.length < 1 || projectIds.length > 20 || projectIds.some((value) => typeof value !== "string" || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(value))) {
+      return { toolError: { code: -32602, message: "project_ids must contain 1 to 20 canonical owner/repo identifiers." } };
+    }
+    const profile = args.profile === undefined ? "compact" : parseProjectResponseProfile(args.profile);
+    if (!profile) {
+      return { toolError: { code: -32602, message: "profile must be compact, decision, or evidence." } };
+    }
+    const knowledge = await requireKnowledgeSource(env, args);
+    if (isToolErrorResult(knowledge)) {
+      return knowledge;
+    }
+    const projects: unknown[] = [];
+    const missing: string[] = [];
+    for (const projectId of [...new Set(projectIds as string[])]) {
+      const project = getProjectKnowledgeFromList(knowledge.projects, projectId);
+      if (project) {
+        projects.push(projectProfileView(project, profile));
+      } else {
+        missing.push(projectId);
+      }
+    }
+    return { profile, projects, missing, metadata: knowledge.metadata };
+  }
+
+  if (name === "get_project_changes") {
+    const limit = numberArg(args.limit);
+    if (limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > maxProjectChangesPageSize)) {
+      return { toolError: { code: -32602, message: `limit must be an integer from 1 to ${maxProjectChangesPageSize}.` } };
+    }
+    const policy = await getKnowledgeForSourcePolicy(env, { requireD1: true });
+    if (!policy.ok) {
+      return { toolError: { code: -32003, message: policy.failure.message } };
+    }
+    try {
+      return {
+        ...(await listProjectChanges(env, { cursor: stringArg(args.cursor), since: stringArg(args.since), limit })),
+        metadata: policy.knowledge.metadata
+      };
+    } catch (error) {
+      return { toolError: { code: -32602, message: error instanceof Error ? error.message : String(error) } };
+    }
+  }
+
+  if (name === "propose_project_feedback") {
+    const parsed = parseFeedbackProposal(args);
+    if (!parsed.ok) {
+      return { toolError: { code: -32602, message: parsed.message } };
+    }
+    return {
+      proposal: await buildFeedbackProposal(parsed.input),
+      persisted: false,
+      review_required: true,
+      submit: {
+        method: "POST",
+        url: "https://git.top/api/feedback/proposals",
+        authorization: "Bearer FEEDBACK_SECRET is required for persistence."
+      },
+      mutation_policy: "This MCP tool validates only. Feedback never mutates project knowledge without administrator review."
     };
   }
 

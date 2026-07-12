@@ -23,6 +23,8 @@ For the product assessment and agent-native improvement roadmap, see [Agent-Nati
 Agent-facing clients should treat these fields and behaviors as the stable trust contract:
 
 - Use `metadata.source` to distinguish D1-backed production data from seed fallback.
+- Use `metadata.snapshot_id` to keep multi-step project, alternatives, score, and comparison decisions on a consistent corpus snapshot.
+- Read `metadata.latest_synced_at` and `metadata.schema_version` before caching or replaying agent decisions.
 - Use `require_d1=true` when a workflow should fail closed instead of returning fallback data.
 - Read `metadata.reason`, `metadata.warnings`, `metadata.truncated`, and `metadata.loaded_project_limit` before making high-confidence claims.
 - Inspect classification evidence and `quality_signal_confidence` before asserting category, deployment, Cloudflare readiness, quality, or activity.
@@ -300,6 +302,38 @@ The `summary` object is the shortest agent-readable project contract. It include
 - `alternatives`: first replacement candidates with reasons.
 
 Use `summary` for first-pass agent reasoning, then inspect `knowledge.agent_card.classification`, `quality_signal_confidence`, and `metadata.source` before making high-confidence production claims.
+
+## Batch Project Lookup
+
+Fetch up to 20 canonical repositories from one corpus snapshot:
+
+```sh
+curl -X POST "http://localhost:8787/api/projects?require_d1=true" \
+  -H "content-type: application/json" \
+  -d '{"project_ids":["cloudflare/agents","openai/codex"],"profile":"decision"}'
+```
+
+`profile` accepts `compact`, `decision`, or `evidence`. The response preserves request order, returns unresolved IDs in `missing`, and includes one `metadata.snapshot_id` for the entire batch. A GET form is also available with comma-separated `ids`.
+
+## Project Change Feed
+
+```sh
+curl "http://localhost:8787/api/changes?since=2026-07-12T00:00:00Z&limit=50"
+```
+
+Use the opaque `page.next_cursor` for the next request, including when `has_more=false`; this makes the endpoint suitable for continuous polling without replaying the last page. Events include `added`, `updated`, `classification_changed`, `score_changed`, and `deleted`; deleted projects carry `tombstone=true`. The feed is D1-only, fails closed when D1 is unavailable, and exposes the actual lower bound in `retention.earliest_guaranteed_at`. Consumers that were last synchronized before that bound must rebuild from a fresh snapshot.
+
+## Agent Feedback Proposals
+
+```sh
+curl -X POST "http://localhost:8787/api/feedback/proposals" \
+  -H "content-type: application/json" \
+  -d '{"project_id":"cloudflare/agents","feedback_type":"classification","proposed":{"category":"agent_framework"},"evidence":[{"url":"https://github.com/cloudflare/agents","field":"README"}],"rationale":"The README explicitly describes an agent framework."}'
+```
+
+Anonymous requests validate, normalize, and fingerprint a proposal without writing it. Add `Authorization: Bearer $FEEDBACK_SECRET` to persist it for administrator review. Duplicate corrections share a stable fingerprint. Accepted proposals remain review records and never mutate project knowledge, classification overrides, alternatives, or ranking automatically.
+
+Administrators list and review persisted proposals through `GET` and `POST /api/admin/feedback-proposals` with `SYNC_SECRET`.
 
 ## Trending
 

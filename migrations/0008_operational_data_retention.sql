@@ -10,7 +10,7 @@ WHERE cache_key NOT IN (
   SELECT cache_key
   FROM github_request_cache
   ORDER BY checked_at DESC
-  LIMIT 2500
+  LIMIT 1500
 );
 
 DELETE FROM star_snapshots
