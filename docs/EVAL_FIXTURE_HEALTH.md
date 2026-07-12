@@ -1,6 +1,6 @@
 # Git.Top Eval Fixture Health
 
-Generated at: 2026-07-07T11:26:32.835Z
+Generated at: 2026-07-12T12:30:47.073Z
 
 This report validates the generated evaluation fixture corpus before ranking, classification, or fixture-structure changes.
 
@@ -9,11 +9,11 @@ This report validates the generated evaluation fixture corpus before ranking, cl
 - Hand-authored fixtures: 311
 - Seed repositories: 500
 - Generated fixtures: 504
-- Collection fixtures: 37
-- Reviewed collection policy items: 37
+- Collection fixtures: 39
+- Reviewed collection policy items: 49
 - Reviewed collection policy drift: 0
 - Unreviewed collection fixtures: 0
-- Low-confidence classification signals: 328
+- Low-confidence classification signals: 0
 - Missing seed fixtures: 0
 - Duplicate hand-authored fixtures: 0
 - Duplicate generated fixtures: 0

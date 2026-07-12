@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { generateAlternatives, generateAlternativesForAll } from "../src/alternatives.ts";
-import { searchProjectList } from "../src/project-search.ts";
+import { recommendProjectList, searchProjectList } from "../src/project-search.ts";
 import { normalizeGrpRequest, runGrpQuery } from "../src/grp.ts";
 import worker from "../src/index.ts";
 import { buildQualityReport } from "../src/quality.ts";
@@ -34,6 +34,8 @@ await testWorkerProjectSlugLookup();
 await testBrowseRanking();
 await testBrowseRankingBroadVocabulary();
 await testSpecificIntentRanking();
+await testCanonicalEntityRanking();
+await testRecommendationConfidenceStrength();
 await testFlagshipCloudflareQuery();
 await testAlternatives();
 await testGrpNormalization();
@@ -603,6 +605,10 @@ async function testRecommendRoute() {
   assert.match(text, /Adoption Plan/);
   assert.match(text, /Risk Flags/);
   assert.match(text, /Matched|Review/);
+  assert.doesNotMatch(text, /<option value="any"/);
+  assert.doesNotMatch(text, /\ba agent\b/i);
+  assert.doesNotMatch(text, /library_only deployment options/);
+  assert.doesNotMatch(text, />library_only</);
 
   const filtered = await worker.fetch(new Request("https://git.top/recommend?use_case=build%20RAG%20applications&deployment=local&category=rag_framework&limit=3"), {});
   const filteredText = await filtered.text();
@@ -621,6 +627,7 @@ async function testWorkflowRoute() {
   assert.match(text, /Recommended Sequence/);
   assert.match(text, /Trust Policy/);
   assert.match(text, /\/api\/workflow\?/);
+  assert.doesNotMatch(text, /<option value="any"/);
 
   const focused = await worker.fetch(new Request("https://git.top/workflow?intent=evaluate%20Claude%20Code%20alternatives&project_id=claude-code&deployment=local&limit=3"), {});
   const focusedText = await focused.text();
@@ -1017,6 +1024,54 @@ async function testSpecificIntentRanking() {
   assert.equal(results[0].project.id, githubMcp.project.id, "specific owner/topic intent should outrank generic high-quality browse candidates");
 }
 
+async function testCanonicalEntityRanking() {
+  const canonical = makeSearchFixture("openai/codex", {
+    description: "Lightweight coding agent that runs in your terminal.",
+    stars: 90000,
+    gitScore: 84,
+    maintenanceScore: 76
+  });
+  const substringMatch = makeSearchFixture("agentforce314/clawcodex", {
+    description: "A Codex-compatible coding agent rebuild.",
+    stars: 700,
+    gitScore: 24,
+    maintenanceScore: 32
+  });
+
+  const nameResults = searchProjectList([substringMatch, canonical], { q: "codex", limit: 5 });
+  assert.equal(nameResults[0].project.id, canonical.project.id, "exact repository names should outrank substring identity matches");
+
+  const fullNameResults = searchProjectList([substringMatch, canonical], { q: "openai/codex", limit: 5 });
+  assert.equal(fullNameResults[0].project.id, canonical.project.id, "exact owner/repository queries should rank the canonical entity first");
+
+  const unicodeName = makeSearchFixture("mock/你好", { description: "你好 project", gitScore: 5, stars: 10 });
+  const authoritativeUnicodeMention = makeSearchFixture("mock/international", { description: "你好 developer tool", gitScore: 90, stars: 100000 });
+  const unicodeResults = searchProjectList([unicodeName, authoritativeUnicodeMention], { q: "你好", limit: 5 });
+  assert.equal(unicodeResults[0].project.id, authoritativeUnicodeMention.project.id, "empty ASCII identity keys must not receive an exact-name boost");
+}
+
+async function testRecommendationConfidenceStrength() {
+  const weakButMatching = makeSearchFixture("mock/weak-cloudflare-agent", {
+    description: "Build Cloudflare-ready AI agents.",
+    stars: 50,
+    gitScore: 5,
+    maintenanceScore: 7,
+    useCases: ["build Cloudflare-ready AI agents"]
+  });
+
+  const [recommendation] = recommendProjectList([weakButMatching], {
+    useCase: "build Cloudflare-ready AI agents",
+    deployment: "cloudflare",
+    category: "agent_framework",
+    cloudflareReady: true,
+    limit: 1
+  });
+
+  assert.equal(recommendation.confidence, "medium", "matched filters must not produce high confidence when quality and maturity are weak");
+  assert.match(recommendation.decision_summary, /exploration candidate/);
+  assert.equal(recommendation.evidence.confidence_reason, recommendation.confidence_reason);
+}
+
 async function testFlagshipCloudflareQuery() {
   const results = searchProjectList(seedProjects, {
     q: "cloudflare agent framework",
@@ -1044,6 +1099,7 @@ async function testAlternatives() {
   const all = generateAlternativesForAll(seedProjects, 2);
   assert.ok(all.updated > 0);
   assert.equal(all.updated, all.updates.length);
+  assert.equal(all.updates.length, seedProjects.length, "full alternatives refresh should write every project, including empty results");
   assert.ok(all.updates.every((update) => update.alternatives.length <= 2));
 }
 

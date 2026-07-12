@@ -15,7 +15,7 @@ import { discoverAndSyncCandidateProjects } from "./candidate-discovery";
 import { getHealth } from "./health";
 import { getSyncStatus } from "./db-sync-store";
 import { listClassificationOverrides, upsertClassificationOverride } from "./db-write-store";
-import { refreshAlternativesDerivedData } from "./derived-refresh";
+import { maxAlternativesRefreshBatchSize, refreshAlternativesDerivedData } from "./derived-refresh";
 import { defaultSeedRepositories } from "./github";
 import { buildAgentApiExamples } from "./examples";
 import { getGovernanceSummary, listGovernanceRuns, parseGovernanceRunInput, upsertGovernanceRun } from "./governance-store";
@@ -88,7 +88,25 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     }
 
     try {
-      return json(await refreshAlternativesDerivedData(env, "admin"), {
+      const offsetValue = url.searchParams.get("offset");
+      const limitValue = url.searchParams.get("limit");
+      const recordRunValue = url.searchParams.get("record_run");
+      const offset = offsetValue === null ? 0 : Number(offsetValue);
+      const limit = limitValue === null ? undefined : Number(limitValue);
+      const recordRun = recordRunValue === null ? limit === undefined : parseBool(recordRunValue);
+      if (
+        !Number.isInteger(offset) ||
+        offset < 0 ||
+        (limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > maxAlternativesRefreshBatchSize)) ||
+        typeof recordRun !== "boolean"
+      ) {
+        return errorJson(
+          400,
+          "invalid_alternatives_refresh_request",
+          `offset must be a non-negative integer, limit must be an integer from 1 to ${maxAlternativesRefreshBatchSize}, and record_run must be true or false.`
+        );
+      }
+      return json(await refreshAlternativesDerivedData(env, "admin", { offset, limit, recordRun }), {
         headers: {
           "cache-control": "no-store"
         }

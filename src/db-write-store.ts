@@ -93,11 +93,29 @@ export async function upsertProjectKnowledge(env: Env, knowledge: ProjectKnowled
 
   const statements = [
     env.DB.prepare(
-      `INSERT OR REPLACE INTO projects (
+      `INSERT INTO projects (
         id, owner, name, full_name, github_url, homepage_url, description, language,
         topics_json, license, stars, forks, open_issues, default_branch,
         created_at, updated_at, pushed_at, synced_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        owner = excluded.owner,
+        name = excluded.name,
+        full_name = excluded.full_name,
+        github_url = excluded.github_url,
+        homepage_url = excluded.homepage_url,
+        description = excluded.description,
+        language = excluded.language,
+        topics_json = excluded.topics_json,
+        license = excluded.license,
+        stars = excluded.stars,
+        forks = excluded.forks,
+        open_issues = excluded.open_issues,
+        default_branch = excluded.default_branch,
+        created_at = excluded.created_at,
+        updated_at = excluded.updated_at,
+        pushed_at = excluded.pushed_at,
+        synced_at = excluded.synced_at`
     ).bind(
       project.id,
       project.owner,

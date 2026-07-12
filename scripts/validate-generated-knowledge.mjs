@@ -17,7 +17,10 @@ const qualityBurnDownProjects = new Map([
   ["apache/answer", "ai_app_template"],
   ["agentscope-ai/agentscope", "agent_framework"],
   ["arize-ai/openinference", "ai_observability"],
+  ["arena-ai/structured-logprobs", "prompt_tooling"],
+  ["atrayee-dev/secure-ai-agent-boundary", "local_llm_runtime"],
   ["bentoml/bentoml", "local_llm_runtime"],
+  ["blaspsoft/forerunner", "prompt_tooling"],
   ["copilotkit/aimock", "ai_app_template"],
   ["guardrails-ai/guardrails_pii", "prompt_tooling"],
   ["kserve/kserve", "local_llm_runtime"],
@@ -26,11 +29,14 @@ const qualityBurnDownProjects = new Map([
   ["builderio/gpt-crawler", "ai_app_template"],
   ["signoz/signoz-otel-collector", "ai_observability"],
   ["huggingface/optimum", "local_llm_runtime"],
+  ["inferablehq/inferable", "workflow_automation"],
+  ["jaylfc/taos", "local_llm_runtime"],
   ["sweepai/sweep", "coding_agent"],
   ["lmstudio-ai/lms", "local_llm_runtime"],
   ["openai/openai-openapi", "llm_gateway"],
   ["n8n-io/task-runner-launcher", "workflow_automation"],
   ["qdrant/rust-client", "vector_database"],
+  ["samugit83/redamon", "llm_eval"],
   ["firecrawl/fireplexity", "browser_agent"],
   ["dagster-io/dagster-open-platform", "workflow_automation"],
   ["supermemoryai/opensearch-ai", "rag_framework"],
@@ -192,6 +198,10 @@ function assertClassificationEvidence(subject, label) {
 
 function assertCloudflareEvidence(subject, fixture) {
   if (!fixture.expected.deployments.includes("cloudflare")) {
+    const evidence = subject.classification?.cloudflareReady?.evidence ?? [];
+    assertEvidenceIncludes(evidence, "No Cloudflare deployment signal detected.", `${fixture.repo.full_name} negative Cloudflare signal evidence`);
+    assertEvidenceIncludes(evidence, "No wrangler.toml found", `${fixture.repo.full_name} negative Wrangler evidence`);
+    assertEqual(subject.classification?.cloudflareReady?.confidence, "high", `${fixture.repo.full_name} negative Cloudflare confidence`);
     return;
   }
   const evidence = subject.classification?.cloudflareReady?.evidence ?? [];

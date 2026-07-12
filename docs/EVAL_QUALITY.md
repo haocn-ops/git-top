@@ -1,6 +1,6 @@
 # Git.Top Eval Quality
 
-Generated at: 2026-07-07T11:26:33.468Z
+Generated at: 2026-07-12T12:30:47.728Z
 
 This report summarizes the CI-safe recommendation and classification baseline. Evaluation knowledge is built from hand-authored seed projects first and generated Agent Card fixtures for the full seed list second.
 
@@ -44,7 +44,7 @@ Case | Type | Top-1 | Top-3 | Category | Deployment | Cloudflare Ready | Unaccep
 `recommend-rag-framework` | recommend | yes | yes | yes | yes | yes | 0 | `run-llama/llama_index`, `langchain-ai/langchain`, `langflow-ai/langflow`
 `recommend-cloudflare-agent` | recommend | yes | yes | yes | yes | yes | 0 | `cloudflare/agents`, `cloudflare/puppeteer`, `cloudflare/mcp-server-cloudflare`
 `grp-find-cloudflare-agents` | grp | yes | yes | yes | yes | yes | 0 | `cloudflare/agents`, `cloudflare/puppeteer`, `cloudflare/mcp-server-cloudflare`, `cloudflare/dynamic-workflows`, `cloudflare/templates`
-`grp-compose-coding-stack` | grp | yes | yes | yes | yes | yes | 0 | `langchain-ai/langchain`, `modelcontextprotocol/servers`, `OpenHands/OpenHands`, `huggingface/smolagents`, `langchain-ai/langgraph`
+`grp-compose-coding-stack` | grp | yes | yes | yes | yes | yes | 0 | `langchain-ai/langchain`, `modelcontextprotocol/servers`, `OpenHands/OpenHands`, `huggingface/smolagents`, `open-webui/mcpo`
 `search-local-llm-runtime` | search | yes | yes | yes | yes | yes | 0 | `huggingface/text-embeddings-inference`, `ollama/ollama`, `ggml-org/llama.cpp`, `nomic-ai/gpt4all`, `oobabooga/textgen`
 `search-vector-database` | search | yes | yes | yes | yes | yes | 0 | `redis/redis`, `milvus-io/milvus`, `qdrant/qdrant`, `neo4j/neo4j`, `epsilla-cloud/vectordb`
 `search-prompt-tooling` | search | no | yes | yes | yes | yes | 0 | `openai/openai-structured-outputs-samples`, `guardrails-ai/guardrails`, `567-labs/instructor`, `microsoft/TypeChat`, `BoundaryML/baml`

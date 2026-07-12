@@ -64,12 +64,10 @@ export interface AlternativesDecision {
 }
 
 export function generateAlternativesForAll(projects: ProjectKnowledge[], limit = 3): AlternativesResult {
-  const updates = projects
-    .map((project) => ({
-      projectId: project.project.id,
-      alternatives: generateAlternatives(project, projects, limit)
-    }))
-    .filter((update) => update.alternatives.length > 0);
+  const updates = projects.map((project) => ({
+    projectId: project.project.id,
+    alternatives: generateAlternatives(project, projects, limit)
+  }));
 
   return {
     updated: updates.length,

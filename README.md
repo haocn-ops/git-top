@@ -48,6 +48,7 @@ The project intentionally does not ship a separate Next.js app. Keeping Worker-r
 
 - [Coding agent guide](./AGENTS.md)
 - [Agent-native assessment and optimization plan](./docs/AGENT_NATIVE_ASSESSMENT_AND_OPTIMIZATION_PLAN.md)
+- [Site assessment and improvement plan 2026-07-12](./docs/SITE_ASSESSMENT_AND_IMPROVEMENT_PLAN_2026-07-12.md)
 - [Agent-native optimization implementation report](./docs/AGENT_NATIVE_OPTIMIZATION_IMPLEMENTATION_REPORT.md)
 - [Agent-native optimization PR summary](./docs/AGENT_NATIVE_OPTIMIZATION_PR_SUMMARY.md)
 - [Git.Top 2.0 product upgrade plan](./docs/GIT_TOP_2_PRODUCT_UPGRADE_PLAN.md)
@@ -189,6 +190,7 @@ SYNC_SECRET=... pnpm sync:prod:catchup --rounds 13 --limit 40
 ```
 
 Omit `offset` to use the stored seed cursor. Cron syncs use this cursor and advance through the seed list in bounded batches.
+Add `--refresh-cycle` when all seed repositories have been indexed but freshness recovery requires revisiting the full seed cursor despite `remaining_count=0`.
 
 ## API
 

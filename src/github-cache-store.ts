@@ -1,4 +1,5 @@
 import type { Env } from "./types";
+import { githubCacheMaxBodyBytes } from "./storage-maintenance";
 
 export interface GithubRequestCacheEntry {
   cacheKey: string;
@@ -46,6 +47,11 @@ export async function upsertGithubRequestCache(
 
   const now = input.nowIso ?? new Date().toISOString();
   try {
+    if (new TextEncoder().encode(input.bodyJson).byteLength > githubCacheMaxBodyBytes) {
+      await env.DB.prepare("DELETE FROM github_request_cache WHERE cache_key = ?").bind(input.cacheKey).run();
+      return;
+    }
+
     await env.DB.prepare(
       `INSERT INTO github_request_cache (
         cache_key, etag, last_modified, body_json, status, checked_at, updated_at

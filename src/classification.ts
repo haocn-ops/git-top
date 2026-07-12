@@ -45,7 +45,7 @@ function buildClassification(
   const categoryEvidence = evidenceForCategory(category, corpus, metadataCorpus, repo.full_name);
   const deploymentEvidence = evidenceForDeployment(deployment, corpus, signals.files);
   const difficultyEvidence = evidenceForDifficulty(repo, signals, deployment, difficulty);
-  const cloudflareEvidence = evidenceForCloudflareReady(corpus, deployment, cloudflareReady, repo.full_name);
+  const cloudflareEvidence = evidenceForCloudflareReady(corpus, deployment, cloudflareReady, signals.files, repo.full_name);
 
   return {
     category: {
@@ -259,7 +259,13 @@ function evidenceForDifficulty(repo: GithubRepository, signals: GithubRepoSignal
   return ["No strong beginner or advanced signal found; defaulting to intermediate."];
 }
 
-function evidenceForCloudflareReady(corpus: string, deployment: Deployment[], cloudflareReady: boolean, projectId?: string): string[] {
+function evidenceForCloudflareReady(
+  corpus: string,
+  deployment: Deployment[],
+  cloudflareReady: boolean,
+  files: string[],
+  projectId?: string
+): string[] {
   const evidence: string[] = projectId ? curatedCloudflareReadyEvidence(projectId, cloudflareReady) : [];
   if (deployment.includes("cloudflare")) {
     evidence.push(`Cloudflare signal: ${cloudflareSignals(corpus).join(", ") || "deployment metadata"}.`);
@@ -272,8 +278,11 @@ function evidenceForCloudflareReady(corpus: string, deployment: Deployment[], cl
   }
   if (!cloudflareReady && !deployment.includes("cloudflare")) {
     evidence.push("No Cloudflare deployment signal detected.");
+    if (!files.some((file) => file.toLowerCase() === "wrangler.toml")) {
+      evidence.push("No wrangler.toml found in inspected repository files.");
+    }
   }
-  return evidence;
+  return unique(evidence);
 }
 
 function collectEvidence(corpus: string, needles: string[], source: string): string[] {

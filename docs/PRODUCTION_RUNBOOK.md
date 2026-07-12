@@ -36,6 +36,38 @@ wrangler d1 execute git-top --remote --file=./migrations/0006_github_request_cac
 
 If this migration is missed, sync degrades to direct GitHub requests because cache reads and writes are best-effort, but production should still be migrated before deploy so repeated syncs can reuse GitHub validators.
 
+The operational retention migration removes oversized and stale cache bodies plus expired run and snapshot history. Apply it before deploying runtime pruning, especially when sync reports `D1_ERROR: Exceeded maximum DB size`:
+
+```sh
+wrangler d1 execute git-top --remote --file=./migrations/0008_operational_data_retention.sql
+```
+
+The migration preserves projects, Agent Cards, metrics, classification overrides, and candidate records. After applying it, deploy the Worker and trigger a small lite sync before starting catch-up rounds.
+
+When coverage is complete but sync freshness is stale, force one full seed refresh cycle instead of stopping at `remaining_count=0`:
+
+```sh
+SYNC_SECRET=... pnpm sync:prod:catchup -- --rounds 13 --limit 40 --signal-depth lite --refresh-cycle
+```
+
+For large corpora, refresh derived alternatives in bounded batches and record the governance run on the final batch:
+
+```sh
+curl -X POST 'https://git.top/api/admin/alternatives?offset=0&limit=20&record_run=false' -H "authorization: Bearer $SYNC_SECRET"
+```
+
+Or run the bounded production workflow end to end:
+
+```sh
+SYNC_SECRET=... pnpm alternatives:prod:refresh
+```
+
+Refresh projects reported as `stale_sync` after the seed cursor cycle:
+
+```sh
+SYNC_SECRET=... pnpm sync:prod:stale
+```
+
 ## Deploy
 
 ```sh

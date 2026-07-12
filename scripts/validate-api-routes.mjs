@@ -922,6 +922,11 @@ async function testOpenApiDocument() {
   assert.ok(openapi.body.paths["/api/trends"], "OpenAPI should document trends endpoint");
   assert.ok(openapi.body.paths["/api/compare"].post, "OpenAPI should document structured compare POST endpoint");
   assert.ok(openapi.body.paths["/api/alternatives"].post, "OpenAPI should document structured alternatives POST endpoint");
+  assert.ok(openapi.body.paths["/api/admin/alternatives"].post, "OpenAPI should document the protected alternatives refresh endpoint");
+  assert.deepEqual(
+    openapi.body.paths["/api/admin/alternatives"].post.parameters.map((item) => item.name),
+    ["offset", "limit", "record_run"]
+  );
   assert.ok(openapi.body.paths["/api/related"].post, "OpenAPI should document structured related POST endpoint");
   assert.ok(openapi.body.paths["/api/score"].post, "OpenAPI should document structured score POST endpoint");
   assert.ok(openapi.body.paths["/api/graph"].post, "OpenAPI should document structured graph POST endpoint");
@@ -1295,6 +1300,24 @@ async function testMethodAndBodyValidation() {
   assert.equal(authorizedAlternatives.body.run.status, "success");
   assert.equal(authorizedAlternatives.body.run.summary.source, "d1");
   assert.equal(authorizedAlternatives.body.updated, authorizedAlternatives.body.updates.length);
+
+  const batchedAlternatives = await request(
+    "/api/admin/alternatives?offset=1&limit=2&record_run=false",
+    { method: "POST", headers: { authorization: "Bearer test-secret" } },
+    alternativesEnv
+  );
+  assert.equal(batchedAlternatives.status, 200);
+  assert.equal(batchedAlternatives.body.batch.offset, 1);
+  assert.equal(batchedAlternatives.body.batch.limit, 2);
+  assert.equal(batchedAlternatives.body.run, null);
+
+  const invalidAlternativesBatch = await request(
+    "/api/admin/alternatives?offset=-1&limit=26&record_run=maybe",
+    { method: "POST", headers: { authorization: "Bearer test-secret" } },
+    alternativesEnv
+  );
+  assert.equal(invalidAlternativesBatch.status, 400);
+  assert.equal(invalidAlternativesBatch.body.error.code, "invalid_alternatives_refresh_request");
 
   const alternativesRuns = await request("/api/governance/runs?task=derived:alternatives", {}, alternativesEnv);
   assert.equal(alternativesRuns.status, 200);

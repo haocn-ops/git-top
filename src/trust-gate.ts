@@ -137,7 +137,7 @@ function buildChecks(health: HealthStatus, sync: SyncStatus, quality: QualityRep
     {
       id: "risk-level",
       label: "Risk level",
-      status: quality.riskLevel === "low" ? "pass" : quality.riskLevel === "medium" ? "warn" : "warn",
+      status: quality.riskLevel === "high" ? "warn" : "pass",
       observed: quality.riskLevel,
       requirement: "risk_level is not high"
     }

@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { getGithubRequestCache, touchGithubRequestCache, upsertGithubRequestCache } from "../src/github-cache-store.ts";
 import { GithubClient } from "../src/github.ts";
 import { githubRequestCacheRow, mockD1Env } from "./mock-d1.mjs";
+import { githubCacheMaxBodyBytes } from "../src/storage-maintenance.ts";
 
 await testCacheStoreRoundTrip();
+await testOversizedCacheBodyIsRejected();
 await testGithubConditionalRequestCache();
 
 console.log("Validated GitHub conditional request cache behavior.");
@@ -29,6 +31,24 @@ async function testCacheStoreRoundTrip() {
   await touchGithubRequestCache(env, "/repos/mock/new", "2026-06-21T00:00:00Z");
   const touched = await getGithubRequestCache(env, "/repos/mock/new");
   assert.equal(touched?.checkedAt, "2026-06-21T00:00:00Z");
+}
+
+async function testOversizedCacheBodyIsRejected() {
+  const cacheKey = "/repos/mock/oversized";
+  const env = mockD1Env({
+    githubRequestCache: [githubRequestCacheRow({ cache_key: cacheKey, body_json: JSON.stringify({ stale: true }) })]
+  });
+
+  await upsertGithubRequestCache(env, {
+    cacheKey,
+    etag: '"large"',
+    lastModified: null,
+    bodyJson: "x".repeat(githubCacheMaxBodyBytes + 1),
+    status: 200,
+    nowIso: "2026-07-12T00:00:00Z"
+  });
+
+  assert.equal(await getGithubRequestCache(env, cacheKey), null, "oversized response bodies should not remain in D1 cache");
 }
 
 async function testGithubConditionalRequestCache() {

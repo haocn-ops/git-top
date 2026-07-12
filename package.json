@@ -48,6 +48,8 @@
     "db:integration": "node scripts/validate-local-d1-integration.mjs",
     "smoke:prod": "node scripts/smoke-prod.mjs",
     "sync:prod:catchup": "node scripts/sync-prod-catchup.mjs",
+    "sync:prod:stale": "node scripts/sync-prod-stale.mjs",
+    "alternatives:prod:refresh": "node scripts/refresh-prod-alternatives.mjs",
     "release:check": "node scripts/verify-public-v1.mjs",
     "validate": "pnpm seed:validate && pnpm seed:coverage && pnpm knowledge:validate && pnpm db:seed-sql && pnpm test:focused && pnpm eval:fixtures && pnpm eval:quality && pnpm eval:explanations && pnpm quality:review && pnpm docs:validate && pnpm check",
     "quality:check": "node scripts/check-quality.mjs",

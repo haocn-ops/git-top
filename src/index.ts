@@ -57,6 +57,7 @@ import {
 } from "./site";
 import { scheduledSyncLimit, syncGithubProjects } from "./sync";
 import { runScheduledGovernance } from "./scheduled-governance";
+import { pruneOperationalData } from "./storage-maintenance";
 import type { Env } from "./types";
 
 export default {
@@ -73,6 +74,7 @@ export default {
 };
 
 async function runScheduledMaintenance(env: Env): Promise<void> {
+  await pruneOperationalData(env);
   const discovery = await discoverAndSyncCandidateProjects(env, { trigger: "cron", maxCandidates: scheduledSyncLimit });
   const discoveryAttempts = Array.isArray(discovery.selected) ? discovery.selected.length : 0;
   const refreshLimit = Math.max(0, scheduledSyncLimit - discoveryAttempts);

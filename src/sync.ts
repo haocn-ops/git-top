@@ -6,6 +6,7 @@ import { listProjectKnowledgeWithMeta } from "./knowledge-source";
 import { defaultSeedRepositories, GithubClient, type GithubRequestMetrics } from "./github";
 import { calculateMetrics } from "./scoring";
 import { selectPriorityRepositoryIds } from "./sync-priority";
+import { pruneOperationalData } from "./storage-maintenance";
 import type { Env, GithubRepository, Project, ProjectKnowledge, SyncFailure, SyncTrigger } from "./types";
 import { validateProjectKnowledge, ValidationError } from "./validation";
 
@@ -56,6 +57,8 @@ export async function syncGithubProjects(env: Env, options: SyncOptions = {}): P
   if (!env.DB) {
     throw new Error("D1 binding DB is required for sync.");
   }
+
+  await pruneOperationalData(env);
 
   const allRepositories = normalizeRepositories(options.repositories ?? defaultSeedRepositories);
   const usesCursor = !options.repositories && options.offset === undefined;

@@ -438,6 +438,23 @@ export const openApiDocument = {
         responses: { "200": jsonResponse("Graph-grounded project set, plan, comparison, or stack", "#/components/schemas/GrpResponse", grpExample()) }
       }
     },
+    "/api/admin/alternatives": {
+      post: {
+        summary: "Refresh generated alternatives for the full corpus or a bounded batch.",
+        security: [{ syncSecret: [] }],
+        parameters: [
+          queryParam("offset", "Zero-based project offset for a bounded refresh"),
+          queryParam("limit", "Batch size from 1 to 25; omit only for small-corpus full refreshes"),
+          queryParam("record_run", "Whether to record the derived:alternatives governance run")
+        ],
+        responses: {
+          "200": { description: "Alternatives refresh result and optional governance run" },
+          "400": { description: "Invalid offset, limit, or record_run parameter" },
+          "401": { description: "Missing or invalid admin authorization" },
+          "405": { description: "Alternatives refresh requires POST" }
+        }
+      }
+    },
     "/api/admin/discovery": {
       post: {
         summary: "Discover and sync new candidate repositories from GitHub search.",

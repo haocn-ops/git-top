@@ -135,7 +135,7 @@ function renderHtml({
             <label>License<input name="license" value="${escapeAttr(input.license ?? "")}" placeholder="MIT" /></label>
           </div>
           <div class="form-actions">
-            <label style="min-width:180px">Cloudflare Ready${select("cloudflare_ready", ["true", "false", "any"], typeof input.cloudflareReady === "boolean" ? String(input.cloudflareReady) : "any")}</label>
+            <label style="min-width:180px">Cloudflare Ready${select("cloudflare_ready", ["true", "false"], typeof input.cloudflareReady === "boolean" ? String(input.cloudflareReady) : undefined)}</label>
             <label style="width:110px">Limit<input name="limit" type="number" min="1" max="20" value="${input.limit ?? 5}" /></label>
             <button class="button primary" type="submit">Build Workflow</button>
             <a class="button" href="/workflow?intent=evaluate%20Claude%20Code%20alternatives&amp;project_id=claude-code&amp;deployment=local&amp;limit=5">Claude Code</a>

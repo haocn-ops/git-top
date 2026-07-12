@@ -300,10 +300,18 @@ export function recommendProjectList(projects: ProjectKnowledge[], query: Recomm
       const unmatchedConstraints = recommendationUnmatchedConstraints(item, query);
       const reasons = buildRecommendationReasons(item, query, rankingSignals, matchedConstraints, unmatchedConstraints);
       const tradeoffs = buildRecommendationTradeoffs(item, query, unmatchedConstraints);
-      const confidence = recommendationConfidence(rankingSignals, matchedConstraints, unmatchedConstraints, query);
+      const confidence = recommendationConfidence(score, rankingSignals, matchedConstraints, unmatchedConstraints, query);
       const projectView = toProjectKnowledgeView(item);
       const caveats = sortedUnique([...tradeoffs, ...buildRecommendationRiskFlags(item, query, rankingSignals, unmatchedConstraints, confidence), ...projectView.caveats]).slice(0, 8);
       const sourceFields = sortedUnique([...projectView.sourceFields, "recommendation.query", "recommendation.ranking_signals", "recommendation.constraints"]);
+      const recommendationConfidenceReason = buildRecommendationConfidenceReason(
+        confidence,
+        score,
+        rankingSignals,
+        matchedConstraints,
+        unmatchedConstraints,
+        projectView.confidenceReason
+      );
 
       return {
         ...projectView,
@@ -322,7 +330,7 @@ export function recommendProjectList(projects: ProjectKnowledge[], query: Recomm
         unmatched_constraints: unmatchedConstraints,
         ranking_signals: rankingSignals,
         confidence,
-        confidence_reason: buildRecommendationConfidenceReason(confidence, rankingSignals, matchedConstraints, unmatchedConstraints, projectView.confidenceReason),
+        confidence_reason: recommendationConfidenceReason,
         evidence: {
           classification: projectView.classification,
           quality_signal_confidence: projectView.qualitySignalConfidence,
@@ -332,7 +340,7 @@ export function recommendProjectList(projects: ProjectKnowledge[], query: Recomm
           ranking_signals: rankingSignals,
           matched_constraints: matchedConstraints,
           unmatched_constraints: unmatchedConstraints,
-          confidence_reason: projectView.confidenceReason,
+          confidence_reason: recommendationConfidenceReason,
           last_verified_at: projectView.lastVerifiedAt
         },
         caveats,
@@ -429,7 +437,10 @@ function buildRecommendationDecisionSummary(
   const unmatched = Object.keys(unmatchedConstraints);
   const context = query.useCase ? ` for "${query.useCase}"` : "";
   if (unmatched.length === 0 && matched.length > 0) {
-    return `${item.project.fullName} is a strong candidate${context}: recommendation score ${score}/100 with matched ${matched.join(", ")} constraints.`;
+    if (score >= 65) {
+      return `${item.project.fullName} is a strong candidate${context}: recommendation score ${score}/100 with matched ${matched.join(", ")} constraints.`;
+    }
+    return `${item.project.fullName} is an exploration candidate${context}: recommendation score ${score}/100 with matched constraints, but quality and maturity signals need review.`;
   }
   if (unmatched.length > 0) {
     return `${item.project.fullName} is a conditional candidate${context}: recommendation score ${score}/100, but review ${unmatched.join(", ")} before adopting.`;
@@ -605,6 +616,7 @@ function buildRecommendationRiskFlags(
 }
 
 function recommendationConfidence(
+  score: number,
   rankingSignals: Recommendation["ranking_signals"],
   matchedConstraints: Recommendation["matched_constraints"],
   unmatchedConstraints: Recommendation["unmatched_constraints"],
@@ -617,10 +629,15 @@ function recommendationConfidence(
   if (unmatchedCount > 0) {
     return unmatchedCount >= Math.max(1, requestedConstraintCount) ? "low" : "medium";
   }
-  if (rankingSignals.use_case_match >= 60 || Object.keys(matchedConstraints).length >= Math.max(1, requestedConstraintCount)) {
+  if (
+    score >= 65 &&
+    rankingSignals.use_case_match >= 60 &&
+    rankingSignals.maintenance >= 40 &&
+    Object.keys(matchedConstraints).length >= Math.max(1, requestedConstraintCount)
+  ) {
     return "high";
   }
-  if (rankingSignals.community >= 60 && rankingSignals.maintenance >= 50) {
+  if (score >= 45 && (rankingSignals.use_case_match >= 50 || (rankingSignals.community >= 60 && rankingSignals.maintenance >= 50))) {
     return "medium";
   }
   return "low";
@@ -628,6 +645,7 @@ function recommendationConfidence(
 
 function buildRecommendationConfidenceReason(
   confidence: Recommendation["confidence"],
+  score: number,
   rankingSignals: Recommendation["ranking_signals"],
   matchedConstraints: Recommendation["matched_constraints"],
   unmatchedConstraints: Recommendation["unmatched_constraints"],
@@ -636,12 +654,12 @@ function buildRecommendationConfidenceReason(
   const matched = Object.keys(matchedConstraints);
   const unmatched = Object.keys(unmatchedConstraints);
   if (confidence === "high") {
-    return `High confidence because matched constraints (${matched.join(", ") || "quality fit"}) and ranking signals are strong; ${projectConfidenceReason}`;
+    return `High confidence because the ${score}/100 recommendation has strong use-case overlap, usable maintenance, and matched constraints (${matched.join(", ") || "quality fit"}); ${projectConfidenceReason}`;
   }
   if (confidence === "medium") {
-    return `Medium confidence because ranking signals are usable but ${unmatched.length ? `unmatched constraints need review (${unmatched.join(", ")})` : "some evidence should be reviewed"}; ${projectConfidenceReason}`;
+    return `Medium confidence because the ${score}/100 recommendation is usable but ${unmatched.length ? `unmatched constraints need review (${unmatched.join(", ")})` : "quality or maturity evidence should be reviewed"}; ${projectConfidenceReason}`;
   }
-  return `Low confidence because use-case match is ${rankingSignals.use_case_match}/100 or constraints are weakly matched; ${projectConfidenceReason}`;
+  return `Low confidence because the recommendation score is ${score}/100, use-case match is ${rankingSignals.use_case_match}/100, or constraints are weakly matched; ${projectConfidenceReason}`;
 }
 
 function projectRelationText(item: ProjectKnowledge): string {
@@ -704,9 +722,10 @@ function keywordOverlapScore(query: string, text: string): number {
 }
 
 function queryMatchScore(query: string, words: string[], haystack: string, item: ProjectKnowledge): number {
+  const identityBoost = exactIdentityBoost(query, item);
   const intentBoost = queryIntentFieldBoost(words, item);
   if (haystack.includes(query)) {
-    return 1000 + intentBoost + item.metrics.gitScore;
+    return 1000 + identityBoost + intentBoost + item.metrics.gitScore;
   }
 
   const hits = words.filter((word) => haystack.includes(word)).length;
@@ -718,7 +737,25 @@ function queryMatchScore(query: string, words: string[], haystack: string, item:
   const topicHits = words.filter((word) => item.project.topics.some((topic) => normalize(topic).includes(word))).length;
   const categoryHits = words.filter((word) => normalize(item.agentCard.category).includes(word)).length;
 
-  return hits * 120 + deploymentHits * 80 + topicHits * 60 + categoryHits * 60 + intentBoost + specificIntentBoost(words, item) + collectionIntentBoost(words, item) + item.metrics.gitScore;
+  return hits * 120 + deploymentHits * 80 + topicHits * 60 + categoryHits * 60 + identityBoost + intentBoost + specificIntentBoost(words, item) + collectionIntentBoost(words, item) + item.metrics.gitScore;
+}
+
+function exactIdentityBoost(query: string, item: ProjectKnowledge): number {
+  const normalizedQuery = normalizeIdentity(query);
+  const fullName = normalizeIdentity(item.project.fullName);
+  const name = normalizeIdentity(item.project.name);
+  const authority = item.metrics.gitScore * 4 + Math.min(400, Math.log2(Math.max(1, item.project.stars) + 1) * 25);
+
+  if (!normalizedQuery) {
+    return 0;
+  }
+  if (normalizedQuery === fullName) {
+    return 7000 + authority;
+  }
+  if (normalizedQuery === name) {
+    return 4200 + authority;
+  }
+  return 0;
 }
 
 function queryIntentFieldBoost(words: string[], item: ProjectKnowledge): number {
@@ -949,6 +986,10 @@ function byGitScore(a: ProjectKnowledge, b: ProjectKnowledge): number {
 
 function normalize(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
+}
+
+function normalizeIdentity(value: string | null | undefined): string {
+  return normalize(value).replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 function normalizeProjectId(value: string | null | undefined): string {

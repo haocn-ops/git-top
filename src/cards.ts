@@ -77,12 +77,21 @@ function buildSummary(
   cloudflareReady: boolean,
   projectKind: AgentCard["projectKind"]
 ): string {
-  const deploymentText = deployment.slice(0, 3).join(", ");
+  const categoryText = category.replace(/_/g, " ");
+  const deploymentText = deployment.slice(0, 3).map(humanizeIdentifier).join(", ");
   const cloudflareText = cloudflareReady ? " It is marked Cloudflare-ready." : "";
   if (projectKind === "collection") {
-    return `Use ${repo.full_name} when the user needs a curated ${category.replace(/_/g, " ")} resource collection with ${deploymentText} usage paths.${cloudflareText}`;
+    return `Use ${repo.full_name} when the user needs a curated ${categoryText} resource collection with ${deploymentText} usage paths.${cloudflareText}`;
   }
-  return `Use ${repo.full_name} when the user needs a ${category.replace(/_/g, " ")} project with ${deploymentText} deployment options.${cloudflareText}`;
+  return `Use ${repo.full_name} when the user needs ${indefiniteArticle(categoryText)} ${categoryText} project with ${deploymentText} deployment options.${cloudflareText}`;
+}
+
+function indefiniteArticle(value: string): "a" | "an" {
+  return /^[aeiou]/i.test(value) ? "an" : "a";
+}
+
+function humanizeIdentifier(value: string): string {
+  return value.replaceAll("_", "-");
 }
 
 function detectProjectKind(repo: GithubRepository, signals: GithubRepoSignals): AgentCard["projectKind"] {

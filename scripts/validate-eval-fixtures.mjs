@@ -1,5 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { reviewedCollectionPolicyIds } from "../src/collection-policy.ts";
+import { reviewedCollectionPolicyIds, reviewedSeedCollectionPolicyIds } from "../src/collection-policy.ts";
 import { categoryHints } from "./seed-category-hints.mjs";
 import {
   buildGeneratedKnowledgeFixturesForSeed,
@@ -28,7 +28,7 @@ const collectionIds = fixtureResults
 const collectionIdSet = new Set(collectionIds);
 const reviewedCollectionIds = reviewedCollectionPolicyIds();
 const reviewedCollectionIdSet = new Set(reviewedCollectionIds);
-const reviewedCollectionPolicyDrift = reviewedCollectionIds.filter((id) => !collectionIdSet.has(id));
+const reviewedCollectionPolicyDrift = reviewedSeedCollectionPolicyIds().filter((id) => !collectionIdSet.has(id));
 const unreviewedCollectionIds = collectionIds.filter((id) => !reviewedCollectionIdSet.has(id));
 const lowConfidenceCount = fixtureResults.reduce(
   (count, { knowledge }) =>

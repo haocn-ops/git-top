@@ -1,6 +1,6 @@
 # Git.Top Low-Confidence Review
 
-Generated at: 2026-07-07T11:26:34.344Z
+Generated at: 2026-07-12T12:30:48.682Z
 
 This report lists generated Agent Card classifications that need manual review before Git.Top scales further. It focuses on low and medium classification confidence, collection semantics, Cloudflare readiness ambiguity, and incomplete quality signals.
 
@@ -27,8 +27,8 @@ Review these items before a release when changing classification, ranking, seed 
 
 Collection-style repositories are useful for discovery, but should be reviewed separately from executable projects.
 
-- Collection-style checklist items: 37
-- Reviewed collection policy items: 37
+- Collection-style checklist items: 38
+- Reviewed collection policy items: 38
 - Collection metadata exception items: 0
 - Stale collection metadata exception items: 0
 - Collection metadata exception items with unknown freshness: 0
@@ -62,6 +62,7 @@ Collection-style repositories are useful for discovery, but should be reviewed s
 | `microsoft/generative-ai-for-beginners` | `ai_app_template` | `cookbook` | 2026-06-23 | Course collection retained for AI app examples and learning paths. |
 | `microsoft/mcp` | `mcp_server` | `integration_collection` | 2026-06-26 | MCP resource collection retained for Microsoft Model Context Protocol discovery. |
 | `n8n-io/n8n-hosting` | `workflow_automation` | `resource_hub` | 2026-06-26 | Hosting guide collection retained for n8n deployment pattern discovery. |
+| `n8n-io/self-hosted-ai-starter-kit` | `ai_app_template` | `starter_collection` | 2026-07-12 | Self-hosted AI starter collection retained for n8n deployment patterns. |
 | `open-webui/openapi-servers` | `llm_gateway` | `resource_hub` | 2026-06-26 | OpenAPI server collection retained for Open WebUI integration discovery. |
 | `openai/frontier-evals` | `llm_eval` | `resource_hub` | 2026-06-26 | Evaluation collection retained for frontier model assessment patterns. |
 | `openai/openai-chatkit-advanced-samples` | `ai_app_template` | `starter_collection` | 2026-06-26 | Sample collection retained for advanced ChatKit implementation patterns. |

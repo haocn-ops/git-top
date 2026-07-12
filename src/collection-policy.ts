@@ -1,6 +1,11 @@
 import type { ProjectKnowledge } from "./types";
 
-const reviewedCollectionPolicies: Record<string, { reviewedAt: string; use: string }> = {
+const reviewedCollectionPolicies: Record<string, { reviewedAt: string; use: string; corpus?: "seed" | "discovery" }> = {
+  "arabicapp/everything-claude-code": {
+    reviewedAt: "2026-07-12",
+    use: "Claude Code resource collection retained for agent workflow and configuration discovery.",
+    corpus: "discovery"
+  },
   "anthropics/claude-cookbooks": {
     reviewedAt: "2026-06-23",
     use: "Cookbook collection retained for implementation patterns and examples."
@@ -28,6 +33,21 @@ const reviewedCollectionPolicies: Record<string, { reviewedAt: string; use: stri
   "e2b-dev/awesome-devins": {
     reviewedAt: "2026-06-23",
     use: "Awesome list retained for coding-agent discovery."
+  },
+  "enescingoz/awesome-n8n-templates": {
+    reviewedAt: "2026-07-12",
+    use: "n8n template collection retained for workflow implementation discovery.",
+    corpus: "discovery"
+  },
+  "euniai/awesome-code-agents": {
+    reviewedAt: "2026-07-12",
+    use: "Coding-agent resource collection retained for evaluation and discovery.",
+    corpus: "discovery"
+  },
+  "godiao/free-way": {
+    reviewedAt: "2026-07-12",
+    use: "Coding-agent resource collection retained for tool and workflow discovery.",
+    corpus: "discovery"
   },
   "giskard-ai/awesome-ai-safety": {
     reviewedAt: "2026-06-23",
@@ -80,6 +100,19 @@ const reviewedCollectionPolicies: Record<string, { reviewedAt: string; use: stri
   "microsoft/mcp": {
     reviewedAt: "2026-06-26",
     use: "MCP resource collection retained for Microsoft Model Context Protocol discovery."
+  },
+  "modelcontextprotocol/servers": {
+    reviewedAt: "2026-07-12",
+    use: "Official MCP server collection retained for protocol implementation discovery."
+  },
+  "n8n-io/self-hosted-ai-starter-kit": {
+    reviewedAt: "2026-07-12",
+    use: "Self-hosted AI starter collection retained for n8n deployment patterns."
+  },
+  "ningzimu/awesome-ai-ppt": {
+    reviewedAt: "2026-07-12",
+    use: "AI presentation resource collection retained for workflow discovery.",
+    corpus: "discovery"
   },
   "n8n-io/n8n-hosting": {
     reviewedAt: "2026-06-26",
@@ -137,6 +170,26 @@ const reviewedCollectionPolicies: Record<string, { reviewedAt: string; use: stri
     reviewedAt: "2026-06-26",
     use: "Sample collection retained for Python workflow implementation patterns."
   },
+  "tensorblock/awesome-mcp-servers": {
+    reviewedAt: "2026-07-12",
+    use: "MCP server resource collection retained for implementation discovery.",
+    corpus: "discovery"
+  },
+  "vonzosten/awesome-langgraph": {
+    reviewedAt: "2026-07-12",
+    use: "LangGraph resource collection retained for agent workflow discovery.",
+    corpus: "discovery"
+  },
+  "wagneragent/awesome-mcp-servers-devops": {
+    reviewedAt: "2026-07-12",
+    use: "DevOps-focused MCP collection retained for server discovery.",
+    corpus: "discovery"
+  },
+  "weam-ai/weam": {
+    reviewedAt: "2026-07-12",
+    use: "MCP-oriented resource collection retained for tool discovery.",
+    corpus: "discovery"
+  },
   "weaviate/awesome-weaviate": {
     reviewedAt: "2026-06-23",
     use: "Awesome list retained for vector database and RAG discovery."
@@ -148,6 +201,11 @@ const reviewedCollectionPolicies: Record<string, { reviewedAt: string; use: stri
   "wong2/awesome-mcp-servers": {
     reviewedAt: "2026-06-23",
     use: "Awesome list retained for MCP server discovery."
+  },
+  "hesreallyhim/awesome-claude-code": {
+    reviewedAt: "2026-07-12",
+    use: "Claude Code resource collection retained for workflow discovery.",
+    corpus: "discovery"
   }
 };
 
@@ -158,6 +216,7 @@ const reviewedCollectionPolicyIndex = new Map(
 export interface ReviewedCollectionPolicy {
   reviewedAt: string;
   use: string;
+  corpus?: "seed" | "discovery";
 }
 
 export function reviewedCollectionPolicy(projectId: string): ReviewedCollectionPolicy | null {
@@ -166,6 +225,13 @@ export function reviewedCollectionPolicy(projectId: string): ReviewedCollectionP
 
 export function reviewedCollectionPolicyIds(): string[] {
   return Array.from(reviewedCollectionPolicyIndex.keys()).sort();
+}
+
+export function reviewedSeedCollectionPolicyIds(): string[] {
+  return Array.from(reviewedCollectionPolicyIndex.entries())
+    .filter(([, policy]) => (policy.corpus ?? "seed") === "seed")
+    .map(([projectId]) => projectId)
+    .sort();
 }
 
 export function isReviewedCollection(item: ProjectKnowledge): boolean {

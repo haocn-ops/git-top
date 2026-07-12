@@ -1,6 +1,6 @@
 # Git.Top Ranking Experiments
 
-Generated at: 2026-06-23T04:32:08.600Z
+Generated at: 2026-07-12T12:18:49.862Z
 
 Offline ranking experiments compare candidate search ranking strategies against both the CI-safe eval and the broader local eval. These experiments do not change runtime search behavior.
 
@@ -8,7 +8,7 @@ Offline ranking experiments compare candidate search ranking strategies against 
 
 Strategy | CI Top-1 | CI Top-3 | CI Bad Hits | Local Top-1 | Local Top-3 | Local Bad Hits | Notes
 --- | ---: | ---: | ---: | ---: | ---: | ---: | ---
-`baseline` | 1 | 1 | 0 | 1 | 1 | 0 | Current runtime search ranking.
+`baseline` | 0.929 | 1 | 0 | 0.913 | 1 | 0 | Current runtime search ranking.
 `scoped_quality` | 0.786 | 0.964 | 0 | 0.957 | 1 | 0 | Boost quality and maintenance inside explicit category/deployment scopes.
 `exact_intent_guard` | 0.714 | 0.893 | 0 | 0.826 | 0.957 | 0 | Boost quality inside scopes while preserving exact project-name and owner intent.
 `broad_probe_quality` | 0.964 | 1 | 0 | 0.87 | 0.87 | 0 | Boost quality only for broad category/deployment queries, leaving specific intent queries on baseline ranking.
@@ -31,8 +31,8 @@ No candidate strategy currently improves the local ranking baseline without redu
 
 ### `baseline`
 
-- CI focus: none
-- Local focus: none
+- CI focus: `search-prompt-tooling`, `search-coding-agent`
+- Local focus: `local-category-coding_agent`, `local-category-prompt_tooling`
 
 ### `scoped_quality`
 

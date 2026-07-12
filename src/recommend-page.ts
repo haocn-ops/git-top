@@ -136,7 +136,7 @@ function renderHtml({
             <label>License<input name="license" value="${escapeAttr(query.license ?? "")}" placeholder="MIT" /></label>
           </div>
           <div class="form-actions">
-            <label style="min-width:180px">Cloudflare Ready${select("cloudflare_ready", ["true", "false", "any"], typeof query.cloudflareReady === "boolean" ? String(query.cloudflareReady) : "any")}</label>
+            <label style="min-width:180px">Cloudflare Ready${select("cloudflare_ready", ["true", "false"], typeof query.cloudflareReady === "boolean" ? String(query.cloudflareReady) : undefined)}</label>
             <label style="width:110px">Limit<input name="limit" type="number" min="1" max="20" value="${query.limit ?? 5}" /></label>
             <button class="button primary" type="submit">Recommend</button>
             <a class="button" href="/recommend?use_case=build%20browser%20automation%20agents&amp;deployment=docker&amp;category=browser_agent&amp;limit=5">Browser Agents</a>
@@ -186,7 +186,7 @@ function recommendationCard(item: Recommendation, index: number): string {
       <div style="display:flex; gap:12px; align-items:center">
         <span class="rank">${index + 1}</span>
         <div>
-          <p class="eyebrow">${escapeHtml(item.confidence)} confidence</p>
+          <p class="eyebrow">Recommendation confidence: ${escapeHtml(item.confidence)}</p>
           <h2>${escapeHtml(item.project.fullName)}</h2>
         </div>
       </div>
@@ -194,7 +194,7 @@ function recommendationCard(item: Recommendation, index: number): string {
         ${item.next_actions.map((action) => `<a class="button${action.kind === "project" ? " primary" : ""}" href="${escapeAttr(action.href)}">${escapeHtml(action.label)}</a>`).join("")}
       </div>
     </div>
-    <p class="muted">${escapeHtml(item.decision_summary)}</p>
+    <p class="muted">${escapeHtml(displayProse(item.decision_summary))}</p>
     <div class="score-box">
       ${metric("Fit", item.score)}
       ${metric("Use case", item.ranking_signals.use_case_match)}
@@ -220,7 +220,7 @@ function recommendationCard(item: Recommendation, index: number): string {
     <div class="layout" style="grid-template-columns:minmax(0,1fr) minmax(260px,.7fr); margin-top:0">
       <div>
         <p class="eyebrow">Reasons</p>
-        <ul class="reason-list">${item.reasons.slice(0, 4).map((reason) => `<li>${escapeHtml(reason)}</li>`).join("")}</ul>
+        <ul class="reason-list">${item.reasons.slice(0, 4).map((reason) => `<li>${escapeHtml(displayProse(reason))}</li>`).join("")}</ul>
       </div>
       <div>
         <p class="eyebrow">Tradeoffs</p>
@@ -307,6 +307,10 @@ function label(value: string): string {
     ai_app_template: "AI App Template"
   };
   return labels[value] ?? value.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function displayProse(value: string): string {
+  return value.replaceAll("library_only", "library-only").replace(/\ba agent\b/gi, "an agent");
 }
 
 function escapeHtml(value: string): string {

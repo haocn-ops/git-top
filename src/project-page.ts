@@ -139,7 +139,7 @@ function renderHtml({
       <header class="hero">
         <p class="eyebrow">Project Knowledge</p>
         <h1>${escapeHtml(view.repo)}</h1>
-        <p class="lead">${escapeHtml(view.overview)}</p>
+        <p class="lead">${escapeHtml(displayProse(view.overview))}</p>
         <div class="tag-list">${view.category.concat(view.tags.slice(0, 8)).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}</div>
         <div class="facts">
           ${fact("Type", projectKindLabel(view))}
@@ -159,13 +159,13 @@ function renderHtml({
       <section class="summary-grid" aria-label="Agent summary">
         <article class="summary-card">
           <p class="eyebrow">TL;DR</p>
-          <h2>${escapeHtml(view.summary.tl_dr)}</h2>
-          <p class="muted">${escapeHtml(view.summary.purpose)}</p>
+          <h2>${escapeHtml(displayProse(view.summary.tl_dr))}</h2>
+          <p class="muted">${escapeHtml(displayProse(view.summary.purpose))}</p>
         </article>
         <article class="summary-card">
           <p class="eyebrow">Install</p>
           <h2>${escapeHtml(view.summary.install ?? "No install hint")}</h2>
-          <div class="tag-list">${view.summary.deployment.slice(0, 4).map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>
+          <div class="tag-list">${view.summary.deployment.slice(0, 4).map((item) => `<span>${escapeHtml(label(item))}</span>`).join("")}</div>
         </article>
         <article class="summary-card">
           <p class="eyebrow">Good For</p>
@@ -246,7 +246,7 @@ function renderHtml({
       <section class="section-grid">
         <article class="panel">
           <div class="panel-heading"><div><p class="eyebrow">Alternatives</p><h2>Comparable projects</h2></div><a class="button" href="/api/alternatives/${escapeAttr(view.repo)}">JSON</a></div>
-          <div class="list">${alternatives.length ? alternatives.map((item) => `<div><strong>${escapeHtml(item.repo)}</strong><span>${escapeHtml(item.overview)}</span></div>`).join("") : `<div><strong>No alternatives yet</strong><span>Git.Top will infer alternatives as the graph grows.</span></div>`}</div>
+          <div class="list">${alternatives.length ? alternatives.map((item) => `<div><strong>${escapeHtml(item.repo)}</strong><span>${escapeHtml(displayProse(item.overview))}</span></div>`).join("") : `<div><strong>No alternatives yet</strong><span>Git.Top will infer alternatives as the graph grows.</span></div>`}</div>
         </article>
         <aside class="panel">
           <p class="eyebrow">Graph</p>
@@ -478,6 +478,10 @@ function formatNumber(value: number): string {
 
 function label(value: string): string {
   return value.replaceAll("_", " ").replaceAll("-", " ").replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function displayProse(value: string): string {
+  return value.replaceAll("library_only", "library-only").replace(/\ba agent\b/gi, "an agent");
 }
 
 function scriptSafeJson(value: unknown): string {

@@ -151,6 +151,16 @@ class MockStatement {
   }
 
   async run() {
+    if (this.sql.trimStart().startsWith("DELETE")) {
+      if (this.sql.includes("github_request_cache") && this.sql.includes("cache_key = ?")) {
+        const cacheKey = String(this.bindings[0]);
+        this.config.githubRequestCache = this.config.githubRequestCache.filter((row) => row.cache_key !== cacheKey);
+      }
+      return {
+        success: true
+      };
+    }
+
     if (this.sql.includes("governance_runs")) {
       const [id, task, status, trigger, started_at, finished_at, duration_ms, summary_json, report_url, error, created_at] = this.bindings;
       const nextRow = {

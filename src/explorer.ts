@@ -316,7 +316,7 @@ const html = String.raw`<!doctype html>
 
       .intent-grid {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 12px;
         margin-top: 22px;
       }
@@ -790,6 +790,10 @@ const html = String.raw`<!doctype html>
           grid-template-columns: 1fr;
         }
       }
+
+      .intent-card:nth-child(n + 4) {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -817,8 +821,7 @@ const html = String.raw`<!doctype html>
           <div class="actions">
             <a class="button primary" href="/discover">Discover Projects</a>
             <a class="button secondary" href="/recommend">Get Recommendations</a>
-            <a class="button secondary" href="/graph">Explore Graph</a>
-            <a class="button secondary" href="/docs">Docs</a>
+            <a class="button secondary" href="/compare">Compare Projects</a>
           </div>
           <div class="agent-rail" aria-label="Agent entry points">
             <a href="/quickstart"><span>Fast start</span><strong>Quickstart + trust checks</strong></a>
@@ -864,20 +867,20 @@ const html = String.raw`<!doctype html>
             <a href="/compare/langchain-ai/langchain...run-llama/llama_index"><span>LangChain vs LlamaIndex</span><span>-></span></a>
             <a href="/compare/browser-use/browser-use...microsoft/playwright"><span>Browser Use vs Playwright</span><span>-></span></a>
             <a href="/topics/project-comparison-guide"><span>Project Comparison Guide</span><span>-></span></a>
+            <a href="/alternatives"><span>Browse Alternatives</span><span>-></span></a>
             <a href="/api/compare?repos=openai/openai-agents-python,vercel/ai"><span>OpenAI Agents SDK vs Vercel AI SDK</span><span>-></span></a>
             <a href="/api/compare?repos=langgenius/dify,langflow-ai/langflow"><span>Dify vs Langflow</span><span>-></span></a>
           </div>
         </article>
         <article class="intent-card">
-          <div class="intent-card-top"><div class="feature-icon">ALT</div><div><p class="eyebrow">Find replacements</p><h2>Alternatives</h2></div></div>
-          <p class="muted">Start from a known project and ask Git.Top for adjacent options.</p>
+          <div class="intent-card-top"><div class="feature-icon">REC</div><div><p class="eyebrow">Pick by fit</p><h2>Recommend</h2></div></div>
+          <p class="muted">Turn a use case and deployment constraints into an explainable shortlist.</p>
           <div class="intent-links">
-            <a href="/alternatives"><span>Alternatives Home</span><span>-></span></a>
-            <a href="/topics/alternatives-engine-guide"><span>Alternatives Engine Guide</span><span>-></span></a>
-            <a href="/topics/langchain-alternatives"><span>LangChain Alternatives Guide</span><span>-></span></a>
-            <a href="/alternatives/langgenius/dify"><span>Dify Alternatives</span><span>-></span></a>
-            <a href="/alternatives/langchain-ai/langchain"><span>LangChain Alternatives</span><span>-></span></a>
-            <a href="/alternatives/cloudflare/agents"><span>Cloudflare Agents Alternatives</span><span>-></span></a>
+            <a href="/recommend"><span>Recommendation Engine</span><span>-></span></a>
+            <a href="/recommend?use_case=build%20Cloudflare-ready%20AI%20agents&amp;deployment=cloudflare&amp;category=agent_framework&amp;cloudflare_ready=true"><span>Cloudflare Agents</span><span>-></span></a>
+            <a href="/recommend?use_case=build%20browser%20automation%20agents&amp;deployment=docker&amp;category=browser_agent"><span>Browser Agents</span><span>-></span></a>
+            <a href="/recommend?use_case=build%20RAG%20applications&amp;deployment=local&amp;category=rag_framework"><span>RAG Stack</span><span>-></span></a>
+            <a href="/topics/recommendation-guide"><span>Recommendation Guide</span><span>-></span></a>
           </div>
         </article>
         <article class="intent-card">
