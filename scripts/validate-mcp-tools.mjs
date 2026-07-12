@@ -127,7 +127,14 @@ async function testToolCalls() {
   assert.equal(search.status, 200);
   assert.ok(search.result.projects.length > 0, "search_projects should return at least one matching project");
   assert.ok(search.result.projects.length <= 2, "search_projects should honor the limit");
+  assert.equal(search.result.page.limit, 2);
+  assert.equal(search.result.page.snapshot_id, search.result.metadata.snapshot_id);
   assertMetadata(search.result.metadata, "db_missing");
+
+  const typoSearch = await callTool("search_projects", { query: "langchian", limit: 1 });
+  assert.equal(typoSearch.status, 200);
+  assert.equal(typoSearch.result.search.query_interpretation.normalized, "langchain");
+  assert.equal(typoSearch.result.projects[0].repo, "langchain-ai/langchain");
 
   const browseSearch = await callTool("search_projects", {
     query: "agent framework",

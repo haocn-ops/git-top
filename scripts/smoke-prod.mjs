@@ -31,9 +31,13 @@ export async function runSmoke(args = [], env = process.env) {
     assert.ok(body.projects.length > 0, "search should return at least one project");
     assert.ok(body.projects.length <= 3, "search should honor limit");
     assert.ok(body.projects.some((project) => typeof project.repo === "string"), "search results should include repo ids");
+    assert.equal(body.page.limit, 3);
+    assert.equal(body.page.snapshot_id, body.metadata.snapshot_id);
+    assert.equal(typeof body.page.has_more, "boolean");
     return {
       source: body.metadata.source,
       reason: body.metadata.reason,
+      snapshotId: body.page.snapshot_id,
       candidates: body.projects.map((project) => project.repo)
     };
   });

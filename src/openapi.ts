@@ -80,6 +80,7 @@ export const openApiDocument = {
           queryParam("cloudflare_ready", "Boolean Cloudflare readiness filter"),
           queryParam("ranking", "Use browse for broad category/deployment discovery"),
           queryParam("limit", "Maximum result count"),
+          queryParam("cursor", "Opaque next_cursor bound to this query and corpus snapshot"),
           queryParam("require_d1", "Fail closed unless D1-backed data is available")
         ],
         responses: { "200": jsonResponse("Project search results with metadata", "#/components/schemas/SearchResponse", searchExample()) }
@@ -169,8 +170,15 @@ export const openApiDocument = {
     "/api/trending": {
       get: {
         summary: "List trending projects from the loaded knowledge set.",
-        parameters: [queryParam("category", "Optional category filter"), queryParam("limit", "Maximum result count"), queryParam("require_d1", "Fail closed unless D1-backed data is available")],
+        parameters: [queryParam("category", "Optional category filter"), queryParam("limit", "Maximum result count"), queryParam("cursor", "Opaque next_cursor bound to this query and corpus snapshot"), queryParam("require_d1", "Fail closed unless D1-backed data is available")],
         responses: { "200": jsonResponse("Trending projects with metadata", "#/components/schemas/TrendingResponse", trendingExample()) }
+      }
+    },
+    "/api/category/{category}": {
+      get: {
+        summary: "List projects in a category with snapshot-bound cursor pagination.",
+        parameters: [pathParam("category", "Git.Top project category"), queryParam("limit", "Maximum result count"), queryParam("cursor", "Opaque next_cursor bound to this category and corpus snapshot"), queryParam("require_d1", "Fail closed unless D1-backed data is available")],
+        responses: { "200": jsonResponse("Category knowledge rows with pagination and metadata", "#/components/schemas/CategoryResponse"), "400": jsonResponse("Invalid cursor", "#/components/schemas/ErrorResponse"), "409": jsonResponse("Cursor snapshot is stale", "#/components/schemas/ErrorResponse") }
       }
     },
     "/api/trends": {
@@ -811,7 +819,7 @@ export const openApiDocument = {
       },
       SearchResponse: {
         type: "object",
-        required: ["query", "search", "projects", "metadata"],
+        required: ["query", "search", "projects", "page", "metadata"],
         properties: {
           query: { type: "object", additionalProperties: true },
           search: {
@@ -820,24 +828,54 @@ export const openApiDocument = {
               applied_filters: { type: "object", additionalProperties: true },
               known_filter_values: { type: "object", additionalProperties: true },
               empty_reason: { type: "string" },
-              suggestions: { type: "array", items: { type: "string" } }
+              suggestions: { type: "array", items: { type: "string" } },
+              query_interpretation: {
+                type: "object",
+                properties: {
+                  original: { type: "string" },
+                  normalized: { type: "string" },
+                  transformations: { type: "array", items: { type: "string" } }
+                }
+              }
             },
             additionalProperties: true
           },
           projects: { type: "array", items: { $ref: "#/components/schemas/ProjectCard" } },
+          page: { $ref: "#/components/schemas/CursorPage" },
           metadata: { $ref: "#/components/schemas/Metadata" }
         },
         additionalProperties: true
       },
       TrendingResponse: {
         type: "object",
-        required: ["projects", "metadata"],
+        required: ["projects", "page", "metadata"],
         properties: {
           projects: { type: "array", items: { $ref: "#/components/schemas/ProjectCard" } },
           query: { type: "object", additionalProperties: true },
+          page: { $ref: "#/components/schemas/CursorPage" },
           metadata: { $ref: "#/components/schemas/Metadata" }
         },
         additionalProperties: true
+      },
+      CategoryResponse: {
+        type: "object",
+        required: ["projects", "page", "metadata"],
+        properties: {
+          projects: { type: "array", items: { type: "object", additionalProperties: true }, description: "Full project knowledge rows retained for backward compatibility." },
+          page: { $ref: "#/components/schemas/CursorPage" },
+          metadata: { $ref: "#/components/schemas/Metadata" }
+        }
+      },
+      CursorPage: {
+        type: "object",
+        required: ["offset", "limit", "has_more", "next_cursor", "snapshot_id"],
+        properties: {
+          offset: { type: "integer", minimum: 0 },
+          limit: { type: "integer", minimum: 1, maximum: 100 },
+          has_more: { type: "boolean" },
+          next_cursor: { type: ["string", "null"], description: "Opaque cursor for the next page, or null on the final page." },
+          snapshot_id: { type: "string", description: "Corpus snapshot to which this page and cursor are bound." }
+        }
       },
       TrendsResponse: {
         type: "object",
@@ -1921,7 +1959,10 @@ function metadataExample() {
     source: "d1",
     reason: "d1_query",
     project_count: 500,
-    generated_at: "2026-07-04T00:00:00.000Z"
+    generated_at: "2026-07-04T00:00:00.000Z",
+    snapshot_id: "d1:500:2026-07-04T00:00:00.000Z",
+    latest_synced_at: "2026-07-04T00:00:00.000Z",
+    schema_version: "git-top.knowledge.v1"
   };
 }
 
@@ -2050,6 +2091,7 @@ function searchExample() {
       known_filter_values: { project_kind: ["project", "collection"], min_confidence: ["low", "medium", "high"] }
     },
     projects: [projectCardExample()],
+    page: cursorPageExample(),
     metadata: metadataExample()
   };
 }
@@ -2057,7 +2099,18 @@ function searchExample() {
 function trendingExample() {
   return {
     projects: [projectCardExample()],
+    page: cursorPageExample(),
     metadata: metadataExample()
+  };
+}
+
+function cursorPageExample() {
+  return {
+    offset: 0,
+    limit: 3,
+    has_more: true,
+    next_cursor: "eyJ2IjoxLCJzIjoiZDE6NTAwOnNuYXBzaG90IiwicSI6InF1ZXJ5IiwibyI6M30",
+    snapshot_id: metadataExample().snapshot_id
   };
 }
 

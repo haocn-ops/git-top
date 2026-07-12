@@ -164,10 +164,14 @@ Completed in this pass:
 - daily governance can send a structured digest through the optional `OPERATIONS_DIGEST_WEBHOOK` without changing failure-alert delivery;
 - REST and MCP validate structured evidence-backed feedback, while `FEEDBACK_SECRET` gates D1 persistence and `SYNC_SECRET` gates administrator review;
 - feedback fingerprints deduplicate equivalent corrections, bound request sizes, preserve reviewed records, and never mutate trusted project knowledge automatically.
+- REST search, trending, and category lists plus MCP `search_projects` expose opaque cursors bound to the query and `metadata.snapshot_id`;
+- stale list cursors fail explicitly instead of silently mixing snapshots, while the first-page exact-intent ranking remains unchanged;
+- common Chinese AI-domain terms and a conservative set of high-signal typos are normalized with visible `query_interpretation` evidence;
+- existing product aliases preserve renamed-project intent without enabling unrestricted fuzzy matching.
 
 Validation result:
 
-- 30 focused tests passed, including change-feed, profile, batch, feedback authorization, digest, strict-source, and MCP cases;
+- 36 focused tests passed, including change-feed, profile, batch, pagination, multilingual and typo interpretation, feedback authorization, digest, strict-source, and MCP cases;
 - API, MCP, TypeScript, generated knowledge, fixture health, quality, explanation, and documentation validation passed;
 - ranking top-1 remained 92.9% and top-3 remained 100%;
 - local D1 integration passed;
@@ -175,8 +179,8 @@ Validation result:
 
 Production result:
 
-- deployed Worker version: `a23d1ca8-9d07-4b1b-89c4-210c2238088a`;
-- 903 D1-backed projects, Trust Gate `allow`, production ready, release score 100, and data trust score 97;
+- deployed Worker version: `cc797181-bb0f-4a09-885c-0513d003a60d`;
+- 920 D1-backed projects, Trust Gate `allow`, production ready, release score 100, and data trust score 97;
 - operational cache pruned to 1,500 entries with 60% entry-budget utilization and healthy status;
 - production D1 storage reduced from approximately 43 MB to 26 MB;
 - `OPERATIONS_ALERT_WEBHOOK` and `OPERATIONS_DIGEST_WEBHOOK` remain optional and unconfigured until HTTPS destinations are selected;
@@ -187,7 +191,6 @@ Production result:
 
 Still intentionally deferred:
 
-- cursor pagination across legacy growing list surfaces beyond the new change feed;
-- additional multilingual, typo, rename, and end-to-end task-success eval cases.
+- additional end-to-end task-success eval cases beyond the search, lookup, evidence, alternatives, comparison, change-feed, and trust workflows already covered.
 
 These remain follow-up work because they expand compatibility and evaluation breadth rather than unblock the automated operating loop delivered here.

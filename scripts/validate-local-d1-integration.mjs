@@ -109,6 +109,13 @@ async function testSearch(baseUrl) {
   assert.ok(body.projects.some((project) => project.repo === "langfuse/langfuse"), "expected langfuse in D1 search results");
   const langfuse = body.projects.find((project) => project.repo === "langfuse/langfuse");
   assert.deepEqual(langfuse.category, ["ai_observability"]);
+  assert.equal(body.page.limit, 5);
+  assert.equal(body.page.snapshot_id, body.metadata.snapshot_id);
+
+  const typo = await getJson(`${baseUrl}/api/search?q=langchian&limit=1`);
+  assert.equal(typo.status, 200);
+  assert.equal(typo.body.search.query_interpretation.normalized, "langchain");
+  assert.equal(typo.body.projects[0].repo, "langchain-ai/langchain");
 }
 
 async function testProject(baseUrl) {

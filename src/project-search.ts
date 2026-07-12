@@ -1,4 +1,5 @@
 import { generateAlternativeMatches } from "./alternatives";
+import { resolveProject } from "./project-aliases";
 import { toProjectKnowledgeView, type ProjectKnowledgeView } from "./project-view";
 import type { AgentCard, ClassificationSignal, Project, ProjectKnowledge, ProjectMetrics, ProjectKind } from "./types";
 
@@ -13,6 +14,7 @@ export interface ProjectFilters {
   minConfidence?: ClassificationSignal["confidence"] | string;
   ranking?: string;
   limit?: number;
+  offset?: number;
 }
 
 export interface RecommendationQuery {
@@ -89,9 +91,40 @@ export interface SearchResultContext {
   };
   empty_reason?: string;
   suggestions?: string[];
+  query_interpretation?: {
+    original: string;
+    normalized: string;
+    transformations: string[];
+  };
 }
 
 const defaultLimit = 20;
+const multilingualSearchTerms: Array<[string, string]> = [
+  ["浏览器自动化", "browser automation agent"],
+  ["编程助手", "coding agent"],
+  ["代码智能体", "coding agent"],
+  ["向量数据库", "vector database"],
+  ["检索增强", "rag retrieval"],
+  ["模型网关", "llm gateway"],
+  ["大模型网关", "llm gateway"],
+  ["模型评测", "llm evaluation"],
+  ["可观测性", "observability tracing"],
+  ["工作流自动化", "workflow automation"],
+  ["本地大模型", "local llm runtime"],
+  ["智能体框架", "agent framework"],
+  ["代理框架", "agent framework"],
+  ["智能体", "agent"],
+  ["服务器", "server"]
+];
+const searchTypoCorrections: Record<string, string> = {
+  langchian: "langchain",
+  clouldflare: "cloudflare",
+  cloudfalre: "cloudflare",
+  observabilty: "observability",
+  evalution: "evaluation",
+  brower: "browser",
+  framwork: "framework"
+};
 
 export function getProjectKnowledgeFromList(projects: ProjectKnowledge[], id: string): ProjectKnowledge | null {
   const wanted = normalizeProjectId(id);
@@ -111,7 +144,10 @@ export function getProjectKnowledgeFromList(projects: ProjectKnowledge[], id: st
 
 export function searchProjectList(projects: ProjectKnowledge[], filters: ProjectFilters): ProjectKnowledge[] {
   const limit = clampLimit(filters.limit);
-  const query = normalize(filters.q);
+  const offset = Math.max(0, Math.trunc(filters.offset ?? 0));
+  const interpretation = interpretSearchQuery(filters.q);
+  const alias = /^[a-z0-9_.\/-]+$/iu.test(interpretation.normalized) ? resolveProject(projects, interpretation.normalized) : null;
+  const query = normalize(alias?.resolvedId ?? interpretation.normalized);
   const queryWords = queryTokens(query);
   const browseMode = filters.ranking === "browse" && isBrowseRankingQuery(filters, queryWords, limit);
 
@@ -164,7 +200,7 @@ export function searchProjectList(projects: ProjectKnowledge[], filters: Project
     .filter(isSearchHit)
     .sort((a, b) => b.score - a.score || byGitScore(a.item, b.item))
     .map(({ item }) => item)
-    .slice(0, limit);
+    .slice(offset, offset + limit);
 }
 
 export function describeSearchResult(projects: ProjectKnowledge[], filters: ProjectFilters, resultCount: number): SearchResultContext {
@@ -203,11 +239,14 @@ export function describeSearchResult(projects: ProjectKnowledge[], filters: Proj
     min_confidence: ["low", "medium", "high"] as ClassificationSignal["confidence"][],
     cloudflare_ready: [false, true]
   };
+  const interpretation = interpretSearchQuery(filters.q);
+  const queryInterpretation = interpretation.transformations.length > 0 ? { query_interpretation: interpretation } : {};
 
   if (resultCount > 0) {
     return {
       applied_filters: appliedFilters,
-      known_filter_values: knownFilterValues
+      known_filter_values: knownFilterValues,
+      ...queryInterpretation
     };
   }
 
@@ -250,8 +289,34 @@ export function describeSearchResult(projects: ProjectKnowledge[], filters: Proj
       suggestions.length > 0
         ? "No projects matched the requested query and filters; at least one filter may be unknown or the intersection may be empty."
         : "No projects matched the requested query and filters.",
-    suggestions
+    suggestions,
+    ...queryInterpretation
   };
+}
+
+export function interpretSearchQuery(value: string | undefined): { original: string; normalized: string; transformations: string[] } {
+  const original = (value ?? "").trim();
+  let normalized = original.toLowerCase();
+  const transformations: string[] = [];
+  for (const [source, target] of multilingualSearchTerms) {
+    if (normalized.includes(source)) {
+      normalized = normalized.replaceAll(source, ` ${target} `);
+      transformations.push(`${source} -> ${target}`);
+    }
+  }
+  normalized = normalized.replace(/[\s]+/gu, " ").trim();
+  normalized = normalized
+    .split(" ")
+    .map((token) => {
+      const correction = searchTypoCorrections[token];
+      if (correction) {
+        transformations.push(`${token} -> ${correction}`);
+        return correction;
+      }
+      return token;
+    })
+    .join(" ");
+  return { original, normalized, transformations: [...new Set(transformations)] };
 }
 
 export function getTrendingFromList(projects: ProjectKnowledge[], filters: Pick<ProjectFilters, "category" | "limit">): ProjectKnowledge[] {

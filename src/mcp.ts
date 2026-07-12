@@ -25,6 +25,7 @@ import { buildTrendsView } from "./trends";
 import { buildTrustGate } from "./trust-gate";
 import { buildAgentWorkflow } from "./workflow";
 import { resolveProject } from "./project-aliases";
+import { buildCursorPage, pageQueryKey, PageCursorError, resolvePageOffset } from "./page-cursor";
 import type { Env, ProjectKnowledge } from "./types";
 
 interface RpcRequest {
@@ -61,6 +62,7 @@ const tools = [
           description: "Optional browse ranking for broad category/deployment discovery with larger limits. Defaults to exact-intent search ranking."
         },
         limit: { type: "number" },
+        cursor: { type: "string", description: "Opaque next_cursor from a previous search_projects result." },
         require_d1: {
           type: "boolean",
           description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
@@ -475,7 +477,8 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
           batchProjectLimit: 20,
           projectProfiles: ["compact", "decision", "evidence"],
           changeFeed: { cursor: "opaque", retentionDays: 30, tombstones: true },
-          feedbackPolicy: { validatePublicly: true, persistenceAuth: "FEEDBACK_SECRET", reviewRequired: true, mutatesKnowledgeDirectly: false }
+          feedbackPolicy: { validatePublicly: true, persistenceAuth: "FEEDBACK_SECRET", reviewRequired: true, mutatesKnowledgeDirectly: false },
+          listPagination: { cursor: "opaque", snapshotBound: true, staleCursorError: -32004, tools: ["search_projects"] }
         },
         structuredPostEndpoints: [
           {
@@ -590,6 +593,7 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
       "GET /api/health to confirm system availability, then rely on metadata.source=d1 for production recommendations.",
       "Keep metadata.snapshot_id consistent across multi-tool decisions and restart dependent steps when the snapshot changes.",
       "Use get_projects_batch for snapshot-consistent reads and get_project_changes for incremental cache updates and deletion tombstones.",
+      "Continue search_projects with page.next_cursor; restart without a cursor when error -32004 reports a changed snapshot.",
       "Use propose_project_feedback to normalize evidence-backed corrections; it validates only and never mutates trusted knowledge.",
       "Use agent_map.short_path first, then expand into agent_map.reference_path when you need the fuller discovery surface.",
         "Use structured POST endpoints under agent_api.structured_post_endpoints for project, recommendation, comparison, alternatives, graph, and GRP requests.",
@@ -717,11 +721,24 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
       ranking: stringArg(args.ranking),
       limit: numberArg(args.limit)
     };
-    const projects = searchProjectList(knowledge.projects, filters);
+    const limit = filters.limit ?? 20;
+    const queryKey = await pageQueryKey("mcp:search_projects", filters);
+    let offset: number;
+    try {
+      offset = resolvePageOffset(stringArg(args.cursor), knowledge.metadata.snapshotId, queryKey);
+    } catch (error) {
+      if (error instanceof PageCursorError) {
+        return { toolError: { code: error.code === "stale_page_cursor" ? -32004 : -32602, message: error.message } };
+      }
+      throw error;
+    }
+    const projects = searchProjectList(knowledge.projects, { ...filters, offset, limit });
+    const hasMore = searchProjectList(knowledge.projects, { ...filters, offset: offset + limit, limit: 1 }).length > 0;
 
     return {
       projects: projects.map(toProjectKnowledgeView),
       search: describeSearchResult(knowledge.projects, filters, projects.length),
+      page: buildCursorPage({ offset, limit, hasMore, snapshotId: knowledge.metadata.snapshotId, queryKey }),
       metadata: knowledge.metadata
     };
   }

@@ -262,6 +262,7 @@ Supported filters:
 - `ranking`: optional. Use `browse` for broad category/deployment discovery with larger result limits. Omit it for default exact-intent search ranking.
 - `require_d1`: optional boolean. Use `true` when seed fallback must fail closed.
 - `limit`
+- `cursor`: opaque `page.next_cursor` from the previous response.
 
 Example:
 
@@ -274,6 +275,10 @@ Browse ranking example:
 ```sh
 curl "http://localhost:8787/api/search?q=agent%20framework&category=agent_framework&deployment=cloudflare&ranking=browse&limit=10"
 ```
+
+Search, trending, and category lists return `page.offset`, `page.limit`, `page.has_more`, `page.next_cursor`, and `page.snapshot_id`. Cursors are bound to both the query and `metadata.snapshot_id`; restart without a cursor after `stale_page_cursor` because continuing across corpus snapshots could skip or duplicate projects.
+
+Known high-signal typos and common Chinese AI-domain terms are conservatively normalized before ranking. When normalization occurs, inspect `search.query_interpretation` for the original query, normalized query, and explicit transformations. Git.Top does not apply unrestricted fuzzy matching.
 
 ## Project Lookup
 

@@ -78,6 +78,8 @@ curl -X POST http://localhost:8787/mcp \
   -d '{"jsonrpc":"2.0","id":21,"method":"tools/call","params":{"name":"search_projects","arguments":{"query":"agent framework","category":"agent_framework","deployment":"cloudflare","ranking":"browse","limit":10}}}'
 ```
 
+`search_projects` returns a snapshot-bound `page.next_cursor`. Pass it as `cursor` with the same arguments for the next page. Error `-32004` means the corpus snapshot changed and pagination must restart. Typo or multilingual normalization is disclosed under `search.query_interpretation`.
+
 Use `require_d1: true` when an agent must fail closed instead of accepting seed fallback:
 
 ```sh

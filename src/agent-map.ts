@@ -168,8 +168,8 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     humanPage: "/trends",
     rest: ["GET /api/trends", "GET /api/trending"],
     mcpTools: ["get_trends"],
-    outputFields: ["summary", "stats", "trend_signals", "categories", "deployments", "languages", "rising_projects", "agent_briefing"],
-    trustFields: ["metadata.source", "stats.project_count", "rising_projects[].quality_signal_confidence"],
+    outputFields: ["summary", "stats", "trend_signals", "categories", "deployments", "languages", "rising_projects", "agent_briefing", "page.next_cursor", "page.snapshot_id"],
+    trustFields: ["metadata.source", "metadata.snapshot_id", "page.snapshot_id", "stats.project_count", "rising_projects[].quality_signal_confidence"],
     recommendedUse: "Understand current corpus-level trends before choosing categories, deployment targets, or rising projects."
   },
   {
@@ -222,7 +222,7 @@ export const agentCoreSurfaces: AgentCoreSurface[] = [
     concept: "Project actions",
     rest: ["GET /api/search", "GET /api/project/:owner/:repo", "GET /api/alternatives/:project", "GET /api/compare", "GET /api/graph?repo=:project", "GET /api/score/:project"],
     mcpTools: ["search_projects", "get_project", "get_alternatives", "compare_projects", "get_project_graph", "get_quality_score"],
-    inspect: ["projects[].repo", "knowledge", "related", "alternative_matches", "decision_matrix", "graph_stats", "git_top_score"],
+    inspect: ["projects[].repo", "page.next_cursor", "page.snapshot_id", "knowledge", "related", "alternative_matches", "decision_matrix", "graph_stats", "git_top_score"],
     trustFields: ["metadata.source", "quality_signal_confidence", "classification.*.confidence"],
     nextUse: "Use this after trust and discovery when you need the actual project answer."
   }

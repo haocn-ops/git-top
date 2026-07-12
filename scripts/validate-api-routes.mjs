@@ -80,6 +80,8 @@ async function testSearchAndProjectRoutes() {
   assert.deepEqual(browseSearch.body.search.known_filter_values.min_confidence, ["low", "medium", "high"]);
   assert.ok(browseSearch.body.projects.length > 0, "browse search should return seed projects");
   assert.ok(browseSearch.body.projects.length <= 8, "browse search should honor the limit");
+  assert.equal(browseSearch.body.page.limit, 8);
+  assert.equal(browseSearch.body.page.snapshot_id, browseSearch.body.metadata.snapshot_id);
   assertMetadata(browseSearch.body.metadata, "db_missing");
 
   const emptySearch = await getJson("/api/search?query=agent&category=framework&deployment=cloudflare&language=typescript&cloudflare_ready=true&limit=5");
@@ -99,6 +101,11 @@ async function testSearchAndProjectRoutes() {
   const invalidSearchBoolean = await getJson("/api/search?q=cloudflare&cloudflare_ready=definitely");
   assert.equal(invalidSearchBoolean.status, 400);
   assert.equal(invalidSearchBoolean.body.error.code, "invalid_search_request");
+
+  const typoSearch = await getJson("/api/search?q=langchian&limit=1");
+  assert.equal(typoSearch.status, 200);
+  assert.equal(typoSearch.body.search.query_interpretation.normalized, "langchain");
+  assert.equal(typoSearch.body.projects[0].repo, "langchain-ai/langchain");
 
   const project = await getJson("/api/project/cloudflare/agents");
   assert.equal(project.status, 200);
@@ -951,6 +958,7 @@ async function testOpenApiDocument() {
   assert.ok(openapi.body.paths["/api/recommend"].post, "OpenAPI should document structured recommend POST endpoint");
   assert.ok(openapi.body.paths["/api/workflow"].post, "OpenAPI should document structured workflow POST endpoint");
   assert.ok(openapi.body.paths["/api/trends"], "OpenAPI should document trends endpoint");
+  assert.ok(openapi.body.paths["/api/category/{category}"], "OpenAPI should document paginated category endpoint");
   assert.ok(openapi.body.paths["/api/compare"].post, "OpenAPI should document structured compare POST endpoint");
   assert.ok(openapi.body.paths["/api/alternatives"].post, "OpenAPI should document structured alternatives POST endpoint");
   assert.ok(openapi.body.paths["/api/admin/alternatives"].post, "OpenAPI should document the protected alternatives refresh endpoint");
@@ -964,6 +972,8 @@ async function testOpenApiDocument() {
   assert.ok(openapi.body.components.schemas.ProjectLookupRequest, "OpenAPI should include ProjectLookupRequest schema");
   assert.ok(openapi.body.components.schemas.ProjectsBatchRequest, "OpenAPI should include ProjectsBatchRequest schema");
   assert.ok(openapi.body.components.schemas.ProjectChangesResponse, "OpenAPI should include ProjectChangesResponse schema");
+  assert.ok(openapi.body.components.schemas.CursorPage, "OpenAPI should include CursorPage schema");
+  assert.ok(openapi.body.components.schemas.CategoryResponse, "OpenAPI should include CategoryResponse schema");
   assert.ok(openapi.body.components.schemas.FeedbackProposalRequest, "OpenAPI should include FeedbackProposalRequest schema");
   assert.ok(openapi.body.components.schemas.RecommendationRequest, "OpenAPI should include RecommendationRequest schema");
   assert.ok(openapi.body.components.schemas.WorkflowRequest, "OpenAPI should include WorkflowRequest schema");
@@ -1000,6 +1010,7 @@ async function testOpenApiDocument() {
   assertOpenApiResponseSchema(openapi.body, "/api/recipes", "get", "RecipesResponse");
   assertOpenApiResponseSchema(openapi.body, "/api/examples", "get", "ExamplesResponse");
   assertOpenApiResponseSchema(openapi.body, "/api/trending", "get", "TrendingResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/category/{category}", "get", "CategoryResponse");
   assertOpenApiResponseSchema(openapi.body, "/api/trends", "get", "TrendsResponse");
   assertOpenApiResponseSchema(openapi.body, "/api/workflow", "get", "WorkflowResponse");
   assertOpenApiResponseSchema(openapi.body, "/api/workflow", "post", "WorkflowResponse");

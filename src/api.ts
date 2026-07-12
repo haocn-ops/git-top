@@ -3,7 +3,6 @@ import {
   findAlternativesFromList,
   findRelatedProjectsFromList,
   getProjectKnowledgeFromList,
-  getTrendingFromList,
   recommendProjectList,
   searchProjectList
 } from "./project-search";
@@ -34,6 +33,7 @@ import { errorJson, json, parseBool, parseLimit, rawJson } from "./http";
 import { buildAtlasJourneysView } from "./journeys-page";
 import { openApiDocument } from "./openapi";
 import { resolveProject } from "./project-aliases";
+import { buildCursorPage, pageQueryKey, PageCursorError, resolvePageOffset } from "./page-cursor";
 import { parseProjectResponseProfile, projectProfileView, type ProjectResponseProfile } from "./project-profiles";
 import { buildProjectSummary, toProjectKnowledgeView, withRelatedProjects } from "./project-view";
 import { buildLowConfidenceReviewReport, buildQualityReport } from "./quality";
@@ -657,15 +657,18 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       return knowledge;
     }
     const filters = parsed.filters;
-    const results = searchProjectList(knowledge.projects, {
-      ...filters
-    });
+    const paged = await projectListPage(knowledge.projects, filters, url, knowledge.metadata.snapshotId, "search").catch(pageCursorResponse);
+    if (paged instanceof Response) {
+      return paged;
+    }
+    const results = paged.projects;
 
     return json({
       query: Object.fromEntries(url.searchParams.entries()),
       projects: results.map(toProjectKnowledgeView),
       knowledge: results,
       search: describeSearchResult(knowledge.projects, filters, results.length),
+      page: paged.page,
       metadata: knowledge.metadata
     });
   }
@@ -675,12 +678,17 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     if (knowledge instanceof Response) {
       return knowledge;
     }
-    const results = getTrendingFromList(knowledge.projects, {
+    const filters = {
       category: url.searchParams.get("category") ?? undefined,
       limit: parseLimit(url.searchParams.get("limit"))
-    });
+    };
+    const paged = await projectListPage(knowledge.projects, filters, url, knowledge.metadata.snapshotId, "trending").catch(pageCursorResponse);
+    if (paged instanceof Response) {
+      return paged;
+    }
+    const results = paged.projects;
 
-    return json({ projects: results.map(toProjectKnowledgeView), knowledge: results, metadata: knowledge.metadata });
+    return json({ projects: results.map(toProjectKnowledgeView), knowledge: results, page: paged.page, metadata: knowledge.metadata });
   }
 
   if (path === "/api/trends") {
@@ -700,11 +708,15 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     if (knowledge instanceof Response) {
       return knowledge;
     }
-    const projects = searchProjectList(knowledge.projects, {
+    const filters = {
       category: decodeURIComponent(categoryMatch[1]),
       limit: parseLimit(url.searchParams.get("limit"))
-    });
-    return json({ projects, metadata: knowledge.metadata });
+    };
+    const paged = await projectListPage(knowledge.projects, filters, url, knowledge.metadata.snapshotId, `category:${filters.category}`).catch(pageCursorResponse);
+    if (paged instanceof Response) {
+      return paged;
+    }
+    return json({ projects: paged.projects, page: paged.page, metadata: knowledge.metadata });
   }
 
   const scoreMatch = path.match(/^\/api\/score\/([^/]+)\/([^/]+)$/);
@@ -1393,6 +1405,36 @@ function searchFiltersFromUrl(
       limit: limit.value
     }
   };
+}
+
+async function projectListPage(
+  projects: ProjectKnowledgeResult["projects"],
+  filters: Parameters<typeof searchProjectList>[1],
+  url: URL,
+  snapshotId: string,
+  scope: string
+) {
+  const limit = filters.limit ?? 20;
+  const queryInput = Object.fromEntries(
+    [...url.searchParams.entries()]
+      .filter(([key]) => key !== "cursor")
+      .sort(([left], [right]) => left.localeCompare(right))
+  );
+  const queryKey = await pageQueryKey(scope, queryInput);
+  const offset = resolvePageOffset(url.searchParams.get("cursor") ?? undefined, snapshotId, queryKey);
+  const pageProjects = searchProjectList(projects, { ...filters, offset, limit });
+  const hasMore = searchProjectList(projects, { ...filters, offset: offset + limit, limit: 1 }).length > 0;
+  return {
+    projects: pageProjects,
+    page: buildCursorPage({ offset, limit, hasMore, snapshotId, queryKey })
+  };
+}
+
+function pageCursorResponse(error: unknown): Response {
+  if (error instanceof PageCursorError) {
+    return errorJson(error.code === "stale_page_cursor" ? 409 : 400, error.code, error.message);
+  }
+  throw error;
 }
 
 function workflowInputFromUrl(url: URL): { ok: true; input: AgentWorkflowInput } | { ok: false; code: string; message: string } {
