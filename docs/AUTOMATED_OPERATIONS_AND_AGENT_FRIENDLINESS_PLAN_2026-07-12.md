@@ -135,6 +135,7 @@ pnpm validate
 pnpm db:integration
 pnpm mcp:validate
 pnpm eval:ranking
+pnpm eval:agent-tasks
 pnpm smoke:prod
 pnpm quality:check
 ```
@@ -168,12 +169,14 @@ Completed in this pass:
 - stale list cursors fail explicitly instead of silently mixing snapshots, while the first-page exact-intent ranking remains unchanged;
 - common Chinese AI-domain terms and a conservative set of high-signal typos are normalized with visible `query_interpretation` evidence;
 - existing product aliases preserve renamed-project intent without enabling unrestricted fuzzy matching.
+- `eval:agent-tasks` gates eight complete workflows spanning trust, fallback, pagination, evidence, alternatives, comparison, tombstones, feedback, multilingual input, typos, and aliases.
 
 Validation result:
 
 - 36 focused tests passed, including change-feed, profile, batch, pagination, multilingual and typo interpretation, feedback authorization, digest, strict-source, and MCP cases;
 - API, MCP, TypeScript, generated knowledge, fixture health, quality, explanation, and documentation validation passed;
 - ranking top-1 remained 92.9% and top-3 remained 100%;
+- end-to-end Agent task success is 8/8 (100%);
 - local D1 integration passed;
 - production smoke passed across health, search, GRP, MCP, discovery, trust, quality, operations, and canonical routes.
 
@@ -189,8 +192,9 @@ Production result:
 - production exposes 21 MCP tools, including `get_projects_batch`, `get_project_changes`, and `propose_project_feedback`;
 - GitHub `production` Environment requires `haocn-ops` approval and `CLOUDFLARE_ACCOUNT_ID` is configured; `CLOUDFLARE_API_TOKEN` still needs to be added before Actions can upload or deploy.
 
-Still intentionally deferred:
+External configuration still required:
 
-- additional end-to-end task-success eval cases beyond the search, lookup, evidence, alternatives, comparison, change-feed, and trust workflows already covered.
+- add `CLOUDFLARE_API_TOKEN` to GitHub Actions before preview upload or approved production delivery can run;
+- configure `FEEDBACK_SECRET`, `OPERATIONS_ALERT_WEBHOOK`, and `OPERATIONS_DIGEST_WEBHOOK` when their external destinations and credential ownership are selected.
 
-These remain follow-up work because they expand compatibility and evaluation breadth rather than unblock the automated operating loop delivered here.
+The code paths fail closed or remain disabled until these external secrets are configured.
