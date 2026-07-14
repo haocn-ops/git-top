@@ -55,7 +55,8 @@ import {
   isPublicCorsPath,
   withSiteHeaders
 } from "./site";
-import { scheduledSyncLimit, syncGithubProjects } from "./sync";
+import { syncGithubProjects } from "./sync";
+import { scheduledCandidateLimit, scheduledRefreshLimit } from "./sync-policy";
 import { runScheduledGovernance } from "./scheduled-governance";
 import { pruneOperationalData } from "./storage-maintenance";
 import { refreshAlternativesIncremental } from "./derived-refresh";
@@ -76,23 +77,48 @@ export default {
 };
 
 async function runScheduledMaintenance(env: Env): Promise<void> {
-  await pruneOperationalData(env);
-  const discovery = await discoverAndSyncCandidateProjects(env, { trigger: "cron", maxCandidates: scheduledSyncLimit });
-  const discoveryAttempts = Array.isArray(discovery.selected) ? discovery.selected.length : 0;
-  const refreshLimit = Math.max(0, scheduledSyncLimit - discoveryAttempts);
-  if (refreshLimit > 0) {
-    await syncGithubProjects(env, { limit: refreshLimit, trigger: "cron", signalDepth: "lite" });
+  await runMaintenanceSteps(env, [
+    { task: "scheduled:storage-maintenance", run: () => pruneOperationalData(env) },
+    {
+      task: "scheduled:candidate-discovery",
+      run: async () => {
+        const result = await discoverAndSyncCandidateProjects(env, { trigger: "cron", maxCandidates: scheduledCandidateLimit });
+        if (result.failed.length > 0) {
+          throw new Error(`Candidate discovery failed: ${result.failed[0].error}`);
+        }
+        return result;
+      }
+    },
+    {
+      task: "scheduled:project-refresh",
+      run: async () => {
+        const result = await syncGithubProjects(env, { limit: scheduledRefreshLimit, trigger: "cron", signalDepth: "lite" });
+        if (result.failed.length > 0) {
+          throw new Error(`Scheduled project refresh failed: ${result.failed[0].repository} ${result.failed[0].error}`);
+        }
+        return result;
+      }
+    },
+    { task: "derived:alternatives-progress", run: () => refreshAlternativesIncremental(env) },
+    { task: "scheduled:governance", run: () => runScheduledGovernance(env) }
+  ]);
+}
+
+export async function runMaintenanceSteps(
+  env: Env,
+  steps: Array<{ task: string; run: () => Promise<unknown> }>
+): Promise<void> {
+  for (const step of steps) {
+    try {
+      await step.run();
+    } catch (error) {
+      await sendOperationsAlert(env, {
+        task: step.task,
+        status: "failed",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
   }
-  try {
-    await refreshAlternativesIncremental(env);
-  } catch (error) {
-    await sendOperationsAlert(env, {
-      task: "derived:alternatives-progress",
-      status: "failed",
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-  await runScheduledGovernance(env);
 }
 
 async function routeRequest(request: Request, env: Env, url: URL): Promise<Response> {

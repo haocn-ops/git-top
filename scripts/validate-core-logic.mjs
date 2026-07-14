@@ -793,7 +793,7 @@ async function testQualityCollectionCoverage() {
 async function testSyncBatchSelection() {
   assert.equal(defaultSyncLimit, 1, "manual sync without a limit should stay conservative by default");
   assert.equal(maxSyncLimit, 50, "admin and catch-up syncs should allow bounded larger batches");
-  assert.equal(scheduledSyncLimit, 5, "scheduled sync should stay comfortably under Worker subrequest limits with lightweight signals");
+  assert.equal(scheduledSyncLimit, 8, "scheduled sync should use the bounded lightweight Worker request budget");
 
   const repositories = ["a/a", "b/b", "c/c", "d/d", "e/e"];
   assert.deepEqual(selectRepositoryBatch(repositories, 1, 3), ["b/b", "c/c", "d/d"]);
@@ -808,6 +808,11 @@ async function testSyncBatchSelection() {
   assert.deepEqual(selectScheduledRepositoryBatch(repositories, 3, 4, ["b/b", "missing/repo", "e/e"], 1).repositories, ["b/b", "e/e", "d/d", "a/a"]);
   assert.deepEqual(selectScheduledRepositoryBatch(repositories, 0, 1, ["d/d"], 1).repositories, ["a/a"]);
   assert.deepEqual(selectScheduledRepositoryBatch(repositories, 0, 2, []).repositories, ["a/a", "b/b"]);
+  assert.deepEqual(
+    selectScheduledRepositoryBatch(repositories, 0, 3, ["discovered/project"], 1, ["discovered/project"]).repositories,
+    ["discovered/project", "a/a", "b/b"],
+    "scheduled priority refresh should admit D1 projects outside the seed cursor pool"
+  );
 }
 
 async function testSyncPrioritySummary() {
@@ -846,6 +851,25 @@ async function testSyncPrioritySummary() {
   assert.equal(classifySyncPriority(warm, now).tier, "warm");
   assert.equal(classifySyncPriority(cold, now).tier, "cold");
 
+  const strategicButQuiet = makeSearchFixture("mock/quiet-mcp", {
+    stars: 300,
+    gitScore: 45,
+    category: "mcp_server",
+    cloudflareReady: false,
+    stars30dDelta: 0
+  });
+  assert.equal(classifySyncPriority(strategicButQuiet, now).tier, "warm", "strategic category alone should not promote a project to hot");
+
+  const estimatedGrowth = makeSearchFixture("mock/estimated-growth", {
+    stars: 4000,
+    gitScore: 60,
+    category: "other",
+    cloudflareReady: false,
+    stars30dDelta: 5000
+  });
+  estimatedGrowth.metrics.signalConfidence = { stars30dDelta: "estimated" };
+  assert.equal(classifySyncPriority(estimatedGrowth, now).tier, "cold", "estimated star growth alone should not promote sync priority");
+
   const summary = buildSyncPrioritySummary([warm, cold, hot], now, 3);
   assert.equal(summary.counts.hot, 1);
   assert.equal(summary.counts.warm, 1);
@@ -853,6 +877,10 @@ async function testSyncPrioritySummary() {
   assert.equal(summary.staleCounts.hot, 1);
   assert.equal(summary.staleCounts.warm, 1);
   assert.equal(summary.staleCounts.cold, 1);
+  assert.equal(summary.policy.hotTargetDays, 2);
+  assert.equal(summary.capacity.scheduledDailyCapacity, 168);
+  assert.equal(summary.capacity.targetFeasible, true);
+  assert.equal(typeof summary.staleRates.hot, "number");
   assert.equal(summary.oldestStaleDays, 59);
   assert.equal(summary.priorityPreview[0].projectId, "mock/hot-agent");
   assert.deepEqual(selectPriorityRepositoryIds([warm, cold, hot], ["mock/hot-agent", "mock/warm-runtime", "mock/cold-tool"], 2, now), [

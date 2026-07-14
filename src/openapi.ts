@@ -1247,13 +1247,44 @@ export const openApiDocument = {
       },
       SyncStatusResponse: {
         type: "object",
-        required: ["health", "freshness"],
+        required: ["health", "freshness", "priority"],
         properties: {
           health: { type: "string" },
           freshness: { type: "string" },
           cursor: { type: "object", additionalProperties: true },
           latest_success: { type: "object", additionalProperties: true },
           recent_failures: { type: "array", items: { type: "object", additionalProperties: true } },
+          priority: {
+            type: "object",
+            required: ["policy", "counts", "stale_counts", "stale_rates", "capacity"],
+            properties: {
+              policy: {
+                type: "object",
+                properties: {
+                  hot_target_days: { type: "integer" },
+                  warm_target_days: { type: "integer" },
+                  cold_target_days: { type: "integer" }
+                }
+              },
+              counts: { type: "object", additionalProperties: { type: "integer" } },
+              stale_counts: { type: "object", additionalProperties: { type: "integer" } },
+              stale_rates: { type: "object", additionalProperties: { type: "number" } },
+              capacity: {
+                type: "object",
+                required: ["scheduled_daily_capacity", "required_daily_syncs", "utilization", "headroom", "target_feasible"],
+                properties: {
+                  scheduled_runs_per_day: { type: "integer" },
+                  refresh_limit_per_run: { type: "integer" },
+                  scheduled_daily_capacity: { type: "integer" },
+                  required_daily_syncs: { type: "integer" },
+                  utilization: { type: "number" },
+                  headroom: { type: "integer" },
+                  target_feasible: { type: "boolean" }
+                }
+              },
+              priority_preview: { type: "array", items: { type: "object", additionalProperties: true } }
+            }
+          },
           derived: { type: "object", additionalProperties: true }
         },
         additionalProperties: true
@@ -2041,15 +2072,44 @@ function trustGateExample() {
         status: "pass",
         observed: "available / d1",
         requirement: "db=available and metadata.source=d1"
+      },
+      {
+        id: "hot-corpus-freshness",
+        label: "Hot corpus freshness",
+        status: "pass",
+        observed: "3/80 stale (4%)",
+        requirement: "hot_stale_rate<=0.10"
+      },
+      {
+        id: "sync-capacity",
+        label: "Scheduled sync capacity",
+        status: "pass",
+        observed: "142/168 required daily",
+        requirement: "sync_capacity_target_feasible=true"
       }
     ],
-    required_for_high_confidence: ["metadata.source=d1", "db=available", "sync_freshness=fresh"],
+    required_for_high_confidence: [
+      "metadata.source=d1",
+      "db=available",
+      "sync_freshness=fresh",
+      "hot_stale_rate<=0.10",
+      "sync_capacity_target_feasible=true"
+    ],
     agent_policy: {
-      cite: ["metadata.source", "sync_freshness", "data_trust_score"],
-      disclose_when: ["seed fallback is active", "sync is stale or degraded"]
+      cite: ["metadata.source", "sync_freshness", "hot_stale_rate", "sync_capacity_target_feasible", "data_trust_score"],
+      disclose_when: ["seed fallback is active", "sync is stale or degraded", "hot-tier corpus freshness is outside target"]
     },
     health: healthExample(),
-    sync: { health: "healthy", freshness: "fresh" },
+    sync: {
+      health: "healthy",
+      freshness: "fresh",
+      priority: {
+        counts: { hot: 80, warm: 300, cold: 120 },
+        stale_counts: { hot: 3, warm: 4, cold: 0 },
+        stale_rates: { hot: 0.038, warm: 0.013, cold: 0 },
+        capacity: { scheduled_daily_capacity: 168, required_daily_syncs: 142, utilization: 0.845, headroom: 26, target_feasible: true }
+      }
+    },
     quality: qualityExample(),
     metadata: metadataExample()
   };

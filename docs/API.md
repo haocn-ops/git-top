@@ -169,7 +169,7 @@ Project records include `project.synced_at`, and metric records include `metrics
 curl http://localhost:8787/api/health
 ```
 
-Production health includes D1 availability, project counts, sync cursor, sync health, sync freshness, and the timestamp of the latest successful sync. Use `/api/sync/status` when you also need priority queues, GitHub sync details, and `derived.alternatives` freshness.
+Production health includes D1 availability, project counts, sync cursor, sync health, sync freshness, and the timestamp of the latest successful sync. Global sync freshness means the scheduler has completed useful work recently; it does not by itself prove that every priority tier meets its target. Use `/api/sync/status` for tier stale rates, modeled capacity, priority queues, GitHub sync details, and `derived.alternatives` freshness.
 
 Project count fields:
 
@@ -219,7 +219,7 @@ Derived data refreshes also record governance history. `derived:alternatives` is
 curl https://git.top/api/trust
 ```
 
-Use the Trust Gate before high-confidence production recommendations. It combines health, sync freshness, release score, data trust score, and risk level into one `decision`:
+Use the Trust Gate before high-confidence production recommendations. It combines health, recent scheduler activity, hot-corpus stale rate, modeled sync capacity, derived freshness, release score, data trust score, and risk level into one `decision`:
 
 - `allow`: use Git.Top recommendations directly when endpoint responses are D1-backed.
 - `caution`: use Git.Top as decision support, but disclose the listed caveats.
@@ -651,7 +651,7 @@ curl -X POST http://localhost:8787/api/admin/sync \
   -d '{"repositories":["cloudflare/agents","modelcontextprotocol/servers"],"limit":2}'
 ```
 
-Cron sync uses lightweight collection with a five-repository hourly budget. It runs candidate discovery first for up to five new repositories, then uses any remaining budget to refresh stale priority queues before seed cursor fallback, and skips inline derived alternatives refresh. Admin sync defaults to refreshing derived alternatives for backward compatibility; pass `refresh_derived:false` for catch-up runs that should only update raw GitHub-backed project metadata.
+Cron sync uses lightweight collection with an eight-repository hourly budget. At most one slot is used for candidate discovery and seven slots are reserved for priority refresh or seed cursor progress. Priority refresh includes all D1-backed projects, including repositories admitted after the curated seed corpus was created, and skips inline derived alternatives refresh. Admin sync defaults to refreshing derived alternatives for backward compatibility; pass `refresh_derived:false` for catch-up runs that should only update raw GitHub-backed project metadata.
 
 The response includes `github_request_metrics`, per-repository `repository_request_metrics`, and `derived_refresh`. After `migrations/0006_github_request_cache.sql` is applied, repeated syncs can send GitHub validators and reuse cached JSON for `304 Not Modified` responses.
 
@@ -736,3 +736,7 @@ Important sync status fields:
 - `next_batch_wraps`
 - `last_failed_sync_at`
 - `last_error`
+- `priority.policy`: hot, warm, and cold target intervals.
+- `priority.stale_counts` and `priority.stale_rates`: target compliance by tier.
+- `priority.capacity`: scheduled daily capacity, modeled demand, utilization, headroom, and `target_feasible`.
+- `priority.priority_preview`: the highest-priority stale projects across both seed and discovered D1 records.

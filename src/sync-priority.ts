@@ -1,4 +1,5 @@
 import type { ProjectKnowledge } from "./types";
+import { scheduledRefreshLimit, scheduledRunsPerDay, syncTargetDays } from "./sync-policy";
 
 export type SyncTier = "hot" | "warm" | "cold";
 
@@ -20,13 +21,23 @@ export interface SyncPrioritySummary {
   };
   counts: Record<SyncTier, number>;
   staleCounts: Record<SyncTier, number>;
+  staleRates: Record<SyncTier, number>;
   oldestStaleDays: number;
+  capacity: {
+    scheduledRunsPerDay: number;
+    refreshLimitPerRun: number;
+    scheduledDailyCapacity: number;
+    requiredDailySyncs: number;
+    utilization: number;
+    headroom: number;
+    targetFeasible: boolean;
+  };
   priorityPreview: SyncPriorityItem[];
 }
 
-const hotTargetDays = 1;
-const warmTargetDays = 7;
-const coldTargetDays = 30;
+const hotTargetDays = syncTargetDays.hot;
+const warmTargetDays = syncTargetDays.warm;
+const coldTargetDays = syncTargetDays.cold;
 
 const hotCategories = new Set(["agent_framework", "coding_agent", "browser_agent", "mcp_server", "rag_framework"]);
 
@@ -44,6 +55,9 @@ export function buildSyncPrioritySummary(projects: ProjectKnowledge[], nowIso = 
     }
   }
 
+  const scheduledDailyCapacity = scheduledRunsPerDay * scheduledRefreshLimit;
+  const requiredDailySyncs = Math.ceil(counts.hot / hotTargetDays + counts.warm / warmTargetDays + counts.cold / coldTargetDays);
+
   return {
     generatedAt: nowIso,
     policy: {
@@ -53,7 +67,21 @@ export function buildSyncPrioritySummary(projects: ProjectKnowledge[], nowIso = 
     },
     counts,
     staleCounts,
+    staleRates: {
+      hot: rate(staleCounts.hot, counts.hot),
+      warm: rate(staleCounts.warm, counts.warm),
+      cold: rate(staleCounts.cold, counts.cold)
+    },
     oldestStaleDays,
+    capacity: {
+      scheduledRunsPerDay,
+      refreshLimitPerRun: scheduledRefreshLimit,
+      scheduledDailyCapacity,
+      requiredDailySyncs,
+      utilization: rate(requiredDailySyncs, scheduledDailyCapacity),
+      headroom: scheduledDailyCapacity - requiredDailySyncs,
+      targetFeasible: requiredDailySyncs <= scheduledDailyCapacity
+    },
     priorityPreview: items
       .filter((item) => item.staleDays > item.targetIntervalDays)
       .sort((a, b) => b.priorityScore - a.priorityScore || b.staleDays - a.staleDays || a.projectId.localeCompare(b.projectId))
@@ -100,17 +128,21 @@ export function classifySyncPriority(project: ProjectKnowledge, nowIso = new Dat
 }
 
 function tierForProject(project: ProjectKnowledge): SyncTier {
+  const snapshotBackedGrowth = project.metrics.signalConfidence?.stars30dDelta === "snapshot";
+  const reliableGrowth = snapshotBackedGrowth ? project.metrics.stars30dDelta : 0;
+  const strategicCategory = hotCategories.has(project.agentCard.category);
+
   if (
-    project.metrics.stars30dDelta >= 100 ||
-    project.metrics.gitScore >= 85 ||
-    project.project.stars >= 50_000 ||
+    reliableGrowth >= 1_000 ||
+    project.metrics.gitScore >= 93 ||
+    project.project.stars >= 200_000 ||
     project.agentCard.cloudflareReady ||
-    hotCategories.has(project.agentCard.category)
+    (strategicCategory && (reliableGrowth >= 500 || project.metrics.gitScore >= 90 || project.project.stars >= 100_000))
   ) {
     return "hot";
   }
 
-  if (project.metrics.stars30dDelta >= 20 || project.metrics.gitScore >= 70 || project.project.stars >= 5_000) {
+  if (reliableGrowth >= 20 || project.metrics.gitScore >= 70 || project.project.stars >= 5_000 || strategicCategory) {
     return "warm";
   }
 
@@ -161,6 +193,10 @@ function emptyTierCounts(): Record<SyncTier, number> {
     warm: 0,
     cold: 0
   };
+}
+
+function rate(numerator: number, denominator: number): number {
+  return denominator > 0 ? Number((numerator / denominator).toFixed(3)) : 0;
 }
 
 function daysSince(startIso: string, endIso: string): number {

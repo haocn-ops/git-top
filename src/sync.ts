@@ -6,13 +6,14 @@ import { listProjectKnowledgeWithMeta } from "./knowledge-source";
 import { defaultSeedRepositories, GithubClient, type GithubRequestMetrics } from "./github";
 import { calculateMetrics } from "./scoring";
 import { selectPriorityRepositoryIds } from "./sync-priority";
+import { scheduledSyncLimit } from "./sync-policy";
 import { pruneOperationalData } from "./storage-maintenance";
 import type { Env, GithubRepository, Project, ProjectKnowledge, SyncFailure, SyncTrigger } from "./types";
 import { validateProjectKnowledge, ValidationError } from "./validation";
 
 export const defaultSyncLimit = 1;
-export const scheduledSyncLimit = 5;
 export const maxSyncLimit = 50;
+export { scheduledSyncLimit } from "./sync-policy";
 
 const lightweightSignalOptions = {
   maxCommitPages: 1,
@@ -62,21 +63,23 @@ export async function syncGithubProjects(env: Env, options: SyncOptions = {}): P
 
   const allRepositories = normalizeRepositories(options.repositories ?? defaultSeedRepositories);
   const usesCursor = !options.repositories && options.offset === undefined;
+  const trigger = options.trigger ?? "manual";
   const offset = allRepositories.length === 0 ? 0 : usesCursor ? (await getSyncCursor(env)) % allRepositories.length : clampOffset(options.offset);
   const limit = clampLimit(options.limit);
   const cursorRepositories = selectRepositoryBatch(allRepositories, offset, limit);
   const cursorReserve = usesCursor && options.trigger === "cron" ? 1 : 0;
+  const priorityProjects = usesCursor && trigger === "cron" ? (await listProjectKnowledgeWithMeta(env)).projects : [];
+  const priorityRepositoryPool = priorityProjects.map((project) => project.project.id);
   const priorityRepositories =
-    usesCursor && options.trigger === "cron"
-      ? selectPriorityRepositoryIds((await listProjectKnowledgeWithMeta(env)).projects, allRepositories, Math.max(1, limit - cursorReserve))
+    usesCursor && trigger === "cron"
+      ? selectPriorityRepositoryIds(priorityProjects, priorityRepositoryPool, Math.max(1, limit - cursorReserve))
       : [];
   const repositories =
-    usesCursor && options.trigger === "cron"
-      ? selectScheduledRepositoryBatch(allRepositories, offset, limit, priorityRepositories, cursorReserve).repositories
+    usesCursor && trigger === "cron"
+      ? selectScheduledRepositoryBatch(allRepositories, offset, limit, priorityRepositories, cursorReserve, priorityRepositoryPool).repositories
       : cursorRepositories;
   const github = new GithubClient(env);
   const signalOptions = options.signalDepth === "lite" ? lightweightSignalOptions : undefined;
-  const trigger = options.trigger ?? "manual";
   const refreshDerived = options.refreshDerived ?? trigger !== "cron";
   const startedAt = new Date();
   let cursorAdvanceCount = 0;
@@ -232,11 +235,12 @@ export function selectScheduledRepositoryBatch(
   offset: number,
   limit: number,
   priorityRepositories: string[],
-  cursorReserve = 0
+  cursorReserve = 0,
+  priorityRepositoryPool: string[] = repositories
 ): { repositories: string[]; cursorRepositories: string[] } {
   const cursorRepositories = selectRepositoryBatch(repositories, offset, limit);
   const selectedPriorityLimit = Math.max(0, Math.min(limit - Math.max(0, Math.trunc(cursorReserve)), limit));
-  const canonical = new Map(repositories.map((repo) => [repo.toLowerCase(), repo]));
+  const canonical = new Map([...repositories, ...priorityRepositoryPool].map((repo) => [repo.toLowerCase(), repo]));
   const selected: string[] = [];
   const seen = new Set<string>();
 

@@ -828,10 +828,14 @@ async function testGraphAndQualityRoutes() {
   assert.equal(typeof trust.body.production_ready, "boolean");
   assert.ok(Array.isArray(trust.body.checks));
   assert.ok(trust.body.checks.some((check) => check.id === "d1-source"));
+  assert.ok(trust.body.checks.some((check) => check.id === "hot-corpus-freshness"));
+  assert.ok(trust.body.checks.some((check) => check.id === "sync-capacity"));
   assert.ok(trust.body.checks.some((check) => check.id === "derived-alternatives"));
   assert.ok(trust.body.checks.some((check) => check.id === "data-trust-score"));
   assert.ok(Array.isArray(trust.body.required_for_high_confidence));
   assert.ok(trust.body.required_for_high_confidence.includes("metadata.source=d1"));
+  assert.ok(trust.body.required_for_high_confidence.includes("hot_stale_rate<=0.10"));
+  assert.ok(trust.body.required_for_high_confidence.includes("sync_capacity_target_feasible=true"));
   assert.ok(trust.body.agent_policy.cite.includes("metadata.source"));
   assert.ok(trust.body.quality.release_score === quality.body.release_score);
   assertMetadata(trust.body.metadata, "db_missing");
@@ -1614,8 +1618,12 @@ async function testSyncStatusWithMockD1() {
   assert.equal(healthy.body.last_failed_sync_at, null);
   assert.equal(healthy.body.next_batch.length, 5);
   assert.equal(typeof healthy.body.priority.generated_at, "string");
-  assert.equal(healthy.body.priority.policy.hot_target_days, 1);
+  assert.equal(healthy.body.priority.policy.hot_target_days, 2);
   assert.equal(typeof healthy.body.priority.counts.hot, "number");
+  assert.equal(typeof healthy.body.priority.stale_rates.hot, "number");
+  assert.equal(typeof healthy.body.priority.capacity.required_daily_syncs, "number");
+  assert.equal(healthy.body.priority.capacity.scheduled_daily_capacity, 168);
+  assert.equal(typeof healthy.body.priority.capacity.target_feasible, "boolean");
   assert.ok(Array.isArray(healthy.body.priority.priority_preview));
   assert.equal(healthy.body.derived.alternatives.freshness, "fresh");
   assert.equal(healthy.body.derived.alternatives.last_run_status, "success");

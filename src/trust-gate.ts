@@ -60,6 +60,8 @@ export async function buildTrustGate(env: Env): Promise<TrustGateView> {
       "metadata.source=d1",
       "db=available",
       "sync_freshness=fresh",
+      "hot_stale_rate<=0.10",
+      "sync_capacity_target_feasible=true",
       "derived_alternatives_freshness=fresh",
       "release_score>=90",
       "data_trust_score>=75",
@@ -69,8 +71,8 @@ export async function buildTrustGate(env: Env): Promise<TrustGateView> {
       highConfidenceUse: "Use Git.Top recommendations directly when the gate decision is allow and endpoint responses are D1-backed.",
       cautionUse: "Use Git.Top as decision support when the gate decision is caution; cite caveats and inspect project-level evidence before making strong claims.",
       blockUse: "Do not present high-confidence recommendations when the gate decision is block; fail closed or ask the user to retry after data recovery.",
-      cite: ["metadata.source", "sync_freshness", "derived_alternatives_freshness", "release_score", "data_trust_score", "risk_level", "quality_signal_confidence"],
-      discloseWhen: ["seed fallback is active", "D1 is unavailable", "sync is stale or degraded", "derived alternatives are stale", "data trust risk is high", "quality signals are partial"]
+      cite: ["metadata.source", "sync_freshness", "hot_stale_rate", "sync_capacity_target_feasible", "derived_alternatives_freshness", "release_score", "data_trust_score", "risk_level", "quality_signal_confidence"],
+      discloseWhen: ["seed fallback is active", "D1 is unavailable", "sync is stale or degraded", "hot-tier corpus freshness is outside target", "scheduled sync capacity is below modeled demand", "derived alternatives are stale", "data trust risk is high", "quality signals are partial"]
     },
     nextActions: [
       { label: "Health JSON", href: "/api/health", kind: "health" },
@@ -113,6 +115,8 @@ function buildChecks(health: HealthStatus, sync: SyncStatus, quality: QualityRep
       observed: `${sync.health} / ${sync.freshness}`,
       requirement: "sync_freshness=fresh"
     },
+    corpusFreshnessCheck(sync),
+    syncCapacityCheck(sync),
     {
       id: "derived-alternatives",
       label: "Derived alternatives freshness",
@@ -142,6 +146,30 @@ function buildChecks(health: HealthStatus, sync: SyncStatus, quality: QualityRep
       requirement: "risk_level is not high"
     }
   ];
+}
+
+function corpusFreshnessCheck(sync: SyncStatus): TrustGateCheck {
+  const staleRate = sync.priority?.staleRates.hot;
+  const staleCount = sync.priority?.staleCounts.hot;
+  const total = sync.priority?.counts.hot;
+  return {
+    id: "hot-corpus-freshness",
+    label: "Hot corpus freshness",
+    status: staleRate === undefined ? "fail" : staleRate > 0.25 ? "fail" : staleRate > 0.1 ? "warn" : "pass",
+    observed: staleRate === undefined ? "unknown" : `${staleCount}/${total} stale (${Math.round(staleRate * 100)}%)`,
+    requirement: "hot_stale_rate<=0.10"
+  };
+}
+
+function syncCapacityCheck(sync: SyncStatus): TrustGateCheck {
+  const capacity = sync.priority?.capacity;
+  return {
+    id: "sync-capacity",
+    label: "Scheduled sync capacity",
+    status: capacity === undefined ? "fail" : capacity.targetFeasible ? "pass" : "warn",
+    observed: capacity === undefined ? "unknown" : `${capacity.requiredDailySyncs}/${capacity.scheduledDailyCapacity} required daily`,
+    requirement: "sync_capacity_target_feasible=true"
+  };
 }
 
 function gateDecision(checks: TrustGateCheck[]): TrustGateDecision {

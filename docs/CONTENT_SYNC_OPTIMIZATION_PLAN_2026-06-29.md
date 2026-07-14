@@ -140,7 +140,7 @@ Implemented after the initial sync stabilization.
 
 Acceptance:
 
-- Cron keeps a five-repository hourly budget, runs candidate discovery first, and uses any remaining budget for existing-project refresh.
+- Historical implementation at the time of this plan: cron kept a five-repository hourly budget, ran candidate discovery first, and used any remaining budget for existing-project refresh. This policy was superseded by [Production Freshness Optimization Plan 2026-07-14](./PRODUCTION_FRESHNESS_OPTIMIZATION_PLAN_2026-07-14.md).
 - Candidate discovery failure does not break the existing project refresh path.
 - Discovery responses show the query, discovered count, selected candidates, synced projects, failed projects, and governance run.
 - Operators can inspect discovery history through `/api/governance/runs?task=candidate-discovery`.

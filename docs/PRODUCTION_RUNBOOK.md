@@ -193,7 +193,7 @@ Healthy production should show:
 - `last_failed_sync_at` empty or older than the latest successful run.
 - `last_error` empty unless the most recent sync failed.
 
-Cron sync intentionally uses lightweight signal collection and keeps a five-repository hourly budget. It runs candidate discovery first for up to five new repositories, then uses any remaining budget to refresh existing hot/warm/cold repositories before falling back to the seed cursor. This keeps steady progress under Cloudflare Worker subrequest limits while allowing the corpus to grow beyond the curated seed list.
+Cron sync intentionally uses lightweight signal collection and keeps an eight-repository hourly budget. Candidate discovery may use one slot and seven slots are reserved for priority refresh or seed cursor progress. Priority refresh includes every D1-backed project, not only the curated seed corpus. The policy exposes modeled demand, capacity, headroom, and tier stale rates through `/api/sync/status`; see [Production Freshness Optimization Plan](./PRODUCTION_FRESHNESS_OPTIMIZATION_PLAN_2026-07-14.md).
 
 Trigger a small protected sync when needed:
 
