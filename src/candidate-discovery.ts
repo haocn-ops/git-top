@@ -89,6 +89,7 @@ export async function discoverAndSyncCandidateProjects(env: Env, options: Candid
 
     let synced: string[] = [];
     let failed: Array<{ repository: string; error: string }> = [];
+    let renamed: Array<{ from: string; to: string }> = [];
     if (selected.length > 0) {
       const sync = await syncGithubProjects(env, {
         repositories: selected.map((candidate) => candidate.repository),
@@ -99,7 +100,13 @@ export async function discoverAndSyncCandidateProjects(env: Env, options: Candid
       });
       synced = sync.synced;
       failed = sync.failed;
-      await markCandidateSyncResults(env, synced, failed);
+      renamed = sync.renamed;
+      const renamedIds = new Set(renamed.map((item) => item.from.toLowerCase()));
+      await markCandidateSyncResults(
+        env,
+        synced.filter((repository) => !renamedIds.has(repository.toLowerCase())),
+        failed
+      );
     }
 
     const finishedAt = new Date();
@@ -117,6 +124,7 @@ export async function discoverAndSyncCandidateProjects(env: Env, options: Candid
         category: query.category,
         discovered: discovered.length,
         admitted: admitted.map((candidate) => candidate.repository),
+        renamed,
         quarantined,
         selected: selected.map((candidate) => candidate.repository),
         synced,

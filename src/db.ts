@@ -29,6 +29,7 @@ export { getHealth } from "./health";
 export type { HealthStatus } from "./health";
 export {
   listClassificationOverrides,
+  retireRenamedProjectKnowledge,
   updateProjectAlternatives,
   upsertClassificationOverride,
   upsertProjectKnowledge

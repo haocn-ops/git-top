@@ -653,7 +653,7 @@ curl -X POST http://localhost:8787/api/admin/sync \
 
 Cron sync uses lightweight collection with an eight-repository hourly budget. At most one slot is used for candidate discovery and seven slots are reserved for priority refresh or seed cursor progress. Priority refresh includes all D1-backed projects, including repositories admitted after the curated seed corpus was created, and skips inline derived alternatives refresh. Admin sync defaults to refreshing derived alternatives for backward compatibility; pass `refresh_derived:false` for catch-up runs that should only update raw GitHub-backed project metadata.
 
-The response includes `github_request_metrics`, per-repository `repository_request_metrics`, and `derived_refresh`. After `migrations/0006_github_request_cache.sql` is applied, repeated syncs can send GitHub validators and reuse cached JSON for `304 Not Modified` responses.
+The response includes `github_request_metrics`, per-repository `repository_request_metrics`, `derived_refresh`, and structured `renamed` mappings. When GitHub resolves a requested repository to a different canonical `full_name`, sync writes the canonical project first, retires the obsolete project ID and dependent rows, marks its candidate record as renamed, and emits the normal deletion tombstone through the project change feed. After `migrations/0006_github_request_cache.sql` is applied, repeated syncs can send GitHub validators and reuse cached JSON for `304 Not Modified` responses.
 
 ## Admin Candidate Discovery
 

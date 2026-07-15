@@ -1,7 +1,7 @@
 import { generateAgentCard } from "./cards";
 import { generateAlternatives } from "./alternatives";
 import { getSyncCursor, getStarsDeltaSnapshot, insertSyncRun, setSyncCursor } from "./db-sync-store";
-import { updateProjectAlternatives, upsertProjectKnowledge } from "./db-write-store";
+import { retireRenamedProjectKnowledge, updateProjectAlternatives, upsertProjectKnowledge } from "./db-write-store";
 import { listProjectKnowledgeWithMeta } from "./knowledge-source";
 import { defaultSeedRepositories, GithubClient, type GithubRequestMetrics } from "./github";
 import { calculateMetrics } from "./scoring";
@@ -33,6 +33,7 @@ export interface SyncOptions {
 
 export interface SyncResult {
   synced: string[];
+  renamed: Array<{ from: string; to: string }>;
   alternativesUpdated: number;
   offset: number;
   nextOffset: number;
@@ -86,6 +87,7 @@ export async function syncGithubProjects(env: Env, options: SyncOptions = {}): P
   const cursorProgress = new Set<string>();
   const result: SyncResult = {
     synced: [],
+    renamed: [],
     alternativesUpdated: 0,
     offset,
     nextOffset: offset,
@@ -120,6 +122,9 @@ export async function syncGithubProjects(env: Env, options: SyncOptions = {}): P
 
       validateProjectKnowledge(knowledge);
       await upsertProjectKnowledge(env, knowledge);
+      if (await retireRenamedProjectKnowledge(env, repository, repo.full_name)) {
+        result.renamed.push({ from: repository, to: repo.full_name });
+      }
       result.synced.push(repository);
       cursorProgress.add(repository.toLowerCase());
       cursorAdvanceCount = countCursorProgress(cursorRepositories, cursorProgress);
