@@ -52,6 +52,16 @@ test("worker scheduled governance skips non-governance hours", async () => {
   assert.equal(config.governanceRuns.length, 0);
 });
 
+test("worker scheduled governance skips half-hour refresh windows", async () => {
+  const config = { governanceRuns: [] };
+  const env = mockD1Env(config);
+
+  const results = await runScheduledGovernance(env, new Date("2026-07-02T01:30:00.000Z"));
+
+  assert.deepEqual(results, []);
+  assert.equal(config.governanceRuns.length, 0);
+});
+
 test("worker scheduled governance leaves alternatives to the hourly incremental runner", async () => {
   const now = "2026-07-06T02:00:00.000Z";
   const config = {

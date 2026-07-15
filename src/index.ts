@@ -77,13 +77,13 @@ export default {
     return withSiteHeaders(response, request);
   },
 
-  async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(runScheduledMaintenance(env));
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    const scheduledAt = new Date(event.scheduledTime);
+    ctx.waitUntil(runScheduledMaintenance(env, Number.isFinite(scheduledAt.getTime()) ? scheduledAt : new Date()));
   }
 };
 
-async function runScheduledMaintenance(env: Env): Promise<void> {
-  const now = new Date();
+async function runScheduledMaintenance(env: Env, now = new Date()): Promise<void> {
   let planningReady = false;
   let overdueCount = 0;
   let refreshDueCount = 0;
@@ -105,9 +105,7 @@ async function runScheduledMaintenance(env: Env): Promise<void> {
         refreshDueCount = Object.values(priority.refreshDueCounts).reduce((sum, count) => sum + count, 0);
         capacityHeadroom = priority.capacity.headroom;
         runDiscovery = shouldRunScheduledCandidateDiscovery({
-          hourUtc: now.getUTCHours(),
-          overdueCount,
-          refreshDueCount,
+          minuteUtc: now.getUTCMinutes(),
           capacityHeadroom
         });
         planningReady = true;
@@ -120,7 +118,11 @@ async function runScheduledMaintenance(env: Env): Promise<void> {
         if (!runDiscovery) {
           return {
             skipped: true,
-            reason: !planningReady ? "refresh_planning_unavailable" : overdueCount > 0 ? "overdue_refresh_backlog" : refreshDueCount >= 7 ? "refresh_due_backlog" : "not_daily_discovery_window",
+            reason: !planningReady
+              ? "refresh_planning_unavailable"
+              : now.getUTCMinutes() !== 0
+                ? "refresh_only_window"
+                : "insufficient_modeled_capacity",
             overdue_count: overdueCount,
             refresh_due_count: refreshDueCount,
             capacity_headroom: capacityHeadroom
@@ -149,7 +151,7 @@ async function runScheduledMaintenance(env: Env): Promise<void> {
       }
     },
     { task: "derived:alternatives-progress", run: () => refreshAlternativesIncremental(env) },
-    { task: "scheduled:governance", run: () => runScheduledGovernance(env) }
+    { task: "scheduled:governance", run: () => runScheduledGovernance(env, now) }
   ]);
 }
 

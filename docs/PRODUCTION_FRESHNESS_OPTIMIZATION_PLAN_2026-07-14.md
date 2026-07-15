@@ -30,11 +30,11 @@ Production snapshot inspected on 2026-07-14:
 
 ### Sync budget
 
-- Run hourly.
+- Run at minute 0 and 30 each hour.
 - Allow at most 8 lightweight project syncs per run.
-- Let candidate discovery use at most 1 slot in the daily UTC 00 window, and yield whenever refresh backlog or capacity pressure is present.
-- Use all 8 slots for priority refresh or cursor progress in the other 23 hourly runs.
-- Treat 191 refreshes per day as the scheduled maintenance capacity.
+- Let candidate discovery use at most 1 slot in every top-of-hour run.
+- Use the remaining 7 top-of-hour slots and all 8 half-hour slots for priority refresh or cursor progress.
+- Treat 360 refreshes per day as the scheduled maintenance capacity after deducting 24 candidate slots.
 
 The lightweight sync path uses approximately six GitHub requests per project. Eight projects plus one discovery search stays within the intended Worker external-request budget.
 
@@ -89,8 +89,8 @@ Status: implemented in this change.
 
 Status: implemented in this change.
 
-- Admit at most one scheduled candidate per day and skip discovery when refresh work needs the capacity.
-- Give refresh work all eight slots outside the daily discovery window.
+- Attempt at most one scheduled candidate admission every hour while modeled refresh capacity remains feasible.
+- Add a half-hour refresh-only run so corpus growth does not compete with freshness maintenance.
 - Queue projects six hours before their tier deadline, and align warm and cold deadlines with the seven-day quality freshness gate.
 - Allow priority selection from every D1 project, including repositories admitted after the curated seed corpus was created.
 - Preserve one cursor slot so the curated corpus continues to make deterministic progress.

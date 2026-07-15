@@ -2099,7 +2099,7 @@ function trustGateExample() {
         id: "sync-capacity",
         label: "Scheduled sync capacity",
         status: "pass",
-        observed: "100/191 required daily",
+        observed: "100/360 required daily",
         requirement: "sync_capacity_target_feasible=true"
       }
     ],
@@ -2123,7 +2123,7 @@ function trustGateExample() {
         refresh_due_counts: { hot: 4, warm: 6, cold: 0 },
         stale_counts: { hot: 3, warm: 4, cold: 0 },
         stale_rates: { hot: 0.038, warm: 0.013, cold: 0 },
-        capacity: { scheduled_daily_capacity: 191, required_daily_syncs: 100, utilization: 0.524, headroom: 91, target_feasible: true }
+        capacity: { scheduled_daily_capacity: 360, required_daily_syncs: 100, utilization: 0.278, headroom: 260, target_feasible: true }
       }
     },
     quality: qualityExample(),
