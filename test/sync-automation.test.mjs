@@ -6,6 +6,7 @@ import { collectionFreshness } from "../src/cards.ts";
 import { classifySyncPriority } from "../src/sync-priority.ts";
 import { shouldRunScheduledCandidateDiscovery } from "../src/sync-policy.ts";
 import { seedProjects } from "../src/seed.ts";
+import { prioritizeRepositories } from "../scripts/preventive-maintenance-policy.mjs";
 
 test("priority refresh enters the queue six hours before the tier deadline", () => {
   const now = "2026-07-15T12:00:00.000Z";
@@ -76,6 +77,13 @@ test("scheduled maintenance treats empty workflow inputs as defaults", () => {
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /SYNC_SECRET is required/);
   assert.doesNotMatch(result.stderr, /must be an integer/);
+});
+
+test("preventive maintenance prioritizes quality-stale projects before the broader due queue", () => {
+  assert.deepEqual(
+    prioritizeRepositories(["stale/a", "stale/b"], ["due/a", "stale/a", "due/b"], 3),
+    ["stale/a", "stale/b", "due/a"]
+  );
 });
 
 test("collection freshness uses repository push activity before declaring stale", () => {
