@@ -878,7 +878,7 @@ async function testSyncPrioritySummary() {
   assert.equal(summary.staleCounts.warm, 1);
   assert.equal(summary.staleCounts.cold, 1);
   assert.equal(summary.policy.hotTargetDays, 2);
-  assert.equal(summary.capacity.scheduledDailyCapacity, 191);
+  assert.equal(summary.capacity.scheduledDailyCapacity, 360);
   assert.equal(summary.capacity.targetFeasible, true);
   assert.equal(typeof summary.refreshDueCounts.hot, "number");
   assert.ok(Array.isArray(summary.refreshDuePreview));

@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { collectionFreshness } from "../src/cards.ts";
 import { classifySyncPriority } from "../src/sync-priority.ts";
-import { shouldRunScheduledCandidateDiscovery } from "../src/sync-policy.ts";
+import { scheduledDailyRefreshCapacity, scheduledRunsPerDay, shouldRunScheduledCandidateDiscovery } from "../src/sync-policy.ts";
 import { seedProjects } from "../src/seed.ts";
 import { prioritizeRepositories } from "../scripts/preventive-maintenance-policy.mjs";
 import { upsertProjectKnowledge } from "../src/db-write-store.ts";
@@ -55,12 +55,13 @@ test("cold projects refresh before the shared seven-day quality deadline", () =>
   assert.equal(dueSoon.overdue, false);
 });
 
-test("candidate discovery yields to refresh backlog and runs once daily", () => {
-  assert.equal(shouldRunScheduledCandidateDiscovery({ hourUtc: 0, overdueCount: 0, refreshDueCount: 0, capacityHeadroom: 30 }), true);
-  assert.equal(shouldRunScheduledCandidateDiscovery({ hourUtc: 1, overdueCount: 0, refreshDueCount: 0, capacityHeadroom: 30 }), false);
-  assert.equal(shouldRunScheduledCandidateDiscovery({ hourUtc: 0, overdueCount: 1, refreshDueCount: 1, capacityHeadroom: 30 }), false);
-  assert.equal(shouldRunScheduledCandidateDiscovery({ hourUtc: 0, overdueCount: 0, refreshDueCount: 7, capacityHeadroom: 30 }), false);
-  assert.equal(shouldRunScheduledCandidateDiscovery({ hourUtc: 0, overdueCount: 0, refreshDueCount: 0, capacityHeadroom: 23 }), false);
+test("candidate discovery runs hourly while half-hour windows add refresh capacity", () => {
+  assert.equal(scheduledRunsPerDay, 48);
+  assert.equal(scheduledDailyRefreshCapacity, 360);
+  assert.equal(shouldRunScheduledCandidateDiscovery({ minuteUtc: 0, capacityHeadroom: 193 }), true);
+  assert.equal(shouldRunScheduledCandidateDiscovery({ minuteUtc: 30, capacityHeadroom: 193 }), false);
+  assert.equal(shouldRunScheduledCandidateDiscovery({ minuteUtc: 0, capacityHeadroom: 0 }), true);
+  assert.equal(shouldRunScheduledCandidateDiscovery({ minuteUtc: 0, capacityHeadroom: -1 }), false);
 });
 
 test("scheduled maintenance treats empty workflow inputs as defaults", () => {

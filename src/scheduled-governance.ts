@@ -23,22 +23,22 @@ interface ScheduledGovernanceResult {
 const scheduledGovernanceTasks: ScheduledGovernanceTask[] = [
   {
     ...scheduledGovernanceDefinition("daily-production-health"),
-    shouldRun: (date) => date.getUTCHours() === 1,
+    shouldRun: (date) => date.getUTCHours() === 1 && date.getUTCMinutes() === 0,
     run: runDailyProductionHealth
   },
   {
     ...scheduledGovernanceDefinition("weekly-data-governance"),
-    shouldRun: (date) => date.getUTCDay() === 1 && date.getUTCHours() === 2,
+    shouldRun: (date) => date.getUTCDay() === 1 && date.getUTCHours() === 2 && date.getUTCMinutes() === 0,
     run: runWeeklyDataGovernance
   },
   {
     ...scheduledGovernanceDefinition("biweekly-live-check"),
-    shouldRun: (date) => [1, 15].includes(date.getUTCDate()) && date.getUTCHours() === 3,
+    shouldRun: (date) => [1, 15].includes(date.getUTCDate()) && date.getUTCHours() === 3 && date.getUTCMinutes() === 0,
     run: runBiweeklyLiveCheck
   },
   {
     ...scheduledGovernanceDefinition("monthly-corpus-review"),
-    shouldRun: (date) => date.getUTCDate() === 1 && date.getUTCHours() === 4,
+    shouldRun: (date) => date.getUTCDate() === 1 && date.getUTCHours() === 4 && date.getUTCMinutes() === 0,
     run: runMonthlyCorpusReview
   }
 ];
