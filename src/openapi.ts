@@ -507,6 +507,19 @@ export const openApiDocument = {
         }
       }
     },
+    "/api/admin/alternatives/progress": {
+      post: {
+        summary: "Advance the persisted alternatives refresh cursor by one bounded batch.",
+        security: [{ syncSecret: [] }],
+        parameters: [queryParam("limit", "Batch size from 1 to 25")],
+        responses: {
+          "200": { description: "Incremental alternatives refresh result and persisted cursor progress" },
+          "400": { description: "Invalid limit parameter" },
+          "401": { description: "Missing or invalid admin authorization" },
+          "405": { description: "Alternatives progress requires POST" }
+        }
+      }
+    },
     "/api/admin/discovery": {
       post: {
         summary: "Discover and sync new candidate repositories from GitHub search.",
@@ -1256,7 +1269,7 @@ export const openApiDocument = {
           recent_failures: { type: "array", items: { type: "object", additionalProperties: true } },
           priority: {
             type: "object",
-            required: ["policy", "counts", "stale_counts", "stale_rates", "capacity"],
+            required: ["policy", "counts", "refresh_due_counts", "stale_counts", "stale_rates", "capacity"],
             properties: {
               policy: {
                 type: "object",
@@ -1267,6 +1280,7 @@ export const openApiDocument = {
                 }
               },
               counts: { type: "object", additionalProperties: { type: "integer" } },
+              refresh_due_counts: { type: "object", additionalProperties: { type: "integer" } },
               stale_counts: { type: "object", additionalProperties: { type: "integer" } },
               stale_rates: { type: "object", additionalProperties: { type: "number" } },
               capacity: {
@@ -1282,7 +1296,8 @@ export const openApiDocument = {
                   target_feasible: { type: "boolean" }
                 }
               },
-              priority_preview: { type: "array", items: { type: "object", additionalProperties: true } }
+              priority_preview: { type: "array", items: { type: "object", additionalProperties: true } },
+              refresh_due_preview: { type: "array", items: { type: "object", additionalProperties: true } }
             }
           },
           derived: { type: "object", additionalProperties: true }
@@ -2084,7 +2099,7 @@ function trustGateExample() {
         id: "sync-capacity",
         label: "Scheduled sync capacity",
         status: "pass",
-        observed: "142/168 required daily",
+        observed: "100/191 required daily",
         requirement: "sync_capacity_target_feasible=true"
       }
     ],
@@ -2105,9 +2120,10 @@ function trustGateExample() {
       freshness: "fresh",
       priority: {
         counts: { hot: 80, warm: 300, cold: 120 },
+        refresh_due_counts: { hot: 4, warm: 6, cold: 0 },
         stale_counts: { hot: 3, warm: 4, cold: 0 },
         stale_rates: { hot: 0.038, warm: 0.013, cold: 0 },
-        capacity: { scheduled_daily_capacity: 168, required_daily_syncs: 142, utilization: 0.845, headroom: 26, target_feasible: true }
+        capacity: { scheduled_daily_capacity: 191, required_daily_syncs: 100, utilization: 0.524, headroom: 91, target_feasible: true }
       }
     },
     quality: qualityExample(),

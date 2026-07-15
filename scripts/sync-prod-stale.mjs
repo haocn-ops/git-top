@@ -9,7 +9,7 @@ if (!syncSecret) {
   throw new Error("SYNC_SECRET is required.");
 }
 
-const quality = await requestJson("/api/quality", { method: "GET" }, baseUrls[0]);
+const quality = await requestJsonWithRetry("/api/quality", { method: "GET" });
 const repositories = Array.from(
   new Set(
     (quality.issues ?? [])
@@ -38,7 +38,7 @@ for (let index = 0; index < repositories.length; index += batchSize) {
   }
 }
 
-const finalQuality = await requestJson("/api/quality", { method: "GET" }, baseUrls[0]);
+const finalQuality = await requestJsonWithRetry("/api/quality", { method: "GET" });
 const refreshedRepositorySet = new Set(repositories.map((repository) => repository.toLowerCase()));
 const remainingStale = (finalQuality.issues ?? [])
   .filter(

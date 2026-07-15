@@ -50,6 +50,7 @@
     "smoke:prod": "node scripts/smoke-prod.mjs",
     "sync:prod:catchup": "node scripts/sync-prod-catchup.mjs",
     "sync:prod:stale": "node scripts/sync-prod-stale.mjs",
+    "maintenance:prod:preventive": "node scripts/run-prod-preventive-maintenance.mjs",
     "alternatives:prod:refresh": "node scripts/refresh-prod-alternatives.mjs",
     "release:check": "node scripts/verify-public-v1.mjs",
     "validate": "pnpm seed:validate && pnpm seed:coverage && pnpm knowledge:validate && pnpm db:seed-sql && pnpm test:focused && pnpm eval:fixtures && pnpm eval:quality && pnpm eval:explanations && pnpm eval:agent-tasks && pnpm quality:review && pnpm docs:validate && pnpm check",

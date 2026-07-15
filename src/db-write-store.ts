@@ -212,6 +212,32 @@ export async function upsertProjectKnowledge(env: Env, knowledge: ProjectKnowled
   await env.DB.batch(statements);
 }
 
+export async function retireRenamedProjectKnowledge(env: Env, requestedRepository: string, canonicalRepository: string): Promise<boolean> {
+  if (!env.DB) {
+    throw new Error("D1 binding DB is required to retire renamed project knowledge.");
+  }
+
+  const requested = requestedRepository.trim();
+  const canonical = canonicalRepository.trim();
+  if (!requested || !canonical || requested.toLowerCase() === canonical.toLowerCase()) {
+    return false;
+  }
+
+  const retiredAt = new Date().toISOString().slice(0, 10);
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM star_snapshots WHERE lower(project_id) = lower(?)").bind(requested),
+    env.DB.prepare("DELETE FROM classification_overrides WHERE lower(project_id) = lower(?)").bind(requested),
+    env.DB.prepare("DELETE FROM project_metrics WHERE lower(project_id) = lower(?)").bind(requested),
+    env.DB.prepare("DELETE FROM agent_cards WHERE lower(project_id) = lower(?)").bind(requested),
+    env.DB.prepare("DELETE FROM projects WHERE lower(id) = lower(?)").bind(requested),
+    env.DB
+      .prepare("UPDATE candidate_repositories SET status = 'failed', last_error = ? WHERE lower(repository) = lower(?)")
+      .bind(`Repository renamed to ${canonical} during sync on ${retiredAt}`, requested)
+  ]);
+
+  return true;
+}
+
 export async function updateProjectAlternatives(
   env: Env,
   updates: Array<{ projectId: string; alternatives: Alternative[] }>

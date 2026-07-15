@@ -1,6 +1,8 @@
 name: Governance
 
 on:
+  schedule:
+    - cron: "25 0 * * *"
   workflow_dispatch:
     inputs:
       task:
@@ -10,9 +12,31 @@ on:
         type: choice
         options:
           - daily-production-health
+          - production-data-maintenance
+          - production-preventive-maintenance
+          - production-alternatives-segment
           - weekly-data-governance
           - biweekly-live-check
           - monthly-corpus-review
+      alternatives_start_offset:
+        description: "Project offset for resuming production alternatives maintenance."
+        required: false
+        default: "0"
+        type: string
+      alternatives_batch_size:
+        description: "Projects per alternatives request; keep at or below 25."
+        required: false
+        default: "10"
+        type: string
+      alternatives_max_batches:
+        description: "Maximum alternatives batches in this run; 0 means all remaining batches."
+        required: false
+        default: "0"
+        type: string
+
+concurrency:
+  group: git-top-governance-production
+  cancel-in-progress: false
 
 jobs:
   select-task:
@@ -23,12 +47,13 @@ jobs:
       - id: task
         shell: bash
         run: |
-          task="${{ inputs.task }}"
+          task="${{ github.event_name == 'schedule' && 'production-preventive-maintenance' || inputs.task }}"
           echo "task=$task" >> "$GITHUB_OUTPUT"
 
   governance:
     needs: select-task
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -50,5 +75,9 @@ jobs:
       - name: Run governance task
         env:
           GOVERNANCE_RECORD_SECRET: ${{ secrets.SYNC_SECRET }}
+          SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
           GITHUB_TOKEN: ${{ github.token }}
+          GIT_TOP_ALTERNATIVES_START_OFFSET: ${{ inputs.alternatives_start_offset }}
+          GIT_TOP_ALTERNATIVES_BATCH_SIZE: ${{ inputs.alternatives_batch_size }}
+          GIT_TOP_ALTERNATIVES_MAX_BATCHES: ${{ inputs.alternatives_max_batches }}
         run: node scripts/run-governance-task.mjs "${{ needs.select-task.outputs.task }}"

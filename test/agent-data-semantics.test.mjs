@@ -4,6 +4,7 @@ import { handleApi } from "../src/api.ts";
 import { handleMcp } from "../src/mcp.ts";
 import { decodeChangeCursor, encodeChangeCursor, listProjectChanges } from "../src/change-feed.ts";
 import { projectProfileView } from "../src/project-profiles.ts";
+import { retireRenamedProjectKnowledge } from "../src/db-write-store.ts";
 import { mockD1Env } from "../scripts/mock-d1.mjs";
 import { seedProjects } from "../src/seed.ts";
 
@@ -36,6 +37,36 @@ test("change feed paginates and exposes deletion tombstones", async () => {
   assert.ok(second.page.next_cursor);
   assert.equal(second.retention.days, 30);
   assert.equal(second.retention.earliest_guaranteed_at, "2026-07-01T00:00:00.000Z");
+});
+
+test("renamed repositories retire obsolete knowledge after canonical sync", async () => {
+  const operations = [];
+  const env = {
+    DB: {
+      prepare(sql) {
+        return {
+          bind(...values) {
+            return { sql, values };
+          }
+        };
+      },
+      async batch(statements) {
+        operations.push(...statements);
+        return statements.map(() => ({ success: true }));
+      }
+    }
+  };
+
+  assert.equal(await retireRenamedProjectKnowledge(env, "old-owner/project", "new-owner/project"), true);
+  assert.equal(operations.length, 6);
+  assert.match(operations[4].sql, /DELETE FROM projects/);
+  assert.deepEqual(operations[4].values, ["old-owner/project"]);
+  assert.match(operations[5].sql, /UPDATE candidate_repositories/);
+  assert.match(operations[5].values[0], /Repository renamed to new-owner\/project/);
+
+  operations.length = 0;
+  assert.equal(await retireRenamedProjectKnowledge(env, "Owner/Project", "owner/project"), false);
+  assert.equal(operations.length, 0);
 });
 
 test("project profiles provide bounded compact and evidence payloads", () => {

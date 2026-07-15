@@ -56,7 +56,13 @@ import {
   withSiteHeaders
 } from "./site";
 import { syncGithubProjects } from "./sync";
-import { scheduledCandidateLimit, scheduledRefreshLimit } from "./sync-policy";
+import {
+  scheduledCandidateLimit,
+  scheduledRefreshLimit,
+  shouldRunScheduledCandidateDiscovery
+} from "./sync-policy";
+import { buildSyncPrioritySummary } from "./sync-priority";
+import { listProjectKnowledgeWithMeta } from "./knowledge-source";
 import { runScheduledGovernance } from "./scheduled-governance";
 import { pruneOperationalData } from "./storage-maintenance";
 import { refreshAlternativesIncremental } from "./derived-refresh";
@@ -77,22 +83,65 @@ export default {
 };
 
 async function runScheduledMaintenance(env: Env): Promise<void> {
+  const now = new Date();
+  let planningReady = false;
+  let overdueCount = 0;
+  let refreshDueCount = 0;
+  let capacityHeadroom = 0;
+  let runDiscovery = false;
+  let discoveredProjectCount = 0;
+
   await runMaintenanceSteps(env, [
     { task: "scheduled:storage-maintenance", run: () => pruneOperationalData(env) },
     {
+      task: "scheduled:refresh-planning",
+      run: async () => {
+        const knowledge = await listProjectKnowledgeWithMeta(env);
+        if (knowledge.metadata.source !== "d1") {
+          throw new Error(`Refresh planning expected D1, got ${knowledge.metadata.source}: ${knowledge.metadata.reason}`);
+        }
+        const priority = buildSyncPrioritySummary(knowledge.projects, now.toISOString(), 50);
+        overdueCount = Object.values(priority.staleCounts).reduce((sum, count) => sum + count, 0);
+        refreshDueCount = Object.values(priority.refreshDueCounts).reduce((sum, count) => sum + count, 0);
+        capacityHeadroom = priority.capacity.headroom;
+        runDiscovery = shouldRunScheduledCandidateDiscovery({
+          hourUtc: now.getUTCHours(),
+          overdueCount,
+          refreshDueCount,
+          capacityHeadroom
+        });
+        planningReady = true;
+        return { overdue_count: overdueCount, refresh_due_count: refreshDueCount, capacity_headroom: capacityHeadroom, run_discovery: runDiscovery };
+      }
+    },
+    {
       task: "scheduled:candidate-discovery",
       run: async () => {
+        if (!runDiscovery) {
+          return {
+            skipped: true,
+            reason: !planningReady ? "refresh_planning_unavailable" : overdueCount > 0 ? "overdue_refresh_backlog" : refreshDueCount >= 7 ? "refresh_due_backlog" : "not_daily_discovery_window",
+            overdue_count: overdueCount,
+            refresh_due_count: refreshDueCount,
+            capacity_headroom: capacityHeadroom
+          };
+        }
         const result = await discoverAndSyncCandidateProjects(env, { trigger: "cron", maxCandidates: scheduledCandidateLimit });
         if (result.failed.length > 0) {
           throw new Error(`Candidate discovery failed: ${result.failed[0].error}`);
         }
+        discoveredProjectCount = result.selected.length;
         return result;
       }
     },
     {
       task: "scheduled:project-refresh",
       run: async () => {
-        const result = await syncGithubProjects(env, { limit: scheduledRefreshLimit, trigger: "cron", signalDepth: "lite" });
+        const result = await syncGithubProjects(env, {
+          limit: Math.max(1, scheduledRefreshLimit - discoveredProjectCount),
+          trigger: "cron",
+          signalDepth: "lite"
+        });
         if (result.failed.length > 0) {
           throw new Error(`Scheduled project refresh failed: ${result.failed[0].repository} ${result.failed[0].error}`);
         }

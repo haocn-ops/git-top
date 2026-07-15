@@ -1,4 +1,5 @@
 import { isReviewedCollection } from "./collection-policy";
+import { qualityFreshnessDays } from "./sync-policy";
 import type { Category, ProjectKnowledge } from "./types";
 
 export type QualitySeverity = "error" | "warning" | "info";
@@ -448,8 +449,8 @@ function checkProject(item: ProjectKnowledge, projectIndex: Map<string, ProjectK
     issues.push(issue(projectId, "warning", "hot_but_low_maintenance", "Project is hot but maintenance score is low."));
   }
 
-  if (Date.now() - Date.parse(item.project.syncedAt) > 7 * 24 * 60 * 60 * 1000) {
-    issues.push(issue(projectId, "info", "stale_sync", "Project has not been synced in over 7 days."));
+  if (Date.now() - Date.parse(item.project.syncedAt) > qualityFreshnessDays * 24 * 60 * 60 * 1000) {
+    issues.push(issue(projectId, "info", "stale_sync", `Project has not been synced in over ${qualityFreshnessDays} days.`));
   }
 
   if (item.project.stars > 10000 && item.agentCard.alternatives.length === 0) {
@@ -517,7 +518,9 @@ function buildCoverage(projects: ProjectKnowledge[], distribution: Record<Catego
   const lowConfidenceClassificationCount = projects.filter((item) =>
     Object.values(item.agentCard.classification ?? {}).some((signal) => signal?.confidence === "low")
   ).length;
-  const staleProjectCount = projects.filter((item) => Date.now() - Date.parse(item.project.syncedAt) > 7 * 24 * 60 * 60 * 1000).length;
+  const staleProjectCount = projects.filter(
+    (item) => Date.now() - Date.parse(item.project.syncedAt) > qualityFreshnessDays * 24 * 60 * 60 * 1000
+  ).length;
   const cloudflareReadyCount = projects.filter((item) => item.agentCard.cloudflareReady).length;
   const collections = projects.filter((item) => item.agentCard.projectKind === "collection");
   const collectionScopeCounts = Object.fromEntries(collectionScopes.map((scope) => [scope, 0])) as QualityCoverage["collectionScopeCounts"];
