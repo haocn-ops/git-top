@@ -1,3 +1,5 @@
+import { prioritizeRepositories } from "./preventive-maintenance-policy.mjs";
+
 const baseUrls = Array.from(
   new Set(
     envValue("GIT_TOP_MAINTENANCE_BASE_URLS", "https://git.top,https://git-top.izhenghaocn.workers.dev")
@@ -19,14 +21,17 @@ if (!syncSecret) {
   throw new Error("SYNC_SECRET is required.");
 }
 
-const initialStatus = await requestJsonWithRetry("/api/sync/status?require_d1=true", { method: "GET" });
-const repositories = Array.from(
-  new Set(
-    (initialStatus.priority?.refresh_due_preview ?? [])
-      .map((item) => item.project_id)
-      .filter((projectId) => typeof projectId === "string")
-  )
-).slice(0, refreshLimit);
+const [initialStatus, initialQuality] = await Promise.all([
+  requestJsonWithRetry(cacheBustedPath("/api/sync/status?require_d1=true"), { method: "GET" }),
+  requestJsonWithRetry(cacheBustedPath("/api/quality?require_d1=true"), { method: "GET" })
+]);
+const staleRepositories = (initialQuality.issues ?? [])
+  .filter((issue) => issue.code === "stale_sync" && typeof issue.project_id === "string")
+  .map((issue) => issue.project_id);
+const dueRepositories = (initialStatus.priority?.refresh_due_preview ?? [])
+  .map((item) => item.project_id)
+  .filter((projectId) => typeof projectId === "string");
+const repositories = prioritizeRepositories(staleRepositories, dueRepositories, refreshLimit);
 const syncRuns = [];
 const failures = [];
 
@@ -61,8 +66,10 @@ for (let index = 0; index < alternativesBatches; index += 1) {
   }
 }
 
-const finalStatus = await requestJsonWithRetry("/api/sync/status?require_d1=true", { method: "GET" });
-const quality = await requestJsonWithRetry("/api/quality?require_d1=true", { method: "GET" });
+const [finalStatus, quality] = await Promise.all([
+  requestJsonWithRetry(cacheBustedPath("/api/sync/status?require_d1=true"), { method: "GET" }),
+  requestJsonWithRetry(cacheBustedPath("/api/quality?require_d1=true"), { method: "GET" })
+]);
 const staleProjectCount = Number(quality.coverage?.stale_project_count ?? 0);
 const summary = {
   baseUrls,
@@ -139,6 +146,10 @@ function boundedInteger(value, name, minimum, maximum) {
 function envValue(name, fallback) {
   const value = process.env[name]?.trim();
   return value ? value : fallback;
+}
+
+function cacheBustedPath(path) {
+  return `${path}${path.includes("?") ? "&" : "?"}_=${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 function delay(milliseconds) {
