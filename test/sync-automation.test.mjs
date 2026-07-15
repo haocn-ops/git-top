@@ -7,6 +7,7 @@ import { classifySyncPriority } from "../src/sync-priority.ts";
 import { shouldRunScheduledCandidateDiscovery } from "../src/sync-policy.ts";
 import { seedProjects } from "../src/seed.ts";
 import { prioritizeRepositories } from "../scripts/preventive-maintenance-policy.mjs";
+import { upsertProjectKnowledge } from "../src/db-write-store.ts";
 
 test("priority refresh enters the queue six hours before the tier deadline", () => {
   const now = "2026-07-15T12:00:00.000Z";
@@ -84,6 +85,32 @@ test("preventive maintenance prioritizes quality-stale projects before the broad
     prioritizeRepositories(["stale/a", "stale/b"], ["due/a", "stale/a", "due/b"], 3),
     ["stale/a", "stale/b", "due/a"]
   );
+});
+
+test("raw knowledge sync preserves existing derived alternatives", async () => {
+  const prepared = [];
+  const env = {
+    DB: {
+      prepare(sql) {
+        return {
+          bind(...values) {
+            const statement = { sql, values };
+            prepared.push(statement);
+            return statement;
+          }
+        };
+      },
+      async batch() {
+        return [];
+      }
+    }
+  };
+
+  await upsertProjectKnowledge(env, structuredClone(seedProjects[0]));
+  const agentCardUpsert = prepared.find((statement) => statement.sql.includes("INSERT INTO agent_cards"));
+  assert.ok(agentCardUpsert);
+  assert.match(agentCardUpsert.sql, /alternatives_json = agent_cards\.alternatives_json/);
+  assert.doesNotMatch(agentCardUpsert.sql, /alternatives_json = excluded\.alternatives_json/);
 });
 
 test("collection freshness uses repository push activity before declaring stale", () => {

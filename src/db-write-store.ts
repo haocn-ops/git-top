@@ -181,7 +181,7 @@ export async function upsertProjectKnowledge(env: Env, knowledge: ProjectKnowled
         cloudflare_ready = excluded.cloudflare_ready,
         use_cases_json = excluded.use_cases_json,
         not_good_for_json = excluded.not_good_for_json,
-        alternatives_json = excluded.alternatives_json,
+        alternatives_json = agent_cards.alternatives_json,
         summary_for_agent = excluded.summary_for_agent,
         classification_json = excluded.classification_json,
         schema_version = excluded.schema_version,
