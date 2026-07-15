@@ -92,12 +92,20 @@ When the secret is stored only in GitHub Actions, run both maintenance passes an
 their production gates through the manual Governance workflow:
 
 ```sh
-gh workflow run Governance --ref main -f task=production-data-maintenance
+gh workflow run Governance --ref main -f task=production-data-maintenance \
+  -f alternatives_batch_size=10
 ```
 
 The task refreshes projects reported as stale, rebuilds alternatives in bounded
 batches, then runs the production quality and smoke checks. It receives
 `SYNC_SECRET` from the repository Actions secret and does not print the value.
+If a transient platform error interrupts alternatives after a completed batch,
+resume from the next reported offset instead of rebuilding earlier batches:
+
+```sh
+gh workflow run Governance --ref main -f task=production-data-maintenance \
+  -f alternatives_start_offset=260 -f alternatives_batch_size=10
+```
 
 ## Deploy
 

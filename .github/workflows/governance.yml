@@ -14,6 +14,16 @@ on:
           - weekly-data-governance
           - biweekly-live-check
           - monthly-corpus-review
+      alternatives_start_offset:
+        description: "Project offset for resuming production alternatives maintenance."
+        required: false
+        default: "0"
+        type: string
+      alternatives_batch_size:
+        description: "Projects per alternatives request; keep at or below 25."
+        required: false
+        default: "10"
+        type: string
 
 jobs:
   select-task:
@@ -53,4 +63,6 @@ jobs:
           GOVERNANCE_RECORD_SECRET: ${{ secrets.SYNC_SECRET }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
           GITHUB_TOKEN: ${{ github.token }}
+          GIT_TOP_ALTERNATIVES_START_OFFSET: ${{ inputs.alternatives_start_offset }}
+          GIT_TOP_ALTERNATIVES_BATCH_SIZE: ${{ inputs.alternatives_batch_size }}
         run: node scripts/run-governance-task.mjs "${{ needs.select-task.outputs.task }}"
