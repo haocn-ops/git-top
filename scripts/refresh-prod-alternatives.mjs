@@ -12,6 +12,7 @@ const timeoutMs = positiveInteger(process.env.GIT_TOP_SYNC_TIMEOUT_MS ?? 120_000
 const maxRetries = positiveInteger(process.env.GIT_TOP_SYNC_MAX_RETRIES ?? 6, "max retries");
 const batchDelayMs = positiveInteger(process.env.GIT_TOP_ALTERNATIVES_DELAY_MS ?? 3_000, "batch delay");
 const startOffset = nonNegativeInteger(process.env.GIT_TOP_ALTERNATIVES_START_OFFSET ?? 0, "start offset");
+const maxBatches = nonNegativeInteger(process.env.GIT_TOP_ALTERNATIVES_MAX_BATCHES ?? 0, "max batches");
 
 if (!syncSecret) {
   throw new Error("SYNC_SECRET is required.");
@@ -24,7 +25,8 @@ if (!Number.isInteger(projectCount) || projectCount <= 0) {
 }
 
 const batches = [];
-for (let offset = startOffset; offset < projectCount; offset += batchSize) {
+const endOffset = maxBatches === 0 ? projectCount : Math.min(projectCount, startOffset + batchSize * maxBatches);
+for (let offset = startOffset; offset < endOffset; offset += batchSize) {
   const recordRun = offset + batchSize >= projectCount;
   const result = await requestJsonWithRetry(
     `/api/admin/alternatives?offset=${offset}&limit=${batchSize}&record_run=${recordRun}`,
@@ -45,7 +47,25 @@ for (let offset = startOffset; offset < projectCount; offset += batchSize) {
   }
 }
 
-console.log(JSON.stringify({ baseUrls, projectCount, startOffset, batchSize, batchDelayMs, batches }, null, 2));
+const nextStartOffset = batches.at(-1)?.nextOffset ?? startOffset;
+console.log(
+  JSON.stringify(
+    {
+      baseUrls,
+      projectCount,
+      startOffset,
+      endOffset,
+      nextStartOffset,
+      complete: nextStartOffset >= projectCount,
+      batchSize,
+      maxBatches,
+      batchDelayMs,
+      batches
+    },
+    null,
+    2
+  )
+);
 
 async function requestJsonWithRetry(path, init) {
   let lastError;

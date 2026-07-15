@@ -24,6 +24,11 @@ on:
         required: false
         default: "10"
         type: string
+      alternatives_max_batches:
+        description: "Maximum alternatives batches in this run; 0 means all remaining batches."
+        required: false
+        default: "0"
+        type: string
 
 jobs:
   select-task:
@@ -65,4 +70,5 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           GIT_TOP_ALTERNATIVES_START_OFFSET: ${{ inputs.alternatives_start_offset }}
           GIT_TOP_ALTERNATIVES_BATCH_SIZE: ${{ inputs.alternatives_batch_size }}
+          GIT_TOP_ALTERNATIVES_MAX_BATCHES: ${{ inputs.alternatives_max_batches }}
         run: node scripts/run-governance-task.mjs "${{ needs.select-task.outputs.task }}"
