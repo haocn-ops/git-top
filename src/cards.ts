@@ -9,7 +9,7 @@ export function generateAgentCard(repo: GithubRepository, signals: GithubRepoSig
   return {
     projectId: repo.full_name,
     projectKind,
-    ...(projectKind === "collection" ? { collectionMetadata: buildCollectionMetadata(repo, signals) } : {}),
+    ...(projectKind === "collection" ? { collectionMetadata: buildCollectionMetadata(repo, signals, now) } : {}),
     category,
     difficulty,
     deployment,
@@ -115,14 +115,14 @@ function detectProjectKind(repo: GithubRepository, signals: GithubRepoSignals): 
   return "project";
 }
 
-function buildCollectionMetadata(repo: GithubRepository, signals: GithubRepoSignals): CollectionMetadata {
+function buildCollectionMetadata(repo: GithubRepository, signals: GithubRepoSignals, now: string): CollectionMetadata {
   const corpus = [repo.full_name, repo.name, repo.description, ...(repo.topics ?? []), signals.readmeText].join(" ").toLowerCase();
   const scope = collectionScope(corpus);
   return {
     scope,
     curated: hasAny(corpus, ["awesome", "curated", "cookbook", "course", "directory"]),
     estimatedItems: estimatedCollectionItems(corpus, scope),
-    freshness: collectionFreshness(signals)
+    freshness: collectionFreshness(repo, signals, now)
   };
 }
 
@@ -158,11 +158,17 @@ function estimatedCollectionItems(corpus: string, scope: CollectionMetadata["sco
   return corpus.includes("collection") ? 20 : null;
 }
 
-function collectionFreshness(signals: GithubRepoSignals): CollectionMetadata["freshness"] {
+export function collectionFreshness(repo: GithubRepository, signals: GithubRepoSignals, now: string): CollectionMetadata["freshness"] {
   if (signals.commits30d >= 10 || signals.releases180d > 0) {
     return "active";
   }
-  if (signals.commits30d === 0 && signals.releases180d === 0) {
+  const pushedAt = Date.parse(repo.pushed_at ?? "");
+  const nowAt = Date.parse(now);
+  const daysSincePush = Number.isFinite(pushedAt) && Number.isFinite(nowAt) ? Math.max(0, (nowAt - pushedAt) / 86_400_000) : null;
+  if (daysSincePush !== null && daysSincePush <= 90) {
+    return "active";
+  }
+  if (daysSincePush !== null && daysSincePush > 180 && signals.commits30d === 0 && signals.releases180d === 0) {
     return "stale";
   }
   return "unknown";

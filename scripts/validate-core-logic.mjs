@@ -878,14 +878,16 @@ async function testSyncPrioritySummary() {
   assert.equal(summary.staleCounts.warm, 1);
   assert.equal(summary.staleCounts.cold, 1);
   assert.equal(summary.policy.hotTargetDays, 2);
-  assert.equal(summary.capacity.scheduledDailyCapacity, 168);
+  assert.equal(summary.capacity.scheduledDailyCapacity, 191);
   assert.equal(summary.capacity.targetFeasible, true);
+  assert.equal(typeof summary.refreshDueCounts.hot, "number");
+  assert.ok(Array.isArray(summary.refreshDuePreview));
   assert.equal(typeof summary.staleRates.hot, "number");
   assert.equal(summary.oldestStaleDays, 59);
   assert.equal(summary.priorityPreview[0].projectId, "mock/hot-agent");
   assert.deepEqual(selectPriorityRepositoryIds([warm, cold, hot], ["mock/hot-agent", "mock/warm-runtime", "mock/cold-tool"], 2, now), [
     "mock/hot-agent",
-    "mock/warm-runtime"
+    "mock/cold-tool"
   ]);
 }
 

@@ -220,14 +220,16 @@ Healthy production should show:
 - `health` as `healthy` after a successful sync run.
 - `freshness` as `fresh` when a successful sync completed within the last 24 hours.
 - `derived.alternatives.freshness` as `fresh` when global alternatives were rebuilt within the last seven days.
-- `priority` with hot, warm, and cold stale queues; Cron consumes this queue before the seed cursor fallback.
+- `priority.refresh_due_counts` near zero and `priority.stale_counts` at zero; Cron consumes the due queue before seed cursor fallback.
 - `hours_since_successful_sync` low enough for the current operating window.
 - `cycle_complete` true after the seed list has been fully covered at least once.
 - `next_batch_wraps` true only when the next sync batch crosses the end of the seed list and wraps back to the beginning.
 - `last_failed_sync_at` empty or older than the latest successful run.
 - `last_error` empty unless the most recent sync failed.
 
-Cron sync intentionally uses lightweight signal collection and keeps an eight-repository hourly budget. Candidate discovery may use one slot and seven slots are reserved for priority refresh or seed cursor progress. Priority refresh includes every D1-backed project, not only the curated seed corpus. The policy exposes modeled demand, capacity, headroom, and tier stale rates through `/api/sync/status`; see [Production Freshness Optimization Plan](./PRODUCTION_FRESHNESS_OPTIMIZATION_PLAN_2026-07-14.md).
+Cron sync intentionally uses lightweight signal collection and keeps an eight-repository hourly budget. Candidate discovery runs at most once per day, only when there is no overdue backlog, fewer than seven due items, and at least one day of modeled capacity headroom. The other 23 hourly runs use all eight slots for priority refresh or seed cursor progress, providing 191 scheduled refresh slots per day. Hot projects target two days; warm and cold projects share the quality gate's seven-day freshness deadline. Projects enter the due queue six hours before their tier deadline so they are refreshed before quality marks them stale. Priority refresh includes every D1-backed project, not only the curated seed corpus. The policy exposes modeled demand, capacity, headroom, due queues, and tier stale rates through `/api/sync/status`; see [Production Freshness Optimization Plan](./PRODUCTION_FRESHNESS_OPTIMIZATION_PLAN_2026-07-14.md).
+
+GitHub Actions also runs `production-preventive-maintenance` daily at 00:25 UTC. It consumes up to 20 structured due items, advances four persisted alternatives batches, and fails if any project remains quality-stale. This is a compensation path for missed Worker cron windows, not a second full-corpus scheduler.
 
 Trigger a small protected sync when needed:
 

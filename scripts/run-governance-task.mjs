@@ -16,6 +16,9 @@ const taskDefinitions = {
       ["pnpm", "smoke:prod"]
     ]
   },
+  "production-preventive-maintenance": {
+    commands: [["pnpm", "maintenance:prod:preventive"]]
+  },
   "production-alternatives-segment": {
     commands: [["pnpm", "alternatives:prod:refresh"]]
   },

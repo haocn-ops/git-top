@@ -1,5 +1,5 @@
 import type { ProjectKnowledge } from "./types";
-import { scheduledRefreshLimit, scheduledRunsPerDay, syncTargetDays } from "./sync-policy";
+import { scheduledDailyRefreshCapacity, scheduledRefreshLimit, scheduledRunsPerDay, syncRefreshLeadHours, syncTargetDays } from "./sync-policy";
 
 export type SyncTier = "hot" | "warm" | "cold";
 
@@ -7,7 +7,10 @@ export interface SyncPriorityItem {
   projectId: string;
   tier: SyncTier;
   staleDays: number;
+  ageHours: number;
   targetIntervalDays: number;
+  refreshDue: boolean;
+  overdue: boolean;
   priorityScore: number;
   reasons: string[];
 }
@@ -21,6 +24,7 @@ export interface SyncPrioritySummary {
   };
   counts: Record<SyncTier, number>;
   staleCounts: Record<SyncTier, number>;
+  refreshDueCounts: Record<SyncTier, number>;
   staleRates: Record<SyncTier, number>;
   oldestStaleDays: number;
   capacity: {
@@ -33,6 +37,7 @@ export interface SyncPrioritySummary {
     targetFeasible: boolean;
   };
   priorityPreview: SyncPriorityItem[];
+  refreshDuePreview: SyncPriorityItem[];
 }
 
 const hotTargetDays = syncTargetDays.hot;
@@ -45,17 +50,21 @@ export function buildSyncPrioritySummary(projects: ProjectKnowledge[], nowIso = 
   const items = projects.map((project) => classifySyncPriority(project, nowIso));
   const counts = emptyTierCounts();
   const staleCounts = emptyTierCounts();
+  const refreshDueCounts = emptyTierCounts();
   let oldestStaleDays = 0;
 
   for (const item of items) {
     counts[item.tier] += 1;
-    if (item.staleDays > item.targetIntervalDays) {
+    if (item.refreshDue) {
+      refreshDueCounts[item.tier] += 1;
+    }
+    if (item.overdue) {
       staleCounts[item.tier] += 1;
       oldestStaleDays = Math.max(oldestStaleDays, item.staleDays);
     }
   }
 
-  const scheduledDailyCapacity = scheduledRunsPerDay * scheduledRefreshLimit;
+  const scheduledDailyCapacity = scheduledDailyRefreshCapacity;
   const requiredDailySyncs = Math.ceil(counts.hot / hotTargetDays + counts.warm / warmTargetDays + counts.cold / coldTargetDays);
 
   return {
@@ -67,6 +76,7 @@ export function buildSyncPrioritySummary(projects: ProjectKnowledge[], nowIso = 
     },
     counts,
     staleCounts,
+    refreshDueCounts,
     staleRates: {
       hot: rate(staleCounts.hot, counts.hot),
       warm: rate(staleCounts.warm, counts.warm),
@@ -83,8 +93,12 @@ export function buildSyncPrioritySummary(projects: ProjectKnowledge[], nowIso = 
       targetFeasible: requiredDailySyncs <= scheduledDailyCapacity
     },
     priorityPreview: items
-      .filter((item) => item.staleDays > item.targetIntervalDays)
+      .filter((item) => item.overdue)
       .sort((a, b) => b.priorityScore - a.priorityScore || b.staleDays - a.staleDays || a.projectId.localeCompare(b.projectId))
+      .slice(0, Math.max(1, Math.min(50, Math.trunc(limit)))),
+    refreshDuePreview: items
+      .filter((item) => item.refreshDue)
+      .sort((a, b) => b.priorityScore - a.priorityScore || b.ageHours - a.ageHours || a.projectId.localeCompare(b.projectId))
       .slice(0, Math.max(1, Math.min(50, Math.trunc(limit))))
   };
 }
@@ -102,7 +116,7 @@ export function selectPriorityRepositoryIds(
   const allowed = new Map(allowedRepositories.map((repo) => [repo.toLowerCase(), repo]));
   return projects
     .map((project) => classifySyncPriority(project, nowIso))
-    .filter((item) => item.staleDays > item.targetIntervalDays)
+    .filter((item) => item.refreshDue)
     .filter((item) => allowed.has(item.projectId.toLowerCase()))
     .sort((a, b) => b.priorityScore - a.priorityScore || b.staleDays - a.staleDays || a.projectId.localeCompare(b.projectId))
     .slice(0, Math.max(1, Math.min(50, Math.trunc(limit))))
@@ -112,8 +126,12 @@ export function selectPriorityRepositoryIds(
 export function classifySyncPriority(project: ProjectKnowledge, nowIso = new Date().toISOString()): SyncPriorityItem {
   const tier = tierForProject(project);
   const targetIntervalDays = targetDaysForTier(tier);
-  const staleDays = daysSince(project.project.syncedAt, nowIso);
-  const urgency = Math.max(0, staleDays - targetIntervalDays);
+  const ageHours = hoursSince(project.project.syncedAt, nowIso);
+  const staleDays = Math.floor(ageHours / 24);
+  const targetHours = targetIntervalDays * 24;
+  const refreshDue = ageHours >= Math.max(0, targetHours - syncRefreshLeadHours);
+  const overdue = ageHours > targetHours;
+  const urgency = Math.max(0, ageHours - targetHours) / 24;
   const priorityScore = urgency * tierWeight(tier) + activityBoost(project);
   const reasons = reasonsForProject(project, tier, staleDays, targetIntervalDays);
 
@@ -121,7 +139,10 @@ export function classifySyncPriority(project: ProjectKnowledge, nowIso = new Dat
     projectId: project.project.id,
     tier,
     staleDays,
+    ageHours,
     targetIntervalDays,
+    refreshDue,
+    overdue,
     priorityScore,
     reasons
   };
@@ -199,11 +220,11 @@ function rate(numerator: number, denominator: number): number {
   return denominator > 0 ? Number((numerator / denominator).toFixed(3)) : 0;
 }
 
-function daysSince(startIso: string, endIso: string): number {
+function hoursSince(startIso: string, endIso: string): number {
   const start = Date.parse(startIso);
   const end = Date.parse(endIso);
   if (!Number.isFinite(start) || !Number.isFinite(end)) {
     return 0;
   }
-  return Math.max(0, Math.floor((end - start) / 1000 / 60 / 60 / 24));
+  return Math.max(0, Math.floor((end - start) / 1000 / 60 / 60));
 }

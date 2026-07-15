@@ -1,6 +1,8 @@
 name: Governance
 
 on:
+  schedule:
+    - cron: "25 0 * * *"
   workflow_dispatch:
     inputs:
       task:
@@ -11,6 +13,7 @@ on:
         options:
           - daily-production-health
           - production-data-maintenance
+          - production-preventive-maintenance
           - production-alternatives-segment
           - weekly-data-governance
           - biweekly-live-check
@@ -31,6 +34,10 @@ on:
         default: "0"
         type: string
 
+concurrency:
+  group: git-top-governance-production
+  cancel-in-progress: false
+
 jobs:
   select-task:
     runs-on: ubuntu-latest
@@ -40,12 +47,13 @@ jobs:
       - id: task
         shell: bash
         run: |
-          task="${{ inputs.task }}"
+          task="${{ github.event_name == 'schedule' && 'production-preventive-maintenance' || inputs.task }}"
           echo "task=$task" >> "$GITHUB_OUTPUT"
 
   governance:
     needs: select-task
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v7

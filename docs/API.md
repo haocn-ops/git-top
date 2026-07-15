@@ -209,7 +209,7 @@ curl -X POST https://git.top/api/admin/governance/runs \
   -d '{"task":"daily-production-health","status":"success","trigger":"manual","summary":{"quality_score":100}}'
 ```
 
-The first Worker-native automated tasks are `daily-production-health`, `weekly-data-governance`, `biweekly-live-check`, and `monthly-corpus-review`.
+Worker-native tasks include `daily-production-health`, `weekly-data-governance`, `biweekly-live-check`, and `monthly-corpus-review`. GitHub Actions records the daily `production-preventive-maintenance` compensation task through the same governance history; operations reports it missing after 30 hours without a successful run.
 
 Derived data refreshes also record governance history. `derived:alternatives` is written by the protected alternatives refresh endpoint and is used by sync status and Trust Gate freshness checks.
 
@@ -651,7 +651,7 @@ curl -X POST http://localhost:8787/api/admin/sync \
   -d '{"repositories":["cloudflare/agents","modelcontextprotocol/servers"],"limit":2}'
 ```
 
-Cron sync uses lightweight collection with an eight-repository hourly budget. At most one slot is used for candidate discovery and seven slots are reserved for priority refresh or seed cursor progress. Priority refresh includes all D1-backed projects, including repositories admitted after the curated seed corpus was created, and skips inline derived alternatives refresh. Admin sync defaults to refreshing derived alternatives for backward compatibility; pass `refresh_derived:false` for catch-up runs that should only update raw GitHub-backed project metadata.
+Cron sync uses lightweight collection with an eight-repository hourly budget. Candidate discovery may use one slot in the daily UTC 00 window only when the refresh queue and modeled headroom are healthy; the other 23 runs can use all eight slots for priority refresh or seed cursor progress. Priority refresh includes all D1-backed projects, including repositories admitted after the curated seed corpus was created, and skips inline derived alternatives refresh. Admin sync defaults to refreshing derived alternatives for backward compatibility; pass `refresh_derived:false` for catch-up runs that should only update raw GitHub-backed project metadata.
 
 The response includes `github_request_metrics`, per-repository `repository_request_metrics`, `derived_refresh`, and structured `renamed` mappings. When GitHub resolves a requested repository to a different canonical `full_name`, sync writes the canonical project first, retires the obsolete project ID and dependent rows, marks its candidate record as renamed, and emits the normal deletion tombstone through the project change feed. After `migrations/0006_github_request_cache.sql` is applied, repeated syncs can send GitHub validators and reuse cached JSON for `304 Not Modified` responses.
 
@@ -737,6 +737,7 @@ Important sync status fields:
 - `last_failed_sync_at`
 - `last_error`
 - `priority.policy`: hot, warm, and cold target intervals.
+- `priority.refresh_due_counts` and `priority.refresh_due_preview`: projects inside the six-hour pre-expiry window or already overdue; automation consumes this queue before cursor fallback.
 - `priority.stale_counts` and `priority.stale_rates`: target compliance by tier.
 - `priority.capacity`: scheduled daily capacity, modeled demand, utilization, headroom, and `target_feasible`.
 - `priority.priority_preview`: the highest-priority stale projects across both seed and discovered D1 records.

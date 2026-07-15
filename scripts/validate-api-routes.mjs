@@ -1371,10 +1371,31 @@ async function testMethodAndBodyValidation() {
   assert.equal(invalidAlternativesBatch.status, 400);
   assert.equal(invalidAlternativesBatch.body.error.code, "invalid_alternatives_refresh_request");
 
+  const alternativesProgressUnauthorized = await request("/api/admin/alternatives/progress?limit=10", { method: "POST" });
+  assert.equal(alternativesProgressUnauthorized.status, 401);
+  assert.equal(alternativesProgressUnauthorized.body.error.code, "unauthorized");
+
+  const alternativesProgressInvalid = await request(
+    "/api/admin/alternatives/progress?limit=26",
+    { method: "POST", headers: { authorization: "Bearer test-secret" } },
+    alternativesEnv
+  );
+  assert.equal(alternativesProgressInvalid.status, 400);
+  assert.equal(alternativesProgressInvalid.body.error.code, "invalid_alternatives_progress_request");
+
+  const alternativesProgress = await request(
+    "/api/admin/alternatives/progress?limit=1",
+    { method: "POST", headers: { authorization: "Bearer test-secret" } },
+    alternativesEnv
+  );
+  assert.equal(alternativesProgress.status, 200);
+  assert.equal(alternativesProgress.body.batch.limit, 1);
+  assert.equal(typeof alternativesProgress.body.next_cursor, "number");
+
   const alternativesRuns = await request("/api/governance/runs?task=derived:alternatives", {}, alternativesEnv);
   assert.equal(alternativesRuns.status, 200);
-  assert.equal(alternativesRuns.body.runs.length, 1);
-  assert.equal(alternativesRuns.body.runs[0].task, "derived:alternatives");
+  assert.ok(alternativesRuns.body.runs.length >= 1);
+  assert.ok(alternativesRuns.body.runs.every((run) => run.task === "derived:alternatives"));
 
   const discoveryGet = await request("/api/admin/discovery");
   assert.equal(discoveryGet.status, 405);
@@ -1622,8 +1643,10 @@ async function testSyncStatusWithMockD1() {
   assert.equal(typeof healthy.body.priority.counts.hot, "number");
   assert.equal(typeof healthy.body.priority.stale_rates.hot, "number");
   assert.equal(typeof healthy.body.priority.capacity.required_daily_syncs, "number");
-  assert.equal(healthy.body.priority.capacity.scheduled_daily_capacity, 168);
+  assert.equal(healthy.body.priority.capacity.scheduled_daily_capacity, 191);
   assert.equal(typeof healthy.body.priority.capacity.target_feasible, "boolean");
+  assert.equal(typeof healthy.body.priority.refresh_due_counts.hot, "number");
+  assert.ok(Array.isArray(healthy.body.priority.refresh_due_preview));
   assert.ok(Array.isArray(healthy.body.priority.priority_preview));
   assert.equal(healthy.body.derived.alternatives.freshness, "fresh");
   assert.equal(healthy.body.derived.alternatives.last_run_status, "success");

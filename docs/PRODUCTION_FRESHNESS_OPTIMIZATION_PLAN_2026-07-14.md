@@ -32,9 +32,9 @@ Production snapshot inspected on 2026-07-14:
 
 - Run hourly.
 - Allow at most 8 lightweight project syncs per run.
-- Reserve at most 1 slot for candidate discovery.
-- Preserve at least 7 slots per run for priority refresh or cursor progress.
-- Treat 168 refreshes per day as the scheduled maintenance capacity.
+- Let candidate discovery use at most 1 slot in the daily UTC 00 window, and yield whenever refresh backlog or capacity pressure is present.
+- Use all 8 slots for priority refresh or cursor progress in the other 23 hourly runs.
+- Treat 191 refreshes per day as the scheduled maintenance capacity.
 
 The lightweight sync path uses approximately six GitHub requests per project. Eight projects plus one discovery search stays within the intended Worker external-request budget.
 
@@ -42,7 +42,7 @@ The lightweight sync path uses approximately six GitHub requests per project. Ei
 
 - Hot target: 2 days.
 - Warm target: 7 days.
-- Cold target: 30 days.
+- Cold target: 7 days, aligned with the quality freshness gate so cold projects cannot accumulate as quality-stale items.
 - Only snapshot-backed star growth may promote a project to hot.
 - Strategic categories contribute to priority but no longer make every project hot by themselves.
 - Discovered D1 projects participate in the same priority queue as seed projects.
@@ -89,8 +89,9 @@ Status: implemented in this change.
 
 Status: implemented in this change.
 
-- Limit scheduled candidate admission to one project per hour.
-- Give the remaining seven slots to refresh work.
+- Admit at most one scheduled candidate per day and skip discovery when refresh work needs the capacity.
+- Give refresh work all eight slots outside the daily discovery window.
+- Queue projects six hours before their tier deadline, and align warm and cold deadlines with the seven-day quality freshness gate.
 - Allow priority selection from every D1 project, including repositories admitted after the curated seed corpus was created.
 - Preserve one cursor slot so the curated corpus continues to make deterministic progress.
 

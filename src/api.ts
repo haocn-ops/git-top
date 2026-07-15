@@ -23,7 +23,7 @@ import {
 } from "./feedback-proposals";
 import { getSyncStatus } from "./db-sync-store";
 import { listClassificationOverrides, upsertClassificationOverride } from "./db-write-store";
-import { maxAlternativesRefreshBatchSize, refreshAlternativesDerivedData } from "./derived-refresh";
+import { maxAlternativesRefreshBatchSize, refreshAlternativesDerivedData, refreshAlternativesIncremental } from "./derived-refresh";
 import { defaultSeedRepositories } from "./github";
 import { buildAgentApiExamples } from "./examples";
 import { getGovernanceSummary, listGovernanceRuns, parseGovernanceRunInput, upsertGovernanceRun } from "./governance-store";
@@ -123,6 +123,27 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       });
     } catch (error) {
       return errorJson(500, "alternatives_refresh_failed", formatError(error));
+    }
+  }
+
+  if (path === "/api/admin/alternatives/progress") {
+    if (request.method !== "POST") {
+      return errorJson(405, "method_not_allowed", "Alternatives progress endpoint requires POST.");
+    }
+    if (!isAuthorizedAdmin(request, env)) {
+      return errorJson(401, "unauthorized", "Missing or invalid admin authorization.");
+    }
+    const limitValue = url.searchParams.get("limit");
+    const limit = limitValue === null ? undefined : Number(limitValue);
+    if (limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > maxAlternativesRefreshBatchSize)) {
+      return errorJson(400, "invalid_alternatives_progress_request", `limit must be an integer from 1 to ${maxAlternativesRefreshBatchSize}.`);
+    }
+    try {
+      return json(await refreshAlternativesIncremental(env, "admin", limit), {
+        headers: { "cache-control": "no-store" }
+      });
+    } catch (error) {
+      return errorJson(500, "alternatives_progress_failed", formatError(error));
     }
   }
 

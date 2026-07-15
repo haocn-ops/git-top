@@ -15,6 +15,12 @@ export const scheduledGovernanceDefinitions: ScheduledGovernanceDefinition[] = [
     missingAfterHours: 30
   },
   {
+    task: "production-preventive-maintenance",
+    cadence: "daily",
+    expectedIntervalHours: 24,
+    missingAfterHours: 30
+  },
+  {
     task: "weekly-data-governance",
     cadence: "weekly",
     expectedIntervalHours: 24 * 7,

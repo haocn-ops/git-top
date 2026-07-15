@@ -110,6 +110,7 @@ function renderHtml(health: HealthStatus, sync: SyncStatus): string {
             <div class="row"><strong>Next batch wraps</strong><span>${sync.nextBatchWraps ? "Yes" : "No"}</span></div>
             <div class="row"><strong>Next batch preview</strong><span>${escapeHtml(sync.nextBatch.slice(0, 5).join(", ") || "No queued repositories.")}</span></div>
             <div class="row"><strong>Refresh tiers</strong><span>${sync.priority ? `${sync.priority.counts.hot} hot, ${sync.priority.counts.warm} warm, ${sync.priority.counts.cold} cold.` : "Priority summary unavailable."}</span></div>
+            <div class="row"><strong>Refresh due</strong><span>${sync.priority ? `${sync.priority.refreshDueCounts.hot} hot, ${sync.priority.refreshDueCounts.warm} warm, ${sync.priority.refreshDueCounts.cold} cold; includes the pre-expiry lead window.` : "Priority summary unavailable."}</span></div>
             <div class="row"><strong>Stale by policy</strong><span>${sync.priority ? `${sync.priority.staleCounts.hot} hot, ${sync.priority.staleCounts.warm} warm, ${sync.priority.staleCounts.cold} cold; oldest ${sync.priority.oldestStaleDays}d.` : "Priority summary unavailable."}</span></div>
           </div>
         </article>
@@ -138,7 +139,7 @@ function renderHtml(health: HealthStatus, sync: SyncStatus): string {
           <p class="eyebrow">Refresh Priority</p>
           <h2>Hot, warm, and cold queues</h2>
           <div class="rows">
-            ${sync.priority?.priorityPreview.length ? sync.priority.priorityPreview.slice(0, 5).map(priorityRow).join("") : `<div class="row"><strong>No stale priority items</strong><span>All loaded projects are within the current refresh policy.</span></div>`}
+            ${sync.priority?.refreshDuePreview.length ? sync.priority.refreshDuePreview.slice(0, 5).map(priorityRow).join("") : `<div class="row"><strong>No refresh due items</strong><span>All loaded projects are outside the pre-expiry refresh window.</span></div>`}
           </div>
         </aside>
       </section>
@@ -167,8 +168,8 @@ function runRow(run: SyncStatus["recentRuns"][number]): string {
   return `<div class="row"><strong>${escapeHtml(run.trigger)} · ${escapeHtml(run.finishedAt)}</strong><span>${run.syncedCount} synced, ${run.failedCount} failed, ${run.alternativesUpdated} alternatives updated, ${run.durationMs}ms.</span></div>`;
 }
 
-function priorityRow(item: NonNullable<SyncStatus["priority"]>["priorityPreview"][number]): string {
-  return `<div class="row"><strong>${escapeHtml(item.projectId)} · ${escapeHtml(item.tier)}</strong><span>${item.staleDays}d stale, target ${item.targetIntervalDays}d. ${escapeHtml(item.reasons.join(", "))}</span></div>`;
+function priorityRow(item: NonNullable<SyncStatus["priority"]>["refreshDuePreview"][number]): string {
+  return `<div class="row"><strong>${escapeHtml(item.projectId)} · ${escapeHtml(item.tier)}</strong><span>${item.overdue ? "overdue" : "due soon"}; ${item.ageHours}h since sync, target ${item.targetIntervalDays}d. ${escapeHtml(item.reasons.join(", "))}</span></div>`;
 }
 
 function statusClass(status: string): string {

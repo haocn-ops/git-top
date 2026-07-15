@@ -125,7 +125,7 @@ export async function getSyncStatus(env: Env, seedRepositories: string[] = []): 
     indexedCount,
     seedSyncedCount,
     seedRepositories,
-    priority: buildSyncPrioritySummary(knowledge.projects),
+    priority: buildSyncPrioritySummary(knowledge.projects, new Date().toISOString(), 50),
     derivedRuns: [derivedRun, derivedProgressRun].filter((run): run is NonNullable<typeof run> => run !== null)
   });
 }
