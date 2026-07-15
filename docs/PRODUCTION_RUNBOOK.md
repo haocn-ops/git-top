@@ -105,13 +105,22 @@ resume from the next reported offset instead of rebuilding earlier batches:
 ```sh
 gh workflow run Governance --ref main -f task=production-data-maintenance \
   -f alternatives_start_offset=260 -f alternatives_batch_size=10 \
-  -f alternatives_max_batches=15
+  -f alternatives_max_batches=8
 ```
 
 Use the reported `nextStartOffset` for the next segment. A value of
 `complete=true` means the segment reached the current project count and recorded
 the derived alternatives governance run; partial segments do not record global
 freshness completion.
+
+For intermediate segments, use `task=production-alternatives-segment` so quality
+and smoke gates run only after the final `production-data-maintenance` segment:
+
+```sh
+gh workflow run Governance --ref main -f task=production-alternatives-segment \
+  -f alternatives_start_offset=340 -f alternatives_batch_size=10 \
+  -f alternatives_max_batches=8
+```
 
 ## Deploy
 

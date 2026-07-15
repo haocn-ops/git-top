@@ -11,9 +11,13 @@ const taskDefinitions = {
     commands: [
       ["pnpm", "sync:prod:stale"],
       ["pnpm", "alternatives:prod:refresh"],
+      ["node", "-e", "await new Promise(resolve => setTimeout(resolve, 15000))"],
       ["pnpm", "quality:check"],
       ["pnpm", "smoke:prod"]
     ]
+  },
+  "production-alternatives-segment": {
+    commands: [["pnpm", "alternatives:prod:refresh"]]
   },
   "weekly-data-governance": {
     commands: [

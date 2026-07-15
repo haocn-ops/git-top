@@ -11,6 +11,7 @@ on:
         options:
           - daily-production-health
           - production-data-maintenance
+          - production-alternatives-segment
           - weekly-data-governance
           - biweekly-live-check
           - monthly-corpus-review
