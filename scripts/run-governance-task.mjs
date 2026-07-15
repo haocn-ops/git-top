@@ -7,6 +7,14 @@ const taskDefinitions = {
   "daily-production-health": {
     commands: [["pnpm", "quality:check"], ["pnpm", "smoke:prod"], ["node", "-e", "fetch('https://git.top/api/sync/status').then(r=>{if(!r.ok)process.exit(1);return r.json()}).then(j=>{console.log(JSON.stringify({health:j.health,freshness:j.freshness,indexed_count:j.indexed_count,synced_count:j.synced_count,last_successful_sync_at:j.last_successful_sync_at},null,2)); if(j.health!=='healthy'||j.freshness!=='fresh') process.exit(1);})"]]
   },
+  "production-data-maintenance": {
+    commands: [
+      ["pnpm", "sync:prod:stale"],
+      ["pnpm", "alternatives:prod:refresh"],
+      ["pnpm", "quality:check"],
+      ["pnpm", "smoke:prod"]
+    ]
+  },
   "weekly-data-governance": {
     commands: [
       ["pnpm", "seed:validate"],

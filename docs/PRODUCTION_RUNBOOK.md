@@ -88,6 +88,17 @@ Refresh projects reported as `stale_sync` after the seed cursor cycle:
 SYNC_SECRET=... pnpm sync:prod:stale
 ```
 
+When the secret is stored only in GitHub Actions, run both maintenance passes and
+their production gates through the manual Governance workflow:
+
+```sh
+gh workflow run Governance --ref main -f task=production-data-maintenance
+```
+
+The task refreshes projects reported as stale, rebuilds alternatives in bounded
+batches, then runs the production quality and smoke checks. It receives
+`SYNC_SECRET` from the repository Actions secret and does not print the value.
+
 ## Deploy
 
 ```sh

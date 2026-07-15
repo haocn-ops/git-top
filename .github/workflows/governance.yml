@@ -10,6 +10,7 @@ on:
         type: choice
         options:
           - daily-production-health
+          - production-data-maintenance
           - weekly-data-governance
           - biweekly-live-check
           - monthly-corpus-review
@@ -50,5 +51,6 @@ jobs:
       - name: Run governance task
         env:
           GOVERNANCE_RECORD_SECRET: ${{ secrets.SYNC_SECRET }}
+          SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
           GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/run-governance-task.mjs "${{ needs.select-task.outputs.task }}"
