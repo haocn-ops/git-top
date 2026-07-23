@@ -93,7 +93,7 @@ export function syncHealth(runs: SyncRun[]): "healthy" | "degraded" | "unknown" 
   }
 
   const latest = runs[0];
-  if (latest.syncedCount > 0 && latest.failedCount === 0) {
+  if (latest.failedCount === 0) {
     return "healthy";
   }
   return "degraded";

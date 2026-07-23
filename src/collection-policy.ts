@@ -1,11 +1,6 @@
 import type { ProjectKnowledge } from "./types";
 
 const reviewedCollectionPolicies: Record<string, { reviewedAt: string; use: string; corpus?: "seed" | "discovery" }> = {
-  "arabicapp/everything-claude-code": {
-    reviewedAt: "2026-07-12",
-    use: "Claude Code resource collection retained for agent workflow and configuration discovery.",
-    corpus: "discovery"
-  },
   "anthropics/claude-cookbooks": {
     reviewedAt: "2026-06-23",
     use: "Cookbook collection retained for implementation patterns and examples."

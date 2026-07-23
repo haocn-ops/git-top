@@ -1,14 +1,25 @@
 import { rowToSyncRun, type SyncRunRow } from "./db-mapping";
 import { seedProjects } from "./seed";
-import { listProjectKnowledgeWithMeta } from "./knowledge-source";
-import { buildSyncPrioritySummary } from "./sync-priority";
+import { buildSyncPrioritySummary, type SyncPriorityProject } from "./sync-priority";
 import { buildSyncStatus, type SyncStatus } from "./sync-status";
 import { getLatestGovernanceRun, listGovernanceRuns } from "./governance-store";
-import type { Env, SyncRun } from "./types";
+import type { Env, ProjectMetrics, SyncRun } from "./types";
 
 export interface StarDeltaSnapshot {
   delta: number;
   windowDays: number;
+}
+
+export interface SyncStatusOptions {
+  priorityProjects?: SyncPriorityProject[];
+  priorityProjectsAreSynced?: boolean;
+  recentRunLimit?: number;
+  priorityPreviewLimit?: number;
+}
+
+interface SyncPriorityProjectLoad {
+  priorityProjects: SyncPriorityProject[];
+  syncedProjects: SyncPriorityProject[];
 }
 
 export async function getSyncCursor(env: Env): Promise<number> {
@@ -109,13 +120,20 @@ export async function listSyncRuns(env: Env, limit = 10): Promise<SyncRun[]> {
   }
 }
 
-export async function getSyncStatus(env: Env, seedRepositories: string[] = []): Promise<SyncStatus> {
-  const [cursor, recentRuns, indexedCount, seedSyncedCount, knowledge, derivedRun, derivedProgressRun] = await Promise.all([
+export async function getSyncStatus(env: Env, seedRepositories: string[] = [], options: SyncStatusOptions = {}): Promise<SyncStatus> {
+  const recentRunLimit = boundedLimit(options.recentRunLimit, 5, 10);
+  const priorityPreviewLimit = boundedLimit(options.priorityPreviewLimit, 5, 50);
+  const priorityProjectsPromise: Promise<SyncPriorityProjectLoad> = options.priorityProjects
+    ? Promise.resolve({
+        priorityProjects: options.priorityProjects,
+        syncedProjects: options.priorityProjectsAreSynced === false ? [] : options.priorityProjects
+      })
+    : loadSyncPriorityProjects(env);
+  const [cursor, recentRuns, indexedCount, priorityLoad, derivedRun, derivedProgressRun] = await Promise.all([
     getSyncCursor(env),
-    listSyncRuns(env, 10),
+    listSyncRuns(env, recentRunLimit),
     getSyncedProjectCount(env),
-    getSyncedSeedProjectCount(env, seedRepositories),
-    listProjectKnowledgeWithMeta(env),
+    priorityProjectsPromise,
     getLatestGovernanceRun(env, "derived:alternatives"),
     getLatestGovernanceRun(env, "derived:alternatives-progress")
   ]);
@@ -123,9 +141,9 @@ export async function getSyncStatus(env: Env, seedRepositories: string[] = []): 
     cursor,
     recentRuns,
     indexedCount,
-    seedSyncedCount,
+    seedSyncedCount: countSyncedSeedProjects(priorityLoad.syncedProjects, seedRepositories),
     seedRepositories,
-    priority: buildSyncPrioritySummary(knowledge.projects, new Date().toISOString(), 50),
+    priority: buildSyncPrioritySummary(priorityLoad.priorityProjects, new Date().toISOString(), priorityPreviewLimit),
     derivedRuns: [derivedRun, derivedProgressRun].filter((run): run is NonNullable<typeof run> => run !== null)
   });
 }
@@ -189,41 +207,134 @@ export async function getStarsDeltaSnapshot(
   }
 }
 
-async function getSyncedSeedProjectCount(env: Env, seedRepositories: string[]): Promise<number> {
-  if (seedRepositories.length === 0) {
-    return 0;
-  }
+async function loadSyncPriorityProjects(env: Env): Promise<SyncPriorityProjectLoad> {
   if (!env.DB) {
-    return Math.min(seedProjects.length, seedRepositories.length);
+    return {
+      priorityProjects: seedProjects,
+      syncedProjects: seedProjects
+    };
   }
 
+  const enrichedSelect = `SELECT
+    p.id,
+    p.stars,
+    p.synced_at,
+    COALESCE(co.category, ac.category) AS category,
+    COALESCE(co.cloudflare_ready, ac.cloudflare_ready) AS cloudflare_ready,
+    pm.stars_30d_delta,
+    pm.git_score,
+    pm.signal_confidence_json
+    FROM projects p
+    JOIN agent_cards ac ON ac.project_id = p.id
+    JOIN project_metrics pm ON pm.project_id = p.id
+    LEFT JOIN classification_overrides co ON co.project_id = p.id`;
+  const legacySelect = `SELECT
+    p.id,
+    p.stars,
+    p.synced_at,
+    ac.category,
+    ac.cloudflare_ready,
+    pm.stars_30d_delta,
+    pm.git_score,
+    '{}' AS signal_confidence_json
+    FROM projects p
+    JOIN agent_cards ac ON ac.project_id = p.id
+    JOIN project_metrics pm ON pm.project_id = p.id`;
+
   try {
-    let count = 0;
-    const uniqueRepositories = Array.from(new Set(seedRepositories.map((repo) => repo.trim()).filter(Boolean)));
-    for (const chunk of chunkArray(uniqueRepositories, 40)) {
-      const placeholders = chunk.map(() => "?").join(", ");
-      const row = await env.DB.prepare(
-        `SELECT COUNT(*) AS count
-         FROM projects
-         WHERE lower(id) IN (${placeholders})
-            OR lower(full_name) IN (${placeholders})`
-      )
-        .bind(...chunk.map((repo) => repo.toLowerCase()), ...chunk.map((repo) => repo.toLowerCase()))
-        .first<{ count: number }>();
-      count += row?.count ?? 0;
+    const rows = await env.DB.prepare(enrichedSelect).all<Record<string, unknown>>();
+    return priorityProjectLoad(rows.results);
+  } catch (error) {
+    if (isMissingPriorityOptionalData(error)) {
+      try {
+        const rows = await env.DB.prepare(legacySelect).all<Record<string, unknown>>();
+        return priorityProjectLoad(rows.results);
+      } catch {
+        return seedPriorityFallback();
+      }
     }
-    return Math.min(count, uniqueRepositories.length);
-  } catch {
-    return 0;
+    return seedPriorityFallback();
   }
 }
 
-function chunkArray<T>(items: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let index = 0; index < items.length; index += size) {
-    chunks.push(items.slice(index, index + size));
+function priorityProjectLoad(rows: Record<string, unknown>[] | undefined): SyncPriorityProjectLoad {
+  if (!rows || rows.length === 0) {
+    return seedPriorityFallback();
   }
-  return chunks;
+  const projects = rows.map(rowToSyncPriorityProject);
+  return {
+    priorityProjects: projects,
+    syncedProjects: projects
+  };
+}
+
+function seedPriorityFallback(): SyncPriorityProjectLoad {
+  return {
+    priorityProjects: seedProjects,
+    syncedProjects: []
+  };
+}
+
+function rowToSyncPriorityProject(row: Record<string, unknown>): SyncPriorityProject {
+  return {
+    project: {
+      id: stringValue(row.id),
+      stars: numberValue(row.stars),
+      syncedAt: stringValue(row.synced_at)
+    },
+    agentCard: {
+      category: stringValue(row.category) as SyncPriorityProject["agentCard"]["category"],
+      cloudflareReady: row.cloudflare_ready === true || row.cloudflare_ready === 1
+    },
+    metrics: {
+      stars30dDelta: numberValue(row.stars_30d_delta),
+      gitScore: numberValue(row.git_score),
+      signalConfidence: parseSignalConfidence(row.signal_confidence_json)
+    }
+  };
+}
+
+function countSyncedSeedProjects(projects: SyncPriorityProject[], seedRepositories: string[]): number {
+  const seedIds = new Set(seedRepositories.map((repository) => repository.trim().toLowerCase()).filter(Boolean));
+  if (seedIds.size === 0) {
+    return 0;
+  }
+  return Math.min(
+    seedIds.size,
+    projects.reduce((count, project) => count + (seedIds.has(project.project.id.toLowerCase()) ? 1 : 0), 0)
+  );
+}
+
+function parseSignalConfidence(value: unknown): ProjectMetrics["signalConfidence"] | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(value) as ProjectMetrics["signalConfidence"];
+    return parsed && typeof parsed === "object" ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function numberValue(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function boundedLimit(value: number | undefined, fallback: number, maximum: number): number {
+  if (!Number.isFinite(value)) {
+    return fallback;
+  }
+  return Math.max(1, Math.min(maximum, Math.trunc(value!)));
+}
+
+function isMissingPriorityOptionalData(error: unknown): boolean {
+  return error instanceof Error && (error.message.includes("signal_confidence_json") || error.message.includes("classification_overrides"));
 }
 
 function daysBefore(isoDate: string, days: number): string {

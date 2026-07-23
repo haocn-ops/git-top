@@ -69,6 +69,18 @@ export interface GithubSignalOptions {
   includeIssueFirstResponse?: boolean;
 }
 
+export class GithubApiError extends Error {
+  readonly status: number;
+  readonly path: string;
+
+  constructor(status: number, path: string) {
+    super(`GitHub API ${status} for ${path}`);
+    this.name = "GithubApiError";
+    this.status = status;
+    this.path = path;
+  }
+}
+
 export class GithubClient {
   private readonly env: Env;
   private readonly metrics: GithubRequestMetrics = {
@@ -247,7 +259,7 @@ export class GithubClient {
       };
     }
     if (!response.ok) {
-      throw new Error(`GitHub API ${response.status} for ${path}`);
+      throw new GithubApiError(response.status, path);
     }
     if (cached) {
       this.metrics.revalidated += 1;

@@ -238,6 +238,29 @@ export async function retireRenamedProjectKnowledge(env: Env, requestedRepositor
   return true;
 }
 
+export async function retireUnavailableProjectKnowledge(env: Env, repository: string, reason: string): Promise<void> {
+  if (!env.DB) {
+    throw new Error("D1 binding DB is required to retire unavailable project knowledge.");
+  }
+
+  const projectId = repository.trim();
+  if (!projectId) {
+    return;
+  }
+
+  const retiredAt = new Date().toISOString().slice(0, 10);
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM star_snapshots WHERE lower(project_id) = lower(?)").bind(projectId),
+    env.DB.prepare("DELETE FROM classification_overrides WHERE lower(project_id) = lower(?)").bind(projectId),
+    env.DB.prepare("DELETE FROM project_metrics WHERE lower(project_id) = lower(?)").bind(projectId),
+    env.DB.prepare("DELETE FROM agent_cards WHERE lower(project_id) = lower(?)").bind(projectId),
+    env.DB.prepare("DELETE FROM projects WHERE lower(id) = lower(?)").bind(projectId),
+    env.DB
+      .prepare("UPDATE candidate_repositories SET status = 'unavailable', last_error = ? WHERE lower(repository) = lower(?)")
+      .bind(`Repository unavailable during sync on ${retiredAt}: ${reason}`, projectId)
+  ]);
+}
+
 export async function updateProjectAlternatives(
   env: Env,
   updates: Array<{ projectId: string; alternatives: Alternative[] }>

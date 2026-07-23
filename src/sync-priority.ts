@@ -15,6 +15,12 @@ export interface SyncPriorityItem {
   reasons: string[];
 }
 
+export interface SyncPriorityProject {
+  project: Pick<ProjectKnowledge["project"], "id" | "syncedAt" | "stars">;
+  agentCard: Pick<ProjectKnowledge["agentCard"], "category" | "cloudflareReady">;
+  metrics: Pick<ProjectKnowledge["metrics"], "stars30dDelta" | "gitScore" | "signalConfidence">;
+}
+
 export interface SyncPrioritySummary {
   generatedAt: string;
   policy: {
@@ -46,7 +52,7 @@ const coldTargetDays = syncTargetDays.cold;
 
 const hotCategories = new Set(["agent_framework", "coding_agent", "browser_agent", "mcp_server", "rag_framework"]);
 
-export function buildSyncPrioritySummary(projects: ProjectKnowledge[], nowIso = new Date().toISOString(), limit = 10): SyncPrioritySummary {
+export function buildSyncPrioritySummary(projects: SyncPriorityProject[], nowIso = new Date().toISOString(), limit = 10): SyncPrioritySummary {
   const items = projects.map((project) => classifySyncPriority(project, nowIso));
   const counts = emptyTierCounts();
   const staleCounts = emptyTierCounts();
@@ -104,7 +110,7 @@ export function buildSyncPrioritySummary(projects: ProjectKnowledge[], nowIso = 
 }
 
 export function selectPriorityRepositoryIds(
-  projects: ProjectKnowledge[],
+  projects: SyncPriorityProject[],
   allowedRepositories: string[],
   limit: number,
   nowIso = new Date().toISOString()
@@ -123,7 +129,7 @@ export function selectPriorityRepositoryIds(
     .map((item) => allowed.get(item.projectId.toLowerCase())!);
 }
 
-export function classifySyncPriority(project: ProjectKnowledge, nowIso = new Date().toISOString()): SyncPriorityItem {
+export function classifySyncPriority(project: SyncPriorityProject, nowIso = new Date().toISOString()): SyncPriorityItem {
   const tier = tierForProject(project);
   const targetIntervalDays = targetDaysForTier(tier);
   const ageHours = hoursSince(project.project.syncedAt, nowIso);
@@ -148,7 +154,7 @@ export function classifySyncPriority(project: ProjectKnowledge, nowIso = new Dat
   };
 }
 
-function tierForProject(project: ProjectKnowledge): SyncTier {
+function tierForProject(project: SyncPriorityProject): SyncTier {
   const snapshotBackedGrowth = project.metrics.signalConfidence?.stars30dDelta === "snapshot";
   const reliableGrowth = snapshotBackedGrowth ? project.metrics.stars30dDelta : 0;
   const strategicCategory = hotCategories.has(project.agentCard.category);
@@ -190,11 +196,11 @@ function tierWeight(tier: SyncTier): number {
   return 5;
 }
 
-function activityBoost(project: ProjectKnowledge): number {
+function activityBoost(project: SyncPriorityProject): number {
   return Math.min(100, project.metrics.stars30dDelta) + Math.min(50, Math.floor(project.metrics.gitScore / 2));
 }
 
-function reasonsForProject(project: ProjectKnowledge, tier: SyncTier, staleDays: number, targetIntervalDays: number): string[] {
+function reasonsForProject(project: SyncPriorityProject, tier: SyncTier, staleDays: number, targetIntervalDays: number): string[] {
   const reasons = [`${tier} tier target ${targetIntervalDays}d`, `${staleDays}d since sync`];
   if (project.metrics.stars30dDelta > 0) {
     reasons.push(`${project.metrics.stars30dDelta} stars in window`);

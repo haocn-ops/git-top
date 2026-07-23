@@ -822,6 +822,7 @@ async function testGraphAndQualityRoutes() {
 
   const trust = await getJson("/api/trust");
   assert.equal(trust.status, 200);
+  assert.equal(trust.body.detail, "summary");
   assert.equal(trust.body.name, "Git.Top Trust Gate");
   assert.equal(trust.body.positioning, "The Knowledge Graph of Open Source");
   assert.ok(["allow", "caution", "block"].includes(trust.body.decision));
@@ -838,7 +839,17 @@ async function testGraphAndQualityRoutes() {
   assert.ok(trust.body.required_for_high_confidence.includes("sync_capacity_target_feasible=true"));
   assert.ok(trust.body.agent_policy.cite.includes("metadata.source"));
   assert.ok(trust.body.quality.release_score === quality.body.release_score);
+  assert.equal(trust.body.quality.issues, undefined);
   assertMetadata(trust.body.metadata, "db_missing");
+
+  const fullTrust = await getJson("/api/trust?detail=full");
+  assert.equal(fullTrust.status, 200);
+  assert.equal(fullTrust.body.detail, "full");
+  assert.ok(Array.isArray(fullTrust.body.quality.issues));
+
+  const invalidTrustDetail = await getJson("/api/trust?detail=verbose");
+  assert.equal(invalidTrustDetail.status, 400);
+  assert.equal(invalidTrustDetail.body.error.code, "invalid_detail");
 
   const postTrust = await request("/api/trust", { method: "POST" });
   assert.equal(postTrust.status, 405);
@@ -1627,6 +1638,7 @@ async function testSyncStatusWithMockD1() {
     })
   );
   assert.equal(healthy.status, 200);
+  assert.equal(healthy.body.detail, "summary");
   assert.equal(healthy.body.health, "healthy");
   assert.equal(healthy.body.freshness, "fresh");
   assert.equal(healthy.body.indexed_count, 1);
@@ -1648,9 +1660,19 @@ async function testSyncStatusWithMockD1() {
   assert.equal(typeof healthy.body.priority.refresh_due_counts.hot, "number");
   assert.ok(Array.isArray(healthy.body.priority.refresh_due_preview));
   assert.ok(Array.isArray(healthy.body.priority.priority_preview));
+  assert.ok(healthy.body.priority.refresh_due_preview.length <= 5);
+  assert.ok(healthy.body.priority.priority_preview.length <= 5);
   assert.equal(healthy.body.derived.alternatives.freshness, "fresh");
   assert.equal(healthy.body.derived.alternatives.last_run_status, "success");
   assert.ok(healthy.body.derived.alternatives.progress);
+
+  const full = await request("/api/sync/status?detail=full", {}, mockD1Env());
+  assert.equal(full.status, 200);
+  assert.equal(full.body.detail, "full");
+
+  const invalidDetail = await request("/api/sync/status?detail=verbose", {}, mockD1Env());
+  assert.equal(invalidDetail.status, 400);
+  assert.equal(invalidDetail.body.error.code, "invalid_detail");
 
   const degraded = await request(
     "/api/sync/status",

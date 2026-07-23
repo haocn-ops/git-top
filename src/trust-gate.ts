@@ -7,10 +7,17 @@ import type { SyncStatus } from "./sync-status";
 import type { Env } from "./types";
 
 export type TrustGateDecision = "allow" | "caution" | "block";
+export type TrustGateDetail = "summary" | "full";
+export type TrustGateQuality = Omit<QualityReport, "issues"> & { issues?: QualityReport["issues"] };
+
+export interface TrustGateOptions {
+  detail?: TrustGateDetail;
+}
 
 export interface TrustGateView {
   name: string;
   positioning: string;
+  detail: TrustGateDetail;
   decision: TrustGateDecision;
   summary: string;
   productionReady: boolean;
@@ -26,7 +33,7 @@ export interface TrustGateView {
   nextActions: Array<{ label: string; href: string; kind: string }>;
   health: HealthStatus;
   sync: SyncStatus;
-  quality: QualityReport;
+  quality: TrustGateQuality;
   metadata: {
     source: string;
     reason: string;
@@ -43,15 +50,28 @@ export interface TrustGateCheck {
   requirement: string;
 }
 
-export async function buildTrustGate(env: Env): Promise<TrustGateView> {
-  const [health, sync, knowledge] = await Promise.all([getHealth(env), getSyncStatus(env, defaultSeedRepositories), listProjectKnowledgeWithMeta(env)]);
-  const quality = buildQualityReport(knowledge.projects);
+export async function buildTrustGate(env: Env, options: TrustGateOptions = {}): Promise<TrustGateView> {
+  const detail = options.detail ?? "summary";
+  const healthPromise = getHealth(env);
+  const knowledge = await listProjectKnowledgeWithMeta(env);
+  const [health, sync] = await Promise.all([
+    healthPromise,
+    getSyncStatus(env, defaultSeedRepositories, {
+      priorityProjects: knowledge.projects,
+      priorityProjectsAreSynced: knowledge.metadata.source === "d1" || !env.DB,
+      recentRunLimit: detail === "full" ? 10 : 5,
+      priorityPreviewLimit: detail === "full" ? 50 : 5
+    })
+  ]);
+  const fullQuality = buildQualityReport(knowledge.projects);
+  const quality = detail === "full" ? fullQuality : summarizeQuality(fullQuality);
   const checks = buildChecks(health, sync, quality);
   const decision = gateDecision(checks);
 
   return {
     name: "Git.Top Trust Gate",
     positioning: "The Knowledge Graph of Open Source",
+    detail,
     decision,
     summary: summaryForDecision(decision, checks),
     productionReady: decision === "allow",
@@ -99,7 +119,7 @@ export async function renderTrustGatePage(env: Env): Promise<Response> {
   });
 }
 
-function buildChecks(health: HealthStatus, sync: SyncStatus, quality: QualityReport): TrustGateCheck[] {
+function buildChecks(health: HealthStatus, sync: SyncStatus, quality: TrustGateQuality): TrustGateCheck[] {
   return [
     {
       id: "d1-source",
@@ -146,6 +166,11 @@ function buildChecks(health: HealthStatus, sync: SyncStatus, quality: QualityRep
       requirement: "risk_level is not high"
     }
   ];
+}
+
+function summarizeQuality(quality: QualityReport): TrustGateQuality {
+  const { issues: _issues, ...summary } = quality;
+  return summary;
 }
 
 function corpusFreshnessCheck(sync: SyncStatus): TrustGateCheck {

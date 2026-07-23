@@ -42,7 +42,13 @@ for (let index = 0; index < repositories.length; index += syncBatchSize) {
     headers: adminHeaders({ "content-type": "application/json" }),
     body: JSON.stringify({ repositories: batch, limit: batch.length, signal_depth: "lite", refresh_derived: false })
   });
-  syncRuns.push({ repositories: batch, synced: result.synced ?? [], renamed: result.renamed ?? [], failed: result.failed ?? [] });
+  syncRuns.push({
+    repositories: batch,
+    synced: result.synced ?? [],
+    renamed: result.renamed ?? [],
+    unavailable: result.unavailable ?? [],
+    failed: result.failed ?? []
+  });
   failures.push(...(result.failed ?? []));
   if (index + syncBatchSize < repositories.length) {
     await delay(delayMs);

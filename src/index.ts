@@ -70,10 +70,10 @@ import { sendOperationsAlert } from "./operations-alert";
 import type { Env } from "./types";
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
-    const response = await routeRequest(request, env, url);
+    const response = await routeRequest(request, env, url, ctx);
     return withSiteHeaders(response, request);
   },
 
@@ -172,7 +172,7 @@ export async function runMaintenanceSteps(
   }
 }
 
-async function routeRequest(request: Request, env: Env, url: URL): Promise<Response> {
+async function routeRequest(request: Request, env: Env, url: URL, ctx?: ExecutionContext): Promise<Response> {
   const canonicalRedirect = canonicalHostRedirect(request, url);
   if (canonicalRedirect) {
     return canonicalRedirect;
@@ -442,7 +442,7 @@ async function routeRequest(request: Request, env: Env, url: URL): Promise<Respo
   }
 
   if (url.pathname.startsWith("/api/")) {
-    return handleApi(request, env);
+    return handleApi(request, env, ctx);
   }
 
   if (url.pathname === "/mcp") {

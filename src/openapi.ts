@@ -26,7 +26,8 @@ export const openApiDocument = {
     "/api/trust": {
       get: {
         summary: "Fetch the production-readiness Trust Gate for high-confidence agent recommendations.",
-        responses: { "200": jsonResponse("Trust Gate decision with checks, agent policy, health, sync, quality, and metadata", "#/components/schemas/TrustGateResponse", trustGateExample()) }
+        parameters: [queryParam("detail", "Response detail level: summary (default) omits quality issue rows; full includes them and larger sync previews")],
+        responses: { "200": jsonResponse("Trust Gate decision with checks, agent policy, health, sync, quality summary, and metadata", "#/components/schemas/TrustGateResponse", trustGateExample()) }
       }
     },
     "/api/agent-map": {
@@ -453,6 +454,7 @@ export const openApiDocument = {
     "/api/sync/status": {
       get: {
         summary: "Inspect sync cursor progress, freshness, health, and recent failures.",
+        parameters: [queryParam("detail", "Response detail level: summary (default) returns five queue items; full returns up to fifty")],
         responses: { "200": jsonResponse("Sync status", "#/components/schemas/SyncStatusResponse") }
       }
     },
@@ -730,10 +732,11 @@ export const openApiDocument = {
       TrustGateResponse: {
         type: "object",
         description: "Production-readiness gate for high-confidence agent recommendations.",
-        required: ["decision", "production_ready", "checks", "required_for_high_confidence", "agent_policy", "health", "sync", "quality", "metadata"],
+        required: ["detail", "decision", "production_ready", "checks", "required_for_high_confidence", "agent_policy", "health", "sync", "quality", "metadata"],
         properties: {
           name: { type: "string" },
           positioning: { type: "string" },
+          detail: { type: "string", enum: ["summary", "full"] },
           decision: { type: "string", enum: ["allow", "caution", "block"] },
           summary: { type: "string" },
           production_ready: { type: "boolean" },
@@ -1260,8 +1263,9 @@ export const openApiDocument = {
       },
       SyncStatusResponse: {
         type: "object",
-        required: ["health", "freshness", "priority"],
+        required: ["detail", "health", "freshness", "priority"],
         properties: {
+          detail: { type: "string", enum: ["summary", "full"] },
           health: { type: "string" },
           freshness: { type: "string" },
           cursor: { type: "object", additionalProperties: true },

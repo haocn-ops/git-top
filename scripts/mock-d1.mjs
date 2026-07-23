@@ -311,6 +311,10 @@ class MockStatement {
             row.status = "failed";
             row.last_error = this.bindings[0];
           }
+          if (this.sql.includes("status = 'unavailable'")) {
+            row.status = "unavailable";
+            row.last_error = this.bindings[0];
+          }
         }
       } else {
         const [repository, category, source, source_query, stars, pushed_at, description, status, admission_json, first_seen_at, last_seen_at] = this.bindings;

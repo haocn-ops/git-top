@@ -217,9 +217,12 @@ Derived data refreshes also record governance history. `derived:alternatives` is
 
 ```sh
 curl https://git.top/api/trust
+curl "https://git.top/api/trust?detail=full"
 ```
 
 Use the Trust Gate before high-confidence production recommendations. It combines health, recent scheduler activity, hot-corpus stale rate, modeled sync capacity, derived freshness, release score, data trust score, and risk level into one `decision`:
+
+The default `detail=summary` response keeps the gate lightweight by omitting `quality.issues` and limiting embedded sync previews. Use `detail=full` only when the caller needs the complete quality issue list and larger operator queues; `/api/quality` remains the canonical detailed quality surface.
 
 - `allow`: use Git.Top recommendations directly when endpoint responses are D1-backed.
 - `caution`: use Git.Top as decision support, but disclose the listed caveats.
@@ -653,7 +656,7 @@ curl -X POST http://localhost:8787/api/admin/sync \
 
 Cron sync uses lightweight collection with an eight-repository per-run budget and runs at minute 0 and 30 each hour. Every top-of-hour run may use one slot to discover and admit a new project and uses the other seven for priority refresh or seed cursor progress; half-hour runs use all eight slots for refresh. This provides up to 24 new admissions and 360 existing-project refreshes per day. Priority refresh includes all D1-backed projects, including repositories admitted after the curated seed corpus was created, and skips inline derived alternatives refresh. Raw sync preserves an existing card's alternatives until the incremental derived refresh replaces them, so metadata refreshes do not create a temporary missing-alternatives gap. Admin sync defaults to refreshing derived alternatives for backward compatibility; pass `refresh_derived:false` for catch-up runs that should only update raw GitHub-backed project metadata.
 
-The response includes `github_request_metrics`, per-repository `repository_request_metrics`, `derived_refresh`, and structured `renamed` mappings. When GitHub resolves a requested repository to a different canonical `full_name`, sync writes the canonical project first, retires the obsolete project ID and dependent rows, marks its candidate record as renamed, and emits the normal deletion tombstone through the project change feed. After `migrations/0006_github_request_cache.sql` is applied, repeated syncs can send GitHub validators and reuse cached JSON for `304 Not Modified` responses.
+The response includes `github_request_metrics`, per-repository `repository_request_metrics`, `derived_refresh`, structured `renamed` mappings, and `unavailable` retirement events. When GitHub resolves a requested repository to a different canonical `full_name`, sync writes the canonical project first, retires the obsolete project ID and dependent rows, marks its candidate record as renamed, and emits the normal deletion tombstone through the project change feed. When a discovery-backed project returns a repository-level GitHub `404`, sync similarly retires its obsolete knowledge, marks the candidate `unavailable`, and reports the handled event without degrading the run. Curated seed repositories continue to fail closed on `404` until the seed corpus is reviewed. After `migrations/0006_github_request_cache.sql` is applied, repeated syncs can send GitHub validators and reuse cached JSON for `304 Not Modified` responses.
 
 ## Admin Candidate Discovery
 
@@ -723,9 +726,12 @@ Overrides are persisted separately from generated Agent Cards so review decision
 
 ```sh
 curl http://localhost:8787/api/sync/status
+curl "http://localhost:8787/api/sync/status?detail=full"
 ```
 
 Use this to inspect cursor progress, recent sync runs, last error, and sync health.
+
+The default `detail=summary` response returns up to five recent runs and five items in each priority preview. Use `detail=full` for up to ten recent runs and fifty priority items. Aggregate counts, stale rates, capacity, freshness, provenance-relevant status, and derived freshness are identical in both modes.
 
 Important sync status fields:
 

@@ -1,9 +1,9 @@
 import { generateAgentCard } from "./cards";
 import { generateAlternatives } from "./alternatives";
 import { getSyncCursor, getStarsDeltaSnapshot, insertSyncRun, setSyncCursor } from "./db-sync-store";
-import { retireRenamedProjectKnowledge, updateProjectAlternatives, upsertProjectKnowledge } from "./db-write-store";
+import { retireRenamedProjectKnowledge, retireUnavailableProjectKnowledge, updateProjectAlternatives, upsertProjectKnowledge } from "./db-write-store";
 import { listProjectKnowledgeWithMeta } from "./knowledge-source";
-import { defaultSeedRepositories, GithubClient, type GithubRequestMetrics } from "./github";
+import { defaultSeedRepositories, GithubApiError, GithubClient, type GithubRequestMetrics } from "./github";
 import { calculateMetrics } from "./scoring";
 import { selectPriorityRepositoryIds } from "./sync-priority";
 import { scheduledSyncLimit } from "./sync-policy";
@@ -34,6 +34,7 @@ export interface SyncOptions {
 export interface SyncResult {
   synced: string[];
   renamed: Array<{ from: string; to: string }>;
+  unavailable: Array<{ repository: string; reason: "github_not_found" }>;
   alternativesUpdated: number;
   offset: number;
   nextOffset: number;
@@ -88,6 +89,7 @@ export async function syncGithubProjects(env: Env, options: SyncOptions = {}): P
   const result: SyncResult = {
     synced: [],
     renamed: [],
+    unavailable: [],
     alternativesUpdated: 0,
     offset,
     nextOffset: offset,
@@ -130,6 +132,21 @@ export async function syncGithubProjects(env: Env, options: SyncOptions = {}): P
       cursorAdvanceCount = countCursorProgress(cursorRepositories, cursorProgress);
     } catch (error) {
       result.repositoryRequestMetrics[repository] = deltaGithubMetrics(beforeMetrics, github.getRequestMetrics());
+      if (isRetirableRepositoryNotFound(error, repository)) {
+        try {
+          await retireUnavailableProjectKnowledge(env, repository, formatSyncError(error));
+          result.unavailable.push({ repository, reason: "github_not_found" });
+          cursorProgress.add(repository.toLowerCase());
+          cursorAdvanceCount = countCursorProgress(cursorRepositories, cursorProgress);
+          continue;
+        } catch (retirementError) {
+          result.failed.push({
+            repository,
+            error: `Unable to retire GitHub 404 project: ${formatSyncError(retirementError)}`
+          });
+          continue;
+        }
+      }
       const retryable = isRetryableSyncError(error);
       result.failed.push({
         repository,
@@ -333,4 +350,13 @@ function isRetryableSyncError(error: unknown): boolean {
     return true;
   }
   return /github api 5\d\d/.test(message);
+}
+
+function isRetirableRepositoryNotFound(error: unknown, repository: string): boolean {
+  return (
+    error instanceof GithubApiError &&
+    error.status === 404 &&
+    error.path === `/repos/${repository}` &&
+    !defaultSeedRepositories.some((seedRepository) => seedRepository.toLowerCase() === repository.toLowerCase())
+  );
 }

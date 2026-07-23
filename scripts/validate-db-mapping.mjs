@@ -224,6 +224,10 @@ async function testSyncStatusMapping() {
   assert.equal(overflowStatus.nextBatchWraps, false);
   assert.deepEqual(overflowStatus.nextBatch, [overflowKnowledge[0].project.id, "missing/seed-repo"]);
 
+  const emptyStatus = await getSyncStatus(mockD1Env("empty"), [mockD1ProjectId]);
+  assert.equal(emptyStatus.syncedCount, 0);
+  assert.ok(emptyStatus.priority && emptyStatus.priority.counts.hot + emptyStatus.priority.counts.warm + emptyStatus.priority.counts.cold > 0);
+
   assert.equal(await getSyncedProjectCount(mockD1Env()), 1);
 }
 

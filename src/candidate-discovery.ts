@@ -231,7 +231,7 @@ async function listExistingRepositories(env: Env): Promise<Set<string>> {
   for (const row of rows.results ?? []) {
     existing.add(String(row.repository).toLowerCase());
   }
-  const syncedCandidates = await env.DB!.prepare("SELECT lower(repository) AS repository FROM candidate_repositories WHERE status = 'synced'").all<{ repository: string }>().catch(() => ({ results: [] }));
+  const syncedCandidates = await env.DB!.prepare("SELECT lower(repository) AS repository FROM candidate_repositories WHERE status IN ('synced', 'unavailable')").all<{ repository: string }>().catch(() => ({ results: [] }));
   for (const row of syncedCandidates.results ?? []) {
     existing.add(String(row.repository).toLowerCase());
   }
@@ -262,7 +262,7 @@ async function upsertCandidateRepositories(
           stars = excluded.stars,
           pushed_at = excluded.pushed_at,
           description = excluded.description,
-          status = CASE WHEN candidate_repositories.status = 'synced' THEN candidate_repositories.status ELSE excluded.status END,
+          status = CASE WHEN candidate_repositories.status IN ('synced', 'unavailable') THEN candidate_repositories.status ELSE excluded.status END,
           admission_json = excluded.admission_json,
           last_seen_at = excluded.last_seen_at`
       ).bind(

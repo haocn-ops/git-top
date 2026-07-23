@@ -50,7 +50,7 @@ import { buildAgentWorkflow, type AgentWorkflowInput } from "./workflow";
 import type { AgentCard, Category, Deployment, Difficulty, Env } from "./types";
 import type { ProjectKnowledgeResult } from "./knowledge-source";
 
-export async function handleApi(request: Request, env: Env): Promise<Response> {
+export async function handleApi(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
 
@@ -463,11 +463,11 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     if (request.method !== "GET") {
       return errorJson(405, "method_not_allowed", "Trust gate endpoint supports GET.");
     }
-    return json(await buildTrustGate(env), {
-      headers: {
-        "cache-control": "no-store"
-      }
-    });
+    const detail = parseResponseDetail(url.searchParams.get("detail"));
+    if (!detail) {
+      return errorJson(400, "invalid_detail", "detail must be summary or full.");
+    }
+    return cachedStatusJson(request, detail, ctx, () => buildTrustGate(env, { detail }));
   }
 
   if (path === "/api/journeys") {
@@ -494,11 +494,17 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
   }
 
   if (path === "/api/sync/status") {
-    return json(await getSyncStatus(env, defaultSeedRepositories), {
-      headers: {
-        "cache-control": "no-store"
-      }
-    });
+    const detail = parseResponseDetail(url.searchParams.get("detail"));
+    if (!detail) {
+      return errorJson(400, "invalid_detail", "detail must be summary or full.");
+    }
+    return cachedStatusJson(request, detail, ctx, async () => ({
+      detail,
+      ...(await getSyncStatus(env, defaultSeedRepositories, {
+        recentRunLimit: detail === "full" ? 10 : 5,
+        priorityPreviewLimit: detail === "full" ? 50 : 5
+      }))
+    }));
   }
 
   if (path === "/api/changes") {
@@ -1791,6 +1797,42 @@ function optionalBoolean(
     return { ok: false, message: `${snakeKey} must be a boolean.` };
   }
   return { ok: true, value };
+}
+
+function parseResponseDetail(value: string | null): "summary" | "full" | null {
+  if (value === null || value === "" || value === "summary") {
+    return "summary";
+  }
+  return value === "full" ? "full" : null;
+}
+
+async function cachedStatusJson(
+  request: Request,
+  detail: "summary" | "full",
+  ctx: ExecutionContext | undefined,
+  load: () => Promise<unknown>
+): Promise<Response> {
+  const cacheControl = "public, max-age=30, s-maxage=60, stale-while-revalidate=300";
+  if (!ctx || typeof caches === "undefined") {
+    return json(await load(), { headers: { "cache-control": cacheControl } });
+  }
+
+  const cache = (caches as CacheStorage & { default: Cache }).default;
+  const cacheUrl = new URL(request.url);
+  cacheUrl.search = detail === "full" ? "?detail=full" : "";
+  const cacheKey = new Request(cacheUrl.toString(), { method: "GET" });
+  const cached = await cache.match(cacheKey);
+  if (cached) {
+    const response = new Response(cached.body, cached);
+    response.headers.set("cache-control", cacheControl);
+    response.headers.set("x-git-top-cache", "hit");
+    return response;
+  }
+
+  const response = json(await load(), { headers: { "cache-control": cacheControl } });
+  response.headers.set("x-git-top-cache", "miss");
+  ctx.waitUntil(cache.put(cacheKey, response.clone()).catch(() => undefined));
+  return response;
 }
 
 function formatError(error: unknown): string {
