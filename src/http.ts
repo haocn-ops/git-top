@@ -13,6 +13,10 @@ export function stringifyApiJson(data: unknown): string {
   return JSON.stringify(toApiShape(data), null, 2);
 }
 
+export function fromApiShape<T>(value: unknown): T {
+  return fromApiValue(value) as T;
+}
+
 export function rawJson(data: unknown, init: ResponseInit = {}): Response {
   const headers = new Headers(init.headers);
   headers.set("content-type", "application/json; charset=utf-8");
@@ -76,6 +80,23 @@ function toApiShape(value: unknown): unknown {
     output[toSnakeCase(key)] = toApiShape(nestedValue);
   }
   return output;
+}
+
+function fromApiValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(fromApiValue);
+  }
+
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, nestedValue]) => [
+      key.replace(/_([a-z0-9])/g, (_, character: string) => character.toUpperCase()),
+      fromApiValue(nestedValue)
+    ])
+  );
 }
 
 function toSnakeCase(value: string): string {

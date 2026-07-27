@@ -5,7 +5,14 @@ import type { Env } from "./types";
 export async function renderCoveragePage(env: Env): Promise<Response> {
   const knowledge = await listProjectKnowledgeWithMeta(env);
   const report = buildQualityReport(knowledge.projects);
-  return new Response(renderHtml(report, knowledge.metadata), {
+  return renderCoverageReportPage(report, knowledge.metadata);
+}
+
+export function renderCoverageReportPage(
+  report: QualityReport,
+  metadata: { source: string; reason: string; projectCount: number; generatedAt: string }
+): Response {
+  return new Response(renderHtml(report, metadata), {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "public, max-age=120"

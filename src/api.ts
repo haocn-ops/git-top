@@ -49,6 +49,8 @@ import { buildTrustGate } from "./trust-gate";
 import { buildAgentWorkflow, type AgentWorkflowInput } from "./workflow";
 import type { AgentCard, Category, Deployment, Difficulty, Env } from "./types";
 import type { ProjectKnowledgeResult } from "./knowledge-source";
+import { getProjectGraphKnowledge } from "./knowledge-source";
+import { cachedPublicResponse } from "./edge-cache";
 
 export async function handleApi(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
@@ -625,30 +627,32 @@ export async function handleApi(request: Request, env: Env, ctx?: ExecutionConte
 
   const graphOwnerRepoMatch = path.match(/^\/api\/graph\/([^/]+)\/([^/]+)$/);
   if (graphOwnerRepoMatch) {
-    const knowledge = await requireKnowledgeSource(request, env);
+    const id = `${decodeURIComponent(graphOwnerRepoMatch[1])}/${decodeURIComponent(graphOwnerRepoMatch[2])}`;
+    const limit = parseLimit(url.searchParams.get("limit")) ?? 24;
+    const knowledge = await requireProjectGraphKnowledge(request, env, id, limit);
     if (knowledge instanceof Response) {
       return knowledge;
     }
-    const id = `${decodeURIComponent(graphOwnerRepoMatch[1])}/${decodeURIComponent(graphOwnerRepoMatch[2])}`;
     return json({
-      ...buildKnowledgeGraph(knowledge.projects, id, parseLimit(url.searchParams.get("limit")) ?? 24),
+      ...buildKnowledgeGraph(knowledge.projects, id, limit),
       metadata: knowledge.metadata
     });
   }
 
   const graphShortMatch = path.match(/^\/api\/graph\/([^/]+)$/);
   if (graphShortMatch) {
-    const knowledge = await requireKnowledgeSource(request, env);
+    const id = decodeURIComponent(graphShortMatch[1]);
+    const limit = parseLimit(url.searchParams.get("limit")) ?? 24;
+    const knowledge = await requireProjectGraphKnowledge(request, env, id, limit);
     if (knowledge instanceof Response) {
       return knowledge;
     }
-    const id = decodeURIComponent(graphShortMatch[1]);
     const resolution = resolveProject(knowledge.projects, id);
     if (!resolution) {
       return errorJson(404, "project_not_found", `Project ${id} was not found.`);
     }
     return json({
-      ...buildKnowledgeGraph(knowledge.projects, resolution.resolvedId, parseLimit(url.searchParams.get("limit")) ?? 24),
+      ...buildKnowledgeGraph(knowledge.projects, resolution.resolvedId, limit),
       resolvedFrom: {
         requestedId: resolution.requestedId,
         resolvedId: resolution.resolvedId,
@@ -882,6 +886,23 @@ async function requireKnowledgeSource(request: Request, env: Env): Promise<Proje
   }
 
   return sourcePolicyError(policy.failure);
+}
+
+async function requireProjectGraphKnowledge(
+  request: Request,
+  env: Env,
+  id: string,
+  limit: number
+): Promise<ProjectKnowledgeResult | Response> {
+  const knowledge = await getProjectGraphKnowledge(env, id, Math.max(16, Math.min(64, limit * 2)));
+  if (!requiresD1(request) || knowledge.metadata.source === "d1") {
+    return knowledge;
+  }
+  return sourcePolicyError({
+    code: "d1_required",
+    message: `D1-backed knowledge is required, but current source is ${knowledge.metadata.source}.`,
+    metadata: knowledge.metadata
+  });
 }
 
 function sourcePolicyError(failure: { code: string; message: string; metadata: ProjectKnowledgeResult["metadata"] }): Response {
@@ -1812,27 +1833,13 @@ async function cachedStatusJson(
   ctx: ExecutionContext | undefined,
   load: () => Promise<unknown>
 ): Promise<Response> {
-  const cacheControl = "public, max-age=30, s-maxage=60, stale-while-revalidate=300";
-  if (!ctx || typeof caches === "undefined") {
-    return json(await load(), { headers: { "cache-control": cacheControl } });
-  }
-
-  const cache = (caches as CacheStorage & { default: Cache }).default;
   const cacheUrl = new URL(request.url);
   cacheUrl.search = detail === "full" ? "?detail=full" : "";
-  const cacheKey = new Request(cacheUrl.toString(), { method: "GET" });
-  const cached = await cache.match(cacheKey);
-  if (cached) {
-    const response = new Response(cached.body, cached);
-    response.headers.set("cache-control", cacheControl);
-    response.headers.set("x-git-top-cache", "hit");
-    return response;
-  }
-
-  const response = json(await load(), { headers: { "cache-control": cacheControl } });
-  response.headers.set("x-git-top-cache", "miss");
-  ctx.waitUntil(cache.put(cacheKey, response.clone()).catch(() => undefined));
-  return response;
+  return cachedPublicResponse(new Request(cacheUrl.toString()), ctx, async () => json(await load()), {
+    browserTtlSeconds: 30,
+    edgeTtlSeconds: 60,
+    staleWhileRevalidateSeconds: 300
+  });
 }
 
 function formatError(error: unknown): string {

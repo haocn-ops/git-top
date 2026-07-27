@@ -3,6 +3,10 @@ import type { Env } from "./types";
 
 export async function renderBenchmarkPage(env: Env): Promise<Response> {
   const report = await buildPublicBenchmarkReport(env);
+  return renderBenchmarkReportPage(report);
+}
+
+export function renderBenchmarkReportPage(report: PublicBenchmarkReport): Response {
   return new Response(renderHtml(report), {
     headers: {
       "content-type": "text/html; charset=utf-8",

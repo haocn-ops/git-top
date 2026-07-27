@@ -1,6 +1,6 @@
 import { listProjectKnowledgeWithMeta } from "./knowledge-source";
 import { alternativeAliasPaths, compareAliasPaths, graphAliasPaths, scoreAliasPaths } from "./project-aliases";
-import type { Env, ProjectKnowledge } from "./types";
+import type { Env } from "./types";
 
 const siteOrigin = "https://git.top";
 
@@ -1153,8 +1153,8 @@ function staticSitemapUrls(now: string): SitemapUrl[] {
 }
 
 async function projectSitemapUrls(env: Env): Promise<SitemapUrl[]> {
-  const knowledge = await listProjectKnowledgeWithMeta(env);
-  return knowledge.projects.map((item) => ({
+  const projects = await listSitemapProjects(env);
+  return projects.map((item) => ({
     path: projectPath(item),
     changefreq: "weekly",
     priority: projectPriority(item),
@@ -1162,26 +1162,76 @@ async function projectSitemapUrls(env: Env): Promise<SitemapUrl[]> {
   }));
 }
 
+interface SitemapProject {
+  owner: string;
+  name: string;
+  projectKind: string;
+  gitScore: number;
+  maintenanceScore: number;
+  pushedAt: string | null;
+  updatedAt: string;
+  syncedAt: string;
+}
+
+async function listSitemapProjects(env: Env): Promise<SitemapProject[]> {
+  if (env.DB) {
+    try {
+      const rows = await env.DB.prepare(
+        `SELECT p.owner, p.name, p.pushed_at, p.updated_at, p.synced_at,
+                ac.project_kind, pm.git_score, pm.maintenance_score
+         FROM projects p
+         JOIN agent_cards ac ON ac.project_id = p.id
+         JOIN project_metrics pm ON pm.project_id = p.id
+         ORDER BY p.id`
+      ).all<Record<string, unknown>>();
+      return (rows.results ?? []).map((row) => ({
+        owner: String(row.owner ?? ""),
+        name: String(row.name ?? ""),
+        projectKind: String(row.project_kind ?? "project"),
+        gitScore: Number(row.git_score ?? 0),
+        maintenanceScore: Number(row.maintenance_score ?? 0),
+        pushedAt: typeof row.pushed_at === "string" ? row.pushed_at : null,
+        updatedAt: String(row.updated_at ?? ""),
+        syncedAt: String(row.synced_at ?? "")
+      }));
+    } catch {
+      // Preserve seed and older-schema behavior when the compact projection is unavailable.
+    }
+  }
+
+  const knowledge = await listProjectKnowledgeWithMeta(env);
+  return knowledge.projects.map((item) => ({
+    owner: item.project.owner,
+    name: item.project.name,
+    projectKind: item.agentCard.projectKind ?? "project",
+    gitScore: item.metrics.gitScore,
+    maintenanceScore: item.metrics.maintenanceScore,
+    pushedAt: item.project.pushedAt,
+    updatedAt: item.project.updatedAt ?? "",
+    syncedAt: item.project.syncedAt
+  }));
+}
+
 function mergeSitemapUrls(urls: SitemapUrl[]): SitemapUrl[] {
   return Array.from(new Map(urls.map((url) => [url.path, url])).values());
 }
 
-function projectPath(item: ProjectKnowledge): string {
-  return `/projects/${encodeURIComponent(item.project.owner)}/${encodeURIComponent(item.project.name)}`;
+function projectPath(item: SitemapProject): string {
+  return `/projects/${encodeURIComponent(item.owner)}/${encodeURIComponent(item.name)}`;
 }
 
-function projectPriority(item: ProjectKnowledge): string {
-  if (item.agentCard.projectKind === "collection") {
+function projectPriority(item: SitemapProject): string {
+  if (item.projectKind === "collection") {
     return "0.7";
   }
-  if (item.metrics.gitScore >= 80 || item.metrics.maintenanceScore >= 80) {
+  if (item.gitScore >= 80 || item.maintenanceScore >= 80) {
     return "0.85";
   }
   return "0.8";
 }
 
-function projectLastModified(item: ProjectKnowledge): string {
-  const candidate = item.project.pushedAt ?? item.project.updatedAt ?? item.project.syncedAt;
+function projectLastModified(item: SitemapProject): string {
+  const candidate = item.pushedAt ?? item.updatedAt ?? item.syncedAt;
   return validIsoDate(candidate) ?? new Date().toISOString();
 }
 

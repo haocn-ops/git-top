@@ -1,10 +1,10 @@
 import { handleApi } from "./api";
 import { renderAtlasEcosystemPage, renderAtlasPage } from "./atlas-page";
 import { renderBadge, renderOgImage } from "./assets";
-import { renderBenchmarkPage } from "./benchmark-page";
+import { renderBenchmarkPage, renderBenchmarkReportPage } from "./benchmark-page";
 import { renderExplorer, renderGraph } from "./explorer";
 import { renderProjectGraphPage } from "./graph-page";
-import { errorJson } from "./http";
+import { errorJson, fromApiShape } from "./http";
 import { renderExamplesPage } from "./examples";
 import { renderIntegrationsPage } from "./integrations-page";
 import { renderJourneysPage } from "./journeys-page";
@@ -21,10 +21,10 @@ import {
 import { handleMcp } from "./mcp";
 import { openApiDocument } from "./openapi";
 import { renderOperationsPage } from "./operations-page";
-import { renderCoveragePage } from "./coverage-page";
+import { renderCoveragePage, renderCoverageReportPage } from "./coverage-page";
 import { renderProjectPage } from "./project-page";
-import { renderQualityPage } from "./quality-page";
-import { renderQualityReviewPage } from "./quality-review-page";
+import { renderQualityPage, renderQualityReportPage } from "./quality-page";
+import { renderQualityReviewPage, renderQualityReviewReportPage } from "./quality-review-page";
 import { renderQuickstartPage } from "./quickstart";
 import { renderRecipesPage } from "./recipes";
 import { renderRecommendPage } from "./recommend-page";
@@ -32,8 +32,9 @@ import { renderRoadmapPage } from "./roadmap";
 import { renderProjectScorePage } from "./score-page";
 import { renderStatusPage } from "./status-page";
 import { renderTrendsPage } from "./trends-page";
-import { renderTrustGatePage } from "./trust-gate";
+import { renderTrustGatePage, renderTrustGateViewPage, type TrustGateView } from "./trust-gate";
 import { renderWorkflowPage } from "./workflow-page";
+import { cachedPublicResponse, matchCachedPublicJson } from "./edge-cache";
 import { discoverAndSyncCandidateProjects } from "./candidate-discovery";
 import {
   canonicalHostRedirect,
@@ -68,12 +69,15 @@ import { pruneOperationalData } from "./storage-maintenance";
 import { refreshAlternativesIncremental } from "./derived-refresh";
 import { sendOperationsAlert } from "./operations-alert";
 import type { Env } from "./types";
+import type { PublicBenchmarkReport } from "./benchmark";
+import type { LowConfidenceReviewReport, QualityReport } from "./quality";
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
-
-    const response = await routeRequest(request, env, url, ctx);
+    const response = isEdgeCacheableRequest(request, url)
+      ? await cachedPublicResponse(request, ctx, () => routeRequest(request, env, url, ctx))
+      : await routeRequest(request, env, url, ctx);
     return withSiteHeaders(response, request);
   },
 
@@ -82,6 +86,17 @@ export default {
     ctx.waitUntil(runScheduledMaintenance(env, Number.isFinite(scheduledAt.getTime()) ? scheduledAt : new Date()));
   }
 };
+
+const edgeCacheablePaths = [
+  /^\/sitemap\.xml$/,
+  /^\/api\/(?:search|quality(?:\/review)?|benchmark|journeys|trending|trends|recommend|compare|workflow|projects)$/,
+  /^\/api\/(?:atlas|graph|alternatives|score|project)(?:\/|$)/,
+  /^\/(?:projects|graph|atlas|quality|trust|benchmark|journeys|compare|recommend|workflow|alternatives|score|trends|coverage)(?:\/|$)/
+];
+
+function isEdgeCacheableRequest(request: Request, url: URL): boolean {
+  return request.method === "GET" && edgeCacheablePaths.some((pattern) => pattern.test(url.pathname));
+}
 
 async function runScheduledMaintenance(env: Env, now = new Date()): Promise<void> {
   let planningReady = false;
@@ -172,6 +187,43 @@ export async function runMaintenanceSteps(
   }
 }
 
+interface CachedPageMetadata {
+  source: string;
+  reason: string;
+  projectCount: number;
+  generatedAt: string;
+}
+
+async function renderCachedQualityPage(env: Env): Promise<Response> {
+  const cached = await cachedQualityPayload();
+  return cached ? renderQualityReportPage(cached.report, cached.metadata) : renderQualityPage(env);
+}
+
+async function renderCachedCoveragePage(env: Env): Promise<Response> {
+  const cached = await cachedQualityPayload();
+  return cached ? renderCoverageReportPage(cached.report, cached.metadata) : renderCoveragePage(env);
+}
+
+async function renderCachedQualityReviewPage(env: Env): Promise<Response> {
+  const cached = await matchCachedPublicJson<unknown>("/api/quality/review");
+  if (!cached) {
+    return renderQualityReviewPage(env);
+  }
+  const payload = fromApiShape<LowConfidenceReviewReport & { metadata: CachedPageMetadata }>(cached);
+  const { metadata, ...report } = payload;
+  return renderQualityReviewReportPage(report, metadata);
+}
+
+async function cachedQualityPayload(): Promise<{ report: QualityReport; metadata: CachedPageMetadata } | null> {
+  const cached = await matchCachedPublicJson<unknown>("/api/quality");
+  if (!cached) {
+    return null;
+  }
+  const payload = fromApiShape<QualityReport & { metadata: CachedPageMetadata }>(cached);
+  const { metadata, ...report } = payload;
+  return { report, metadata };
+}
+
 async function routeRequest(request: Request, env: Env, url: URL, ctx?: ExecutionContext): Promise<Response> {
   const canonicalRedirect = canonicalHostRedirect(request, url);
   if (canonicalRedirect) {
@@ -260,11 +312,11 @@ async function routeRequest(request: Request, env: Env, url: URL, ctx?: Executio
   }
 
   if (url.pathname === "/quality" || url.pathname === "/quality/review") {
-    return url.pathname === "/quality/review" ? renderQualityReviewPage(env) : renderQualityPage(env);
+    return url.pathname === "/quality/review" ? renderCachedQualityReviewPage(env) : renderCachedQualityPage(env);
   }
 
   if (url.pathname === "/coverage") {
-    return renderCoveragePage(env);
+    return renderCachedCoveragePage(env);
   }
 
   if (url.pathname === "/status") {
@@ -276,11 +328,13 @@ async function routeRequest(request: Request, env: Env, url: URL, ctx?: Executio
   }
 
   if (url.pathname === "/trust") {
-    return renderTrustGatePage(env);
+    const cached = await matchCachedPublicJson<unknown>("/api/trust");
+    return cached ? renderTrustGateViewPage(fromApiShape<TrustGateView>(cached)) : renderTrustGatePage(env);
   }
 
   if (url.pathname === "/benchmark") {
-    return renderBenchmarkPage(env);
+    const cached = await matchCachedPublicJson<unknown>("/api/benchmark");
+    return cached ? renderBenchmarkReportPage(fromApiShape<PublicBenchmarkReport>(cached)) : renderBenchmarkPage(env);
   }
 
   if (url.pathname === "/integrations") {

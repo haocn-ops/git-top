@@ -5,7 +5,14 @@ import type { Env } from "./types";
 export async function renderQualityReviewPage(env: Env): Promise<Response> {
   const knowledge = await listProjectKnowledgeWithMeta(env);
   const report = buildLowConfidenceReviewReport(knowledge.projects);
-  return new Response(renderHtml(report, knowledge.metadata), {
+  return renderQualityReviewReportPage(report, knowledge.metadata);
+}
+
+export function renderQualityReviewReportPage(
+  report: LowConfidenceReviewReport,
+  metadata: { source: string; reason: string; projectCount: number; generatedAt: string }
+): Response {
+  return new Response(renderHtml(report, metadata), {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "public, max-age=120"

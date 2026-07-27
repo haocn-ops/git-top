@@ -65,6 +65,11 @@ export function resolveProject(projects: ProjectKnowledge[], id: string): Projec
   };
 }
 
+export function projectLookupCandidates(id: string): string[] {
+  const requestedId = decodeURIComponent(id).trim();
+  return Array.from(new Set([requestedId, ...(projectAliases[normalizeAlias(requestedId)] ?? [])].filter(Boolean)));
+}
+
 export function findProjectById(projects: ProjectKnowledge[], id: string): ProjectKnowledge | null {
   const wanted = normalizeAlias(id);
   return (

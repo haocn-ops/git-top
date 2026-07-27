@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { validateHealthResponse } from "./smoke-prod.mjs";
+import { runSmokeCheck, validateHealthResponse } from "./smoke-prod.mjs";
 
 const availableHealth = {
   ok: true,
@@ -74,4 +74,12 @@ assert.throws(
       { allowSeed: true }
     ),
   /raw project count should not be lower than knowledge-ready count/
+);
+
+await assert.rejects(
+  () =>
+    runSmokeCheck({ results: [] }, "readonly_error", async () => {
+      throw new DOMException("request timed out", "TimeoutError");
+    }),
+  /readonly_error smoke check failed: request timed out/
 );

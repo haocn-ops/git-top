@@ -1,12 +1,12 @@
 import { buildKnowledgeGraph } from "./graph";
-import { listProjectKnowledgeWithMeta } from "./knowledge-source";
+import { getProjectGraphKnowledge } from "./knowledge-source";
 import { findAlternativesFromList, findRelatedProjectsFromList } from "./project-search";
 import { resolveProject } from "./project-aliases";
 import { toProjectKnowledgeView } from "./project-view";
 import type { Env, ProjectKnowledge } from "./types";
 
 export async function renderProjectGraphPage(env: Env, id: string): Promise<Response | null> {
-  const all = (await listProjectKnowledgeWithMeta(env)).projects;
+  const all = (await getProjectGraphKnowledge(env, id, 36)).projects;
   const resolution = resolveProject(all, id);
   if (!resolution) {
     return null;

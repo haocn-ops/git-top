@@ -111,6 +111,10 @@ export async function buildTrustGate(env: Env, options: TrustGateOptions = {}): 
 
 export async function renderTrustGatePage(env: Env): Promise<Response> {
   const gate = await buildTrustGate(env);
+  return renderTrustGateViewPage(gate);
+}
+
+export function renderTrustGateViewPage(gate: TrustGateView): Response {
   return new Response(renderHtml(gate), {
     headers: {
       "content-type": "text/html; charset=utf-8",

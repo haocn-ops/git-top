@@ -17,13 +17,13 @@ export async function runSmoke(args = [], env = process.env) {
     timeoutMs
   };
 
-  await check(context, "health", async () => {
+  await runSmokeCheck(context, "health", async () => {
     const { status, body } = await getJson(context, "/api/health");
     assert.equal(status, 200);
     return validateHealthResponse(body, { allowSeed });
   });
 
-  await check(context, "search", async () => {
+  await runSmokeCheck(context, "search", async () => {
     const { status, body } = await getJson(context, "/api/search?q=cloudflare%20agent&limit=3");
     assert.equal(status, 200);
     assertMetadata(body.metadata, { allowSeed });
@@ -42,7 +42,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "grp_query", async () => {
+  await runSmokeCheck(context, "grp_query", async () => {
     const { status, body } = await postJson(context, "/api/grp/query", {
       goal: "build a Cloudflare-ready coding agent stack",
       mode: "plan",
@@ -63,7 +63,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "mcp_discovery", async () => {
+  await runSmokeCheck(context, "mcp_discovery", async () => {
     const { status, body } = await getJson(context, "/mcp");
     assert.equal(status, 200);
     assert.equal(body.name, "git-top");
@@ -85,7 +85,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "mcp_tools_list", async () => {
+  await runSmokeCheck(context, "mcp_tools_list", async () => {
     const { status, body } = await postJson(context, "/mcp", {
       jsonrpc: "2.0",
       id: 1,
@@ -101,7 +101,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "mcp_initialize_and_get_project", async () => {
+  await runSmokeCheck(context, "mcp_initialize_and_get_project", async () => {
     const initialized = await postJson(context, "/mcp", {
       jsonrpc: "2.0",
       id: 2,
@@ -136,7 +136,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "agent_workflow", async () => {
+  await runSmokeCheck(context, "agent_workflow", async () => {
     const { status, body } = await getJson(
       context,
       `/api/workflow?intent=choose%20a%20Cloudflare-ready%20agent%20framework&deployment=cloudflare&category=agent_framework&cloudflare_ready=true&limit=3${context.allowSeed ? "" : "&require_d1=true"}`
@@ -157,7 +157,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "machine_discovery", async () => {
+  await runSmokeCheck(context, "machine_discovery", async () => {
     const sitemap = await getText(context, "/sitemap.xml");
     assert.equal(sitemap.status, 200);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms\.txt<\/loc>/);
@@ -297,7 +297,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "project_page_seo", async () => {
+  await runSmokeCheck(context, "project_page_seo", async () => {
     const { status, text } = await getText(context, "/projects/cloudflare/agents");
     assert.equal(status, 200);
     assert.match(text, /<link rel="canonical" href="https:\/\/git\.top\/projects\/cloudflare\/agents"/);
@@ -321,7 +321,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "canonical_redirects", async () => {
+  await runSmokeCheck(context, "canonical_redirects", async () => {
     const legacyProject = await getHead(context, "/project/cloudflare/agents");
     assert.equal(legacyProject.status, 301);
     assert.equal(legacyProject.location, `${context.baseUrl}/projects/cloudflare/agents`);
@@ -336,14 +336,14 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "docs_canonical", async () => {
+  await runSmokeCheck(context, "docs_canonical", async () => {
     const { status, text } = await getText(context, "/docs");
     assert.equal(status, 200);
     assert.match(text, /<link rel="canonical" href="https:\/\/git\.top\/docs"/);
     return { canonical: true };
   });
 
-  await check(context, "quality_page", async () => {
+  await runSmokeCheck(context, "quality_page", async () => {
     const { status, text } = await getText(context, "/quality");
     assert.equal(status, 200);
     assert.match(text, /Quality Governance/);
@@ -361,7 +361,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "trust_page", async () => {
+  await runSmokeCheck(context, "trust_page", async () => {
     const { status, text } = await getText(context, "/trust");
     assert.equal(status, 200);
     assert.match(text, /Git\.Top Trust Gate/);
@@ -383,7 +383,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "mcp_quality_report", async () => {
+  await runSmokeCheck(context, "mcp_quality_report", async () => {
     const { status, body } = await postJson(context, "/mcp", {
       jsonrpc: "2.0",
       id: 6,
@@ -409,7 +409,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "guide_head_requests", async () => {
+  await runSmokeCheck(context, "guide_head_requests", async () => {
     const atlasGuide = await getHead(context, "/topics/atlas-guide");
     const atlasJourneyGuide = await getHead(context, "/topics/atlas-journey-guide");
     const apiGuide = await getHead(context, "/topics/open-source-knowledge-graph-api");
@@ -455,7 +455,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "status_page", async () => {
+  await runSmokeCheck(context, "status_page", async () => {
     const { status, text } = await getText(context, "/status");
     assert.equal(status, 200);
     assert.match(text, /Data source, sync freshness, and runtime health/);
@@ -470,7 +470,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "operations_page", async () => {
+  await runSmokeCheck(context, "operations_page", async () => {
     const { status, text } = await getText(context, "/operations");
     assert.equal(status, 200);
     assert.match(text, /Automation runs and data governance/);
@@ -492,7 +492,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "integrations_page", async () => {
+  await runSmokeCheck(context, "integrations_page", async () => {
     const { status, text } = await getText(context, "/integrations");
     assert.equal(status, 200);
     assert.match(text, /Use Git\.Top as project intelligence/);
@@ -508,7 +508,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "quickstart_page", async () => {
+  await runSmokeCheck(context, "quickstart_page", async () => {
     const { status, text } = await getText(context, "/quickstart");
     assert.equal(status, 200);
     assert.match(text, /Git\.Top Agent Quickstart/);
@@ -528,7 +528,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "recipes_page", async () => {
+  await runSmokeCheck(context, "recipes_page", async () => {
     const { status, text } = await getText(context, "/recipes");
     assert.equal(status, 200);
     assert.match(text, /Git\.Top Agent Recipes/);
@@ -549,7 +549,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "examples_page", async () => {
+  await runSmokeCheck(context, "examples_page", async () => {
     const { status, text } = await getText(context, "/examples");
     assert.equal(status, 200);
     assert.match(text, /Git\.Top API Examples/);
@@ -570,7 +570,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "journeys_page", async () => {
+  await runSmokeCheck(context, "journeys_page", async () => {
     const { status, text } = await getText(context, "/journeys");
     assert.equal(status, 200);
     assert.match(text, /Git\.Top Atlas Journeys/);
@@ -597,7 +597,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "roadmap_page", async () => {
+  await runSmokeCheck(context, "roadmap_page", async () => {
     const { status, text } = await getText(context, "/roadmap");
     assert.equal(status, 200);
     assert.match(text, /Git\.Top 2\.0 Roadmap/);
@@ -616,7 +616,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "coverage_page", async () => {
+  await runSmokeCheck(context, "coverage_page", async () => {
     const { status, text } = await getText(context, "/coverage");
     assert.equal(status, 200);
     assert.match(text, /Project corpus, taxonomy, and trust boundaries/);
@@ -630,7 +630,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "quality_review_page", async () => {
+  await runSmokeCheck(context, "quality_review_page", async () => {
     const { status, text } = await getText(context, "/quality/review");
     assert.equal(status, 200);
     assert.match(text, /Review Queue/);
@@ -655,7 +655,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "index_page_seo", async () => {
+  await runSmokeCheck(context, "index_page_seo", async () => {
     const projects = await getText(context, "/projects");
     assert.equal(projects.status, 200);
     assert.match(projects.text, /<link rel="canonical" href="https:\/\/git\.top\/projects"/);
@@ -679,7 +679,7 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
-  await check(context, "search_empty_and_compare_order", async () => {
+  await runSmokeCheck(context, "search_empty_and_compare_order", async () => {
     const empty = await getJson(
       context,
       `/api/search?query=agent&category=framework&deployment=cloudflare&language=typescript&cloudflare_ready=true&limit=5${context.allowSeed ? "" : "&require_d1=true"}`
@@ -741,13 +741,13 @@ export function validateHealthResponse(body, { allowSeed = false } = {}) {
   };
 }
 
-async function check(context, name, fn) {
+export async function runSmokeCheck(context, name, fn) {
   try {
     const details = await fn();
     context.results.push({ name, ok: true, ...details });
   } catch (error) {
-    error.message = `${name} smoke check failed: ${error.message}`;
-    throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`${name} smoke check failed: ${message}`, { cause: error });
   }
 }
 

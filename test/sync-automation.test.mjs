@@ -81,10 +81,10 @@ test("scheduled maintenance treats empty workflow inputs as defaults", () => {
   assert.doesNotMatch(result.stderr, /must be an integer/);
 });
 
-test("preventive maintenance prioritizes quality-stale projects before the broader due queue", () => {
+test("preventive maintenance prioritizes the refresh-due queue before quality-stale projects", () => {
   assert.deepEqual(
     prioritizeRepositories(["stale/a", "stale/b"], ["due/a", "stale/a", "due/b"], 3),
-    ["stale/a", "stale/b", "due/a"]
+    ["due/a", "stale/a", "due/b"]
   );
 });
 
