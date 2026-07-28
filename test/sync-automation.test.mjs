@@ -6,7 +6,7 @@ import { collectionFreshness } from "../src/cards.ts";
 import { classifySyncPriority } from "../src/sync-priority.ts";
 import { scheduledDailyRefreshCapacity, scheduledRunsPerDay, shouldRunScheduledCandidateDiscovery } from "../src/sync-policy.ts";
 import { seedProjects } from "../src/seed.ts";
-import { prioritizeRepositories } from "../scripts/preventive-maintenance-policy.mjs";
+import { assessPreventiveMaintenance, prioritizeRepositories } from "../scripts/preventive-maintenance-policy.mjs";
 import { upsertProjectKnowledge } from "../src/db-write-store.ts";
 
 test("priority refresh enters the queue six hours before the tier deadline", () => {
@@ -85,6 +85,44 @@ test("preventive maintenance prioritizes the refresh-due queue before quality-st
   assert.deepEqual(
     prioritizeRepositories(["stale/a", "stale/b"], ["due/a", "stale/a", "due/b"], 3),
     ["due/a", "stale/a", "due/b"]
+  );
+});
+
+test("preventive maintenance reports residual backlog without failing a healthy run", () => {
+  assert.deepEqual(
+    assessPreventiveMaintenance({
+      failures: [],
+      staleProjectCount: 307,
+      syncHealth: "healthy",
+      syncFreshness: "fresh"
+    }),
+    {
+      status: "success",
+      operational_failure_count: 0,
+      stale_backlog: "remaining",
+      stale_project_count: 307
+    }
+  );
+});
+
+test("preventive maintenance still fails on operational errors", () => {
+  assert.equal(
+    assessPreventiveMaintenance({
+      failures: [{ project_id: "example/failure" }],
+      staleProjectCount: 0,
+      syncHealth: "healthy",
+      syncFreshness: "fresh"
+    }).status,
+    "failed"
+  );
+  assert.equal(
+    assessPreventiveMaintenance({
+      failures: [],
+      staleProjectCount: 0,
+      syncHealth: "healthy",
+      syncFreshness: "stale"
+    }).status,
+    "failed"
   );
 });
 

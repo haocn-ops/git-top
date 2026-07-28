@@ -1,4 +1,4 @@
-import { prioritizeRepositories } from "./preventive-maintenance-policy.mjs";
+import { assessPreventiveMaintenance, prioritizeRepositories } from "./preventive-maintenance-policy.mjs";
 
 const baseUrls = Array.from(
   new Set(
@@ -77,6 +77,12 @@ const [finalStatus, quality] = await Promise.all([
   requestJsonWithRetry(cacheBustedPath("/api/quality?require_d1=true"), { method: "GET" })
 ]);
 const staleProjectCount = Number(quality.coverage?.stale_project_count ?? 0);
+const outcome = assessPreventiveMaintenance({
+  failures,
+  staleProjectCount,
+  syncHealth: finalStatus.health,
+  syncFreshness: finalStatus.freshness
+});
 const summary = {
   baseUrls,
   selectedRepositoryCount: repositories.length,
@@ -93,11 +99,12 @@ const summary = {
     releaseScore: quality.release_score,
     dataTrustScore: quality.data_trust_score,
     staleProjectCount
-  }
+  },
+  outcome
 };
 console.log(JSON.stringify(summary, null, 2));
 
-if (failures.length > 0 || staleProjectCount > 0 || finalStatus.health !== "healthy" || finalStatus.freshness !== "fresh") {
+if (outcome.status === "failed") {
   process.exitCode = 1;
 }
 

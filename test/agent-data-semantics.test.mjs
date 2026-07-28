@@ -5,7 +5,7 @@ import { handleMcp } from "../src/mcp.ts";
 import { decodeChangeCursor, encodeChangeCursor, listProjectChanges } from "../src/change-feed.ts";
 import { projectProfileView } from "../src/project-profiles.ts";
 import { retireRenamedProjectKnowledge, retireUnavailableProjectKnowledge } from "../src/db-write-store.ts";
-import { mockD1Env } from "../scripts/mock-d1.mjs";
+import { mockD1Env, mockD1ProjectId } from "../scripts/mock-d1.mjs";
 import { seedProjects } from "../src/seed.ts";
 
 test("change cursors are opaque, versioned, and reject invalid input", () => {
@@ -123,6 +123,23 @@ test("batch project API preserves request order and reports missing ids", async 
   assert.deepEqual(body.projects.map((item) => item.project_id), [existing[1], existing[0]]);
   assert.deepEqual(body.missing, ["missing/project"]);
   assert.equal(body.metadata.source, "d1");
+});
+
+test("focused graph API uses the targeted D1 query and preserves evidence", async () => {
+  const response = await handleApi(
+    new Request(`https://git.top/api/graph/${mockD1ProjectId}?limit=8&require_d1=true`),
+    mockD1Env()
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 200, JSON.stringify(body));
+  assert.equal(body.focus, mockD1ProjectId);
+  assert.equal(body.project.repo, mockD1ProjectId);
+  assert.equal(body.metadata.source, "d1");
+  assert.ok(body.evidence.source_fields.includes("graph.nodes"));
+  assert.ok(body.evidence.source_fields.includes("graph.edges"));
+  assert.equal(typeof body.last_verified_at, "string");
+  assert.equal(new Set(body.nodes.map((node) => node.id)).size, body.nodes.length);
 });
 
 test("change API fails closed without D1", async () => {

@@ -48,6 +48,20 @@ class MockStatement {
       if (this.config.mode === "missing_optional_columns" && this.sql.includes("pm.signal_confidence_json")) {
         throw new Error("no such column: pm.signal_confidence_json");
       }
+      if (this.sql.includes("FROM projects p") && this.sql.includes("lower(p.id) <> lower(?)")) {
+        const focusId = String(this.bindings[0]).toLowerCase();
+        const category = String(this.bindings[1]);
+        const alternativeIds = new Set(this.bindings.slice(2, -1).map((binding) => String(binding).toLowerCase()));
+        const limit = Number(this.bindings[this.bindings.length - 1] ?? this.rows().length);
+        const rows = this.rows().filter((row) => {
+          const projectId = String(row.id).toLowerCase();
+          const projectCategory = row.override_category ?? row.category;
+          return projectId !== focusId && (projectCategory === category || alternativeIds.has(projectId));
+        });
+        return {
+          results: this.config.mode === "empty" ? [] : rows.slice(0, limit)
+        };
+      }
       if (this.sql.includes("FROM projects p")) {
         const rows = this.pageRows(this.rows());
         if (this.config.mode === "missing_optional_columns" && !this.sql.includes("calculated_at")) {
@@ -125,9 +139,25 @@ class MockStatement {
         feedback_proposal_count: this.config.feedbackProposals.filter((row) => row.status === "proposed").length
       };
     }
+    if (this.sql.includes("FROM projects p") && this.sql.includes("lower(p.id) IN") && this.sql.includes("LIMIT 1")) {
+      const wanted = new Set(this.bindings.map((binding) => String(binding).toLowerCase()));
+      const row = this.rows().find((candidate) => {
+        const fullName = String(candidate.full_name).toLowerCase();
+        return [
+          String(candidate.id).toLowerCase(),
+          String(candidate.name).toLowerCase(),
+          fullName,
+          fullName.replace("/", "-"),
+          fullName.replace("/", "--")
+        ].some((value) => wanted.has(value));
+      });
+      return this.config.mode === "empty" ? null : row ?? null;
+    }
     if (this.sql.includes("COUNT(*) AS count") && this.sql.includes("JOIN agent_cards") && this.sql.includes("JOIN project_metrics")) {
+      const latestSyncedAt = this.rows().reduce((latest, row) => !latest || Date.parse(row.synced_at) > Date.parse(latest) ? row.synced_at : latest, null);
       return {
-        count: this.config.mode === "empty" ? 0 : this.rows().length
+        count: this.config.mode === "empty" ? 0 : this.rows().length,
+        latest_synced_at: this.config.mode === "empty" ? null : latestSyncedAt
       };
     }
     if (this.sql.includes("FROM projects") && this.sql.includes("lower(id) IN")) {
