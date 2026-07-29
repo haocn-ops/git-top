@@ -22,16 +22,21 @@ if (!syncSecret) {
 }
 
 const [initialStatus, initialQuality] = await Promise.all([
-  requestJsonWithRetry(cacheBustedPath("/api/sync/status?require_d1=true"), { method: "GET" }),
+  requestJsonWithRetry(cacheBustedPath("/api/sync/status?require_d1=true&detail=full"), { method: "GET" }),
   requestJsonWithRetry(cacheBustedPath("/api/quality?require_d1=true"), { method: "GET" })
 ]);
 const staleRepositories = (initialQuality.issues ?? [])
   .filter((issue) => issue.code === "stale_sync" && typeof issue.project_id === "string")
   .map((issue) => issue.project_id);
-const dueRepositories = (initialStatus.priority?.refresh_due_preview ?? [])
+const refreshDueItems = initialStatus.priority?.refresh_due_preview ?? [];
+const hotRepositories = refreshDueItems
+  .filter((item) => item.tier === "hot")
   .map((item) => item.project_id)
   .filter((projectId) => typeof projectId === "string");
-const repositories = prioritizeRepositories(staleRepositories, dueRepositories, refreshLimit);
+const dueRepositories = refreshDueItems
+  .map((item) => item.project_id)
+  .filter((projectId) => typeof projectId === "string");
+const repositories = prioritizeRepositories(staleRepositories, dueRepositories, refreshLimit, hotRepositories);
 const syncRuns = [];
 const failures = [];
 

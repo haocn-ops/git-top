@@ -1,5 +1,5 @@
-export function prioritizeRepositories(staleRepositories, dueRepositories, limit) {
-  return Array.from(new Set([...dueRepositories, ...staleRepositories])).slice(0, limit);
+export function prioritizeRepositories(staleRepositories, dueRepositories, limit, hotRepositories = []) {
+  return Array.from(new Set([...hotRepositories, ...dueRepositories, ...staleRepositories])).slice(0, limit);
 }
 
 export function assessPreventiveMaintenance({ failures, staleProjectCount, syncHealth, syncFreshness }) {

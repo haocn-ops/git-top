@@ -107,6 +107,8 @@ async function runScheduledMaintenance(env: Env, now = new Date()): Promise<void
   let discoveredProjectCount = 0;
 
   await runMaintenanceSteps(env, [
+    // Record governance checks before GitHub and derived-data work can consume the cron execution window.
+    { task: "scheduled:governance", run: () => runScheduledGovernance(env, now) },
     { task: "scheduled:storage-maintenance", run: () => pruneOperationalData(env) },
     {
       task: "scheduled:refresh-planning",
@@ -166,7 +168,6 @@ async function runScheduledMaintenance(env: Env, now = new Date()): Promise<void
       }
     },
     { task: "derived:alternatives-progress", run: () => refreshAlternativesIncremental(env) },
-    { task: "scheduled:governance", run: () => runScheduledGovernance(env, now) }
   ]);
 }
 

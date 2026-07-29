@@ -88,6 +88,18 @@ test("preventive maintenance prioritizes the refresh-due queue before quality-st
   );
 });
 
+test("preventive maintenance puts hot refreshes ahead of older lower-tier work", () => {
+  assert.deepEqual(
+    prioritizeRepositories(
+      ["stale/a", "stale/b"],
+      ["warm/old", "hot/a", "hot/b"],
+      3,
+      ["hot/a", "hot/b"]
+    ),
+    ["hot/a", "hot/b", "warm/old"]
+  );
+});
+
 test("preventive maintenance reports residual backlog without failing a healthy run", () => {
   assert.deepEqual(
     assessPreventiveMaintenance({
