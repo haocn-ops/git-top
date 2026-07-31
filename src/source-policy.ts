@@ -1,4 +1,5 @@
-import { listProjectKnowledgeWithMeta, type ProjectKnowledgeResult } from "./knowledge-source";
+import { listProjectKnowledgeWithMeta, searchProjectKnowledgeWithMeta, type ProjectKnowledgeResult } from "./knowledge-source";
+import type { ProjectFilters } from "./project-search";
 import type { Env } from "./types";
 
 export interface SourcePolicyFailure {
@@ -18,7 +19,18 @@ export type SourcePolicyResult =
     };
 
 export async function getKnowledgeForSourcePolicy(env: Env, options: { requireD1?: boolean } = {}): Promise<SourcePolicyResult> {
-  const knowledge = await listProjectKnowledgeWithMeta(env);
+  return applySourcePolicy(await listProjectKnowledgeWithMeta(env), options);
+}
+
+export async function getSearchKnowledgeForSourcePolicy(
+  env: Env,
+  filters: ProjectFilters,
+  options: { requireD1?: boolean } = {}
+): Promise<SourcePolicyResult> {
+  return applySourcePolicy(await searchProjectKnowledgeWithMeta(env, filters), options);
+}
+
+function applySourcePolicy(knowledge: ProjectKnowledgeResult, options: { requireD1?: boolean }): SourcePolicyResult {
   if (!options.requireD1 || knowledge.metadata.source === "d1") {
     return {
       ok: true,

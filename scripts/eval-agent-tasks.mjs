@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
 import { handleApi } from "../src/api.ts";
+import { handleMcp } from "../src/mcp.ts";
 import { mockD1Env } from "./mock-d1.mjs";
 import { seedProjects } from "../src/seed.ts";
 
@@ -120,6 +121,51 @@ await task("renamed-project-alias", ["alias resolution", "canonical project resp
   assert.equal(response.body.repo, "run-llama/llama_index");
 });
 
+await task("mcp-invalid-limit-fails-closed", ["invalid MCP limits", "JSON-RPC input error", "valid boundary"], async () => {
+  for (const limit of [0, -1, 1.5, 101, "5", null]) {
+    const response = await mcpTool("search_projects", { query: "agent", limit });
+    assert.equal(response.status, 400);
+    assert.equal(response.body.error.code, -32602);
+    assert.equal(response.body.error.message, "limit must be an integer from 1 to 100.");
+  }
+
+  const valid = await mcpTool("search_projects", { query: "cloudflare", limit: 1 });
+  assert.equal(valid.status, 200);
+  const payload = JSON.parse(valid.body.result.content[0].text);
+  assert.equal(payload.page.limit, 1);
+  assert.ok(payload.projects.length <= 1);
+});
+
+await task("mcp-project-not-found-semantics", ["unknown project error", "alias success", "batch missing list"], async () => {
+  for (const [name, args] of [
+    ["get_project", { project_id: "missing/project" }],
+    ["get_alternatives", { project_id: "missing/project", limit: 3 }],
+    ["find_alternatives", { project_id: "missing/project", limit: 3 }],
+    ["get_related_projects", { project_id: "missing/project", limit: 3 }],
+    ["get_project_card", { project_id: "missing/project" }],
+    ["get_deployment", { project_id: "missing/project" }],
+    ["get_quality_score", { project_id: "missing/project" }],
+    ["get_project_graph", { project_id: "missing/project", limit: 8 }]
+  ]) {
+    const response = await mcpTool(name, args);
+    assert.equal(response.status, 400);
+    assert.equal(response.body.error.code, -32005);
+    assert.equal(response.body.error.message, "Project missing/project was not found.");
+  }
+
+  const alias = await mcpTool("get_project", { project_id: "claude-code" });
+  assert.equal(alias.status, 200);
+  const aliasPayload = JSON.parse(alias.body.result.content[0].text);
+  assert.equal(aliasPayload.resolved_from.resolution, "alias");
+  assert.equal(aliasPayload.project.repo, aliasPayload.resolved_from.resolved_id);
+
+  const batch = await mcpTool("get_projects_batch", { project_ids: ["cloudflare/agents", "missing/project"], profile: "compact" });
+  assert.equal(batch.status, 200);
+  const batchPayload = JSON.parse(batch.body.result.content[0].text);
+  assert.deepEqual(batchPayload.missing, ["missing/project"]);
+  assert.equal(batchPayload.projects[0].project_id, "cloudflare/agents");
+});
+
 const passed = results.filter((result) => result.status === "passed").length;
 const report = {
   generated_at: new Date().toISOString(),
@@ -151,13 +197,22 @@ async function request(path, env, init = {}) {
   return { status: response.status, body: await response.json() };
 }
 
+async function mcpTool(name, args, env = {}) {
+  const response = await handleMcp(new Request("https://git.top/mcp", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } })
+  }), env);
+  return { status: response.status, body: await response.json() };
+}
+
 function markdown(report) {
   const rows = report.tasks.map((item) => `| ${item.id} | ${item.status} | ${item.steps.join(" -> ")} | ${item.error ?? "-"} |`).join("\n");
   return `# Git.Top Agent Task Evaluation
 
 Generated: ${report.generated_at}
 
-This CI gate validates complete agent workflows across trust, retrieval, evidence, pagination, comparison, change handling, feedback governance, fallback, multilingual input, typos, and renamed-project aliases.
+This CI gate validates complete agent workflows across trust, retrieval, evidence, pagination, comparison, change handling, feedback governance, fallback, multilingual input, typos, renamed-project aliases, and invalid MCP input handling.
 
 ## Summary
 

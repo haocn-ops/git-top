@@ -1,5 +1,6 @@
 import { rowToKnowledge } from "./db-mapping";
 import { projectLookupCandidates } from "./project-aliases";
+import { interpretSearchQuery, type ProjectFilters } from "./project-search";
 import { seedProjects } from "./seed";
 import type { Env, ProjectKnowledge } from "./types";
 
@@ -16,6 +17,9 @@ export interface KnowledgeMetadata {
   schemaVersion: "git-top.knowledge.v1";
   loadedProjectLimit?: number;
   truncated?: boolean;
+  candidateRetrieval?: "d1_first";
+  candidateCount?: number;
+  candidateLimit?: number;
   warnings?: string[];
   error?: string;
 }
@@ -27,6 +31,8 @@ export interface ProjectKnowledgeResult {
 
 const knowledgePageSize = 500;
 const maxKnowledgeProjects = 2000;
+export const d1FirstSearchProjectThreshold = 1500;
+export const maxSearchCandidateProjects = 1000;
 
 export async function listProjectKnowledgeWithMeta(env: Env): Promise<ProjectKnowledgeResult> {
   if (!env.DB) {
@@ -64,6 +70,49 @@ export async function listProjectKnowledgeWithMeta(env: Env): Promise<ProjectKno
     };
   } catch (error) {
     return seedResult("db_error", error);
+  }
+}
+
+export async function searchProjectKnowledgeWithMeta(env: Env, filters: ProjectFilters): Promise<ProjectKnowledgeResult> {
+  if (!env.DB) {
+    return listProjectKnowledgeWithMeta(env);
+  }
+
+  try {
+    const stats = await queryKnowledgeStats(env);
+    if ((stats?.count ?? 0) < d1FirstSearchProjectThreshold) {
+      return listProjectKnowledgeWithMeta(env);
+    }
+
+    const rows = await querySearchCandidateRows(env, filters);
+    const candidateRows = rows.slice(0, maxSearchCandidateProjects);
+    const candidateTruncated = rows.length > maxSearchCandidateProjects;
+    const projects = candidateRows.map(rowToKnowledge);
+    const projectCount = stats?.count ?? projects.length;
+    const latestSyncedAt = stats?.latest_synced_at ?? latestProjectSync(projects);
+    const warnings = candidateTruncated
+      ? [`D1-first search reached the ${maxSearchCandidateProjects} candidate limit; refine the query or filters for complete results.`]
+      : undefined;
+    return {
+      projects,
+      metadata: {
+        source: "d1",
+        reason: "d1_query",
+        projectCount,
+        generatedAt: new Date().toISOString(),
+        snapshotId: knowledgeSnapshotId("d1", projectCount, latestSyncedAt),
+        latestSyncedAt,
+        schemaVersion: "git-top.knowledge.v1",
+        loadedProjectLimit: maxSearchCandidateProjects,
+        truncated: candidateTruncated,
+        candidateRetrieval: "d1_first",
+        candidateCount: projects.length,
+        candidateLimit: maxSearchCandidateProjects,
+        ...(warnings ? { warnings } : {})
+      }
+    };
+  } catch {
+    return listProjectKnowledgeWithMeta(env);
   }
 }
 
@@ -130,12 +179,7 @@ export async function getProjectGraphKnowledge(env: Env, id: string, limit = 32)
 }
 
 export async function getKnowledgeReadyProjectCount(env: Env): Promise<number> {
-  const row = await env.DB!.prepare(
-    `SELECT COUNT(*) AS count
-     FROM projects p
-     JOIN agent_cards ac ON ac.project_id = p.id
-     JOIN project_metrics pm ON pm.project_id = p.id`
-  ).first<{ count: number }>();
+  const row = await queryKnowledgeStats(env);
   return row?.count ?? 0;
 }
 
@@ -216,6 +260,84 @@ function graphKnowledgeSelect(): string {
     JOIN agent_cards ac ON ac.project_id = p.id
     JOIN project_metrics pm ON pm.project_id = p.id
     LEFT JOIN classification_overrides co ON co.project_id = p.id`;
+}
+
+async function querySearchCandidateRows(env: Env, filters: ProjectFilters): Promise<Record<string, unknown>[]> {
+  const where: string[] = [];
+  const bindings: unknown[] = [];
+  let exactOrderClause = "";
+  const exactOrderBindings: string[] = [];
+  if (filters.category) {
+    where.push("COALESCE(co.category, ac.category) = ?");
+    bindings.push(filters.category);
+  }
+  if (filters.deployment) {
+    where.push("lower(COALESCE(co.deployment_json, ac.deployment_json, '')) LIKE ?");
+    bindings.push(`%\"${filters.deployment.toLowerCase()}\"%`);
+  }
+  if (filters.difficulty) {
+    where.push("COALESCE(co.difficulty, ac.difficulty) = ?");
+    bindings.push(filters.difficulty);
+  }
+  if (typeof filters.cloudflareReady === "boolean") {
+    where.push("COALESCE(co.cloudflare_ready, ac.cloudflare_ready) = ?");
+    bindings.push(filters.cloudflareReady ? 1 : 0);
+  }
+  if (filters.language) {
+    where.push("lower(COALESCE(p.language, '')) = lower(?)");
+    bindings.push(filters.language);
+  }
+  if (filters.projectKind) {
+    where.push("COALESCE(ac.project_kind, 'project') = ?");
+    bindings.push(filters.projectKind);
+  }
+
+  const interpretation = interpretSearchQuery(filters.q);
+  const query = interpretation.normalized;
+  if (query) {
+    const lookupIds = projectLookupCandidates(query).map((value) => value.toLowerCase());
+    const tokens = (query.match(/[a-z0-9]+/giu) ?? [])
+      .map((token) => token.toLowerCase())
+      .filter((token) => token.length > 2)
+      .slice(0, 8);
+    const textExpression = `lower(
+      COALESCE(p.id, '') || ' ' || COALESCE(p.full_name, '') || ' ' || COALESCE(p.name, '') || ' ' ||
+      COALESCE(p.description, '') || ' ' || COALESCE(p.language, '') || ' ' || COALESCE(p.topics_json, '') || ' ' ||
+      COALESCE(co.category, ac.category, '') || ' ' || COALESCE(co.deployment_json, ac.deployment_json, '') || ' ' ||
+      COALESCE(ac.project_kind, '') || ' ' || COALESCE(ac.collection_json, '') || ' ' ||
+      COALESCE(ac.use_cases_json, '') || ' ' || COALESCE(ac.summary_for_agent, '')
+    )`;
+    const queryClauses: string[] = [];
+    if (lookupIds.length > 0) {
+      queryClauses.push(`lower(p.id) IN (${lookupIds.map(() => "?").join(", ")})`);
+      bindings.push(...lookupIds);
+      exactOrderClause = `CASE WHEN lower(p.id) IN (${lookupIds.map(() => "?").join(", ")}) THEN 0 ELSE 1 END,`;
+      exactOrderBindings.push(...lookupIds);
+    }
+    for (const token of tokens) {
+      queryClauses.push(`${textExpression} LIKE ?`);
+      bindings.push(`%${token.toLowerCase()}%`);
+    }
+    where.push(`(${queryClauses.join(" OR ")})`);
+  }
+
+  const rows = await env.DB!.prepare(
+    `${graphKnowledgeSelect()}
+     /* search_candidates */
+     ${where.length > 0 ? `WHERE ${where.join(" AND ")}` : ""}
+     ORDER BY ${exactOrderClause} pm.git_score DESC, p.stars DESC, lower(p.id) ASC
+     LIMIT ?`
+  ).bind(...bindings, ...exactOrderBindings, maxSearchCandidateProjects + 1).all<Record<string, unknown>>();
+  return rows.results ?? [];
+}
+
+async function queryKnowledgeStats(env: Env): Promise<{ count: number; latest_synced_at: string | null } | null> {
+  return env.DB!.prepare(
+    `SELECT COUNT(*) AS count, MAX(p.synced_at) AS latest_synced_at
+     FROM projects p
+     JOIN agent_cards ac ON ac.project_id = p.id
+     JOIN project_metrics pm ON pm.project_id = p.id`
+  ).first<{ count: number; latest_synced_at: string | null }>();
 }
 
 interface ProjectKnowledgeRows {

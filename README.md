@@ -48,6 +48,7 @@ The project intentionally does not ship a separate Next.js app. Keeping Worker-r
 
 - [Coding agent guide](./AGENTS.md)
 - [Agent-native assessment and optimization plan](./docs/AGENT_NATIVE_ASSESSMENT_AND_OPTIMIZATION_PLAN.md)
+- [Agent function test and improvement plan 2026-07-30](./docs/AGENT_FUNCTION_TEST_AND_IMPROVEMENT_PLAN_2026-07-30.md)
 - [Production freshness optimization plan 2026-07-14](./docs/PRODUCTION_FRESHNESS_OPTIMIZATION_PLAN_2026-07-14.md)
 - [Site assessment and improvement plan 2026-07-12](./docs/SITE_ASSESSMENT_AND_IMPROVEMENT_PLAN_2026-07-12.md)
 - [Automated operations and agent friendliness plan 2026-07-12](./docs/AUTOMATED_OPERATIONS_AND_AGENT_FRIENDLINESS_PLAN_2026-07-12.md)
@@ -61,6 +62,7 @@ The project intentionally does not ship a separate Next.js app. Keeping Worker-r
 - [REST API guide](./docs/API.md)
 - [MCP guide](./docs/MCP.md)
 - [MCP tool behavior examples](./docs/MCP_TOOL_BEHAVIOR_EXAMPLES.md)
+- [MCP conformance matrix](./docs/MCP_CONFORMANCE_MATRIX.md)
 - [SDK-oriented examples](./docs/SDK_EXAMPLES.md)
 - [GRP examples](./docs/GRP_EXAMPLES.md)
 - [Agent quickstart](./docs/AGENT_QUICKSTART.md)

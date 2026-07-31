@@ -7,6 +7,7 @@ export function mockD1Env(options = {}) {
     cursor: 0,
     syncState: {},
     rawProjectCount: null,
+    knowledgeReadyProjectCount: null,
     starSnapshot: null,
     syncRuns: [],
     governanceRuns: [],
@@ -15,6 +16,9 @@ export function mockD1Env(options = {}) {
     projectChanges: [],
     feedbackProposals: [],
     knowledge: null,
+    searchCandidateRows: null,
+    searchCandidateOverflow: false,
+    queryLog: null,
     classificationOverrides: [],
     ...input
   };
@@ -42,6 +46,7 @@ class MockStatement {
   }
 
     async all() {
+      this.config.queryLog?.push({ sql: this.sql, bindings: [...this.bindings] });
       if (this.config.mode === "error") {
         throw new Error("mock d1 failure");
       }
@@ -63,7 +68,19 @@ class MockStatement {
         };
       }
       if (this.sql.includes("FROM projects p")) {
-        const rows = this.pageRows(this.rows());
+        const sourceRows = this.sql.includes("search_candidates") && this.config.searchCandidateRows
+          ? this.config.searchCandidateRows
+          : this.rows();
+        const candidateLimit = Number(this.bindings[this.bindings.length - 1] ?? sourceRows.length);
+        const rows = this.sql.includes("search_candidates")
+          ? this.config.searchCandidateOverflow && sourceRows.length > 0
+            ? orderSearchCandidateRows(
+                [...Array.from({ length: candidateLimit }, () => sourceRows[0]), ...sourceRows.slice(1)],
+                this.sql,
+                this.bindings
+              ).slice(0, candidateLimit)
+            : orderSearchCandidateRows(sourceRows, this.sql, this.bindings).slice(0, candidateLimit)
+          : this.pageRows(sourceRows);
         if (this.config.mode === "missing_optional_columns" && !this.sql.includes("calculated_at")) {
           const row = rows[0];
           if (row) {
@@ -156,7 +173,7 @@ class MockStatement {
     if (this.sql.includes("COUNT(*) AS count") && this.sql.includes("JOIN agent_cards") && this.sql.includes("JOIN project_metrics")) {
       const latestSyncedAt = this.rows().reduce((latest, row) => !latest || Date.parse(row.synced_at) > Date.parse(latest) ? row.synced_at : latest, null);
       return {
-        count: this.config.mode === "empty" ? 0 : this.rows().length,
+        count: this.config.mode === "empty" ? 0 : this.config.knowledgeReadyProjectCount ?? this.rows().length,
         latest_synced_at: this.config.mode === "empty" ? null : latestSyncedAt
       };
     }
@@ -380,6 +397,23 @@ class MockStatement {
   }
 }
 
+function orderSearchCandidateRows(rows, sql, bindings) {
+  const exactOrderMatch = sql.match(/ORDER BY\s+CASE WHEN lower\(p\.id\) IN \(([^)]+)\)/i);
+  const exactBindingCount = exactOrderMatch?.[1].match(/\?/g)?.length ?? 0;
+  const exactIds = new Set(
+    exactBindingCount > 0
+      ? bindings.slice(-(exactBindingCount + 1), -1).map((binding) => String(binding).toLowerCase())
+      : []
+  );
+  return [...rows].sort((left, right) => {
+    const exactDifference = Number(!exactIds.has(String(left.id).toLowerCase())) - Number(!exactIds.has(String(right.id).toLowerCase()));
+    return exactDifference
+      || Number(right.git_score ?? 0) - Number(left.git_score ?? 0)
+      || Number(right.stars ?? 0) - Number(left.stars ?? 0)
+      || String(left.id).toLowerCase().localeCompare(String(right.id).toLowerCase());
+  });
+}
+
 export function githubRequestCacheRow(overrides = {}) {
   return {
     cache_key: "/repos/mock/d1-agent",
@@ -506,6 +540,13 @@ function projectKnowledgeRow(mode = "rows") {
     delete row.signal_confidence_json;
   }
   return row;
+}
+
+export function mockD1ProjectRow(overrides = {}) {
+  return {
+    ...projectKnowledgeRow(),
+    ...overrides
+  };
 }
 
 function projectKnowledgeToRow(knowledge) {

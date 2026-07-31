@@ -47,11 +47,29 @@ Expected strict-mode failure:
 
 Treat `-32003` as a source policy failure, not as an empty result set.
 
+## Project Not Found
+
+Singular project tools return a JSON-RPC application error when the requested project cannot be resolved:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "error": {
+    "code": -32005,
+    "message": "Project missing/project was not found."
+  }
+}
+```
+
+Treat `-32005` as a missing project, not as an empty project or a low-confidence result. This applies to `get_project`, `get_alternatives`, `find_alternatives`, `get_related_projects`, `get_project_card`, `get_deployment`, `get_quality_score`, and `get_project_graph`. `get_projects_batch` intentionally keeps partial-success behavior and reports unresolved IDs in `missing[]`.
+
 ## Tool Shape Examples
 
 `search_projects`
 
 - Input: `query`, optional `category`, `deployment`, `ranking: "browse"`, `limit`, `require_d1`.
+- `limit` must be an integer from 1 to 100. Invalid numeric inputs return JSON-RPC error `-32602`.
 - Output JSON fields: `projects`, `search`, `metadata`.
 - Trust fields: `metadata.source`, `projects[].classification`, `projects[].quality_signal_confidence`.
 
@@ -60,6 +78,7 @@ Treat `-32003` as a source policy failure, not as an empty result set.
 - Input: `project_id`, or `owner` + `repo`, optional `require_d1`.
 - Output JSON fields: `project_id`, `project`, `summary`, `resolved_from`, `metadata`.
 - Trust fields: `project.evidence`, `project.caveats`, `project.confidence_reason`, `metadata.source`.
+- Unknown IDs return JSON-RPC error `-32005`; aliases still resolve and expose `resolved_from`.
 
 `recommend_project`
 

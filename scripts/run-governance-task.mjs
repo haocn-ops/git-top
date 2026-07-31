@@ -5,7 +5,7 @@ import { writeFile } from "node:fs/promises";
 
 const taskDefinitions = {
   "daily-production-health": {
-    commands: [["pnpm", "quality:check"], ["pnpm", "smoke:prod"], ["node", "-e", "fetch('https://git.top/api/sync/status').then(r=>{if(!r.ok)process.exit(1);return r.json()}).then(j=>{console.log(JSON.stringify({health:j.health,freshness:j.freshness,indexed_count:j.indexed_count,synced_count:j.synced_count,last_successful_sync_at:j.last_successful_sync_at},null,2)); if(j.health!=='healthy'||j.freshness!=='fresh') process.exit(1);})"]]
+    commands: [["pnpm", "quality:check"], ["pnpm", "smoke:prod"], ["node", "--experimental-strip-types", "--import", "./scripts/register-ts-loader.mjs", "scripts/eval-production-snapshot.mjs"], ["node", "-e", "fetch('https://git.top/api/sync/status').then(r=>{if(!r.ok)process.exit(1);return r.json()}).then(j=>{console.log(JSON.stringify({health:j.health,freshness:j.freshness,indexed_count:j.indexed_count,synced_count:j.synced_count,last_successful_sync_at:j.last_successful_sync_at},null,2)); if(j.health!=='healthy'||j.freshness!=='fresh') process.exit(1);})"]]
   },
   "production-data-maintenance": {
     commands: [
@@ -70,6 +70,17 @@ for (const command of definition.commands) {
 }
 
 const finishedAt = new Date().toISOString();
+const productionSnapshotResult = results.find((result) => result.command.at(-1) === "scripts/eval-production-snapshot.mjs");
+let productionSnapshot = null;
+if (productionSnapshotResult?.exitCode === 0) {
+  try {
+    productionSnapshot = JSON.parse(productionSnapshotResult.stdout);
+  } catch (error) {
+    failed = true;
+    productionSnapshotResult.exitCode = 1;
+    productionSnapshotResult.stderr = `Could not parse production snapshot evaluation: ${error instanceof Error ? error.message : String(error)}`;
+  }
+}
 const summary = {
   task,
   commands: results.map((result) => ({
@@ -78,7 +89,8 @@ const summary = {
     duration_ms: result.durationMs
   })),
   passed: results.filter((result) => result.exitCode === 0).length,
-  failed: results.filter((result) => result.exitCode !== 0).length
+  failed: results.filter((result) => result.exitCode !== 0).length,
+  ...(productionSnapshot ? { production_snapshot: productionSnapshot } : {})
 };
 await writeFile(summaryPath, JSON.stringify(summary, null, 2));
 const error = results

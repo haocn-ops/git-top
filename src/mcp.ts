@@ -20,7 +20,7 @@ import { buildProjectSummary, toProjectKnowledgeView, withRelatedProjects } from
 import { parseProjectResponseProfile, projectProfileView } from "./project-profiles";
 import { buildProjectScoreExplanation } from "./score";
 import { buildLowConfidenceReviewReport, buildQualityReport } from "./quality";
-import { getKnowledgeForSourcePolicy } from "./source-policy";
+import { getKnowledgeForSourcePolicy, getSearchKnowledgeForSourcePolicy } from "./source-policy";
 import { buildTrendsView } from "./trends";
 import { buildTrustGate } from "./trust-gate";
 import { buildAgentWorkflow } from "./workflow";
@@ -42,11 +42,35 @@ interface ToolErrorResult {
   };
 }
 
+const projectNotFoundCode = -32005;
+
+const toolLimitMaximums: Record<string, number> = {
+  search_projects: 100,
+  get_project_changes: maxProjectChangesPageSize,
+  get_alternatives: 20,
+  get_related_projects: 100,
+  recommend_project: 100,
+  get_trends: 12,
+  get_agent_workflow: 20,
+  get_atlas: 20,
+  find_alternatives: 20,
+  get_project_graph: 80
+};
+
+function limitSchema(maximum: number, description?: string) {
+  return {
+    type: "integer",
+    minimum: 1,
+    maximum,
+    ...(description ? { description } : {})
+  };
+}
+
 const tools = [
   {
     name: "search_projects",
     description:
-      "Search Git.Top projects by query, category, deployment, difficulty, language, or Cloudflare readiness. Results include project_kind and collection_metadata for resource hubs and curated collections.",
+      "Search Git.Top projects by query, category, deployment, difficulty, language, or Cloudflare readiness. Results include project_kind and collection_metadata for resource hubs and curated collections. On large corpora, inspect metadata.candidate_retrieval and metadata.truncated before treating broad results as exhaustive.",
     inputSchema: {
       type: "object",
       properties: {
@@ -61,7 +85,7 @@ const tools = [
           enum: ["browse"],
           description: "Optional browse ranking for broad category/deployment discovery with larger limits. Defaults to exact-intent search ranking."
         },
-        limit: { type: "number" },
+        limit: limitSchema(toolLimitMaximums.search_projects),
         cursor: { type: "string", description: "Opaque next_cursor from a previous search_projects result." },
         require_d1: {
           type: "boolean",
@@ -149,7 +173,7 @@ const tools = [
       properties: {
         cursor: { type: "string", description: "Opaque next_cursor returned by a previous call." },
         since: { type: "string", description: "Optional ISO-8601 lower bound." },
-        limit: { type: "number", minimum: 1, maximum: 100 }
+        limit: limitSchema(toolLimitMaximums.get_project_changes)
       }
     }
   },
@@ -177,7 +201,7 @@ const tools = [
       type: "object",
       properties: {
         project_id: { type: "string", description: "Canonical owner/repo id or Git.Top product alias." },
-        limit: { type: "number" },
+        limit: limitSchema(toolLimitMaximums.get_alternatives),
         require_d1: {
           type: "boolean",
           description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
@@ -193,7 +217,7 @@ const tools = [
       type: "object",
       properties: {
         project_id: { type: "string", description: "Canonical owner/repo id or Git.Top product alias." },
-        limit: { type: "number" },
+        limit: limitSchema(toolLimitMaximums.get_related_projects),
         require_d1: {
           type: "boolean",
           description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
@@ -250,7 +274,7 @@ const tools = [
             cloudflare_ready: { type: "boolean" }
           }
         },
-        limit: { type: "number" },
+        limit: limitSchema(toolLimitMaximums.recommend_project),
         require_d1: {
           type: "boolean",
           description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
@@ -265,10 +289,7 @@ const tools = [
     inputSchema: {
       type: "object",
       properties: {
-        limit: {
-          type: "number",
-          description: "Maximum trend buckets and rising projects to return."
-        },
+        limit: limitSchema(toolLimitMaximums.get_trends, "Maximum trend buckets and rising projects to return."),
         require_d1: {
           type: "boolean",
           description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
@@ -296,7 +317,7 @@ const tools = [
             cloudflare_ready: { type: "boolean" }
           }
         },
-        limit: { type: "number" },
+        limit: limitSchema(toolLimitMaximums.get_agent_workflow),
         require_d1: {
           type: "boolean",
           description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
@@ -314,10 +335,7 @@ const tools = [
           type: "string",
           description: "Optional Atlas ecosystem id such as cloudflare, agents, mcp, rag, or browser-ai. Omit to return all curated ecosystems."
         },
-        limit: {
-          type: "number",
-          description: "Maximum projects per ecosystem."
-        },
+        limit: limitSchema(toolLimitMaximums.get_atlas, "Maximum projects per ecosystem."),
         require_d1: {
           type: "boolean",
           description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
@@ -333,7 +351,7 @@ const tools = [
       properties: {
         project_id: { type: "string", description: "Canonical owner/repo id or Git.Top product alias." },
         reason: { type: "string" },
-        limit: { type: "number" },
+        limit: limitSchema(toolLimitMaximums.find_alternatives),
         require_d1: {
           type: "boolean",
           description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
@@ -365,7 +383,7 @@ const tools = [
       type: "object",
       properties: {
         project_id: { type: "string", description: "Canonical owner/repo id or Git.Top product alias." },
-        limit: { type: "number" },
+        limit: limitSchema(toolLimitMaximums.get_project_graph),
         require_d1: {
           type: "boolean",
           description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
@@ -474,6 +492,7 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
           parseInstruction: "Parse JSON-RPC tools/call result.content text blocks as JSON before reading metadata or fields.",
           strictSourceArgument: "Pass require_d1: true on tools that read project knowledge when seed fallback should fail closed.",
           strictSourceError: { code: -32003, message: "D1-backed knowledge is required, but current source is seed." },
+          projectNotFoundError: { code: projectNotFoundCode, messageTemplate: "Project <id> was not found.", singularTools: ["get_project", "get_alternatives", "find_alternatives", "get_related_projects", "get_project_card", "get_deployment", "get_quality_score", "get_project_graph"] },
           batchProjectLimit: 20,
           projectProfiles: ["compact", "decision", "evidence"],
           changeFeed: { cursor: "opaque", retentionDays: 30, tombstones: true },
@@ -594,6 +613,7 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
       "Keep metadata.snapshot_id consistent across multi-tool decisions and restart dependent steps when the snapshot changes.",
       "Use get_projects_batch for snapshot-consistent reads and get_project_changes for incremental cache updates and deletion tombstones.",
       "Continue search_projects with page.next_cursor; restart without a cursor when error -32004 reports a changed snapshot.",
+      "Treat error -32005 as a missing singular project; use get_projects_batch when partial success and missing[] are preferred.",
       "Use propose_project_feedback to normalize evidence-backed corrections; it validates only and never mutates trusted knowledge.",
       "Use agent_map.short_path first, then expand into agent_map.reference_path when you need the fuller discovery surface.",
         "Use structured POST endpoints under agent_api.structured_post_endpoints for project, recommendation, comparison, alternatives, graph, and GRP requests.",
@@ -706,11 +726,12 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
 }
 
 async function callTool(name: string, args: Record<string, unknown>, env: Env): Promise<unknown> {
+  const limitError = validateToolLimit(name, args);
+  if (limitError) {
+    return limitError;
+  }
+
   if (name === "search_projects") {
-    const knowledge = await requireKnowledgeSource(env, args);
-    if (isToolErrorResult(knowledge)) {
-      return knowledge;
-    }
     const filters = {
       q: stringArg(args.query),
       category: stringArg(args.category),
@@ -721,6 +742,11 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
       ranking: stringArg(args.ranking),
       limit: numberArg(args.limit)
     };
+    const policy = await getSearchKnowledgeForSourcePolicy(env, filters, { requireD1: boolArg(args.require_d1) === true });
+    if (!policy.ok) {
+      return { toolError: { code: -32003, message: policy.failure.message } };
+    }
+    const knowledge = policy.knowledge;
     const limit = filters.limit ?? 20;
     const queryKey = await pageQueryKey("mcp:search_projects", filters);
     let offset: number;
@@ -750,7 +776,10 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
     }
     const projectId = projectIdArg(args);
     const resolution = resolveMcpProject(knowledge.projects, projectId);
-    const project = resolution?.project ?? null;
+    if (!resolution) {
+      return projectNotFoundError(projectId);
+    }
+    const project = resolution.project;
     const related = resolution ? findRelatedProjectsFromList(knowledge.projects, resolution.resolvedId, 8) : [];
     const projectView = project ? withRelatedProjects(toProjectKnowledgeView(project), related) : null;
     return {
@@ -790,9 +819,6 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
 
   if (name === "get_project_changes") {
     const limit = numberArg(args.limit);
-    if (limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > maxProjectChangesPageSize)) {
-      return { toolError: { code: -32602, message: `limit must be an integer from 1 to ${maxProjectChangesPageSize}.` } };
-    }
     const policy = await getKnowledgeForSourcePolicy(env, { requireD1: true });
     if (!policy.ok) {
       return { toolError: { code: -32003, message: policy.failure.message } };
@@ -943,16 +969,19 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
       return knowledge;
     }
     const resolution = resolveMcpProject(knowledge.projects, stringArg(args.project_id) ?? "");
-    const project = resolution?.project ?? null;
-    const matches = project ? generateAlternativeMatches(project, knowledge.projects, numberArg(args.limit) ?? 5) : [];
-    const decision = project ? buildAlternativesDecision(project, matches) : null;
+    if (!resolution) {
+      return projectNotFoundError(stringArg(args.project_id) ?? "");
+    }
+    const project = resolution.project;
+    const matches = generateAlternativeMatches(project, knowledge.projects, numberArg(args.limit) ?? 5);
+    const decision = buildAlternativesDecision(project, matches);
     return {
-      project: project ? toProjectKnowledgeView(project) : null,
-      resolved_from: resolution ? mcpResolvedFrom(resolution) : null,
-      summary: decision?.summary ?? null,
-      stats: decision?.stats ?? null,
-      nextActions: decision?.nextActions ?? [],
-      comparisonLinks: decision?.comparisonLinks ?? null,
+      project: toProjectKnowledgeView(project),
+      resolved_from: mcpResolvedFrom(resolution),
+      summary: decision.summary,
+      stats: decision.stats,
+      nextActions: decision.nextActions,
+      comparisonLinks: decision.comparisonLinks,
       alternatives: matches.map((match) => toProjectKnowledgeView(match.project)),
       alternativeMatches: matches.map(toAlternativeMatchView),
       metadata: knowledge.metadata
@@ -965,10 +994,13 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
       return knowledge;
     }
     const resolution = resolveMcpProject(knowledge.projects, stringArg(args.project_id) ?? "");
+    if (!resolution) {
+      return projectNotFoundError(stringArg(args.project_id) ?? "");
+    }
     return {
-      project: resolution ? toProjectKnowledgeView(resolution.project) : null,
-      related: resolution ? findRelatedProjectsFromList(knowledge.projects, resolution.resolvedId, numberArg(args.limit)).map(toProjectKnowledgeView) : [],
-      resolved_from: resolution ? mcpResolvedFrom(resolution) : null,
+      project: toProjectKnowledgeView(resolution.project),
+      related: findRelatedProjectsFromList(knowledge.projects, resolution.resolvedId, numberArg(args.limit)).map(toProjectKnowledgeView),
+      resolved_from: mcpResolvedFrom(resolution),
       metadata: knowledge.metadata
     };
   }
@@ -979,12 +1011,15 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
       return knowledge;
     }
     const resolution = resolveMcpProject(knowledge.projects, stringArg(args.project_id) ?? "");
-    const project = resolution?.project ?? null;
+    if (!resolution) {
+      return projectNotFoundError(stringArg(args.project_id) ?? "");
+    }
+    const project = resolution.project;
     return {
       project_id: stringArg(args.project_id),
-      resolved_from: resolution ? mcpResolvedFrom(resolution) : null,
-      agent_card: project ? withDefaultAgentCardClassification(project.agentCard) : null,
-      metrics: project?.metrics ?? null,
+      resolved_from: mcpResolvedFrom(resolution),
+      agent_card: withDefaultAgentCardClassification(project.agentCard),
+      metrics: project.metrics,
       metadata: knowledge.metadata
     };
   }
@@ -995,12 +1030,15 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
       return knowledge;
     }
     const resolution = resolveMcpProject(knowledge.projects, stringArg(args.project_id) ?? "");
-    const project = resolution?.project ?? null;
+    if (!resolution) {
+      return projectNotFoundError(stringArg(args.project_id) ?? "");
+    }
+    const project = resolution.project;
     return {
       project_id: stringArg(args.project_id),
-      resolved_from: resolution ? mcpResolvedFrom(resolution) : null,
-      deployments: project?.agentCard.deployment ?? [],
-      cloudflare_ready: project?.agentCard.cloudflareReady ?? false,
+      resolved_from: mcpResolvedFrom(resolution),
+      deployments: project.agentCard.deployment,
+      cloudflare_ready: project.agentCard.cloudflareReady,
       metadata: knowledge.metadata
     };
   }
@@ -1011,20 +1049,23 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
       return knowledge;
     }
     const resolution = resolveMcpProject(knowledge.projects, stringArg(args.project_id) ?? "");
-    const project = resolution?.project ?? null;
-    const view = project ? toProjectKnowledgeView(project) : null;
-    const scoreExplanation = project ? buildProjectScoreExplanation(project) : null;
+    if (!resolution) {
+      return projectNotFoundError(stringArg(args.project_id) ?? "");
+    }
+    const project = resolution.project;
+    const view = toProjectKnowledgeView(project);
+    const scoreExplanation = buildProjectScoreExplanation(project);
     return {
       project_id: stringArg(args.project_id),
-      resolved_from: resolution ? mcpResolvedFrom(resolution) : null,
-      git_top_score: view?.gitTopScore ?? null,
-      git_top_score_breakdown: view?.gitTopScoreBreakdown ?? null,
+      resolved_from: mcpResolvedFrom(resolution),
+      git_top_score: view.gitTopScore,
+      git_top_score_breakdown: view.gitTopScoreBreakdown,
       score_explanation: scoreExplanation,
-      quality_score: view?.qualityScore ?? null,
-      agent_score: view?.agentScore ?? null,
-      quality_signals: view?.qualitySignals ?? null,
-      agent_score_breakdown: view?.agentScoreBreakdown ?? null,
-      score_page: view ? `https://git.top/score/${view.repo}` : null,
+      quality_score: view.qualityScore,
+      agent_score: view.agentScore,
+      quality_signals: view.qualitySignals,
+      agent_score_breakdown: view.agentScoreBreakdown,
+      score_page: `https://git.top/score/${view.repo}`,
       metadata: knowledge.metadata
     };
   }
@@ -1035,6 +1076,9 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
       return knowledge;
     }
     const resolution = stringArg(args.project_id) ? resolveMcpProject(knowledge.projects, stringArg(args.project_id) ?? "") : null;
+    if (stringArg(args.project_id) && !resolution) {
+      return projectNotFoundError(stringArg(args.project_id) ?? "");
+    }
     return {
       graph: buildKnowledgeGraph(knowledge.projects, resolution?.resolvedId ?? stringArg(args.project_id), numberArg(args.limit) ?? 24),
       resolved_from: resolution ? mcpResolvedFrom(resolution) : null,
@@ -1136,6 +1180,17 @@ function numberArg(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
+function validateToolLimit(name: string, args: Record<string, unknown>): ToolErrorResult | null {
+  const maximum = toolLimitMaximums[name];
+  if (maximum === undefined || args.limit === undefined) {
+    return null;
+  }
+  if (typeof args.limit !== "number" || !Number.isInteger(args.limit) || args.limit < 1 || args.limit > maximum) {
+    return { toolError: { code: -32602, message: `limit must be an integer from 1 to ${maximum}.` } };
+  }
+  return null;
+}
+
 function boolArg(value: unknown): boolean | undefined {
   return typeof value === "boolean" ? value : undefined;
 }
@@ -1155,6 +1210,15 @@ function projectIdArg(args: Record<string, unknown>): string {
 
 function resolveMcpProject(projects: ProjectKnowledge[], id: string): NonNullable<ReturnType<typeof resolveProject>> | null {
   return id ? resolveProject(projects, id) : null;
+}
+
+function projectNotFoundError(projectId: string): ToolErrorResult {
+  return {
+    toolError: {
+      code: projectNotFoundCode,
+      message: `Project ${projectId} was not found.`
+    }
+  };
 }
 
 function mcpResolvedFrom(resolution: NonNullable<ReturnType<typeof resolveProject>>): { requested_id: string; resolved_id: string; resolution: "direct" | "alias" } {

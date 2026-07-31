@@ -16,8 +16,9 @@ test("change cursors are opaque, versioned, and reject invalid input", () => {
 });
 
 test("change feed paginates and exposes deletion tombstones", async () => {
+  const feedStartedAt = new Date(Date.now() - 7 * 86_400_000).toISOString();
   const env = mockD1Env({
-    syncState: { project_change_feed_started_at: "2026-07-01T00:00:00.000Z" },
+    syncState: { project_change_feed_started_at: feedStartedAt },
     projectChanges: [
       changeRow(1, "added", "cloudflare/agents"),
       changeRow(2, "updated", "openai/codex"),
@@ -36,7 +37,7 @@ test("change feed paginates and exposes deletion tombstones", async () => {
   assert.equal(second.page.has_more, false);
   assert.ok(second.page.next_cursor);
   assert.equal(second.retention.days, 30);
-  assert.equal(second.retention.earliest_guaranteed_at, "2026-07-01T00:00:00.000Z");
+  assert.equal(second.retention.earliest_guaranteed_at, feedStartedAt);
 });
 
 test("renamed repositories retire obsolete knowledge after canonical sync", async () => {

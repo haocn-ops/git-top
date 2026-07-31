@@ -69,7 +69,7 @@ export const openApiDocument = {
     },
     "/api/search": {
       get: {
-        summary: "Search project knowledge by query, category, deployment, difficulty, language, project type, confidence, and Cloudflare readiness.",
+        summary: "Search project knowledge by query, category, deployment, difficulty, language, project type, confidence, and Cloudflare readiness; large corpora disclose bounded D1-first candidate retrieval in metadata.",
         parameters: [
           queryParam("q", "Search query"),
           queryParam("category", "Project category"),
@@ -635,7 +635,7 @@ export const openApiDocument = {
         responses: {
           "200": jsonResponse("JSON-RPC success result. For tools/call, parse result.content[0].text as JSON before reading metadata or result fields.", "#/components/schemas/McpJsonRpcSuccessResponse", mcpJsonRpcSuccessExample()),
           "202": { description: "Accepted JSON-RPC notification with no response body, used for notifications/initialized." },
-          "400": jsonResponse("JSON-RPC error result for invalid JSON, unsupported methods, unknown tools, invalid arguments, or strict D1 failures.", "#/components/schemas/McpJsonRpcErrorResponse", mcpJsonRpcErrorExample())
+          "400": jsonResponse("JSON-RPC error result for invalid JSON, unsupported methods, unknown tools, invalid arguments, strict D1 failures (-32003), stale cursors (-32004), or unresolved singular projects (-32005).", "#/components/schemas/McpJsonRpcErrorResponse", mcpJsonRpcErrorExample())
         }
       }
     }
@@ -668,11 +668,24 @@ export const openApiDocument = {
           schema_version: { type: "string", enum: ["git-top.knowledge.v1"] },
           loaded_project_limit: {
             type: "integer",
-            description: "Maximum D1 knowledge rows loaded into the bounded ranking set when present."
+            description: "Maximum D1 knowledge or search-candidate rows loaded into the bounded ranking set when present."
           },
           truncated: {
             type: "boolean",
-            description: "Whether the D1-backed ranking set reached the load limit and may omit additional indexed rows."
+            description: "Whether the D1-backed ranking or candidate set reached its limit and may omit additional matching rows."
+          },
+          candidate_retrieval: {
+            type: "string",
+            enum: ["d1_first"],
+            description: "Search-only marker indicating that deterministic filters and broad query matching ran in D1 before TypeScript ranking."
+          },
+          candidate_count: {
+            type: "integer",
+            description: "Number of D1 search candidates passed to the authoritative TypeScript filter and ranking stage."
+          },
+          candidate_limit: {
+            type: "integer",
+            description: "Maximum number of D1 search candidates passed to the ranking stage."
           },
           warnings: {
             type: "array",
@@ -1776,7 +1789,7 @@ export const openApiDocument = {
       },
       McpJsonRpcErrorResponse: {
         type: "object",
-        description: "JSON-RPC 2.0 error response. Strict D1 failures use code -32003.",
+        description: "JSON-RPC 2.0 error response. Strict D1 failures use code -32003; unresolved singular project lookups use code -32005, while stale pagination cursors use -32004.",
         required: ["jsonrpc", "id", "error"],
         properties: {
           jsonrpc: { type: "string", const: "2.0" },
@@ -1787,7 +1800,7 @@ export const openApiDocument = {
             properties: {
               code: {
                 type: "integer",
-                description: "JSON-RPC error code. Common values include -32700 parse error, -32601 method/tool not found, -32602 invalid params, and -32003 D1 required."
+                description: "JSON-RPC error code. Common values include -32700 parse error, -32601 method/tool not found, -32602 invalid params, -32003 D1 required, -32004 stale pagination cursor, and -32005 project not found."
               },
               message: { type: "string" }
             },
@@ -2172,7 +2185,14 @@ function searchExample() {
     },
     projects: [projectCardExample()],
     page: cursorPageExample(),
-    metadata: metadataExample()
+    metadata: {
+      ...metadataExample(),
+      candidate_retrieval: "d1_first",
+      candidate_count: 42,
+      candidate_limit: 1000,
+      loaded_project_limit: 1000,
+      truncated: false
+    }
   };
 }
 
@@ -2633,8 +2653,8 @@ function mcpJsonRpcErrorExample() {
     jsonrpc: "2.0",
     id: 2,
     error: {
-      code: -32003,
-      message: "D1-backed knowledge is required, but current source is seed."
+      code: -32005,
+      message: "Project missing/project was not found."
     }
   };
 }

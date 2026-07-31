@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { handleApi } from "../src/api.ts";
 import worker from "../src/index.ts";
 import { openApiDocument } from "../src/openapi.ts";
-import { governanceRunRow, mockD1Env, mockD1ProjectId, syncRunRow } from "./mock-d1.mjs";
+import { governanceRunRow, mockD1Env, mockD1ProjectId, mockD1ProjectRow, syncRunRow } from "./mock-d1.mjs";
 
 const env = {};
 
@@ -1117,6 +1117,14 @@ async function testOpenApiDocument() {
   const searchParameterNames = openapi.body.paths["/api/search"].get.parameters.map((item) => item.name);
   assert.ok(searchParameterNames.includes("project_kind"));
   assert.ok(searchParameterNames.includes("min_confidence"));
+  const metadataProperties = openapi.body.components.schemas.Metadata.properties;
+  assert.deepEqual(metadataProperties.candidate_retrieval.enum, ["d1_first"]);
+  assert.equal(metadataProperties.candidate_count.type, "integer");
+  assert.equal(metadataProperties.candidate_limit.type, "integer");
+  const searchResponseExample = openapi.body.paths["/api/search"].get.responses["200"].content["application/json"].example;
+  assert.equal(searchResponseExample.metadata.candidate_retrieval, "d1_first");
+  assert.equal(searchResponseExample.metadata.candidate_limit, 1000);
+  assert.equal(searchResponseExample.metadata.truncated, false);
   const recommendParameterNames = openapi.body.paths["/api/recommend"].get.parameters.map((item) => item.name);
   assert.ok(recommendParameterNames.includes("category"));
   assert.ok(recommendParameterNames.includes("license"));
@@ -1541,6 +1549,118 @@ async function testMockD1Source() {
   assert.equal(search.body.knowledge[0].metrics.calculated_at, "2026-06-20T00:00:00Z");
   assert.equal(search.body.projects[0].classification.category.confidence, "high");
   assertMetadata(search.body.metadata, "d1_query", "d1");
+
+  const largeCorpusEnv = mockD1Env({ knowledgeReadyProjectCount: 2001 });
+  const largeSearch = await request("/api/search?q=mock&limit=5&require_d1=true", {}, largeCorpusEnv);
+  assert.equal(largeSearch.status, 200);
+  assert.equal(largeSearch.body.projects[0].repo, mockD1ProjectId);
+  assert.equal(largeSearch.body.metadata.project_count, 2001);
+  assert.equal(largeSearch.body.metadata.candidate_retrieval, "d1_first");
+  assert.equal(largeSearch.body.metadata.candidate_count, 1);
+  assert.equal(largeSearch.body.metadata.candidate_limit, 1000);
+  assert.equal(largeSearch.body.metadata.loaded_project_limit, 1000);
+  assert.equal(largeSearch.body.metadata.truncated, false);
+
+  const overflowSearch = await request(
+    "/api/search?q=mock&limit=5&require_d1=true",
+    {},
+    mockD1Env({ knowledgeReadyProjectCount: 2001, searchCandidateOverflow: true })
+  );
+  assert.equal(overflowSearch.status, 200);
+  assert.equal(overflowSearch.body.metadata.candidate_count, 1000);
+  assert.equal(overflowSearch.body.metadata.truncated, true);
+  assert.ok(overflowSearch.body.metadata.warnings.some((warning) => warning.includes("1000 candidate limit")));
+
+  const highScoreFiller = mockD1ProjectRow({
+    id: "popular/common-result",
+    owner: "popular",
+    name: "common-result",
+    full_name: "popular/common-result",
+    ac_project_id: "popular/common-result",
+    pm_project_id: "popular/common-result",
+    stars: 999999,
+    git_score: 100
+  });
+  const exactTargetId = "low-score/exact-target";
+  const exactTarget = mockD1ProjectRow({
+    id: exactTargetId,
+    owner: "low-score",
+    name: "exact-target",
+    full_name: exactTargetId,
+    ac_project_id: exactTargetId,
+    pm_project_id: exactTargetId,
+    stars: 1,
+    git_score: 1
+  });
+  const exactQueryLog = [];
+  const exactSearch = await request(
+    `/api/search?q=${encodeURIComponent(exactTargetId)}&limit=5&require_d1=true`,
+    {},
+    mockD1Env({
+      knowledgeReadyProjectCount: 2001,
+      searchCandidateRows: [highScoreFiller, exactTarget],
+      searchCandidateOverflow: true,
+      queryLog: exactQueryLog
+    })
+  );
+  assert.equal(exactSearch.status, 200);
+  assert.equal(exactSearch.body.projects[0].repo, exactTargetId, "exact IDs must survive D1 candidate overflow");
+  const exactCandidateQuery = exactQueryLog.find((entry) => entry.sql.includes("search_candidates"));
+  assert.ok(exactCandidateQuery, "large-corpus search should issue the D1 candidate query");
+  assert.ok(exactCandidateQuery.bindings.filter((binding) => binding === exactTargetId).length >= 2, "exact IDs should bind in filtering and priority ordering");
+
+  const aliasTargetId = "openai/codex";
+  const aliasTarget = mockD1ProjectRow({
+    id: aliasTargetId,
+    owner: "openai",
+    name: "codex",
+    full_name: aliasTargetId,
+    ac_project_id: aliasTargetId,
+    pm_project_id: aliasTargetId,
+    stars: 1,
+    git_score: 1
+  });
+  const aliasSearch = await request(
+    "/api/search?q=claude-code&limit=5&require_d1=true",
+    {},
+    mockD1Env({
+      knowledgeReadyProjectCount: 2001,
+      searchCandidateRows: [highScoreFiller, aliasTarget],
+      searchCandidateOverflow: true
+    })
+  );
+  assert.equal(aliasSearch.status, 200);
+  assert.equal(aliasSearch.body.projects[0].repo, aliasTargetId, "alias targets must survive D1 candidate overflow");
+
+  const collectionQueryLog = [];
+  const collectionId = "mock/resource-catalog";
+  const collectionSearch = await request(
+    "/api/search?q=research-catalog&project_kind=collection&limit=5&require_d1=true",
+    {},
+    mockD1Env({
+      knowledgeReadyProjectCount: 2001,
+      searchCandidateRows: [mockD1ProjectRow({
+        id: collectionId,
+        owner: "mock",
+        name: "resource-catalog",
+        full_name: collectionId,
+        ac_project_id: collectionId,
+        pm_project_id: collectionId,
+        project_kind: "collection",
+        collection_json: JSON.stringify({ scope: "research_catalog", curated: true, estimatedItems: 25, freshness: "active" })
+      })],
+      queryLog: collectionQueryLog
+    })
+  );
+  assert.equal(collectionSearch.status, 200);
+  assert.equal(collectionSearch.body.projects[0].repo, collectionId);
+  const collectionCandidateQuery = collectionQueryLog.find((entry) => entry.sql.includes("search_candidates"));
+  assert.match(collectionCandidateQuery.sql, /COALESCE\(ac\.project_kind, ''\)/);
+  assert.match(collectionCandidateQuery.sql, /COALESCE\(ac\.collection_json, ''\)/);
+  assert.match(collectionCandidateQuery.sql, /p\.stars DESC, lower\(p\.id\) ASC/);
+  assert.ok(collectionCandidateQuery.bindings.includes("%research%"));
+  assert.ok(collectionCandidateQuery.bindings.includes("%catalog%"));
+  assert.ok(!collectionCandidateQuery.bindings.includes("%research-catalog%"));
 
   const project = await request(`/api/project/${encodeURIComponent(mockD1ProjectId)}`, {}, d1Env);
   assert.equal(project.status, 200);

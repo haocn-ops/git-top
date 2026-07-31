@@ -91,6 +91,7 @@ Production checks:
 ```sh
 pnpm smoke:prod
 pnpm quality:check
+pnpm eval:production-snapshot
 ```
 
 ## Agent-Facing Contract Checklist

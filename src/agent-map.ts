@@ -223,7 +223,7 @@ export const agentCoreSurfaces: AgentCoreSurface[] = [
     rest: ["GET /api/search", "GET /api/project/:owner/:repo", "GET /api/alternatives/:project", "GET /api/compare", "GET /api/graph?repo=:project", "GET /api/score/:project"],
     mcpTools: ["search_projects", "get_project", "get_alternatives", "compare_projects", "get_project_graph", "get_quality_score"],
     inspect: ["projects[].repo", "page.next_cursor", "page.snapshot_id", "knowledge", "related", "alternative_matches", "decision_matrix", "graph_stats", "git_top_score"],
-    trustFields: ["metadata.source", "quality_signal_confidence", "classification.*.confidence"],
+    trustFields: ["metadata.source", "metadata.truncated", "metadata.candidate_retrieval", "quality_signal_confidence", "classification.*.confidence"],
     nextUse: "Use this after trust and discovery when you need the actual project answer."
   }
 ];
@@ -253,7 +253,7 @@ export const agentShortPath: AgentPathSurface[] = [
     rest: ["GET /api/search", "GET /api/project/:owner/:repo", "GET /api/recommend", "GET /api/compare"],
     mcpTools: ["search_projects", "get_project", "recommend_project", "compare_projects"],
     inspect: ["projects[].repo", "knowledge", "recommendations", "decision_matrix"],
-    trustFields: ["metadata.source", "quality_signal_confidence", "classification.*.confidence"],
+    trustFields: ["metadata.source", "metadata.truncated", "metadata.candidate_retrieval", "quality_signal_confidence", "classification.*.confidence"],
     useWhen: "Use this once trust and discovery are settled and you need the actual answer."
   }
 ];
@@ -283,7 +283,7 @@ export const agentReferencePath: AgentPathSurface[] = [
     rest: ["GET /api/search", "GET /api/project/:owner/:repo", "GET /api/alternatives/:project", "GET /api/graph?repo=:project", "GET /api/score/:project", "GET /api/compare"],
     mcpTools: ["search_projects", "get_project", "get_alternatives", "get_project_graph", "get_quality_score", "compare_projects"],
     inspect: ["projects[].repo", "knowledge", "related", "alternative_matches", "graph_stats", "score_confidence", "decision_matrix"],
-    trustFields: ["metadata.source", "quality_signal_confidence", "classification.*.confidence"],
+    trustFields: ["metadata.source", "metadata.truncated", "metadata.candidate_retrieval", "quality_signal_confidence", "classification.*.confidence"],
     useWhen: "Use this when you are explaining or comparing concrete projects."
   }
 ];

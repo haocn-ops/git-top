@@ -15,6 +15,7 @@ https://git.top/mcp
 ```
 
 For the fastest agent integration path, start with [Agent Quickstart](./AGENT_QUICKSTART.md). For REST and MCP client snippets in TypeScript and Python, see [SDK-Oriented Examples](./SDK_EXAMPLES.md). For expected MCP result shapes and strict-mode behavior, see [MCP Tool Behavior Examples](./MCP_TOOL_BEHAVIOR_EXAMPLES.md).
+For the generated tool-by-tool input, success, and error contract, see [MCP Conformance Matrix](./MCP_CONFORMANCE_MATRIX.md).
 
 For the agent-native product assessment and improvement roadmap, see [Agent-Native Assessment and Optimization Plan](./AGENT_NATIVE_ASSESSMENT_AND_OPTIMIZATION_PLAN.md).
 
@@ -31,6 +32,8 @@ MCP clients should:
 - Use `get_projects_batch` for up to 20 snapshot-consistent project reads and `get_project_changes` to incrementally update caches and honor deletion tombstones.
 
 When strict source mode fails, Git.Top returns a JSON-RPC error with code `-32003` and a message explaining that D1-backed knowledge is required. Treat that as a fail-closed result, not as an empty recommendation set.
+
+Singular project tools return JSON-RPC error `-32005` with message `Project <id> was not found.` when an ID cannot be resolved. This applies to `get_project`, `get_alternatives`, `find_alternatives`, `get_related_projects`, `get_project_card`, `get_deployment`, `get_quality_score`, and `get_project_graph`. Use `get_projects_batch` when partial success is preferred; unresolved canonical IDs are returned in `missing[]`.
 
 ## List Tools
 
@@ -80,6 +83,10 @@ curl -X POST http://localhost:8787/mcp \
 
 `search_projects` returns a snapshot-bound `page.next_cursor`. Pass it as `cursor` with the same arguments for the next page. Error `-32004` means the corpus snapshot changed and pagination must restart. Typo or multilingual normalization is disclosed under `search.query_interpretation`.
 
+At 1,500 or more knowledge-ready projects, `search_projects` applies deterministic filters and broad query-token matching in D1 before running the existing exact-intent or `ranking: "browse"` TypeScript ranking over at most 1,000 candidates. This path is disclosed through `metadata.candidate_retrieval: "d1_first"`, `metadata.candidate_count`, and `metadata.candidate_limit`. When `metadata.truncated` is `true`, refine the query or filters before treating the result set as exhaustive and disclose the warning in high-confidence answers.
+
+`limit` is validated as an integer. Search, recommendation, and related-project tools accept 1-100; alternatives and workflow-oriented tools expose their lower runtime maximum in `tools/list`. Invalid limits return JSON-RPC error `-32602` instead of a result page.
+
 Use `require_d1: true` when an agent must fail closed instead of accepting seed fallback:
 
 ```sh
@@ -97,6 +104,8 @@ curl -X POST http://localhost:8787/mcp \
 ```
 
 `get_project` also accepts `{"owner":"cloudflare","repo":"agents"}`, `{"repo":"cloudflare/agents"}`, and Git.Top product aliases such as `{"project_id":"claude-code"}` for clients starting from product names instead of canonical GitHub owner/repo identifiers.
+
+Unknown IDs fail with JSON-RPC error `-32005`; valid aliases continue to return a project and a `resolved_from` record.
 
 The tool result includes a top-level `summary` object with `tl_dr`, `purpose`, `install`, `inputs`, `outputs`, `good_for`, `not_good_for`, `deployment`, and `alternatives`. Use that object for first-pass agent reasoning, then inspect `project.classification`, `project.quality_signal_confidence`, `resolved_from`, and `metadata.source` before making high-confidence claims.
 
@@ -227,6 +236,7 @@ curl -X POST http://localhost:8787/mcp \
 Agents should:
 
 - Prefer `metadata.source === "d1"` when making high-confidence recommendations.
+- Inspect `metadata.truncated` and search candidate metadata before treating broad search results as exhaustive.
 - Use `require_d1: true` for production answers that should fail closed rather than fall back to seed data.
 - Treat seed fallback as useful for demos and development, but mention the fallback when presenting results.
 - Use `get_trust_gate` before high-confidence recommendations, then use `get_quality_report` for detailed corpus-wide quality or coverage claims.

@@ -103,10 +103,13 @@ Important fields:
 
 - `source`: `d1` or `seed`
 - `reason`: why that source was used
-- `project_count`: number of projects in the loaded knowledge set
+- `project_count`: total number of knowledge-ready projects in the corpus for D1-first search, or the loaded knowledge-set size on other paths
 - `generated_at`: response metadata timestamp
-- `loaded_project_limit`: maximum D1 knowledge rows loaded into the in-memory ranking set, present for D1-backed knowledge responses
-- `truncated`: whether D1-backed knowledge reached that load limit and may omit additional indexed rows
+- `loaded_project_limit`: maximum D1 knowledge or search-candidate rows loaded into the in-memory ranking set, present for bounded D1-backed responses
+- `truncated`: whether the D1-backed knowledge or candidate set reached its limit and may omit additional matching rows
+- `candidate_retrieval`: search-only strategy marker; `d1_first` means deterministic filters and broad query matching ran in D1 before final TypeScript ranking
+- `candidate_count`: number of D1 search candidates passed into final filtering and ranking
+- `candidate_limit`: maximum D1 search candidates allowed for that ranking pass
 - `warnings`: present when seed fallback or another caution applies
 
 Agents should surface or account for this metadata when making recommendations.
@@ -280,6 +283,8 @@ curl "http://localhost:8787/api/search?q=agent%20framework&category=agent_framew
 ```
 
 Search, trending, and category lists return `page.offset`, `page.limit`, `page.has_more`, `page.next_cursor`, and `page.snapshot_id`. Cursors are bound to both the query and `metadata.snapshot_id`; restart without a cursor after `stale_page_cursor` because continuing across corpus snapshots could skip or duplicate projects.
+
+When the knowledge-ready corpus contains at least 1,500 projects, search first applies deterministic filters and broad query-token matching in D1, then preserves the existing TypeScript exact-intent or `ranking=browse` ranking over at most 1,000 candidates. Inspect `metadata.candidate_retrieval`, `metadata.candidate_count`, and `metadata.candidate_limit` to detect this path. If `metadata.truncated` is `true`, refine the query or filters before treating the results as exhaustive; the response also includes a candidate-limit warning. Other knowledge endpoints keep their existing source policy.
 
 Known high-signal typos and common Chinese AI-domain terms are conservatively normalized before ranking. When normalization occurs, inspect `search.query_interpretation` for the original query, normalized query, and explicit transformations. Git.Top does not apply unrestricted fuzzy matching.
 

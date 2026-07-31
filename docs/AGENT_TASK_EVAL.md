@@ -1,13 +1,13 @@
 # Git.Top Agent Task Evaluation
 
-Generated: 2026-07-13T00:25:19.716Z
+Generated: 2026-07-31T02:47:01.070Z
 
-This CI gate validates complete agent workflows across trust, retrieval, evidence, pagination, comparison, change handling, feedback governance, fallback, multilingual input, typos, and renamed-project aliases.
+This CI gate validates complete agent workflows across trust, retrieval, evidence, pagination, comparison, change handling, feedback governance, fallback, multilingual input, typos, renamed-project aliases, and invalid MCP input handling.
 
 ## Summary
 
-- Tasks: 8
-- Passed: 8
+- Tasks: 10
+- Passed: 10
 - Failed: 0
 - Success rate: 100.0%
 
@@ -23,3 +23,5 @@ This CI gate validates complete agent workflows across trust, retrieval, evidenc
 | review-gated-feedback | passed | feedback validation -> no anonymous persistence | - |
 | multilingual-and-typo-intent | passed | Chinese query -> typo correction | - |
 | renamed-project-alias | passed | alias resolution -> canonical project response | - |
+| mcp-invalid-limit-fails-closed | passed | invalid MCP limits -> JSON-RPC input error -> valid boundary | - |
+| mcp-project-not-found-semantics | passed | unknown project error -> alias success -> batch missing list | - |

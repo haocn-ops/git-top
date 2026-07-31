@@ -166,6 +166,14 @@ pnpm quality:check
 
 The quality gate defaults to `https://git.top/api/quality`, requires D1-backed metadata, and fails when the score is below `MIN_QUALITY_SCORE` or `--min-score` (default `90`). Error and warning issues reduce the score; info issues remain visible as review guidance without reducing the release score.
 
+Compare the deterministic fixture review queue with the current read-only production snapshot:
+
+```sh
+pnpm eval:production-snapshot
+```
+
+This check requires D1-backed health, quality, review, and benchmark responses. It fails when the absolute production-versus-fixture review-count delta exceeds `10`; use `PRODUCTION_REVIEW_COUNT_DELTA_MAX` or `--max-review-delta` only to apply a reviewed threshold change. Requests time out after 10 seconds by default and can be adjusted with `GIT_TOP_PRODUCTION_EVAL_TIMEOUT_MS` or `--timeout-ms`. The command is part of `daily-production-health`, but remains separate from PR validation so CI stays deterministic.
+
 The Release workflow supports same-repository PR preview uploads and manually dispatched production delivery. Configure `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as GitHub secrets, then protect the GitHub `production` Environment with required reviewers. The environment and account ID are configured for this repository; `CLOUDFLARE_API_TOKEN` must still be added before the workflow can upload. Production dispatch accepts at most one explicit migration path matching `migrations/NNNN_name.sql`; migrations must be additive and backward compatible because Worker rollback does not reverse D1 schema changes. A failed production smoke or quality check automatically rolls the Worker back to the version captured before deployment.
 
 GitHub Actions can run the local public V1 release gate with production smoke disabled when Actions is enabled for the account:

@@ -42,7 +42,7 @@ import { buildAgentRecipes } from "./recipes";
 import { buildProductRoadmap } from "./roadmap";
 import { agentCardJsonSchema, projectKnowledgeJsonSchema, projectV2JsonSchema } from "./schema";
 import { buildProjectScoreExplanation } from "./score";
-import { getKnowledgeForSourcePolicy } from "./source-policy";
+import { getKnowledgeForSourcePolicy, getSearchKnowledgeForSourcePolicy } from "./source-policy";
 import { syncGithubProjects } from "./sync";
 import { buildTrendsView } from "./trends";
 import { buildTrustGate } from "./trust-gate";
@@ -683,7 +683,7 @@ export async function handleApi(request: Request, env: Env, ctx?: ExecutionConte
     if (!parsed.ok) {
       return errorJson(400, parsed.code, parsed.message);
     }
-    const knowledge = await requireKnowledgeSource(request, env);
+    const knowledge = await requireSearchKnowledgeSource(request, env, parsed.filters);
     if (knowledge instanceof Response) {
       return knowledge;
     }
@@ -885,6 +885,18 @@ async function requireKnowledgeSource(request: Request, env: Env): Promise<Proje
     return policy.knowledge;
   }
 
+  return sourcePolicyError(policy.failure);
+}
+
+async function requireSearchKnowledgeSource(
+  request: Request,
+  env: Env,
+  filters: Parameters<typeof searchProjectList>[1]
+): Promise<ProjectKnowledgeResult | Response> {
+  const policy = await getSearchKnowledgeForSourcePolicy(env, filters, { requireD1: requiresD1(request) });
+  if (policy.ok) {
+    return policy.knowledge;
+  }
   return sourcePolicyError(policy.failure);
 }
 

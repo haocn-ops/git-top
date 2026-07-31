@@ -1,22 +1,57 @@
 import assert from "node:assert/strict";
+import { writeFile } from "node:fs/promises";
 import { handleMcp } from "../src/mcp.ts";
 import { mockD1Env, mockD1ProjectId } from "./mock-d1.mjs";
 
 const env = {};
+const mcpConformanceMatrix = [
+  ["search_projects", "query/filters/limit/cursor", "projects, search, page, metadata", "-32602 invalid limit; -32003 strict D1; -32004 stale cursor"],
+  ["get_trust_gate", "none", "decision, checks, agent_policy, metadata", "-32003 source policy where applicable"],
+  ["get_quality_report", "require_d1", "quality scores, coverage, issues, metadata", "-32003 strict D1"],
+  ["get_public_benchmark", "require_d1", "evaluation, explanations, data_coverage, review_queue, metadata", "-32003 strict D1"],
+  ["get_project", "project_id or owner+repo", "project, summary, resolved_from, metadata", "-32005 project not found; -32003 strict D1"],
+  ["get_projects_batch", "project_ids, profile", "projects, missing, metadata", "-32602 invalid ids/profile; -32003 strict D1"],
+  ["get_project_changes", "cursor/since/limit", "changes, page, retention, metadata", "-32602 invalid input; -32003 D1 required"],
+  ["propose_project_feedback", "structured evidence proposal", "proposal, persisted, review_required", "-32602 invalid proposal"],
+  ["get_alternatives", "project_id, limit", "project, alternatives, alternative_matches, metadata", "-32005 project not found; -32003 strict D1"],
+  ["get_related_projects", "project_id, limit", "project, related, metadata", "-32005 project not found; -32003 strict D1"],
+  ["get_deployment", "project_id", "deployments, cloudflare_ready, metadata", "-32005 project not found; -32003 strict D1"],
+  ["get_quality_score", "project_id", "scores, score_explanation, metadata", "-32005 project not found; -32003 strict D1"],
+  ["recommend_project", "use_case/constraints/limit", "recommendations, metadata", "-32602 invalid limit; -32003 strict D1"],
+  ["get_trends", "limit, require_d1", "trend signals, rising projects, metadata", "-32602 invalid limit; -32003 strict D1"],
+  ["get_agent_workflow", "intent/constraints/limit", "recommended_sequence, shortlist, trust_policy, metadata", "-32602 invalid limit; -32003 strict D1"],
+  ["get_atlas", "ecosystem/limit", "ecosystem(s), comparison paths, metadata", "-32602 invalid limit/ecosystem; -32003 strict D1"],
+  ["find_alternatives", "project_id, reason, limit", "project, alternatives, alternative_matches, metadata", "-32005 project not found; -32602 invalid limit"],
+  ["get_project_card", "project_id", "agent_card, metrics, metadata", "-32005 project not found; -32003 strict D1"],
+  ["get_project_graph", "project_id, limit", "graph, resolved_from, metadata", "-32005 project not found; -32602 invalid limit; -32003 strict D1"],
+  ["compare_projects", "project_ids, deployment", "projects, decision_matrix, metadata", "-32003 strict D1 where applicable"],
+  ["git_top_grp_query", "goal/mode/constraints/context", "nodes, edges, solution_paths, evidence, metadata", "-32602 invalid request; -32003 strict D1"]
+];
+const expectedMcpToolNames = mcpConformanceMatrix.map(([name]) => name);
 
 await testDiscovery();
 await testToolCalls();
+await testLimitValidation();
 await testGrpToolValidation();
 await testRpcErrors();
 await testMockD1ToolSource();
 await testRequireD1ToolMode();
 await testD1FallbackToolReasons();
+await writeConformanceMatrix();
 
-console.log("Validated MCP tool behavior with seed and mocked D1 data sources.");
+console.log(`Validated ${expectedMcpToolNames.length} MCP tools with seed and mocked D1 data sources.`);
 
 async function testDiscovery() {
   const getDiscovery = await request("GET", "/mcp");
   assert.equal(getDiscovery.status, 200);
+  const discoveredToolNames = getDiscovery.body.tools.map((tool) => tool.name).sort();
+  assert.deepEqual(discoveredToolNames, [...expectedMcpToolNames].sort(), "MCP discovery must advertise the complete conformance matrix");
+  for (const toolName of expectedMcpToolNames) {
+    const tool = getDiscovery.body.tools.find((item) => item.name === toolName);
+    assert.equal(tool.input_schema.type, "object", `${toolName} should publish an object input schema`);
+    assert.equal(typeof tool.description, "string");
+    assert.ok(tool.description.length > 0, `${toolName} should publish a description`);
+  }
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "search_projects"));
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "git_top_grp_query"));
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "get_trends"));
@@ -62,6 +97,17 @@ async function testDiscovery() {
   assert.equal(getDiscovery.body.agent_api.response_contract.tool_content_type, "application/json");
   assert.match(getDiscovery.body.agent_api.response_contract.parse_instruction, /Parse JSON-RPC tools\/call result\.content text blocks as JSON/);
   assert.equal(getDiscovery.body.agent_api.response_contract.strict_source_error.code, -32003);
+  assert.equal(getDiscovery.body.agent_api.response_contract.project_not_found_error.code, -32005);
+  assert.deepEqual(getDiscovery.body.agent_api.response_contract.project_not_found_error.singular_tools, [
+    "get_project",
+    "get_alternatives",
+    "find_alternatives",
+    "get_related_projects",
+    "get_project_card",
+    "get_deployment",
+    "get_quality_score",
+    "get_project_graph"
+  ]);
   assert.ok(getDiscovery.body.quickstart.some((item) => item.includes("structured POST")));
   assert.ok(getDiscovery.body.quickstart.some((item) => item.includes("get_public_benchmark")));
   assert.ok(getDiscovery.body.quickstart.some((item) => item.includes("get_trust_gate")));
@@ -86,10 +132,38 @@ async function testDiscovery() {
 
   const searchTool = getDiscovery.body.tools.find((tool) => tool.name === "search_projects");
   assert.match(searchTool.description, /project_kind/);
+  assert.match(searchTool.description, /metadata\.candidate_retrieval/);
+  assert.match(searchTool.description, /metadata\.truncated/);
   assert.match(searchTool.description, /collection_metadata/);
   assert.deepEqual(searchTool.input_schema.properties.ranking.enum, ["browse"]);
   assert.match(searchTool.input_schema.properties.ranking.description, /browse ranking/);
   assert.equal(searchTool.input_schema.properties.require_d1.type, "boolean");
+
+  const limitMaximums = {
+    search_projects: 100,
+    get_project_changes: 100,
+    get_alternatives: 20,
+    get_related_projects: 100,
+    recommend_project: 100,
+    get_trends: 12,
+    get_agent_workflow: 20,
+    get_atlas: 20,
+    find_alternatives: 20,
+    get_project_graph: 80
+  };
+  for (const [toolName, maximum] of Object.entries(limitMaximums)) {
+    const tool = getDiscovery.body.tools.find((item) => item.name === toolName);
+    assert.ok(tool, `${toolName} should be discoverable`);
+    assert.deepEqual(
+      {
+        type: tool.input_schema.properties.limit.type,
+        minimum: tool.input_schema.properties.limit.minimum,
+        maximum: tool.input_schema.properties.limit.maximum
+      },
+      { type: "integer", minimum: 1, maximum },
+      `${toolName} should publish its runtime limit bounds`
+    );
+  }
 
   const cardTool = getDiscovery.body.tools.find((tool) => tool.name === "get_project_card");
   assert.match(cardTool.description, /project_kind/);
@@ -309,6 +383,28 @@ async function testToolCalls() {
   assert.equal(aliasGraph.result.graph.project.repo, aliasGraph.result.resolved_from.resolved_id);
   assertMetadata(aliasGraph.result.metadata, "db_missing");
 
+  const aliasFindAlternatives = await callTool("find_alternatives", { project_id: "claude-code", limit: 3 });
+  assert.equal(aliasFindAlternatives.status, 200);
+  assert.equal(aliasFindAlternatives.result.resolved_from.resolution, "alias");
+  assert.equal(aliasFindAlternatives.result.project.repo, aliasFindAlternatives.result.resolved_from.resolved_id);
+  assertMetadata(aliasFindAlternatives.result.metadata, "db_missing");
+
+  for (const [toolName, args] of [
+    ["get_project", { project_id: "missing/project" }],
+    ["get_alternatives", { project_id: "missing/project", limit: 3 }],
+    ["find_alternatives", { project_id: "missing/project", limit: 3 }],
+    ["get_related_projects", { project_id: "missing/project", limit: 3 }],
+    ["get_project_card", { project_id: "missing/project" }],
+    ["get_deployment", { project_id: "missing/project" }],
+    ["get_quality_score", { project_id: "missing/project" }],
+    ["get_project_graph", { project_id: "missing/project", limit: 8 }]
+  ]) {
+    const missing = await callTool(toolName, args);
+    assert.equal(missing.status, 400, `${toolName} should return an MCP error for an unknown project`);
+    assert.equal(missing.body.error.code, -32005);
+    assert.equal(missing.body.error.message, "Project missing/project was not found.");
+  }
+
   const compare = await callTool("compare_projects", {
     project_ids: ["cloudflare/agents", "run-llama/llama_index"],
     deployment: "cloudflare"
@@ -384,6 +480,13 @@ async function testToolCalls() {
   assert.ok(typeof qualityReport.result.issue_count === "number");
   assert.ok(typeof qualityReport.result.project_count === "number");
   assertMetadata(qualityReport.result.metadata, "db_missing");
+
+  const benchmark = await callTool("get_public_benchmark", {});
+  assert.equal(benchmark.status, 200);
+  assert.equal(benchmark.result.name, "Git.Top Public Trust Benchmark");
+  assert.ok(benchmark.result.evaluation);
+  assert.ok(benchmark.result.known_limitations);
+  assertMetadata(benchmark.result.metadata, "db_missing");
 
   const workflow = await callTool("get_agent_workflow", {
     intent: "choose a Cloudflare-ready agent framework",
@@ -462,6 +565,40 @@ async function testGrpToolValidation() {
   assert.equal(result.result.metadata.data_source.reason, "db_missing");
 }
 
+async function testLimitValidation() {
+  const limitMaximums = {
+    search_projects: 100,
+    get_project_changes: 100,
+    get_alternatives: 20,
+    get_related_projects: 100,
+    recommend_project: 100,
+    get_trends: 12,
+    get_agent_workflow: 20,
+    get_atlas: 20,
+    find_alternatives: 20,
+    get_project_graph: 80
+  };
+
+  for (const [toolName, maximum] of Object.entries(limitMaximums)) {
+    for (const invalidLimit of [0, -1, 1.5, maximum + 1, "5", null]) {
+      const invalid = await callTool(toolName, { limit: invalidLimit });
+      assert.equal(invalid.status, 400, `${toolName} should reject limit=${String(invalidLimit)}`);
+      assert.equal(invalid.body.error.code, -32602);
+      assert.equal(invalid.body.error.message, `limit must be an integer from 1 to ${maximum}.`);
+    }
+  }
+
+  const minimum = await callTool("search_projects", { query: "cloudflare", limit: 1 });
+  assert.equal(minimum.status, 200);
+  assert.equal(minimum.result.page.limit, 1);
+  assert.ok(minimum.result.projects.length <= 1);
+
+  const maximum = await callTool("search_projects", { query: "cloudflare", limit: 100 });
+  assert.equal(maximum.status, 200);
+  assert.equal(maximum.result.page.limit, 100);
+  assert.ok(maximum.result.projects.length <= 100);
+}
+
 async function testRpcErrors() {
   const invalidJson = await rawRequest("POST", "/mcp", "{", { "content-type": "application/json" });
   assert.equal(invalidJson.status, 400);
@@ -486,11 +623,41 @@ async function testRpcErrors() {
 async function testMockD1ToolSource() {
   const d1Env = mockD1Env();
 
+  const changes = await callTool("get_project_changes", { limit: 5 }, d1Env);
+  assert.equal(changes.status, 200);
+  assert.ok(Array.isArray(changes.result.changes));
+  assert.ok(changes.result.page);
+  assertMetadata(changes.result.metadata, "d1_query", "d1");
+
   const search = await callTool("search_projects", { query: "mock", limit: 5 }, d1Env);
   assert.equal(search.status, 200);
   assert.equal(search.result.projects.length, 1);
   assert.equal(search.result.projects[0].repo, mockD1ProjectId);
   assertMetadata(search.result.metadata, "d1_query", "d1");
+
+  const largeSearch = await callTool(
+    "search_projects",
+    { query: "mock", limit: 5, require_d1: true },
+    mockD1Env({ knowledgeReadyProjectCount: 2001 })
+  );
+  assert.equal(largeSearch.status, 200);
+  assert.equal(largeSearch.result.projects[0].repo, mockD1ProjectId);
+  assert.equal(largeSearch.result.metadata.project_count, 2001);
+  assert.equal(largeSearch.result.metadata.candidate_retrieval, "d1_first");
+  assert.equal(largeSearch.result.metadata.candidate_count, 1);
+  assert.equal(largeSearch.result.metadata.candidate_limit, 1000);
+  assert.equal(largeSearch.result.metadata.loaded_project_limit, 1000);
+  assert.equal(largeSearch.result.metadata.truncated, false);
+
+  const overflowSearch = await callTool(
+    "search_projects",
+    { query: "mock", limit: 5, require_d1: true },
+    mockD1Env({ knowledgeReadyProjectCount: 2001, searchCandidateOverflow: true })
+  );
+  assert.equal(overflowSearch.status, 200);
+  assert.equal(overflowSearch.result.metadata.candidate_count, 1000);
+  assert.equal(overflowSearch.result.metadata.truncated, true);
+  assert.ok(overflowSearch.result.metadata.warnings.some((warning) => warning.includes("1000 candidate limit")));
 
   const project = await callTool("get_project", { project_id: mockD1ProjectId }, d1Env);
   assert.equal(project.status, 200);
@@ -571,6 +738,23 @@ async function testD1FallbackToolReasons() {
   assert.ok(failed.result.projects.length > 0);
   assertMetadata(failed.result.metadata, "db_error");
   assert.ok(typeof failed.result.metadata.error === "string");
+}
+
+async function writeConformanceMatrix() {
+  const rows = mcpConformanceMatrix
+    .map(([name, input, success, errors]) => `| \`${name}\` | ${input} | ${success} | ${errors} |`)
+    .join("\n");
+  const markdown = `# MCP Conformance Matrix
+
+Generated by \`pnpm mcp:validate\` from the live \`GET /mcp\` discovery contract.
+
+The validator checks that every listed tool is discoverable, publishes an object input schema and description, and is covered by the runtime validation suite. Error codes are JSON-RPC application semantics: \`-32602\` invalid input, \`-32003\` strict D1 failure, \`-32004\` stale cursor, and \`-32005\` unresolved singular project.
+
+| Tool | Input focus | Success payload | Error contract |
+| --- | --- | --- | --- |
+${rows}
+`;
+  await writeFile(new URL("../docs/MCP_CONFORMANCE_MATRIX.md", import.meta.url), markdown);
 }
 
 async function callTool(name, args, requestEnv = env) {
