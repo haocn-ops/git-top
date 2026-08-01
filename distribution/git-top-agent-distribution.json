@@ -1,0 +1,187 @@
+{
+  "schema_version": "git-top.agent-distribution.v1",
+  "package_version": "2026-07-31",
+  "last_verified_at": "2026-08-01",
+  "name": "git-top",
+  "title": "Git.Top",
+  "one_sentence_value": "Git.Top gives AI agents evidence-backed open-source project search, recommendations, alternatives, and comparisons through MCP and REST.",
+  "canonical_url": "https://git.top",
+  "connect_url": "https://git.top/connect",
+  "endpoints": {
+    "mcp_core": "https://git.top/mcp/core",
+    "mcp_full": "https://git.top/mcp",
+    "openapi": "https://git.top/openapi.json",
+    "distribution": "https://git.top/distribution.json"
+  },
+  "authentication": {
+    "type": "none",
+    "registration_required": false,
+    "policy_url": "https://git.top/auth.md"
+  },
+  "profiles": {
+    "core": {
+      "purpose": "First-use project search and selection with the smallest useful tool surface.",
+      "tools": [
+        "search_projects",
+        "get_project",
+        "recommend_project",
+        "get_agent_workflow",
+        "compare_projects"
+      ]
+    },
+    "full": {
+      "purpose": "Complete alternatives, graph, score, quality, benchmark, governance, and GRP surface.",
+      "tool_count": 21
+    }
+  },
+  "example_tasks": [
+    "Choose an open-source agent framework that can run on Cloudflare Workers and explain the evidence.",
+    "Compare Codex and OpenCode for a local coding-agent workflow.",
+    "Check an unfamiliar dependency before adding it to a Python-first stack."
+  ],
+  "trust": {
+    "summary": "High-confidence consumers should require metadata.source=d1, inspect evidence and caveats, and use require_d1=true to fail closed.",
+    "trust_gate_url": "https://git.top/api/trust",
+    "benchmark_url": "https://git.top/benchmark",
+    "compatibility_url": "https://git.top/compatibility"
+  },
+  "privacy": {
+    "summary": "Adoption analytics use bounded aggregate dimensions and never record prompts, tool arguments, results, repository choices, raw IP addresses, authorization headers, or cookies.",
+    "optional": true,
+    "request_blocking": false
+  },
+  "installable_skill": {
+    "name": "git-top-project-selection",
+    "repository": "https://github.com/haocn-ops/git-top",
+    "path": "skills/git-top-project-selection",
+    "raw_skill_url": "https://raw.githubusercontent.com/haocn-ops/git-top/main/skills/git-top-project-selection/SKILL.md"
+  },
+  "evidence": {
+    "local_http_smoke": {
+      "status": "passed",
+      "command": "pnpm smoke:prod -- --base-url http://localhost:8787 --allow-seed",
+      "core_tool_count": 5,
+      "workflow_steps": 7
+    },
+    "production_smoke": "passed",
+    "real_client_e2e": "passed",
+    "supported_client_count": 2,
+    "real_client_e2e_clients": [
+      {
+        "client": "Codex CLI, app, and IDE",
+        "version": "0.145.0",
+        "endpoint_profile": "core",
+        "verified_at": "2026-07-31",
+        "discovered_tool_count": 5,
+        "tools_called": [
+          "recommend_project",
+          "compare_projects",
+          "get_project",
+          "search_projects"
+        ],
+        "data_source": "d1",
+        "not_found_error_code": -32005,
+        "invalid_input_error_code": -32602,
+        "status": "passed",
+        "known_limitation": "Codex CLI JSONL did not expose initialize as a separate item. Non-interactive codex exec required a temporary per-server default_tools_approval_mode=approve override for the five allow-listed read-only core tools."
+      },
+      {
+        "client": "Claude Code",
+        "version": "2.1.220",
+        "endpoint_profile": "core_and_full",
+        "verified_at": "2026-07-31",
+        "data_source": "d1",
+        "status": "passed"
+      }
+    ],
+    "real_client_e2e_details": {
+      "client": "Claude Code",
+      "version": "2.1.220",
+      "endpoint_profile": "full",
+      "worker_version": "78773e20-b9f5-4e76-ad07-406264ee0f0b",
+      "verified_at": "2026-07-31",
+      "turns": 6,
+      "elapsed_seconds": 53.615,
+      "tool_count": 21,
+      "default_grp_profile": "compact",
+      "compact_json_rpc_bytes": 31673,
+      "compact_nodes": 24,
+      "compact_edges": 40,
+      "compact_solution_paths": 3,
+      "compact_result_externalized": false,
+      "trust_decision": "allow",
+      "data_source": "d1",
+      "not_found_error_code": -32005,
+      "invalid_profile_error_code": -32602,
+      "known_limitation": "Cost and cache-token measurements are not comparable across this rerun because it included an extra invalid-profile probe and used an independent model cache state."
+    }
+  },
+  "campaign_links": {
+    "canonical_mcp_registry": "https://git.top/connect?source=mcp-registry",
+    "third_party_catalog": "https://git.top/connect?source=mcp-catalog",
+    "smithery": "https://git.top/connect?source=smithery",
+    "glama": "https://git.top/connect?source=glama",
+    "github": "https://git.top/connect?source=github",
+    "agent_skill": "https://git.top/connect?source=agent-skill"
+  },
+  "submission_artifacts": {
+    "canonical_mcp_registry": {
+      "path": "distribution/server.json",
+      "server_name": "io.github.haocn-ops/git-top",
+      "authentication_method": "github",
+      "default_remote": "https://git.top/mcp/core",
+      "runbook": "docs/EXTERNAL_DISTRIBUTION_RUNBOOK.md",
+      "registry_api_url": "https://registry.modelcontextprotocol.io/v0/servers/io.github.haocn-ops%2Fgit-top/versions/0.1.0",
+      "published_version": "0.1.0",
+      "published_at": "2026-07-31T14:33:59.531212Z",
+      "status": "active"
+    },
+    "smithery": {
+      "publish_method": "remote_url",
+      "endpoint": "https://git.top/mcp/core",
+      "website_url": "https://git.top/connect?source=smithery",
+      "publish_url": "https://smithery.ai/new",
+      "documentation_url": "https://smithery.ai/docs/build/publish",
+      "listing_url": "https://smithery.ai/servers/izhenghaocn/git-top",
+      "public_listing_verified": true,
+      "verified_at": "2026-07-31",
+      "verification": {
+        "status": "success",
+        "deployment": "successful",
+        "server_name": "git-top",
+        "server_version": "0.1.0",
+        "discovered_tool_count": 5
+      }
+    },
+    "glama": {
+      "publish_method": "remote_connector",
+      "endpoint": "https://git.top/mcp/core",
+      "website_url": "https://git.top/connect?source=glama",
+      "catalog_url": "https://glama.ai/mcp/connectors",
+      "submission_url": "https://glama.ai/mcp/servers",
+      "listing_url": "https://glama.ai/mcp/connectors/io.github.haocn-ops/git-top",
+      "server_listing_url": "https://glama.ai/mcp/servers/haocn-ops/git-top",
+      "initial_submission_result": "A server with this URL already exists.",
+      "public_listing_verified": true,
+      "verified_at": "2026-08-01",
+      "verification": {
+        "status": "healthy",
+        "transport": "streamable-http",
+        "last_tested_at": "2026-08-01T07:33:00+08:00",
+        "discovered_tool_count": 5
+      }
+    }
+  },
+  "support": {
+    "issues": "https://github.com/haocn-ops/git-top/issues",
+    "compatibility": "https://git.top/compatibility",
+    "security": "https://git.top/.well-known/security.txt"
+  },
+  "submission_status": {
+    "canonical_mcp_registry": "active",
+    "third_party_catalogs": "live",
+    "smithery": "live",
+    "glama": "live",
+    "client_directories": "prepared_not_submitted"
+  }
+}

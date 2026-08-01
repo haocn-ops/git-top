@@ -1,6 +1,6 @@
 # Git.Top Agent Task Evaluation
 
-Generated: 2026-07-31T02:47:01.070Z
+Generated: 2026-08-01T01:34:21.846Z
 
 This CI gate validates complete agent workflows across trust, retrieval, evidence, pagination, comparison, change handling, feedback governance, fallback, multilingual input, typos, renamed-project aliases, and invalid MCP input handling.
 

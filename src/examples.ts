@@ -1,3 +1,5 @@
+import { buildAgentDecisionExamples, type AgentDecisionExample } from "./decision-examples";
+
 export interface AgentApiExample {
   id: string;
   title: string;
@@ -15,6 +17,7 @@ export interface AgentApiExamples {
   name: string;
   positioning: string;
   summary: string;
+  decisionExamples: AgentDecisionExample[];
   examples: AgentApiExample[];
   trustPolicy: string[];
 }
@@ -24,6 +27,7 @@ export function buildAgentApiExamples(): AgentApiExamples {
     name: "Git.Top Agent API Examples",
     positioning: "The Knowledge Graph of Open Source",
     summary: "Copyable REST, MCP, and GRP examples for agents that need project knowledge, recommendations, graph context, alternatives, comparisons, Atlas journeys, and production trust checks.",
+    decisionExamples: buildAgentDecisionExamples(),
     examples: [
       example(
         "health-gate",
@@ -242,6 +246,9 @@ function renderHtml(examples: AgentApiExamples): string {
 
       <main class="layout">
         <section class="examples">
+          <div><p class="eyebrow">Decision-first</p><h2>Start with the user's choice, not an endpoint.</h2></div>
+          ${examples.decisionExamples.map(decisionExampleCard).join("")}
+          <div><p class="eyebrow">Protocol examples</p><h2>Copyable calls and response fields.</h2></div>
           ${examples.examples.map(exampleCard).join("")}
         </section>
         <aside class="panel">
@@ -249,12 +256,28 @@ function renderHtml(examples: AgentApiExamples): string {
           <h2>Before citing a result</h2>
           <div class="rows">${examples.trustPolicy.map(row).join("")}</div>
           <p class="eyebrow">Example Index</p>
-          <div class="actions">${examples.examples.map((item) => `<a class="button" href="#${escapeAttr(item.id)}">${escapeHtml(item.title)}</a>`).join("")}</div>
+          <div class="actions">${[...examples.decisionExamples, ...examples.examples].map((item) => `<a class="button" href="#${escapeAttr(item.id)}">${escapeHtml(item.title)}</a>`).join("")}</div>
         </aside>
       </main>
     </div>
   </body>
 </html>`;
+}
+
+function decisionExampleCard(item: AgentDecisionExample): string {
+  return String.raw`<article class="example" id="${escapeAttr(item.id)}">
+    <div class="example-top"><div><p class="eyebrow">User decision</p><h2>${escapeHtml(item.title)}</h2></div><span class="tag">${escapeHtml(item.verification.scope)}</span></div>
+    <p class="muted"><strong>Request:</strong> ${escapeHtml(item.userRequest)}</p>
+    <div class="rows">
+      <div class="row"><strong>Shortest REST path</strong><span>${escapeHtml(item.shortestRestPath.join(" -> "))}</span></div>
+      <div class="row"><strong>Shortest MCP path</strong><span>${escapeHtml(item.shortestMcpPath.join(" -> "))}</span></div>
+      <div class="row"><strong>Expected fields</strong><span>${escapeHtml(item.expectedFields.join(", "))}</span></div>
+      <div class="row"><strong>Example final answer</strong><span>${escapeHtml(item.exampleFinalAnswer)}</span></div>
+      <div class="row"><strong>Verification</strong><span>${escapeHtml(`${item.verification.source} ${item.verification.snapshotId}, checked ${item.verification.verifiedAt}; local D1 scope, not a production snapshot`)}</span></div>
+      ${item.externalEvidence?.length ? `<div class="row"><strong>External evidence</strong><span>${escapeHtml(item.externalEvidence.map((evidence) => `${evidence.source} ${evidence.subject}: ${evidence.facts.join(", ")} (checked ${evidence.verifiedAt})`).join("; "))}</span></div>` : ""}
+      <div class="row"><strong>Next action</strong><span>${escapeHtml(item.nextAction)}</span></div>
+    </div>
+  </article>`;
 }
 
 function exampleCard(item: AgentApiExample): string {

@@ -16,6 +16,7 @@ export interface AgentQuickstart {
   productionEndpoints: {
     rest: string;
     mcp: string;
+    mcpCore: string;
     grp: string;
   };
   steps: QuickstartStep[];
@@ -31,6 +32,7 @@ export function buildAgentQuickstart(): AgentQuickstart {
     productionEndpoints: {
       rest: "https://git.top/api/*",
       mcp: "https://git.top/mcp",
+      mcpCore: "https://git.top/mcp/core",
       grp: "https://git.top/api/grp/query"
     },
     steps: [
@@ -234,7 +236,7 @@ function renderHtml(quickstart: AgentQuickstart): string {
     <div class="page">
       <nav class="nav">
         <a class="brand" href="/"><span class="brand-mark">G</span><span>Git.Top</span></a>
-        <div class="nav-links"><a href="/docs">Docs</a><a href="/quickstart">Quickstart</a><a href="/recipes">Recipes</a><a href="/workflow">Workflow</a><a href="/api/quickstart">JSON</a><a href="/mcp">MCP</a></div>
+        <div class="nav-links"><a href="/docs">Docs</a><a href="/connect">Connect</a><a href="/quickstart">Quickstart</a><a href="/recipes">Recipes</a><a href="/workflow">Workflow</a><a href="/api/quickstart">JSON</a><a href="/mcp">MCP</a></div>
       </nav>
 
       <header class="hero">
@@ -253,6 +255,7 @@ function renderHtml(quickstart: AgentQuickstart): string {
 
       <section class="metrics">
         ${metric("REST", quickstart.productionEndpoints.rest, "Structured project knowledge, recommendations, graph, compare, quality, and roadmap.")}
+        ${metric("MCP core", quickstart.productionEndpoints.mcpCore, "Five-tool first-use profile for project search and selection.")}
         ${metric("MCP", quickstart.productionEndpoints.mcp, "JSON-RPC discovery and tools for agent runtimes.")}
         ${metric("GRP", quickstart.productionEndpoints.grp, "Goal-level graph reasoning for plans, stacks, comparisons, and project sets.")}
       </section>

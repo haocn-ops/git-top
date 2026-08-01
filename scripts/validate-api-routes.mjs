@@ -15,6 +15,8 @@ await testBenchmarkRoute();
 await testQuickstartRoute();
 await testRecipesRoute();
 await testExamplesRoute();
+await testConnectAndMcpProfiles();
+await testClientCompatibilityRoute();
 await testJourneysRoute();
 await testRoadmapRoute();
 await testSchemaRoutes();
@@ -399,6 +401,7 @@ async function testWorkflowRoute() {
     })
   });
   assert.equal(grp.status, 200);
+  assert.equal(grp.body.profile, undefined, "REST GRP contract must not inherit the MCP response profile");
   assert.equal(grp.body.metadata.version, "grp.v1");
   assert.ok(Array.isArray(grp.body.nodes));
   assert.ok(Array.isArray(grp.body.edges));
@@ -477,10 +480,81 @@ async function testExamplesRoute() {
   assert.ok(examples.body.examples.some((example) => example.id === "mcp-tools-list" && example.surface === "MCP"));
   assert.ok(examples.body.examples.some((example) => example.id === "grp-plan-stack" && example.endpoint === "/api/grp/query"));
   assert.ok(examples.body.examples.every((example) => Array.isArray(example.trust_checks) && example.trust_checks.length > 0));
+  assert.equal(examples.body.decision_examples.length, 10);
+  assert.ok(examples.body.decision_examples.every((example) => example.verification.scope === "local_d1"));
+  assert.ok(examples.body.decision_examples.some((example) => example.id === "replace_archived_python_agent_framework" || example.id === "replace-archived-python-agent-framework"));
 
   const postExamples = await request("/api/examples", { method: "POST" });
   assert.equal(postExamples.status, 405);
   assert.equal(postExamples.body.error.code, "method_not_allowed");
+}
+
+async function testConnectAndMcpProfiles() {
+  const connect = await worker.fetch(new Request("https://git.top/connect?source=validator"), env);
+  const connectText = await connect.text();
+  assert.equal(connect.status, 200);
+  assert.match(connectText, /https:\/\/git\.top\/mcp\/core/);
+  assert.match(connectText, /codex mcp add git-top/);
+  assert.match(connectText, /claude mcp add --transport http/);
+
+  const event = await worker.fetch(new Request("https://git.top/connect/event?client=codex", { method: "POST" }), env);
+  assert.equal(event.status, 204);
+  const genericEvent = await worker.fetch(new Request("https://git.top/connect/event?client=generic", { method: "POST" }), env);
+  assert.equal(genericEvent.status, 204);
+
+  const core = await worker.fetch(new Request("https://git.top/mcp/core"), env);
+  const coreBody = await core.json();
+  assert.equal(core.status, 200);
+  assert.equal(coreBody.profile, "core");
+  assert.equal(coreBody.tools.length, 5);
+  assert.deepEqual(coreBody.tools.map((tool) => tool.name).sort(), [
+    "compare_projects",
+    "get_agent_workflow",
+    "get_project",
+    "recommend_project",
+    "search_projects"
+  ]);
+
+  const distribution = await worker.fetch(new Request("https://git.top/distribution.json"), env);
+  const distributionBody = await distribution.json();
+  assert.equal(distribution.status, 200);
+  assert.equal(distributionBody.schema_version, "git-top.agent-distribution.v1");
+  assert.equal(distributionBody.endpoints.mcp_core, "https://git.top/mcp/core");
+  assert.equal(distributionBody.installable_skill.name, "git-top-project-selection");
+  assert.equal(distributionBody.submission_status.canonical_mcp_registry, "active");
+  assert.equal(distributionBody.submission_status.third_party_catalogs, "live");
+  assert.equal(distributionBody.submission_status.smithery, "live");
+  assert.equal(distributionBody.submission_status.glama, "live");
+  assert.equal(distributionBody.submission_status.client_directories, "prepared_not_submitted");
+  assert.equal(distributionBody.submission_artifacts.smithery.public_listing_verified, true);
+  assert.equal(distributionBody.submission_artifacts.smithery.verification.discovered_tool_count, 5);
+  assert.equal(distributionBody.submission_artifacts.glama.public_listing_verified, true);
+  assert.equal(distributionBody.submission_artifacts.glama.listing_url, "https://glama.ai/mcp/connectors/io.github.haocn-ops/git-top");
+  assert.equal(distributionBody.submission_artifacts.glama.verification.discovered_tool_count, 5);
+}
+
+async function testClientCompatibilityRoute() {
+  const compatibility = await getJson("/api/compatibility");
+  assert.equal(compatibility.status, 200);
+  assert.equal(compatibility.body.schema_version, "git-top.client-compatibility.v1");
+  assert.equal(compatibility.body.server_contract.initialize, "passed");
+  assert.equal(compatibility.body.full_profile_evidence.discovered_tool_count, 21);
+  assert.equal(compatibility.body.full_profile_evidence.compact_profile_verification, "passed");
+  assert.equal(compatibility.body.full_profile_evidence.compact_profile_evidence.worker_version, "78773e20-b9f5-4e76-ad07-406264ee0f0b");
+  assert.equal(compatibility.body.full_profile_evidence.compact_profile_evidence.result_externalized, false);
+  assert.equal(compatibility.body.clients.length, 2);
+  assert.ok(compatibility.body.clients.every((client) => ["configuration_verified", "supported"].includes(client.support_level)));
+  assert.equal(compatibility.body.clients.filter((client) => client.support_level === "supported").length, 2);
+  assert.ok(compatibility.body.clients.every((client) => client.support_level !== "supported" || [client.initialize, client.tool_discovery, client.first_call, client.multi_tool_workflow, client.error_behavior].every((status) => status === "passed")));
+
+  const page = await worker.fetch(new Request("https://git.top/compatibility"), env);
+  const pageText = await page.text();
+  assert.equal(page.status, 200);
+  assert.match(pageText, /Configuration syntax alone is not a support claim/);
+  assert.match(pageText, /Codex CLI, app, and IDE/);
+
+  const post = await request("/api/compatibility", { method: "POST" });
+  assert.equal(post.status, 405);
 }
 
 async function testJourneysRoute() {
@@ -835,9 +909,12 @@ async function testGraphAndQualityRoutes() {
   assert.ok(trust.body.checks.some((check) => check.id === "data-trust-score"));
   assert.ok(Array.isArray(trust.body.required_for_high_confidence));
   assert.ok(trust.body.required_for_high_confidence.includes("metadata.source=d1"));
-  assert.ok(trust.body.required_for_high_confidence.includes("hot_stale_rate<=0.10"));
+  assert.ok(trust.body.required_for_high_confidence.includes("hot_project_freshness_rate>=0.95"));
   assert.ok(trust.body.required_for_high_confidence.includes("sync_capacity_target_feasible=true"));
   assert.ok(trust.body.agent_policy.cite.includes("metadata.source"));
+  assert.equal(typeof trust.body.freshness_slo.hot_projects.freshness_rate, "number");
+  assert.equal(typeof trust.body.freshness_slo.hot_projects.meets_target, "boolean");
+  assert.equal(typeof trust.body.freshness_slo.whole_corpus.freshness_rate, "number");
   assert.ok(trust.body.quality.release_score === quality.body.release_score);
   assert.equal(trust.body.quality.issues, undefined);
   assertMetadata(trust.body.metadata, "db_missing");
@@ -928,6 +1005,9 @@ async function testSchemaRoutes() {
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Agent workflow" && surface.mcp_tools.includes("get_agent_workflow")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "API examples" && surface.rest.includes("GET /api/examples")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "API and MCP discovery" && surface.rest.includes("GET /mcp")));
+  assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "API and MCP discovery" && surface.rest.includes("GET /distribution.json")));
+  assert.equal(agentMap.body.distribution_url, "https://git.top/distribution.json");
+  assert.equal(agentMap.body.installable_skill.name, "git-top-project-selection");
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Recommendations" && surface.output_fields.includes("recommendations[].adoption_plan")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Open source trends" && surface.rest.includes("GET /api/trends")));
   assert.ok(agentMap.body.surfaces.some((surface) => surface.concept === "Quality and coverage" && surface.rest.includes("GET /api/benchmark")));
@@ -945,6 +1025,7 @@ async function testOpenApiDocument() {
   assert.equal(openapi.status, 200);
   assert.equal(openapi.body.openapi, "3.1.0");
   assert.ok(openapi.body.paths["/api/agent-map"], "OpenAPI should document agent surface map endpoint");
+  assert.ok(openapi.body.paths["/api/compatibility"], "OpenAPI should document client compatibility endpoint");
   assert.ok(openapi.body.paths["/api/quickstart"], "OpenAPI should document quickstart endpoint");
   assert.ok(openapi.body.paths["/api/recipes"], "OpenAPI should document recipes endpoint");
   assert.ok(openapi.body.paths["/api/examples"], "OpenAPI should document examples endpoint");
@@ -984,6 +1065,7 @@ async function testOpenApiDocument() {
   assert.ok(openapi.body.paths["/api/related"].post, "OpenAPI should document structured related POST endpoint");
   assert.ok(openapi.body.paths["/api/score"].post, "OpenAPI should document structured score POST endpoint");
   assert.ok(openapi.body.paths["/api/graph"].post, "OpenAPI should document structured graph POST endpoint");
+  assert.ok(openapi.body.paths["/mcp/core"], "OpenAPI should document the MCP core endpoint");
   assert.ok(openapi.body.components.schemas.ProjectLookupRequest, "OpenAPI should include ProjectLookupRequest schema");
   assert.ok(openapi.body.components.schemas.ProjectsBatchRequest, "OpenAPI should include ProjectsBatchRequest schema");
   assert.ok(openapi.body.components.schemas.ProjectChangesResponse, "OpenAPI should include ProjectChangesResponse schema");
@@ -1020,6 +1102,7 @@ async function testOpenApiDocument() {
   assertOpenApiResponseSchema(openapi.body, "/api/quality", "get", "QualityReportResponse");
   assertOpenApiResponseSchema(openapi.body, "/api/quality/review", "get", "QualityReviewResponse");
   assertOpenApiResponseSchema(openapi.body, "/api/agent-map", "get", "AgentMapResponse");
+  assertOpenApiResponseSchema(openapi.body, "/api/compatibility", "get", "ClientCompatibilityResponse");
   assertOpenApiResponseSchema(openapi.body, "/api/roadmap", "get", "RoadmapResponse");
   assertOpenApiResponseSchema(openapi.body, "/api/quickstart", "get", "QuickstartResponse");
   assertOpenApiResponseSchema(openapi.body, "/api/recipes", "get", "RecipesResponse");
@@ -1052,6 +1135,9 @@ async function testOpenApiDocument() {
   assertOpenApiResponseSchema(openapi.body, "/mcp", "get", "McpDiscoveryResponse");
   assertOpenApiResponseSchema(openapi.body, "/mcp", "post", "McpJsonRpcSuccessResponse");
   assertOpenApiResponseSchema(openapi.body, "/mcp", "post", "McpJsonRpcErrorResponse", "400");
+  assertOpenApiResponseSchema(openapi.body, "/mcp/core", "get", "McpDiscoveryResponse");
+  assertOpenApiResponseSchema(openapi.body, "/mcp/core", "post", "McpJsonRpcSuccessResponse");
+  assertOpenApiResponseSchema(openapi.body, "/mcp/core", "post", "McpJsonRpcErrorResponse", "400");
   assertOpenApiResponseExample(openapi.body, "/api/health", "get", ["metadata"]);
   assertOpenApiResponseExample(openapi.body, "/api/trust", "get", ["decision", "required_for_high_confidence"]);
   assertOpenApiResponseExample(openapi.body, "/api/benchmark", "get", ["evaluation", "explanations", "known_limitations", "metadata"]);
@@ -1062,6 +1148,8 @@ async function testOpenApiDocument() {
   assertOpenApiResponseExample(openapi.body, "/api/quickstart", "get", ["steps", "trust_policy"]);
   assertOpenApiResponseExample(openapi.body, "/api/recipes", "get", ["recipes", "trust_policy"]);
   assertOpenApiResponseExample(openapi.body, "/api/examples", "get", ["examples", "trust_policy"]);
+  assertOpenApiResponseExample(openapi.body, "/api/examples", "get", ["decision_examples"]);
+  assert.ok(openapi.body.components.schemas.ExamplesResponse.required.includes("decision_examples"));
   assertOpenApiResponseExample(openapi.body, "/api/project/{owner}/{repo}", "get", ["summary", "quality_signal_confidence", "metadata"]);
   assertOpenApiResponseExample(openapi.body, "/api/recommend", "post", ["recommendations", "metadata"]);
   assertOpenApiResponseExample(openapi.body, "/api/compare", "get", ["decision_matrix", "metadata"]);
@@ -1072,6 +1160,7 @@ async function testOpenApiDocument() {
   assertOpenApiResponseExample(openapi.body, "/api/grp/query", "post", ["nodes", "edges", "evidence", "metadata"]);
   assertOpenApiResponseExample(openapi.body, "/api/quality/review", "get", ["review_count", "items", "metadata"]);
   assertOpenApiResponseExample(openapi.body, "/mcp", "get", ["endpoint", "tools"]);
+  assertOpenApiResponseExample(openapi.body, "/mcp/core", "get", ["endpoint", "profile", "tools"]);
   assert.equal(openapi.body.components.schemas.Metadata.properties.source.enum[0], "d1");
   assert.ok(openapi.body.components.schemas.Metadata.properties.warnings, "OpenAPI Metadata should document warnings");
   assert.ok(openapi.body.components.schemas.ErrorResponse.properties.code, "OpenAPI should include a machine-readable error code field");
@@ -1774,6 +1863,12 @@ async function testSyncStatusWithMockD1() {
   assert.equal(healthy.body.priority.policy.hot_target_days, 2);
   assert.equal(typeof healthy.body.priority.counts.hot, "number");
   assert.equal(typeof healthy.body.priority.stale_rates.hot, "number");
+  assert.equal(healthy.body.priority.freshness_slo.hot_projects.target_hours, 48);
+  assert.equal(healthy.body.priority.freshness_slo.hot_projects.target_rate, 0.95);
+  assert.equal(typeof healthy.body.priority.freshness_slo.hot_projects.freshness_rate, "number");
+  assert.equal(typeof healthy.body.priority.freshness_slo.hot_projects.meets_target, "boolean");
+  assert.equal(healthy.body.priority.freshness_slo.whole_corpus.target_basis, "tier_policy");
+  assert.equal(typeof healthy.body.priority.freshness_slo.whole_corpus.freshness_rate, "number");
   assert.equal(typeof healthy.body.priority.capacity.required_daily_syncs, "number");
   assert.equal(healthy.body.priority.capacity.scheduled_daily_capacity, 360);
   assert.equal(typeof healthy.body.priority.capacity.target_feasible, "boolean");

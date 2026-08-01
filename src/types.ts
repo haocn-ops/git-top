@@ -170,6 +170,7 @@ export interface GovernanceRun {
 
 export interface Env {
   DB?: D1Database;
+  ADOPTION_ANALYTICS?: AnalyticsEngineDataset;
   GITHUB_TOKEN?: string;
   SYNC_SECRET?: string;
   OPERATIONS_ALERT_WEBHOOK?: string;

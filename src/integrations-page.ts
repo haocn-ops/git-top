@@ -69,7 +69,7 @@ function renderHtml(): string {
     <div class="page">
       <nav class="nav">
         <a class="brand" href="/"><span class="brand-mark">G</span><span>Git.Top</span></a>
-        <div class="nav-links"><a href="/docs">Docs</a><a href="/status">Status</a><a href="/coverage">Coverage</a><a href="/mcp">MCP</a></div>
+        <div class="nav-links"><a href="/docs">Docs</a><a href="/connect">Connect</a><a href="/compatibility">Compatibility</a><a href="/status">Status</a><a href="/coverage">Coverage</a><a href="/mcp">MCP</a></div>
       </nav>
 
       <header class="hero">
@@ -77,7 +77,8 @@ function renderHtml(): string {
         <h1>Use Git.Top as project intelligence inside agents and developer tools.</h1>
         <p class="lead">Git.Top exposes the same project knowledge through REST, MCP, and GRP. Use it when an agent needs to choose open-source AI projects by deployment fit, alternatives, quality signals, data confidence, and graph context.</p>
         <div class="actions">
-          <a class="button primary" href="/quickstart">Start quickstart</a>
+          <a class="button primary" href="/connect">Connect an agent</a>
+          <a class="button" href="/quickstart">Start quickstart</a>
           <a class="button" href="/mcp">Inspect MCP discovery</a>
           <a class="button" href="/openapi.json">OpenAPI</a>
           <a class="button" href="/status">Production status</a>
@@ -86,7 +87,7 @@ function renderHtml(): string {
 
       <section class="metrics">
         ${metric("REST", "/api/*", "Search, project lookup, recommendation, comparison, graph, quality, and schemas.")}
-        ${metric("MCP", "/mcp", "Tool discovery and JSON-RPC tool calls for agent runtimes.")}
+        ${metric("MCP core", "/mcp/core", "Five-tool first-use profile for project search and selection.")}
         ${metric("GRP", "/api/grp/query", "Goal-level graph reasoning for plans, project sets, comparisons, and stacks.")}
         ${metric("Trust", "/status", "D1 source, sync freshness, quality, and corpus coverage checks.")}
       </section>

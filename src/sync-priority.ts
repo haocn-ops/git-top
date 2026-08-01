@@ -1,5 +1,5 @@
 import type { ProjectKnowledge } from "./types";
-import { scheduledDailyRefreshCapacity, scheduledRefreshLimit, scheduledRunsPerDay, syncRefreshLeadHours, syncTargetDays } from "./sync-policy";
+import { hotFreshnessTargetRate, scheduledDailyRefreshCapacity, scheduledRefreshLimit, scheduledRunsPerDay, syncRefreshLeadHours, syncTargetDays } from "./sync-policy";
 
 export type SyncTier = "hot" | "warm" | "cold";
 
@@ -32,6 +32,7 @@ export interface SyncPrioritySummary {
   staleCounts: Record<SyncTier, number>;
   refreshDueCounts: Record<SyncTier, number>;
   staleRates: Record<SyncTier, number>;
+  freshnessSlo: SyncFreshnessSlo;
   oldestStaleDays: number;
   capacity: {
     scheduledRunsPerDay: number;
@@ -44,6 +45,23 @@ export interface SyncPrioritySummary {
   };
   priorityPreview: SyncPriorityItem[];
   refreshDuePreview: SyncPriorityItem[];
+}
+
+export interface SyncFreshnessSloSegment {
+  total: number;
+  withinTarget: number;
+  freshnessRate: number;
+  targetRate: number;
+  meetsTarget: boolean;
+}
+
+export interface SyncFreshnessSlo {
+  hotProjects: SyncFreshnessSloSegment & {
+    targetHours: number;
+  };
+  wholeCorpus: SyncFreshnessSloSegment & {
+    targetBasis: "tier_policy";
+  };
 }
 
 const hotTargetDays = syncTargetDays.hot;
@@ -72,6 +90,11 @@ export function buildSyncPrioritySummary(projects: SyncPriorityProject[], nowIso
 
   const scheduledDailyCapacity = scheduledDailyRefreshCapacity;
   const requiredDailySyncs = Math.ceil(counts.hot / hotTargetDays + counts.warm / warmTargetDays + counts.cold / coldTargetDays);
+  const targetRate = hotFreshnessTargetRate;
+  const total = items.length;
+  const staleTotal = staleCounts.hot + staleCounts.warm + staleCounts.cold;
+  const hotWithinTarget = counts.hot - staleCounts.hot;
+  const wholeCorpusWithinTarget = total - staleTotal;
 
   return {
     generatedAt: nowIso,
@@ -87,6 +110,24 @@ export function buildSyncPrioritySummary(projects: SyncPriorityProject[], nowIso
       hot: rate(staleCounts.hot, counts.hot),
       warm: rate(staleCounts.warm, counts.warm),
       cold: rate(staleCounts.cold, counts.cold)
+    },
+    freshnessSlo: {
+      hotProjects: {
+        targetHours: hotTargetDays * 24,
+        total: counts.hot,
+        withinTarget: hotWithinTarget,
+        freshnessRate: rate(hotWithinTarget, counts.hot),
+        targetRate,
+        meetsTarget: meetsRateTarget(hotWithinTarget, counts.hot, targetRate)
+      },
+      wholeCorpus: {
+        targetBasis: "tier_policy",
+        total,
+        withinTarget: wholeCorpusWithinTarget,
+        freshnessRate: rate(wholeCorpusWithinTarget, total),
+        targetRate,
+        meetsTarget: meetsRateTarget(wholeCorpusWithinTarget, total, targetRate)
+      }
     },
     oldestStaleDays,
     capacity: {
@@ -224,6 +265,10 @@ function emptyTierCounts(): Record<SyncTier, number> {
 
 function rate(numerator: number, denominator: number): number {
   return denominator > 0 ? Number((numerator / denominator).toFixed(3)) : 0;
+}
+
+function meetsRateTarget(numerator: number, denominator: number, target: number): boolean {
+  return denominator > 0 && numerator / denominator >= target;
 }
 
 function hoursSince(startIso: string, endIso: string): number {

@@ -1,3 +1,5 @@
+import { buildAgentDecisionExamples } from "./decision-examples";
+
 export const openApiDocument = {
   openapi: "3.1.0",
   info: {
@@ -34,6 +36,12 @@ export const openApiDocument = {
       get: {
         summary: "Map Git.Top concepts to human pages, REST endpoints, MCP tools, output fields, trust fields, and recommended use.",
         responses: { "200": jsonResponse("Agent surface map for REST, MCP, and human page discovery", "#/components/schemas/AgentMapResponse") }
+      }
+    },
+    "/api/compatibility": {
+      get: {
+        summary: "Fetch dated MCP client compatibility evidence and distinguish configuration verification from real-client support.",
+        responses: { "200": jsonResponse("Client compatibility matrix, generic server-contract status, support policy, and known limitations", "#/components/schemas/ClientCompatibilityResponse", clientCompatibilityExample()) }
       }
     },
     "/api/roadmap": {
@@ -633,9 +641,31 @@ export const openApiDocument = {
           }
         },
         responses: {
-          "200": jsonResponse("JSON-RPC success result. For tools/call, parse result.content[0].text as JSON before reading metadata or result fields.", "#/components/schemas/McpJsonRpcSuccessResponse", mcpJsonRpcSuccessExample()),
+          "200": jsonResponse("JSON-RPC success result. For tools/call, parse result.content[0].text as JSON before reading metadata or result fields; git_top_grp_query defaults to profile=compact and accepts profile=full for the complete graph.", "#/components/schemas/McpJsonRpcSuccessResponse", mcpJsonRpcSuccessExample()),
           "202": { description: "Accepted JSON-RPC notification with no response body, used for notifications/initialized." },
           "400": jsonResponse("JSON-RPC error result for invalid JSON, unsupported methods, unknown tools, invalid arguments, strict D1 failures (-32003), stale cursors (-32004), or unresolved singular projects (-32005).", "#/components/schemas/McpJsonRpcErrorResponse", mcpJsonRpcErrorExample())
+        }
+      }
+    },
+    "/mcp/core": {
+      get: {
+        summary: "Discover the focused Git.Top MCP core profile for first-time agent connections.",
+        responses: { "200": jsonResponse("MCP core profile discovery", "#/components/schemas/McpDiscoveryResponse", mcpCoreDiscoveryExample()) }
+      },
+      post: {
+        summary: "Call the focused MCP core profile via JSON-RPC.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/McpJsonRpcRequest" }
+            }
+          }
+        },
+        responses: {
+          "200": jsonResponse("MCP core JSON-RPC success result; the full profile endpoint supports bounded compact and opt-in full GRP responses.", "#/components/schemas/McpJsonRpcSuccessResponse", mcpJsonRpcSuccessExample()),
+          "202": { description: "Accepted JSON-RPC notification with no response body." },
+          "400": jsonResponse("MCP core JSON-RPC error result", "#/components/schemas/McpJsonRpcErrorResponse", mcpJsonRpcErrorExample())
         }
       }
     }
@@ -745,7 +775,7 @@ export const openApiDocument = {
       TrustGateResponse: {
         type: "object",
         description: "Production-readiness gate for high-confidence agent recommendations.",
-        required: ["detail", "decision", "production_ready", "checks", "required_for_high_confidence", "agent_policy", "health", "sync", "quality", "metadata"],
+        required: ["detail", "decision", "production_ready", "freshness_slo", "checks", "required_for_high_confidence", "agent_policy", "health", "sync", "quality", "metadata"],
         properties: {
           name: { type: "string" },
           positioning: { type: "string" },
@@ -753,6 +783,10 @@ export const openApiDocument = {
           decision: { type: "string", enum: ["allow", "caution", "block"] },
           summary: { type: "string" },
           production_ready: { type: "boolean" },
+          freshness_slo: {
+            oneOf: [{ $ref: "#/components/schemas/SyncFreshnessSlo" }, { type: "null" }],
+            description: "Separately reports hot-project freshness and whole-corpus freshness against each tier's selected window."
+          },
           checks: { type: "array", items: { $ref: "#/components/schemas/TrustGateCheck" } },
           required_for_high_confidence: { type: "array", items: { type: "string" } },
           agent_policy: { $ref: "#/components/schemas/TrustGateAgentPolicy" },
@@ -1254,6 +1288,23 @@ export const openApiDocument = {
         },
         additionalProperties: true
       },
+      ClientCompatibilityResponse: {
+        type: "object",
+        required: ["schema_version", "support_policy", "server_contract", "clients"],
+        properties: {
+          name: { type: "string" },
+          schema_version: { type: "string", enum: ["git-top.client-compatibility.v1"] },
+          last_reviewed_at: { type: "string", format: "date" },
+          core_endpoint: { type: "string", format: "uri" },
+          full_endpoint: { type: "string", format: "uri" },
+          support_policy: { type: "string" },
+          server_contract: { type: "object", additionalProperties: true },
+          clients: { type: "array", items: { type: "object", additionalProperties: true } },
+          verification_prompt: { type: "string" },
+          next_required_evidence: { type: "array", items: { type: "string" } }
+        },
+        additionalProperties: true
+      },
       RecipesResponse: {
         type: "object",
         required: ["positioning", "recipes"],
@@ -1266,10 +1317,55 @@ export const openApiDocument = {
       },
       ExamplesResponse: {
         type: "object",
-        required: ["positioning", "examples"],
+        required: ["positioning", "examples", "decision_examples"],
         properties: {
           positioning: { type: "string" },
           examples: { type: "array", items: { type: "object", additionalProperties: true } },
+          decision_examples: {
+            type: "array",
+            minItems: 10,
+            items: {
+              type: "object",
+              required: ["id", "title", "user_request", "shortest_rest_path", "shortest_mcp_path", "expected_fields", "example_final_answer", "verification", "next_action"],
+              properties: {
+                id: { type: "string" },
+                title: { type: "string" },
+                user_request: { type: "string" },
+                shortest_rest_path: { type: "array", items: { type: "string" } },
+                shortest_mcp_path: { type: "array", items: { type: "string" } },
+                expected_fields: { type: "array", items: { type: "string" } },
+                example_final_answer: { type: "string" },
+                verification: {
+                  type: "object",
+                  required: ["scope", "verified_at", "snapshot_id", "source"],
+                  properties: {
+                    scope: { type: "string", enum: ["local_d1"] },
+                    verified_at: { type: "string", format: "date" },
+                    snapshot_id: { type: "string" },
+                    source: { type: "string", enum: ["d1"] }
+                  },
+                  additionalProperties: false
+                },
+                external_evidence: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    required: ["source", "subject", "verified_at", "url", "facts"],
+                    properties: {
+                      source: { type: "string", enum: ["github_api"] },
+                      subject: { type: "string" },
+                      verified_at: { type: "string", format: "date" },
+                      url: { type: "string", format: "uri" },
+                      facts: { type: "array", items: { type: "string" } }
+                    },
+                    additionalProperties: false
+                  }
+                },
+                next_action: { type: "string" }
+              },
+              additionalProperties: false
+            }
+          },
           trust_policy: { type: "array", items: { type: "string" } }
         },
         additionalProperties: true
@@ -1286,7 +1382,7 @@ export const openApiDocument = {
           recent_failures: { type: "array", items: { type: "object", additionalProperties: true } },
           priority: {
             type: "object",
-            required: ["policy", "counts", "refresh_due_counts", "stale_counts", "stale_rates", "capacity"],
+            required: ["policy", "counts", "refresh_due_counts", "stale_counts", "stale_rates", "freshness_slo", "capacity"],
             properties: {
               policy: {
                 type: "object",
@@ -1300,6 +1396,7 @@ export const openApiDocument = {
               refresh_due_counts: { type: "object", additionalProperties: { type: "integer" } },
               stale_counts: { type: "object", additionalProperties: { type: "integer" } },
               stale_rates: { type: "object", additionalProperties: { type: "number" } },
+              freshness_slo: { $ref: "#/components/schemas/SyncFreshnessSlo" },
               capacity: {
                 type: "object",
                 required: ["scheduled_daily_capacity", "required_daily_syncs", "utilization", "headroom", "target_feasible"],
@@ -1320,6 +1417,44 @@ export const openApiDocument = {
           derived: { type: "object", additionalProperties: true }
         },
         additionalProperties: true
+      },
+      SyncFreshnessSlo: {
+        type: "object",
+        required: ["hot_projects", "whole_corpus"],
+        properties: {
+          hot_projects: {
+            allOf: [
+              { $ref: "#/components/schemas/SyncFreshnessSloSegment" },
+              {
+                type: "object",
+                required: ["target_hours"],
+                properties: { target_hours: { type: "integer", minimum: 1 } }
+              }
+            ]
+          },
+          whole_corpus: {
+            allOf: [
+              { $ref: "#/components/schemas/SyncFreshnessSloSegment" },
+              {
+                type: "object",
+                required: ["target_basis"],
+                properties: { target_basis: { type: "string", enum: ["tier_policy"] } }
+              }
+            ]
+          }
+        },
+        additionalProperties: false
+      },
+      SyncFreshnessSloSegment: {
+        type: "object",
+        required: ["total", "within_target", "freshness_rate", "target_rate", "meets_target"],
+        properties: {
+          total: { type: "integer", minimum: 0 },
+          within_target: { type: "integer", minimum: 0 },
+          freshness_rate: { type: "number", minimum: 0, maximum: 1 },
+          target_rate: { type: "number", minimum: 0, maximum: 1 },
+          meets_target: { type: "boolean" }
+        }
       },
       GovernanceSummaryResponse: {
         type: "object",
@@ -1773,7 +1908,7 @@ export const openApiDocument = {
                         type: { type: "string", enum: ["text"] },
                         text: {
                           type: "string",
-                          description: "JSON string containing the structured tool result, usually with metadata.source and metadata.reason."
+                          description: "JSON string containing the structured tool result, usually with metadata.source and metadata.reason. git_top_grp_query includes profile and defaults to a bounded compact graph response; use profile=full for the complete graph."
                         }
                       },
                       additionalProperties: true
@@ -2097,6 +2232,10 @@ function trustGateExample() {
     name: "Git.Top Trust Gate",
     decision: "allow",
     production_ready: true,
+    freshness_slo: {
+      hot_projects: { target_hours: 48, total: 80, within_target: 77, freshness_rate: 0.963, target_rate: 0.95, meets_target: true },
+      whole_corpus: { target_basis: "tier_policy", total: 500, within_target: 493, freshness_rate: 0.986, target_rate: 0.95, meets_target: true }
+    },
     checks: [
       {
         id: "d1-source",
@@ -2109,8 +2248,8 @@ function trustGateExample() {
         id: "hot-corpus-freshness",
         label: "Hot corpus freshness",
         status: "pass",
-        observed: "3/80 stale (4%)",
-        requirement: "hot_stale_rate<=0.10"
+        observed: "77/80 within 48h (96%)",
+        requirement: "hot_project_freshness_rate>=0.95"
       },
       {
         id: "sync-capacity",
@@ -2124,11 +2263,11 @@ function trustGateExample() {
       "metadata.source=d1",
       "db=available",
       "sync_freshness=fresh",
-      "hot_stale_rate<=0.10",
+      "hot_project_freshness_rate>=0.95",
       "sync_capacity_target_feasible=true"
     ],
     agent_policy: {
-      cite: ["metadata.source", "sync_freshness", "hot_stale_rate", "sync_capacity_target_feasible", "data_trust_score"],
+      cite: ["metadata.source", "sync_freshness", "hot_project_freshness_rate", "whole_corpus_freshness_rate", "sync_capacity_target_feasible", "data_trust_score"],
       disclose_when: ["seed fallback is active", "sync is stale or degraded", "hot-tier corpus freshness is outside target"]
     },
     health: healthExample(),
@@ -2140,6 +2279,10 @@ function trustGateExample() {
         refresh_due_counts: { hot: 4, warm: 6, cold: 0 },
         stale_counts: { hot: 3, warm: 4, cold: 0 },
         stale_rates: { hot: 0.038, warm: 0.013, cold: 0 },
+        freshness_slo: {
+          hot_projects: { target_hours: 48, total: 80, within_target: 77, freshness_rate: 0.963, target_rate: 0.95, meets_target: true },
+          whole_corpus: { target_basis: "tier_policy", total: 500, within_target: 493, freshness_rate: 0.986, target_rate: 0.95, meets_target: true }
+        },
         capacity: { scheduled_daily_capacity: 360, required_daily_syncs: 100, utilization: 0.278, headroom: 260, target_feasible: true }
       }
     },
@@ -2376,10 +2519,24 @@ function roadmapExample() {
 function quickstartExample() {
   return {
     positioning: "The Knowledge Graph of Open Source",
-    production_endpoints: { rest: "https://git.top", mcp: "https://git.top/mcp" },
+    production_endpoints: { rest: "https://git.top", mcp: "https://git.top/mcp", mcp_core: "https://git.top/mcp/core" },
     steps: [{ id: "trust", rest: "GET /api/trust", inspect: ["decision", "metadata.source"] }],
     output_pattern: ["Cite metadata.source and evidence fields."],
     trust_policy: ["Use require_d1=true for fail-closed production reads."]
+  };
+}
+
+function clientCompatibilityExample() {
+  return {
+    schema_version: "git-top.client-compatibility.v1",
+    last_reviewed_at: "2026-07-31",
+    core_endpoint: "https://git.top/mcp/core",
+    support_policy: "A client is supported only after all required production checks pass.",
+    server_contract: { initialize: "passed", core_tool_discovery: "passed", first_core_call: "passed", production_smoke: "passed" },
+    clients: [
+      { client: "Codex CLI, app, and IDE", version: "0.145.0", support_level: "supported", initialize: "passed", tool_discovery: "passed", first_call: "passed", multi_tool_workflow: "passed", error_behavior: "passed" },
+      { client: "Claude Code", version: "2.1.220", support_level: "supported", initialize: "passed", tool_discovery: "passed", first_call: "passed", multi_tool_workflow: "passed", error_behavior: "passed" }
+    ]
   };
 }
 
@@ -2394,6 +2551,33 @@ function recipesExample() {
 function examplesExample() {
   return {
     positioning: "The Knowledge Graph of Open Source",
+    decision_examples: buildAgentDecisionExamples().map((example) => ({
+      id: example.id,
+      title: example.title,
+      user_request: example.userRequest,
+      shortest_rest_path: example.shortestRestPath,
+      shortest_mcp_path: example.shortestMcpPath,
+      expected_fields: example.expectedFields,
+      example_final_answer: example.exampleFinalAnswer,
+      verification: {
+        scope: example.verification.scope,
+        verified_at: example.verification.verifiedAt,
+        snapshot_id: example.verification.snapshotId,
+        source: example.verification.source
+      },
+      ...(example.externalEvidence
+        ? {
+            external_evidence: example.externalEvidence.map((evidence) => ({
+              source: evidence.source,
+              subject: evidence.subject,
+              verified_at: evidence.verifiedAt,
+              url: evidence.url,
+              facts: evidence.facts
+            }))
+          }
+        : {}),
+      next_action: example.nextAction
+    })),
     examples: [{ id: "health-gate", endpoint: "/api/health", command: "curl https://git.top/api/health", trust_checks: ["metadata.source"] }],
     trust_policy: ["Inspect metadata.source before citing results."]
   };
@@ -2626,6 +2810,25 @@ function mcpDiscoveryExample() {
         description: "Search Git.Top projects.",
         inputSchema: { type: "object", properties: { query: { type: "string" }, require_d1: { type: "boolean" } } }
       }
+    ]
+  };
+}
+
+function mcpCoreDiscoveryExample() {
+  return {
+    ...mcpDiscoveryExample(),
+    endpoint: "https://git.top/mcp/core",
+    profile: "core",
+    profiles: {
+      core: { endpoint: "https://git.top/mcp/core", tool_count: 5 },
+      full: { endpoint: "https://git.top/mcp", tool_count: 21 }
+    },
+    tools: [
+      { name: "search_projects", description: "Search Git.Top projects." },
+      { name: "get_project", description: "Return one structured project record." },
+      { name: "recommend_project", description: "Recommend projects for a use case and constraints." },
+      { name: "compare_projects", description: "Compare a project shortlist." },
+      { name: "get_agent_workflow", description: "Return a guided project-selection workflow." }
     ]
   };
 }

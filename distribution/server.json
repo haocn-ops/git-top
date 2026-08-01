@@ -1,0 +1,18 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.haocn-ops/git-top",
+  "description": "Evidence-backed open-source project search, recommendations, alternatives, and comparisons.",
+  "title": "Git.Top",
+  "websiteUrl": "https://git.top/connect?source=mcp-registry",
+  "repository": {
+    "url": "https://github.com/haocn-ops/git-top",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://git.top/mcp/core"
+    }
+  ]
+}

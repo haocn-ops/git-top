@@ -223,7 +223,7 @@ curl https://git.top/api/trust
 curl "https://git.top/api/trust?detail=full"
 ```
 
-Use the Trust Gate before high-confidence production recommendations. It combines health, recent scheduler activity, hot-corpus stale rate, modeled sync capacity, derived freshness, release score, data trust score, and risk level into one `decision`:
+Use the Trust Gate before high-confidence production recommendations. It combines health, recent scheduler activity, the hot-project freshness SLO, whole-corpus freshness visibility, modeled sync capacity, derived freshness, release score, data trust score, and risk level into one `decision`:
 
 The default `detail=summary` response keeps the gate lightweight by omitting `quality.issues` and limiting embedded sync previews. Use `detail=full` only when the caller needs the complete quality issue list and larger operator queues; `/api/quality` remains the canonical detailed quality surface.
 
@@ -235,6 +235,8 @@ Important fields:
 
 - `decision`
 - `production_ready`
+- `freshness_slo.hot_projects`: selected window, observed rate, 95% target, and `meets_target`.
+- `freshness_slo.whole_corpus`: total compliance across each project's tier-specific window. This is reported separately and is not currently an independent blocking condition.
 - `checks[].status`
 - `required_for_high_confidence`
 - `agent_policy`
@@ -750,5 +752,7 @@ Important sync status fields:
 - `priority.policy`: hot, warm, and cold target intervals.
 - `priority.refresh_due_counts` and `priority.refresh_due_preview`: projects inside the six-hour pre-expiry window or already overdue; automation consumes this queue before cursor fallback.
 - `priority.stale_counts` and `priority.stale_rates`: target compliance by tier.
+- `priority.freshness_slo.hot_projects`: hot-project `target_hours`, `within_target`, `freshness_rate`, `target_rate`, and `meets_target`. The current selected window is 48 hours, based on the production capacity policy, and the service-level target is 95%.
+- `priority.freshness_slo.whole_corpus`: aggregate compliance using each project's hot, warm, or cold tier window. It is reported separately so healthy hot results cannot hide a long-tail backlog.
 - `priority.capacity`: scheduled daily capacity, modeled demand, utilization, headroom, and `target_feasible`.
 - `priority.priority_preview`: the highest-priority stale projects across both seed and discovered D1 records.

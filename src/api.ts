@@ -8,6 +8,7 @@ import {
 } from "./project-search";
 import { buildAlternativesDecision, generateAlternativeMatches, toAlternativeMatchView } from "./alternatives";
 import { buildAgentMap } from "./agent-map";
+import { buildClientCompatibilityReport } from "./client-compatibility";
 import { buildAtlasEcosystemView, findAtlasEcosystem, listAtlasEcosystems } from "./atlas-page";
 import { buildPublicBenchmarkReportFromInputs } from "./benchmark";
 import { discoverAndSyncCandidateProjects } from "./candidate-discovery";
@@ -414,6 +415,15 @@ export async function handleApi(request: Request, env: Env, ctx?: ExecutionConte
       headers: {
         "cache-control": "public, max-age=300"
       }
+    });
+  }
+
+  if (path === "/api/compatibility") {
+    if (request.method !== "GET") {
+      return errorJson(405, "method_not_allowed", "Compatibility endpoint requires GET.");
+    }
+    return json(buildClientCompatibilityReport(), {
+      headers: { "cache-control": "public, max-age=300" }
     });
   }
 

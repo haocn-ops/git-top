@@ -12,6 +12,7 @@ const agentDiscoveryLinks = [
   '<https://git.top/.well-known/agents.json>; rel="agent-manifest"; type="application/json"',
   '<https://git.top/.well-known/mcp.json>; rel="mcp-server"; type="application/json"',
   '<https://git.top/.well-known/skills.json>; rel="agent-skills"; type="application/json"',
+  '<https://git.top/distribution.json>; rel="alternate"; type="application/json"; title="Git.Top Agent Distribution Package"',
   '<https://git.top/auth.md>; rel="authorization"; type="text/markdown"'
 ];
 
@@ -177,6 +178,7 @@ export function isPublicCorsPath(pathname: string): boolean {
   return (
     pathname.startsWith("/api/") ||
     pathname === "/mcp" ||
+    pathname === "/mcp/core" ||
     pathname === "/openapi.json" ||
     pathname === "/llms.txt" ||
     pathname === "/llms-full.txt" ||
@@ -218,11 +220,11 @@ export function renderAuthMarkdown(): Response {
       "- `GET /openapi.json` and `GET /api/openapi.json` describe the public REST contract.",
       "- `GET /mcp` returns MCP discovery, tool schemas, examples, and public integration metadata.",
       "- `POST /mcp` accepts public JSON-RPC MCP calls for `initialize`, `notifications/initialized`, `tools/list`, and `tools/call`.",
-      "- `GET /llms.txt`, `GET /llms-full.txt`, `GET /api/agent-map`, `GET /api/quickstart`, `GET /api/recipes`, `GET /api/examples`, `GET /api/journeys`, `GET /api/trust`, `GET /api/benchmark`, and `GET /api/quality` are public.",
+      "- `GET /llms.txt`, `GET /llms-full.txt`, `GET /api/agent-map`, `GET /api/compatibility`, `GET /api/quickstart`, `GET /api/recipes`, `GET /api/examples`, `GET /api/journeys`, `GET /api/trust`, `GET /api/benchmark`, and `GET /api/quality` are public.",
       "",
       "## Agent Registration",
       "",
-      "- Public REST and MCP integrations require no agent registration; agents can start from `/openapi.json`, `/mcp`, `/llms.txt`, or `/.well-known/agent-skills/index.json` immediately.",
+      "- Public REST and MCP integrations require no agent registration; agents can start from `/connect`, `/openapi.json`, `/mcp`, `/llms.txt`, or `/.well-known/agent-skills/index.json` immediately.",
       "- Git.Top does not publish OAuth dynamic client registration for public read-only endpoints because no OAuth credential is required.",
       "- Protected operator endpoints under `/api/admin/*` are internal maintenance surfaces and do not support public self-service agent registration.",
       "- For a private operator integration request, contact `security@git.top` with the intended agent identity, use case, callback/contact channel, and required endpoint scope.",
@@ -239,6 +241,8 @@ export function renderAuthMarkdown(): Response {
       "  public_entrypoints:",
       "    - https://git.top/openapi.json",
       "    - https://git.top/mcp",
+      "    - https://git.top/mcp/core",
+      "    - https://git.top/connect",
       "    - https://git.top/llms.txt",
       "    - https://git.top/.well-known/agent-skills/index.json",
       "  contact: security@git.top",
@@ -322,6 +326,10 @@ export function renderAgentManifest(): Response {
         api_catalog: "https://git.top/.well-known/api-catalog.json",
         mcp_server_card: "https://git.top/.well-known/mcp.json",
         mcp_endpoint: "https://git.top/mcp",
+        mcp_core_endpoint: "https://git.top/mcp/core",
+        connect: "https://git.top/connect",
+        compatibility: "https://git.top/compatibility",
+        distribution: "https://git.top/distribution.json",
         skills: "https://git.top/.well-known/skills.json",
         auth: "https://git.top/auth.md",
         sitemap: "https://git.top/sitemap.xml",
@@ -419,6 +427,9 @@ export function renderApiCatalog(): Response {
       related: {
         mcp_server_card: "https://git.top/.well-known/mcp.json",
         mcp_endpoint: "https://git.top/mcp",
+        mcp_core_endpoint: "https://git.top/mcp/core",
+        connect: "https://git.top/connect",
+        distribution: "https://git.top/distribution.json",
         llms_txt: "https://git.top/llms.txt",
         agent_map: "https://git.top/api/agent-map"
       },
@@ -561,9 +572,22 @@ export function renderMcpServerCard(): Response {
         type: "none",
         policy_url: "https://git.top/auth.md"
       },
+      profiles: {
+        core: {
+          endpoint: "https://git.top/mcp/core",
+          purpose: "Focused project selection with five tools for first-time agent connections.",
+          tools: ["search_projects", "get_project", "recommend_project", "compare_projects", "get_agent_workflow"]
+        },
+        full: {
+          endpoint: "https://git.top/mcp",
+          purpose: "Complete discovery, graph, quality, governance, and reasoning surface."
+        }
+      },
       discovery_url: "https://git.top/mcp",
       openapi_url: "https://git.top/openapi.json",
       docs_url: "https://git.top/docs#mcp",
+      connect_url: "https://git.top/connect",
+      compatibility_url: "https://git.top/compatibility",
       capabilities: {
         tools: true,
         resources: false,
@@ -601,6 +625,15 @@ export function renderAgentSkills(): Response {
       name: "git-top",
       title: "Git.Top Agent Skills",
       description: "Reusable public skills that agents can perform through Git.Top REST and MCP surfaces.",
+      installable_packages: [
+        {
+          name: "git-top-project-selection",
+          repository: "https://github.com/haocn-ops/git-top",
+          path: "skills/git-top-project-selection",
+          raw_skill_url: "https://raw.githubusercontent.com/haocn-ops/git-top/main/skills/git-top-project-selection/SKILL.md",
+          distribution_url: "https://git.top/distribution.json"
+        }
+      ],
       auth: {
         type: "none",
         policy_url: "https://git.top/auth.md"
@@ -688,12 +721,17 @@ export function renderLlmsTxt(): Response {
       "## Core URLs",
       "",
       "- Docs: https://git.top/docs",
+      "- Connect: https://git.top/connect",
+      "- Client compatibility: https://git.top/compatibility",
+      "- Client compatibility JSON: https://git.top/api/compatibility",
+      "- Agent distribution package: https://git.top/distribution.json",
       "- Agent quickstart: https://git.top/quickstart",
       "- Agent recipes: https://git.top/recipes",
       "- API examples: https://git.top/examples",
       "- Atlas journeys: https://git.top/journeys",
       "- Integrations: https://git.top/integrations",
       "- MCP discovery: https://git.top/mcp",
+      "- MCP core profile: https://git.top/mcp/core",
       "- Agent surface map: https://git.top/api/agent-map",
       "- Agent quickstart JSON: https://git.top/api/quickstart",
       "- Agent recipes JSON: https://git.top/api/recipes",
@@ -739,6 +777,9 @@ export function renderLlmsTxt(): Response {
       "- Use /examples or /api/examples for copyable REST, MCP, and GRP calls.",
       "- Use /journeys or /api/journeys when starting from an ecosystem and moving toward a recommendation, graph, alternatives, compare, score, or Agent Map decision path.",
       "- Use /integrations for REST, MCP, and GRP production integration paths.",
+      "- Use /connect for the one-minute MCP installation path and client-specific setup commands.",
+      "- Use /compatibility or /api/compatibility to distinguish server contract coverage from dated real-client support evidence.",
+      "- Use /distribution.json for reusable registry copy, profiles, campaign links, privacy boundaries, and submission status.",
       "",
       "## Useful Pages",
       "",
@@ -850,6 +891,7 @@ export function renderLlmsFullTxt(): Response {
       "## MCP",
       "",
       "Endpoint: https://git.top/mcp",
+      "Core endpoint: https://git.top/mcp/core",
       "",
       "GET /mcp returns docs, schema, health, quality, quickstart hints, example JSON-RPC payloads, and tool schemas.",
       "",
@@ -942,6 +984,9 @@ export function renderLlmsFullTxt(): Response {
       "- /robots.txt",
       "- /sitemap.xml",
       "- /.well-known/security.txt",
+      "- /connect",
+      "- /compatibility",
+      "- /distribution.json",
       "- /integrations",
       "- /quickstart",
       "- /recipes",
@@ -1031,6 +1076,9 @@ function staticSitemapUrls(now: string): SitemapUrl[] {
     { path: "/examples", changefreq: "weekly", priority: "0.9", lastmod: now },
     { path: "/journeys", changefreq: "weekly", priority: "0.9", lastmod: now },
     { path: "/integrations", changefreq: "weekly", priority: "0.8", lastmod: now },
+    { path: "/connect", changefreq: "weekly", priority: "0.9", lastmod: now },
+    { path: "/compatibility", changefreq: "weekly", priority: "0.8", lastmod: now },
+    { path: "/distribution.json", changefreq: "weekly", priority: "0.8", lastmod: now },
     { path: "/roadmap", changefreq: "weekly", priority: "0.8", lastmod: now },
     { path: "/status", changefreq: "daily", priority: "0.8", lastmod: now },
     { path: "/trust", changefreq: "daily", priority: "0.8", lastmod: now },
@@ -1308,7 +1356,7 @@ export function renderDocsPage(): Response {
     <div class="page">
       <nav class="nav">
         <a class="brand" href="/"><span class="brand-mark">G</span><span>Git.Top</span></a>
-        <div class="nav-links"><a href="/">Home</a><a href="/projects">Projects</a><a href="/graph">Graph</a><a href="/mcp">MCP</a><a href="/api/agent-map">Agent Map</a><a href="/api/schema/project.v2">Schema</a></div>
+        <div class="nav-links"><a href="/">Home</a><a href="/projects">Projects</a><a href="/connect">Connect</a><a href="/graph">Graph</a><a href="/mcp">MCP</a><a href="/api/agent-map">Agent Map</a><a href="/api/schema/project.v2">Schema</a></div>
       </nav>
 
       <header class="hero">
@@ -1316,7 +1364,8 @@ export function renderDocsPage(): Response {
         <h1>API, MCP, scoring, and data trust for agent project selection.</h1>
         <p class="lead">Git.Top is an agent-native knowledge layer for GitHub repositories. It turns project metadata, repository signals, deployment hints, alternatives, and quality evidence into structured responses that agents can cite and compare.</p>
         <div class="actions">
-          <a class="button primary" href="/api/search?q=cloudflare%20agent&limit=5">Try REST search</a>
+          <a class="button primary" href="/connect">Connect an agent</a>
+          <a class="button" href="/api/search?q=cloudflare%20agent&limit=5">Try REST search</a>
           <a class="button" href="/workflow">Open workflow</a>
           <a class="button" href="/quickstart">Agent quickstart</a>
           <a class="button" href="/recipes">Agent recipes</a>

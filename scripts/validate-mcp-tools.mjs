@@ -25,7 +25,7 @@ const mcpConformanceMatrix = [
   ["get_project_card", "project_id", "agent_card, metrics, metadata", "-32005 project not found; -32003 strict D1"],
   ["get_project_graph", "project_id, limit", "graph, resolved_from, metadata", "-32005 project not found; -32602 invalid limit; -32003 strict D1"],
   ["compare_projects", "project_ids, deployment", "projects, decision_matrix, metadata", "-32003 strict D1 where applicable"],
-  ["git_top_grp_query", "goal/mode/constraints/context", "nodes, edges, solution_paths, evidence, metadata", "-32602 invalid request; -32003 strict D1"]
+  ["git_top_grp_query", "goal/mode/constraints/context/profile", "profile, nodes, edges, solution_paths, evidence, metadata", "-32602 invalid request/profile; -32003 strict D1"]
 ];
 const expectedMcpToolNames = mcpConformanceMatrix.map(([name]) => name);
 
@@ -51,6 +51,14 @@ async function testDiscovery() {
     assert.equal(tool.input_schema.type, "object", `${toolName} should publish an object input schema`);
     assert.equal(typeof tool.description, "string");
     assert.ok(tool.description.length > 0, `${toolName} should publish a description`);
+  }
+  const grpTool = getDiscovery.body.tools.find((item) => item.name === "git_top_grp_query");
+  assert.deepEqual(grpTool.input_schema.properties.profile.enum, ["compact", "full"]);
+  assert.equal(grpTool.input_schema.properties.profile.default, "compact");
+  for (const toolName of ["search_projects", "get_project", "recommend_project", "compare_projects", "get_agent_workflow"]) {
+    const tool = getDiscovery.body.tools.find((item) => item.name === toolName);
+    assert.equal(tool.input_schema.anyOf, undefined, `${toolName} core schema must avoid a top-level anyOf for broad MCP client compatibility`);
+    assert.equal(tool.input_schema.oneOf, undefined, `${toolName} core schema must avoid a top-level oneOf for broad MCP client compatibility`);
   }
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "search_projects"));
   assert.ok(getDiscovery.body.tools.some((tool) => tool.name === "git_top_grp_query"));
@@ -553,16 +561,53 @@ async function testGrpToolValidation() {
   assert.equal(invalid.body.error.code, -32602);
 
   const result = await callTool("git_top_grp_query", {
-    goal: "Find Cloudflare-ready agent frameworks",
-    mode: "find",
+    goal: "Compose an autonomous coding stack for Cloudflare",
+    mode: "compose",
     constraints: {
       deploy: ["cloudflare"],
       agent_ready: true
     }
   });
   assert.equal(result.status, 200);
+  assert.equal(result.result.profile, "compact");
+  assert.equal(result.result.metadata.response_profile, "compact");
+  assert.ok(result.result.nodes.length <= 24);
+  assert.ok(result.result.edges.length <= 40);
+  assert.ok(result.result.solution_paths.length <= 3);
+  assert.ok(result.result.solution_paths.length > 0);
+  assert.ok(result.result.solution_paths.every((path) => path.nodes === undefined && path.edges === undefined));
+  assert.ok(result.result.evidence);
+  assert.ok(Array.isArray(result.result.caveats));
+  assert.equal(typeof result.result.confidence_reason, "string");
   assert.equal(result.result.metadata.data_source.source, "seed");
   assert.equal(result.result.metadata.data_source.reason, "db_missing");
+  const compactSize = new TextEncoder().encode(JSON.stringify(result.result)).byteLength;
+  assert.ok(compactSize < 32 * 1024, `compact GRP response should be below 32 KiB, received ${compactSize} bytes`);
+
+  const full = await callTool("git_top_grp_query", {
+    goal: "Compose an autonomous coding stack for Cloudflare",
+    mode: "compose",
+    constraints: {
+      deploy: ["cloudflare"],
+      agent_ready: true
+    },
+    profile: "full"
+  });
+  assert.equal(full.status, 200);
+  assert.equal(full.result.profile, "full");
+  assert.equal(full.result.metadata.response_profile, "full");
+  assert.ok(full.result.nodes.length >= result.result.nodes.length);
+  assert.ok(full.result.edges.length >= result.result.edges.length);
+  assert.ok(full.result.solution_paths.some((path) => Array.isArray(path.nodes) && Array.isArray(path.edges)));
+  assert.equal(full.result.metadata.compact_limits, undefined);
+
+  const invalidProfile = await callTool("git_top_grp_query", {
+    goal: "Find Cloudflare-ready agent frameworks",
+    profile: "verbose"
+  });
+  assert.equal(invalidProfile.status, 400);
+  assert.equal(invalidProfile.body.error.code, -32602);
+  assert.equal(invalidProfile.body.error.message, "profile must be compact or full.");
 }
 
 async function testLimitValidation() {

@@ -1,0 +1,256 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import worker from "../src/index.ts";
+import { handleMcp } from "../src/mcp.ts";
+import { normalizeAnalyticsPoint, recordAdoptionEvent, responseSizeBucket, summarizeAdoptionEvents } from "../src/adoption-analytics.ts";
+import { adoptionAnalyticsDataset, buildAdoptionExportQuery, parseAdoptionExportOptions } from "../src/adoption-export.ts";
+
+test("MCP core profile exposes only the first-use project decision tools", async () => {
+  const response = await handleMcp(new Request("https://git.top/mcp/core"), {}, { profile: "core" });
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.profile, "core");
+  assert.equal(body.endpoint, "/mcp/core");
+  assert.deepEqual(body.tools.map((tool) => tool.name), [
+    "search_projects",
+    "get_project",
+    "recommend_project",
+    "get_agent_workflow",
+    "compare_projects"
+  ]);
+  assert.equal(body.profiles.core.tool_count, 5);
+  assert.equal(body.profiles.full.endpoint, "/mcp");
+});
+
+test("MCP core profile rejects full-surface tools without running them", async () => {
+  const response = await handleMcp(
+    new Request("https://git.top/mcp/core?source=registry-test", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: "get_trust_gate", arguments: {} }
+      })
+    }),
+    {},
+    { profile: "core" }
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.equal(body.error.code, -32601);
+  assert.match(body.error.message, /not available in the core MCP profile/);
+});
+
+test("MCP adoption analytics records bounded protocol outcomes when configured", async () => {
+  const points = [];
+  const env = {
+    ADOPTION_ANALYTICS: {
+      writeDataPoint(point) {
+        points.push(point);
+      }
+    }
+  };
+
+  await handleMcp(
+    new Request("https://git.top/mcp/core?source=registry-test", {
+      method: "POST",
+      headers: { "content-type": "application/json", "user-agent": "codex/1.2.3" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: { clientInfo: { name: "Codex", version: "1.2.3" } }
+      })
+    }),
+    env,
+    { profile: "core" }
+  );
+
+  await handleMcp(
+    new Request("https://git.top/mcp/core", {
+      method: "POST",
+      headers: { "content-type": "application/json", "user-agent": "codex/1.2.3" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} })
+    }),
+    env,
+    { profile: "core" }
+  );
+
+  assert.equal(points.length, 2);
+  assert.deepEqual(points.map((point) => point.blobs[0]), ["mcp_initialize", "mcp_tools_list"]);
+  assert.ok(points.every((point) => point.indexes === undefined));
+  assert.equal(points[0].blobs[1], "core");
+  assert.equal(points[0].blobs[2], "codex");
+  assert.equal(points[0].blobs[3], "1.2.3");
+  assert.equal(points[0].blobs[7], "registry-test");
+  assert.equal(points[0].blobs[8], "small");
+  assert.equal(points[0].doubles[0], 200);
+  assert.ok(Number.isFinite(points[0].doubles[1]) && points[0].doubles[1] >= 0, "initialize should record bounded latency");
+  assert.ok(Number.isFinite(points[1].doubles[1]) && points[1].doubles[1] >= 0, "tools/list should record bounded latency");
+
+  await handleMcp(
+    new Request("https://git.top/mcp/core?source=registry-test", {
+      method: "POST",
+      headers: { "content-type": "application/json", "user-agent": "codex/1.2.3" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 3,
+        method: "tools/call",
+        params: { name: "get_agent_workflow", arguments: { intent: "choose an agent framework", limit: 2 } }
+      })
+    }),
+    env,
+    { profile: "core" }
+  );
+
+  assert.deepEqual(points.slice(2).map((point) => point.blobs[0]), ["mcp_tool_call_completed", "workflow_completed"]);
+  assert.equal(points[2].blobs[4], "get_agent_workflow");
+  assert.equal(points[2].blobs[6], "seed");
+  assert.equal(points[2].blobs[7], "registry-test");
+});
+
+test("connect page and config event are public and degrade without analytics", async () => {
+  const executionContext = { waitUntil() {} };
+  const page = await worker.fetch(new Request("https://git.top/connect?source=test"), {}, executionContext);
+  const pageText = await page.text();
+  assert.equal(page.status, 200);
+  assert.match(pageText, /https:\/\/git\.top\/mcp\/core/);
+  assert.match(pageText, /codex mcp add git-top/);
+  assert.match(pageText, /claude mcp add --transport http/);
+
+  const event = await worker.fetch(new Request("https://git.top/connect/event?client=codex", { method: "POST" }), {}, executionContext);
+  assert.equal(event.status, 204);
+  const genericEvent = await worker.fetch(new Request("https://git.top/connect/event?client=generic&source=catalog", { method: "POST" }), {}, executionContext);
+  assert.equal(genericEvent.status, 204);
+});
+
+test("analytics response size buckets stay bounded", () => {
+  assert.equal(responseSizeBucket(undefined), "unknown");
+  assert.equal(responseSizeBucket(0), "empty");
+  assert.equal(responseSizeBucket(16_384), "small");
+  assert.equal(responseSizeBucket(16_385), "medium");
+  assert.equal(responseSizeBucket(262_145), "very_large");
+});
+
+test("analytics write failures are isolated from product responses", () => {
+  assert.doesNotThrow(() =>
+    recordAdoptionEvent(
+      { ADOPTION_ANALYTICS: { writeDataPoint() { throw new Error("analytics unavailable"); } } },
+      { name: "connect_page_view", status: 200, durationMs: 25, campaignSource: "test input" }
+    )
+  );
+});
+
+test("adoption metrics summarize the funnel without implying unique users", () => {
+  const summary = summarizeAdoptionEvents([
+    { name: "connect_page_view", campaignSource: "registry", resultClass: "success", durationMs: 12 },
+    { name: "mcp_initialize", clientName: "codex", resultClass: "success", durationMs: 20 },
+    { name: "mcp_tools_list", clientName: "codex", resultClass: "success", durationMs: 30 },
+    { name: "mcp_tool_call_completed", clientName: "codex", operation: "recommend_project", resultClass: "success", source: "d1", durationMs: 100 },
+    { name: "mcp_tool_call_completed", clientName: "codex", operation: "get_project", resultClass: "strict_source_rejection", durationMs: 200 },
+    { name: "workflow_completed", clientName: "codex", resultClass: "success", source: "d1", durationMs: 300 }
+  ]);
+
+  assert.equal(summary.eventCount, 6);
+  assert.deepEqual(summary.funnel, {
+    connectPageViews: 1,
+    successfulInitializations: 1,
+    successfulToolDiscovery: 1,
+    successfulFirstValueCalls: 1,
+    successfulWorkflows: 1,
+    firstValueCallsPerInitialization: 1
+  });
+  assert.equal(summary.toolSuccessRate, 0.5);
+  assert.equal(summary.strictSourceRejectionRate, 0.5);
+  assert.equal(summary.fallbackRate, 0);
+  assert.deepEqual(summary.latencyMs, { sampleCount: 6, p50: 30, p95: 300 });
+  assert.deepEqual(summary.byClient.codex, {
+    initializeSuccesses: 1,
+    toolDiscoverySuccesses: 1,
+    firstValueCalls: 1,
+    workflowCompletions: 1,
+    agentCalls: 2,
+    agentCallSuccesses: 1,
+    errors: 1
+  });
+  assert.deepEqual(summary.byCampaignSource.registry, {
+    initializeSuccesses: 0,
+    toolDiscoverySuccesses: 0,
+    firstValueCalls: 0,
+    workflowCompletions: 0,
+    agentCalls: 0,
+    agentCallSuccesses: 0,
+    errors: 0
+  });
+  assert.equal(summary.byOperation.recommend_project.agentCallSuccesses, 1);
+  assert.equal(summary.byOperation.get_project.errors, 1);
+  assert.deepEqual(summary.insights, {
+    strongestClient: "codex",
+    strongestCampaignSource: null,
+    strongestOperation: "recommend_project",
+    primaryFailureMode: "strict_source_rejection"
+  });
+});
+
+test("first-value calls per initialization is an activity ratio, not a conversion rate", () => {
+  const summary = summarizeAdoptionEvents([
+    { name: "mcp_initialize", resultClass: "success" },
+    { name: "mcp_tool_call_completed", operation: "recommend_project", resultClass: "success" },
+    { name: "mcp_tool_call_completed", operation: "get_project", resultClass: "success" }
+  ]);
+
+  assert.equal(summary.funnel.firstValueCallsPerInitialization, 2);
+});
+
+test("analytics engine rows normalize into the bounded adoption event contract", () => {
+  assert.deepEqual(normalizeAnalyticsPoint({
+    blob1: "mcp_tool_call_completed",
+    blob2: "core",
+    blob3: "codex",
+    blob4: "1.2.3",
+    blob5: "recommend_project",
+    blob6: "success",
+    blob7: "d1",
+    blob8: "registry",
+    blob9: "small",
+    double1: 200,
+    double2: 42
+  }), {
+    name: "mcp_tool_call_completed",
+    profile: "core",
+    clientName: "codex",
+    clientVersion: "1.2.3",
+    operation: "recommend_project",
+    resultClass: "success",
+    source: "d1",
+    campaignSource: "registry",
+    responseSizeBucket: "small",
+    status: 200,
+    durationMs: 42
+  });
+  assert.equal(normalizeAnalyticsPoint({ blob1: "mcp_initialize", blob3: "unknown" }).clientName, "unknown");
+  assert.throws(() => normalizeAnalyticsPoint({ blob1: "unknown_event" }), /Unknown adoption event name/);
+});
+
+test("analytics export query is fixed-field and bounded", () => {
+  const options = parseAdoptionExportOptions(["--hours", "48", "--limit", "250", "--output", "events.json"]);
+  assert.deepEqual(options, { hours: 48, limit: 250, output: "events.json" });
+  const query = buildAdoptionExportQuery(options);
+  assert.match(query, new RegExp(`FROM ${adoptionAnalyticsDataset}`));
+  assert.match(query, /SELECT blob1, blob2, blob3, blob4, blob5, blob6, blob7, blob8, blob9, double1, double2/);
+  assert.match(query, /INTERVAL '48' HOUR/);
+  assert.match(query, /LIMIT 250/);
+  assert.doesNotMatch(query, /prompt|argument|result|repository/i);
+});
+
+test("analytics export options reject arbitrary or oversized requests", () => {
+  assert.deepEqual(parseAdoptionExportOptions([]), { hours: 24, limit: 10_000, output: null });
+  assert.deepEqual(parseAdoptionExportOptions(["--", "--hours", "48"]), { hours: 48, limit: 10_000, output: null });
+  assert.throws(() => parseAdoptionExportOptions(["--hours", "0"]), /hours must be an integer from 1 to 720/);
+  assert.throws(() => parseAdoptionExportOptions(["--limit", "10001"]), /limit must be an integer from 1 to 10000/);
+  assert.throws(() => parseAdoptionExportOptions(["--query", "SELECT 1"]), /Unknown option/);
+});

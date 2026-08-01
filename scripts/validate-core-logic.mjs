@@ -125,6 +125,7 @@ async function testLegacyConsoleRedirects() {
   const skillsBody = await skills.json();
   assert.equal(skillsBody.schema_version, "agent-skills.v1");
   assert.ok(skillsBody.skills.some((skill) => skill.id === "discover_open_source_projects"));
+  assert.ok(skillsBody.installable_packages.some((skill) => skill.name === "git-top-project-selection"));
 
   const skillsIndex = await worker.fetch(new Request("https://git.top/.well-known/agent-skills/index.json"), {});
   assert.equal(skillsIndex.status, 200);
@@ -154,6 +155,7 @@ async function testLegacyConsoleRedirects() {
   assert.match(llmsText, /Agent quickstart: https:\/\/git\.top\/quickstart/);
   assert.match(llmsText, /Agent recipes: https:\/\/git\.top\/recipes/);
   assert.match(llmsText, /API examples: https:\/\/git\.top\/examples/);
+  assert.match(llmsText, /Agent distribution package: https:\/\/git\.top\/distribution\.json/);
   assert.match(llmsText, /Atlas journeys: https:\/\/git\.top\/journeys/);
   assert.match(llmsText, /Atlas Journey Guide: https:\/\/git\.top\/topics\/atlas-journey-guide/);
   assert.match(llmsText, /Open Source Knowledge Graph API: https:\/\/git\.top\/topics\/open-source-knowledge-graph-api/);
@@ -883,6 +885,39 @@ async function testSyncPrioritySummary() {
   assert.equal(typeof summary.refreshDueCounts.hot, "number");
   assert.ok(Array.isArray(summary.refreshDuePreview));
   assert.equal(typeof summary.staleRates.hot, "number");
+  assert.deepEqual(summary.freshnessSlo.hotProjects, {
+    targetHours: 48,
+    total: 1,
+    withinTarget: 0,
+    freshnessRate: 0,
+    targetRate: 0.95,
+    meetsTarget: false
+  });
+  assert.deepEqual(summary.freshnessSlo.wholeCorpus, {
+    targetBasis: "tier_policy",
+    total: 3,
+    withinTarget: 0,
+    freshnessRate: 0,
+    targetRate: 0.95,
+    meetsTarget: false
+  });
+
+  const hotThresholdFixtures = Array.from({ length: 20 }, (_, index) => {
+    const fixture = structuredClone(hot);
+    fixture.project.id = `mock/hot-threshold-${index}`;
+    fixture.project.syncedAt = index === 0 ? "2026-06-25T00:00:00Z" : "2026-06-28T12:00:00Z";
+    return fixture;
+  });
+  const thresholdSummary = buildSyncPrioritySummary(hotThresholdFixtures, now, 3);
+  assert.equal(thresholdSummary.freshnessSlo.hotProjects.freshnessRate, 0.95);
+  assert.equal(thresholdSummary.freshnessSlo.hotProjects.meetsTarget, true, "exactly 95% of hot projects should meet the SLO");
+
+  hotThresholdFixtures[1].project.syncedAt = "2026-06-25T00:00:00Z";
+  assert.equal(
+    buildSyncPrioritySummary(hotThresholdFixtures, now, 3).freshnessSlo.hotProjects.meetsTarget,
+    false,
+    "hot-project freshness below 95% should miss the SLO"
+  );
   assert.equal(summary.oldestStaleDays, 59);
   assert.equal(summary.priorityPreview[0].projectId, "mock/hot-agent");
   assert.deepEqual(selectPriorityRepositoryIds([warm, cold, hot], ["mock/hot-agent", "mock/warm-runtime", "mock/cold-tool"], 2, now), [

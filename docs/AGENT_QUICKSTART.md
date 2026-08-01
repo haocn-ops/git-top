@@ -7,7 +7,17 @@ Production endpoints:
 ```txt
 REST: https://git.top/api/*
 MCP:  https://git.top/mcp
+MCP core: https://git.top/mcp/core
 GRP:  https://git.top/api/grp/query
+```
+
+For a one-minute client setup, use [Connect](https://git.top/connect). Codex CLI and Claude Code can use the focused core profile:
+Client support status is tracked separately at [Client Compatibility](https://git.top/compatibility); a valid configuration snippet is not by itself an end-to-end support claim.
+Agents without remote MCP support can install the repository skill at [`skills/git-top-project-selection`](../skills/git-top-project-selection/). Registry and catalog maintainers should use the versioned [distribution package](https://git.top/distribution.json).
+
+```sh
+codex mcp add git-top --url https://git.top/mcp/core
+claude mcp add --transport http --scope user git-top https://git.top/mcp/core
 ```
 
 ## 1. Check Data Source

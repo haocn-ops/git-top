@@ -15,6 +15,7 @@ import { listProjectChanges, maxProjectChangesPageSize } from "./change-feed";
 import type { ProjectKnowledgeResult } from "./knowledge-source";
 import { buildKnowledgeGraph, compareProjectKnowledge } from "./graph";
 import { normalizeGrpRequest, runGrpQuery } from "./grp";
+import { mcpGrpResponse, parseMcpGrpResponseProfile } from "./grp-mcp-profile";
 import { errorJson, json, rawJson, stringifyApiJson } from "./http";
 import { buildProjectSummary, toProjectKnowledgeView, withRelatedProjects } from "./project-view";
 import { parseProjectResponseProfile, projectProfileView } from "./project-profiles";
@@ -26,6 +27,15 @@ import { buildTrustGate } from "./trust-gate";
 import { buildAgentWorkflow } from "./workflow";
 import { resolveProject } from "./project-aliases";
 import { buildCursorPage, pageQueryKey, PageCursorError, resolvePageOffset } from "./page-cursor";
+import {
+  campaignSourceFromRequest,
+  clientFromRequest,
+  normalizeClientName,
+  normalizeClientVersion,
+  recordAdoptionEvent,
+  responseSizeBucket,
+  type AdoptionResultClass
+} from "./adoption-analytics";
 import type { Env, ProjectKnowledge } from "./types";
 
 interface RpcRequest {
@@ -43,6 +53,16 @@ interface ToolErrorResult {
 }
 
 const projectNotFoundCode = -32005;
+
+export type McpProfile = "core" | "full";
+
+const coreToolNames = new Set([
+  "search_projects",
+  "get_project",
+  "recommend_project",
+  "compare_projects",
+  "get_agent_workflow"
+]);
 
 const toolLimitMaximums: Record<string, number> = {
   search_projects: 100,
@@ -137,6 +157,7 @@ const tools = [
       "Return structured Git.Top knowledge for a project or collection, including the compact agent summary, overview, alternatives, deployments, quality score, agent score, project_kind, and collection_metadata when applicable.",
     inputSchema: {
       type: "object",
+      description: "Provide project_id, repo, or both owner and repo. The runtime validates that one supported project reference is present.",
       properties: {
         project_id: {
           type: "string",
@@ -149,7 +170,7 @@ const tools = [
           description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
         }
       },
-      anyOf: [{ required: ["project_id"] }, { required: ["repo"] }, { required: ["owner", "repo"] }]
+      additionalProperties: false
     }
   },
   {
@@ -416,7 +437,7 @@ const tools = [
   },
   {
     name: "git_top_grp_query",
-    description: "Run Git.Top Graph Reasoning Protocol over the open-source knowledge graph to produce project sets, paths, stacks, alternatives, and explanations.",
+    description: "Run Git.Top Graph Reasoning Protocol over the open-source knowledge graph. Returns a bounded compact response by default; request the full profile only when the complete graph is required.",
     inputSchema: {
       type: "object",
       properties: {
@@ -455,6 +476,12 @@ const tools = [
             }
           }
         },
+        profile: {
+          type: "string",
+          enum: ["compact", "full"],
+          default: "compact",
+          description: "Response size profile. Compact preserves decision fields and provenance while bounding graph payloads; full returns the complete GRP result."
+        },
         require_d1: {
           type: "boolean",
           description: "Fail closed unless the tool result is backed by D1 instead of seed fallback."
@@ -465,7 +492,12 @@ const tools = [
   }
 ];
 
-export async function handleMcp(request: Request, env: Env): Promise<Response> {
+export async function handleMcp(request: Request, env: Env, options: { profile?: McpProfile } = {}): Promise<Response> {
+  const requestStartedAt = Date.now();
+  const profile = options.profile ?? "full";
+  const availableTools = profile === "core" ? tools.filter((tool) => coreToolNames.has(tool.name)) : tools;
+  const endpoint = profile === "core" ? "/mcp/core" : "/mcp";
+
   if (request.method === "GET") {
     const agentMap = buildAgentMap();
     return json({
@@ -474,7 +506,12 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
       description:
         "Agent-native open source project intelligence with trust-first discovery, search, project lookup, alternatives, deployment signals, quality scores, and graph reasoning.",
       protocolVersion: "2025-06-18",
-      endpoint: "/mcp",
+      endpoint,
+      profile,
+      profiles: {
+        core: { endpoint: "/mcp/core", toolCount: coreToolNames.size, purpose: "Focused project selection with the smallest useful tool surface." },
+        full: { endpoint: "/mcp", toolCount: tools.length, purpose: "Complete discovery, graph, quality, governance, and reasoning surface." }
+      },
       docsUrl: "https://git.top/docs",
       openapiUrl: "https://git.top/openapi.json",
       apiOpenapiUrl: "https://git.top/api/openapi.json",
@@ -666,7 +703,7 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
           }
         }
       },
-      tools
+      tools: availableTools
     });
   }
 
@@ -682,12 +719,26 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
   }
 
   if (body.method === "tools/list") {
-    return rpcResult(body.id, { tools });
+    const response = rpcResult(body.id, { tools: availableTools });
+    recordAdoptionEvent(env, {
+      name: "mcp_tools_list",
+      profile,
+      clientName: clientFromRequest(request),
+      campaignSource: campaignSourceFromRequest(request),
+      status: 200,
+      durationMs: Date.now() - requestStartedAt,
+      resultClass: "success",
+      responseSizeBucket: responseSizeFromValue({ jsonrpc: "2.0", id: body.id ?? null, result: { tools: availableTools } })
+    });
+    return response;
   }
 
   if (body.method === "initialize") {
-    return rpcResult(body.id, {
+    const clientInfo = objectArg(body.params?.clientInfo);
+    const response = rpcResult(body.id, {
       protocolVersion: "2025-06-18",
+      instructions:
+        "Use get_agent_workflow for guided project selection, then inspect metadata.source, evidence, confidence, and caveats before making high-confidence claims.",
       capabilities: {
         tools: {
           listChanged: false
@@ -699,6 +750,22 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
         version: "0.1.0"
       }
     });
+    recordAdoptionEvent(env, {
+      name: "mcp_initialize",
+      profile,
+      clientName: normalizeClientName(clientInfo.name) ?? clientFromRequest(request),
+      clientVersion: normalizeClientVersion(clientInfo.version),
+      campaignSource: campaignSourceFromRequest(request),
+      status: 200,
+      durationMs: Date.now() - requestStartedAt,
+      resultClass: "success",
+      responseSizeBucket: responseSizeFromValue({
+        jsonrpc: "2.0",
+        id: body.id ?? null,
+        result: { protocolVersion: "2025-06-18", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "git-top" } }
+      })
+    });
+    return response;
   }
 
   if (body.method === "notifications/initialized") {
@@ -708,11 +775,35 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
   if (body.method === "tools/call") {
     const name = String(body.params?.name ?? "");
     const args = (body.params?.arguments ?? {}) as Record<string, unknown>;
+    if (!availableTools.some((tool) => tool.name === name)) {
+      recordAdoptionEvent(env, {
+        name: "mcp_tool_call_completed",
+        profile,
+        clientName: clientFromRequest(request),
+        campaignSource: campaignSourceFromRequest(request),
+        operation: name,
+        status: 400,
+        resultClass: "client_error"
+      });
+      return rpcError(body.id ?? null, -32601, `Tool ${name} is not available in the ${profile} MCP profile.`);
+    }
+    const startedAt = Date.now();
     const result = await callTool(name, args, env);
     if (isToolErrorResult(result)) {
+      recordAdoptionEvent(env, {
+        name: "mcp_tool_call_completed",
+        profile,
+        clientName: clientFromRequest(request),
+        campaignSource: campaignSourceFromRequest(request),
+        operation: name,
+        status: 400,
+        durationMs: Date.now() - startedAt,
+        resultClass: resultClassFromCode(result.toolError.code)
+      });
       return rpcError(body.id ?? null, result.toolError.code, result.toolError.message);
     }
-    return rpcResult(body.id, {
+    const metadata = result && typeof result === "object" && "metadata" in result ? (result as { metadata?: { source?: unknown } }).metadata : undefined;
+    const response = rpcResult(body.id, {
       content: [
         {
           type: "text",
@@ -720,9 +811,46 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
         }
       ]
     });
+    const adoptionEvent = {
+      name: "mcp_tool_call_completed",
+      profile,
+      clientName: clientFromRequest(request),
+      campaignSource: campaignSourceFromRequest(request),
+      operation: name,
+      status: 200,
+      durationMs: Date.now() - startedAt,
+      resultClass: "success",
+      source: metadata?.source === "d1" || metadata?.source === "seed" ? metadata.source : "unknown",
+      responseSizeBucket: responseSizeFromValue(result)
+    } as const;
+    recordAdoptionEvent(env, adoptionEvent);
+    if (name === "get_agent_workflow" || name === "git_top_grp_query") {
+      recordAdoptionEvent(env, { ...adoptionEvent, name: "workflow_completed" });
+    }
+    return response;
   }
 
   return rpcError(body.id ?? null, -32601, "Method not found");
+}
+
+function responseSizeFromValue(value: unknown) {
+  return responseSizeBucket(new TextEncoder().encode(JSON.stringify(value)).byteLength);
+}
+
+function resultClassFromCode(code: number): AdoptionResultClass {
+  if (code === -32003) {
+    return "strict_source_rejection";
+  }
+  if (code === -32004) {
+    return "stale_cursor";
+  }
+  if (code === -32005) {
+    return "not_found";
+  }
+  if (code >= -32099 && code <= -32000) {
+    return "server_error";
+  }
+  return "client_error";
 }
 
 async function callTool(name: string, args: Record<string, unknown>, env: Env): Promise<unknown> {
@@ -1104,6 +1232,15 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
   }
 
   if (name === "git_top_grp_query") {
+    const responseProfile = parseMcpGrpResponseProfile(args.profile);
+    if (!responseProfile) {
+      return {
+        toolError: {
+          code: -32602,
+          message: "profile must be compact or full."
+        }
+      };
+    }
     const parsed = normalizeGrpRequest(args);
     if (!parsed.ok) {
       return {
@@ -1118,10 +1255,11 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env): 
       return knowledge;
     }
     const result = runGrpQuery(knowledge.projects, parsed.request);
+    const profiledResult = mcpGrpResponse(result, responseProfile);
     return {
-      ...result,
+      ...profiledResult,
       metadata: {
-        ...result.metadata,
+        ...profiledResult.metadata,
         dataSource: knowledge.metadata
       }
     };

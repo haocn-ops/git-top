@@ -14,6 +14,16 @@ Production endpoint:
 https://git.top/mcp
 ```
 
+Focused first-use endpoint:
+
+```txt
+https://git.top/mcp/core
+```
+
+Use [`/connect`](https://git.top/connect) for client-specific setup commands. The core profile exposes `search_projects`, `get_project`, `recommend_project`, `get_agent_workflow`, and `compare_projects`; the full endpoint remains backward-compatible for graph, quality, governance, and GRP workflows.
+Use [`/compatibility`](https://git.top/compatibility) for dated client versions, check status, known limitations, and the boundary between generic protocol validation and real-client support.
+Use [`/distribution.json`](https://git.top/distribution.json) for canonical listing copy, endpoint profiles, privacy language, attributed channel links, and external submission status.
+
 For the fastest agent integration path, start with [Agent Quickstart](./AGENT_QUICKSTART.md). For REST and MCP client snippets in TypeScript and Python, see [SDK-Oriented Examples](./SDK_EXAMPLES.md). For expected MCP result shapes and strict-mode behavior, see [MCP Tool Behavior Examples](./MCP_TOOL_BEHAVIOR_EXAMPLES.md).
 For the generated tool-by-tool input, success, and error contract, see [MCP Conformance Matrix](./MCP_CONFORMANCE_MATRIX.md).
 
@@ -23,7 +33,7 @@ For the agent-native product assessment and improvement roadmap, see [Agent-Nati
 
 MCP clients should:
 
-- Treat `GET /mcp` as discovery and JSON-RPC `tools/list` as the executable tool schema source.
+- Treat `GET /mcp` or `GET /mcp/core` as discovery and JSON-RPC `tools/list` as the executable tool schema source.
 - Parse `tools/call` result `content[].text` blocks as JSON. Git.Top tool payloads are JSON strings inside MCP text content for broad client compatibility.
 - Inspect `metadata.source`, trust fields, classification evidence, and `quality_signal_confidence` before presenting high-confidence recommendations.
 - Preserve `metadata.snapshot_id` across multi-tool workflows; re-run dependent steps when the corpus snapshot changes.
@@ -41,6 +51,12 @@ Git.Top supports a simple GET discovery response:
 
 ```sh
 curl http://localhost:8787/mcp
+```
+
+For a smaller first-use tool list:
+
+```sh
+curl http://localhost:8787/mcp/core
 ```
 
 The GET response includes the MCP endpoint, docs URL, project schema URL, health URL, quality URL, agent map URL, quickstart hints, example JSON-RPC payloads, and the tool list. Agents should use it as the discovery entry point before guessing routes. Treat `agent_map.short_path` as the first pass and `agent_map.reference_path` as the expansion path.
@@ -230,6 +246,10 @@ curl -X POST http://localhost:8787/mcp \
   -H "content-type: application/json" \
   -d '{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"git_top_grp_query","arguments":{"goal":"compose an autonomous coding stack","mode":"compose","constraints":{"agent_ready":true}}}}'
 ```
+
+`git_top_grp_query` defaults to `profile: "compact"`. The compact profile preserves intent, mode, result type, up to 24 decision-relevant nodes, up to 40 edges, solution paths, the recommended stack, alternatives or comparison output, explanations, evidence, caveats, confidence, source fields, and metadata/provenance. Solution paths reference node IDs instead of embedding duplicate node and edge objects. Inspect `metadata.truncated`, `metadata.full_counts`, and `metadata.returned_counts` when graph completeness matters.
+
+Pass `profile: "full"` only when the client needs the complete GRP graph and can accept a substantially larger result. This response profile is MCP-specific; `POST /api/grp/query` keeps its existing full REST response contract.
 
 ## Agent Guidance
 

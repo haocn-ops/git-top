@@ -29,6 +29,24 @@ export interface AgentPathSurface {
 
 export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
   {
+    concept: "Agent connection",
+    humanPage: "/connect",
+    rest: ["GET /connect", "GET /mcp/core", "GET /mcp"],
+    mcpTools: ["search_projects", "get_project", "recommend_project", "compare_projects", "get_agent_workflow"],
+    outputFields: ["profiles.core", "profiles.full", "tools", "endpoint"],
+    trustFields: ["metadata.source", "metadata.reason", "require_d1", "evidence", "caveats"],
+    recommendedUse: "Start here when a client needs the shortest tested connection path; use the core MCP profile for first-use project decisions and the full profile for advanced workflows."
+  },
+  {
+    concept: "Client compatibility",
+    humanPage: "/compatibility",
+    rest: ["GET /compatibility", "GET /api/compatibility"],
+    mcpTools: [],
+    outputFields: ["server_contract", "clients[]", "clients[].support_level", "clients[].known_limitation", "next_required_evidence"],
+    trustFields: ["last_reviewed_at", "clients[].last_verified", "clients[].initialize", "clients[].first_call", "clients[].multi_tool_workflow"],
+    recommendedUse: "Check this before calling a named client supported; configuration verification and generic protocol tests are reported separately from real-client production evidence."
+  },
+  {
     concept: "Project knowledge",
     humanPage: "/projects/:owner/:repo",
     rest: ["GET /api/project/:owner/:repo", "GET /api/project/:project", "POST /api/project", "GET /api/projects", "POST /api/projects"],
@@ -96,18 +114,18 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     humanPage: "/examples",
     rest: ["GET /api/examples"],
     mcpTools: [],
-    outputFields: ["examples", "examples[].command", "examples[].inspect", "examples[].trust_checks", "trust_policy"],
-    trustFields: ["examples[].trust_checks", "trust_policy", "examples[].inspect"],
-    recommendedUse: "Use examples when an agent developer needs copyable REST, MCP, and GRP calls with the fields to inspect before citing results."
+    outputFields: ["examples", "examples[].command", "examples[].inspect", "examples[].trust_checks", "decision_examples", "decision_examples[].shortest_rest_path", "decision_examples[].shortest_mcp_path", "decision_examples[].example_final_answer", "trust_policy"],
+    trustFields: ["examples[].trust_checks", "decision_examples[].verification", "decision_examples[].expected_fields", "trust_policy", "examples[].inspect"],
+    recommendedUse: "Use examples when an agent developer needs copyable REST, MCP, and GRP calls or verified decision-first examples with fields to inspect before citing results."
   },
   {
     concept: "API and MCP discovery",
     humanPage: "/topics/open-source-knowledge-graph-api",
-    rest: ["GET /api/agent-map", "GET /openapi.json", "GET /mcp", "GET /llms.txt", "GET /llms-full.txt"],
+    rest: ["GET /connect", "GET /distribution.json", "GET /.well-known/skills.json", "GET /api/agent-map", "GET /openapi.json", "GET /mcp/core", "GET /mcp", "GET /llms.txt", "GET /llms-full.txt"],
     mcpTools: [],
-    outputFields: ["surfaces", "openapi_url", "schema_url", "llms_url", "recommended_agent_flow", "trust_policy"],
-    trustFields: ["trust_policy.high_confidence_source", "trust_policy.strict_mode", "surfaces[].trust_fields"],
-    recommendedUse: "Use this discovery path before guessing routes or tool names; it links REST, MCP, OpenAPI, LLM discovery, output fields, and trust policy."
+    outputFields: ["surfaces", "openapi_url", "schema_url", "llms_url", "distribution_url", "installable_skill", "recommended_agent_flow", "trust_policy"],
+    trustFields: ["trust_policy.high_confidence_source", "trust_policy.strict_mode", "distribution.evidence", "distribution.submission_status", "surfaces[].trust_fields"],
+    recommendedUse: "Use this discovery path before guessing routes or tool names; it links the versioned distribution package, installable Skill, REST, MCP, OpenAPI, LLM discovery, output fields, and trust policy."
   },
   {
     concept: "Alternatives",
@@ -177,17 +195,17 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
     humanPage: "/integrations",
     rest: ["POST /api/grp/query"],
     mcpTools: ["git_top_grp_query"],
-    outputFields: ["solution_paths", "recommended_stack", "nodes", "edges", "explanation", "evidence", "caveats", "confidence_reason"],
-    trustFields: ["metadata.data_source", "evidence.source_fields", "caveats", "source_fields"],
-    recommendedUse: "Plan, compose, compare, or find project sets from a higher-level goal."
+    outputFields: ["profile", "solution_paths", "recommended_stack", "nodes", "edges", "explanation", "evidence", "caveats", "confidence_reason", "metadata.returned_counts", "metadata.full_counts"],
+    trustFields: ["metadata.data_source", "metadata.response_profile", "metadata.truncated", "evidence.source_fields", "caveats", "source_fields"],
+    recommendedUse: "Plan, compose, compare, or find project sets from a higher-level goal. MCP defaults to a bounded compact response; request profile=full only when the complete graph is required."
   },
   {
     concept: "Quality and coverage",
     humanPage: "/trust",
     rest: ["GET /api/trust", "GET /api/benchmark", "GET /api/quality", "GET /api/quality/review", "GET /api/health", "GET /api/sync/status"],
     mcpTools: ["get_trust_gate", "get_quality_report"],
-    outputFields: ["decision", "production_ready", "checks", "agent_policy", "evaluation", "explanations", "releaseScore", "dataTrustScore", "riskLevel", "coverage", "issues"],
-    trustFields: ["decision", "production_ready", "checks[].status", "evaluation.top3_hit_rate", "explanations.coverage", "metadata.source", "metadata.reason", "sync.freshness", "quality.risk_level"],
+    outputFields: ["decision", "production_ready", "freshness_slo", "checks", "agent_policy", "evaluation", "explanations", "releaseScore", "dataTrustScore", "riskLevel", "coverage", "issues"],
+    trustFields: ["decision", "production_ready", "checks[].status", "freshness_slo.hot_projects.freshness_rate", "freshness_slo.hot_projects.meets_target", "freshness_slo.whole_corpus.freshness_rate", "evaluation.top3_hit_rate", "explanations.coverage", "metadata.source", "metadata.reason", "sync.freshness", "quality.risk_level"],
     recommendedUse: "Use the Trust Gate and public benchmark before high-confidence recommendations; they combine source, sync freshness, eval health, explanation coverage, release health, data trust, and risk."
   },
   {
@@ -264,8 +282,8 @@ export const agentReferencePath: AgentPathSurface[] = [
     concept: "Trust and freshness",
     rest: ["GET /api/health", "GET /api/trust", "GET /api/quality", "GET /api/sync/status"],
     mcpTools: ["get_trust_gate", "get_quality_report"],
-    inspect: ["db=available", "sync_freshness", "release_score", "data_trust_score", "risk_level"],
-    trustFields: ["metadata.source", "metadata.reason", "sync.freshness", "quality.risk_level"],
+    inspect: ["db=available", "sync_freshness", "hot_project_freshness_rate", "whole_corpus_freshness_rate", "release_score", "data_trust_score", "risk_level"],
+    trustFields: ["metadata.source", "metadata.reason", "sync.freshness", "freshness_slo.hot_projects", "freshness_slo.whole_corpus", "quality.risk_level"],
     useWhen: "Use when the answer must explain source quality or freshness in detail."
   },
   {
@@ -296,6 +314,16 @@ export function buildAgentMap() {
     production_base_url: "https://git.top",
     rest_base_url: "https://git.top/api",
     mcp_endpoint: "https://git.top/mcp",
+    mcp_core_endpoint: "https://git.top/mcp/core",
+    connect_url: "https://git.top/connect",
+    compatibility_url: "https://git.top/compatibility",
+    compatibility_api_url: "https://git.top/api/compatibility",
+    distribution_url: "https://git.top/distribution.json",
+    installable_skill: {
+      name: "git-top-project-selection",
+      repository: "https://github.com/haocn-ops/git-top",
+      path: "skills/git-top-project-selection"
+    },
     openapi_url: "https://git.top/openapi.json",
     schema_url: "https://git.top/api/schema/project.v2",
     llms_url: "https://git.top/llms.txt",

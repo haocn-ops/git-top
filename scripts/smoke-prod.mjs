@@ -85,6 +85,62 @@ export async function runSmoke(args = [], env = process.env) {
     };
   });
 
+  await runSmokeCheck(context, "connect_and_client_compatibility", async () => {
+    const connect = await getText(context, "/connect?source=production-smoke");
+    assert.equal(connect.status, 200);
+    assert.match(connect.text, /https:\/\/git\.top\/mcp\/core/);
+    assert.match(connect.text, /codex mcp add git-top/);
+    assert.match(connect.text, /claude mcp add --transport http/);
+
+    const compatibility = await getJson(context, "/api/compatibility");
+    assert.equal(compatibility.status, 200);
+    assert.equal(compatibility.body.schema_version, "git-top.client-compatibility.v1");
+    assert.equal(compatibility.body.server_contract.initialize, "passed");
+    assert.ok(compatibility.body.clients.every((client) => client.support_level !== "supported" || [client.initialize, client.tool_discovery, client.first_call, client.multi_tool_workflow, client.error_behavior].every((status) => status === "passed")));
+    assert.ok(compatibility.body.clients.filter((client) => client.support_level === "supported").length >= 2);
+    return {
+      clients: compatibility.body.clients.length,
+      supportedClients: compatibility.body.clients.filter((client) => client.support_level === "supported").length,
+      supportLevels: [...new Set(compatibility.body.clients.map((client) => client.support_level))]
+    };
+  });
+
+  await runSmokeCheck(context, "mcp_core_first_value", async () => {
+    const discovery = await getJson(context, "/mcp/core");
+    assert.equal(discovery.status, 200);
+    assert.equal(discovery.body.profile, "core");
+    assert.deepEqual(discovery.body.tools.map((tool) => tool.name), ["search_projects", "get_project", "recommend_project", "get_agent_workflow", "compare_projects"]);
+
+    const initialized = await postJson(context, "/mcp/core?source=production-smoke", {
+      jsonrpc: "2.0",
+      id: 20,
+      method: "initialize",
+      params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "git-top-smoke", version: "0.0.0" } }
+    });
+    assert.equal(initialized.status, 200);
+    assert.equal(initialized.body.result.serverInfo.name, "git-top");
+
+    const listed = await postJson(context, "/mcp/core?source=production-smoke", { jsonrpc: "2.0", id: 21, method: "tools/list", params: {} });
+    assert.equal(listed.status, 200);
+    assert.equal(listed.body.result.tools.length, 5);
+
+    const workflow = await postJson(context, "/mcp/core?source=production-smoke", {
+      jsonrpc: "2.0",
+      id: 22,
+      method: "tools/call",
+      params: {
+        name: "get_agent_workflow",
+        arguments: { intent: "choose a Cloudflare-ready agent framework", constraints: { deployment: "cloudflare", category: "agent_framework" }, limit: 3, require_d1: !context.allowSeed }
+      }
+    });
+    assert.equal(workflow.status, 200);
+    const result = JSON.parse(workflow.body.result.content[0].text);
+    assert.ok(Array.isArray(result.recommended_sequence));
+    assert.ok(result.recommended_sequence.length > 0);
+    assertMetadata(result.metadata, { allowSeed });
+    return { profile: "core", tools: listed.body.result.tools.length, workflowSteps: result.recommended_sequence.length };
+  });
+
   await runSmokeCheck(context, "mcp_tools_list", async () => {
     const { status, body } = await postJson(context, "/mcp", {
       jsonrpc: "2.0",
@@ -163,6 +219,8 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms\.txt<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms-full\.txt<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quickstart<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/connect<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/compatibility<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/recipes<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/examples<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/journeys<\/loc>/);
@@ -208,6 +266,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/\.well-known\/mcp\.json<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/\.well-known\/skills\.json<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/\.well-known\/agent-skills\/index\.json<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/distribution\.json<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/projects\/cloudflare\/agents<\/loc>/);
 
     const root = await getText(context, "/", { headers: { accept: "text/markdown" } });
@@ -252,6 +311,23 @@ export async function runSmoke(args = [], env = process.env) {
     assert.equal(skillsStatus, 200);
     assert.equal(skills.schema_version, "agent-skills.v1");
     assert.ok(skills.skills.some((skill) => skill.id === "discover_open_source_projects"));
+    assert.ok(skills.installable_packages.some((skill) => skill.name === "git-top-project-selection"));
+
+    const { status: distributionStatus, body: distribution } = await getJson(context, "/distribution.json");
+    assert.equal(distributionStatus, 200);
+    assert.equal(distribution.schema_version, "git-top.agent-distribution.v1");
+    assert.equal(distribution.endpoints.mcp_core, "https://git.top/mcp/core");
+    assert.equal(distribution.installable_skill.name, "git-top-project-selection");
+    assert.equal(distribution.submission_status.canonical_mcp_registry, "active");
+    assert.equal(distribution.submission_status.third_party_catalogs, "live");
+    assert.equal(distribution.submission_status.smithery, "live");
+    assert.equal(distribution.submission_status.glama, "live");
+    assert.equal(distribution.submission_status.client_directories, "prepared_not_submitted");
+    assert.equal(distribution.submission_artifacts.smithery.public_listing_verified, true);
+    assert.equal(distribution.submission_artifacts.smithery.verification.discovered_tool_count, 5);
+    assert.equal(distribution.submission_artifacts.glama.public_listing_verified, true);
+    assert.equal(distribution.submission_artifacts.glama.listing_url, "https://glama.ai/mcp/connectors/io.github.haocn-ops/git-top");
+    assert.equal(distribution.submission_artifacts.glama.verification.discovered_tool_count, 5);
 
     const { status: skillsIndexStatus, body: skillsIndex } = await getJson(context, "/.well-known/agent-skills/index.json");
     assert.equal(skillsIndexStatus, 200);
@@ -271,7 +347,9 @@ export async function runSmoke(args = [], env = process.env) {
     const llms = await getText(context, "/llms.txt");
     assert.equal(llms.status, 200);
     assert.match(llms.text, /Git\.Top is an agent-native GitHub project knowledge layer/);
+    assert.match(llms.text, /Client compatibility: https:\/\/git\.top\/compatibility/);
     assert.match(llms.text, /API examples: https:\/\/git\.top\/examples/);
+    assert.match(llms.text, /Agent distribution package: https:\/\/git\.top\/distribution\.json/);
     assert.match(llms.text, /Atlas journeys: https:\/\/git\.top\/journeys/);
     assert.match(llms.text, /Trust gate: https:\/\/git\.top\/trust/);
     assert.match(llms.text, /Trust gate JSON: https:\/\/git\.top\/api\/trust/);
@@ -284,6 +362,7 @@ export async function runSmoke(args = [], env = process.env) {
     const { status: openapiStatus, body: openapi } = await getJson(context, "/openapi.json");
     assert.equal(openapiStatus, 200);
     assert.ok(openapi.paths["/api/quality/review"], "OpenAPI should include quality review");
+    assert.ok(openapi.paths["/api/compatibility"], "OpenAPI should include client compatibility");
     assert.ok(openapi.paths["/api/trust"], "OpenAPI should include trust gate");
     assert.ok(openapi.paths["/api/trends"], "OpenAPI should include trends");
     assert.ok(openapi.paths["/api/governance/summary"], "OpenAPI should include governance summary");
@@ -374,11 +453,16 @@ export async function runSmoke(args = [], env = process.env) {
     assert.ok(["allow", "caution", "block"].includes(trust.body.decision));
     assert.ok(Array.isArray(trust.body.checks));
     assert.ok(trust.body.checks.some((check) => check.id === "d1-source"));
+    assert.equal(trust.body.freshness_slo.hot_projects.target_rate, 0.95);
+    assert.equal(typeof trust.body.freshness_slo.hot_projects.meets_target, "boolean");
+    assert.equal(typeof trust.body.freshness_slo.whole_corpus.freshness_rate, "number");
     assertMetadata(trust.body.metadata, { allowSeed });
 
     return {
       decision: trust.body.decision,
       productionReady: trust.body.production_ready,
+      hotFreshnessRate: trust.body.freshness_slo.hot_projects.freshness_rate,
+      wholeCorpusFreshnessRate: trust.body.freshness_slo.whole_corpus.freshness_rate,
       source: trust.body.metadata.source
     };
   });
@@ -464,9 +548,17 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(text, /Recent Runs/);
     assert.match(text, /Integration Guidance/);
 
+    const sync = await getJson(context, "/api/sync/status");
+    assert.equal(sync.status, 200);
+    assert.ok(sync.body.priority.freshness_slo.hot_projects.target_hours > 0);
+    assert.equal(sync.body.priority.freshness_slo.hot_projects.target_rate, 0.95);
+    assert.equal(sync.body.priority.freshness_slo.whole_corpus.target_basis, "tier_policy");
+
     return {
       hasHealthJsonLink: text.includes("/api/health"),
-      hasSyncJsonLink: text.includes("/api/sync/status")
+      hasSyncJsonLink: text.includes("/api/sync/status"),
+      hotFreshnessRate: sync.body.priority.freshness_slo.hot_projects.freshness_rate,
+      wholeCorpusFreshnessRate: sync.body.priority.freshness_slo.whole_corpus.freshness_rate
     };
   });
 
@@ -562,9 +654,12 @@ export async function runSmoke(args = [], env = process.env) {
     assert.ok(examples.body.examples.some((example) => example.id === "mcp-tools-list"));
     assert.ok(examples.body.examples.some((example) => example.id === "grp-plan-stack"));
     assert.ok(examples.body.examples.every((example) => Array.isArray(example.trust_checks)));
+    assert.equal(examples.body.decision_examples.length, 10);
+    assert.ok(examples.body.decision_examples.every((example) => example.verification.scope === "local_d1"));
 
     return {
       examples: examples.body.examples.length,
+      decisionExamples: examples.body.decision_examples.length,
       hasMcp: examples.body.examples.some((example) => example.surface === "MCP"),
       hasGrp: examples.body.examples.some((example) => example.surface === "GRP")
     };

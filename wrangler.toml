@@ -12,6 +12,10 @@ binding = "DB"
 database_name = "git-top"
 database_id = "d37123ac-e75e-4056-bc22-68f30fc988a2"
 
+[[analytics_engine_datasets]]
+binding = "ADOPTION_ANALYTICS"
+dataset = "git_top_adoption"
+
 [triggers]
 crons = ["0,30 * * * *"]
 

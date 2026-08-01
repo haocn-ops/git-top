@@ -7,6 +7,9 @@ import { renderProjectGraphPage } from "./graph-page";
 import { errorJson, fromApiShape } from "./http";
 import { renderExamplesPage } from "./examples";
 import { renderIntegrationsPage } from "./integrations-page";
+import { renderConnectEvent, renderConnectPage } from "./connect-page";
+import { renderClientCompatibilityPage } from "./client-compatibility";
+import { renderAgentDistributionPackage } from "./distribution";
 import { renderJourneysPage } from "./journeys-page";
 import {
   renderAlternativesIndexPage,
@@ -68,6 +71,13 @@ import { runScheduledGovernance } from "./scheduled-governance";
 import { pruneOperationalData } from "./storage-maintenance";
 import { refreshAlternativesIncremental } from "./derived-refresh";
 import { sendOperationsAlert } from "./operations-alert";
+import {
+  campaignSourceFromRequest,
+  clientFromRequest,
+  recordAdoptionEvent,
+  responseSizeBucket,
+  type AdoptionResultClass
+} from "./adoption-analytics";
 import type { Env } from "./types";
 import type { PublicBenchmarkReport } from "./benchmark";
 import type { LowConfidenceReviewReport, QualityReport } from "./quality";
@@ -75,9 +85,16 @@ import type { LowConfidenceReviewReport, QualityReport } from "./quality";
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+    const startedAt = Date.now();
     const response = isEdgeCacheableRequest(request, url)
       ? await cachedPublicResponse(request, ctx, () => routeRequest(request, env, url, ctx))
       : await routeRequest(request, env, url, ctx);
+    const adoptionRecording = recordHttpAdoptionEvent(request, url, response, env, Date.now() - startedAt);
+    if (ctx) {
+      ctx.waitUntil(adoptionRecording);
+    } else {
+      await adoptionRecording;
+    }
     return withSiteHeaders(response, request);
   },
 
@@ -89,9 +106,9 @@ export default {
 
 const edgeCacheablePaths = [
   /^\/sitemap\.xml$/,
-  /^\/api\/(?:search|quality(?:\/review)?|benchmark|journeys|trending|trends|recommend|compare|workflow|projects)$/,
+  /^\/api\/(?:search|quality(?:\/review)?|benchmark|compatibility|journeys|trending|trends|recommend|compare|workflow|projects)$/,
   /^\/api\/(?:atlas|graph|alternatives|score|project)(?:\/|$)/,
-  /^\/(?:projects|graph|atlas|quality|trust|benchmark|journeys|compare|recommend|workflow|alternatives|score|trends|coverage)(?:\/|$)/
+  /^\/(?:projects|graph|atlas|quality|trust|benchmark|compatibility|journeys|compare|recommend|workflow|alternatives|score|trends|coverage)(?:\/|$)/
 ];
 
 function isEdgeCacheableRequest(request: Request, url: URL): boolean {
@@ -261,6 +278,10 @@ async function routeRequest(request: Request, env: Env, url: URL, ctx?: Executio
     return renderAuthMarkdown();
   }
 
+  if (url.pathname === "/distribution.json") {
+    return renderAgentDistributionPackage();
+  }
+
   if (url.pathname === "/index.md" || url.pathname === "/docs.md") {
     return renderAgentMarkdownIndex();
   }
@@ -340,6 +361,18 @@ async function routeRequest(request: Request, env: Env, url: URL, ctx?: Executio
 
   if (url.pathname === "/integrations") {
     return renderIntegrationsPage();
+  }
+
+  if (url.pathname === "/connect" && request.method === "GET") {
+    return renderConnectPage();
+  }
+
+  if (url.pathname === "/connect/event" && request.method === "POST") {
+    return renderConnectEvent(request, env);
+  }
+
+  if (url.pathname === "/compatibility" && request.method === "GET") {
+    return renderClientCompatibilityPage();
   }
 
   if (url.pathname === "/roadmap") {
@@ -500,8 +533,12 @@ async function routeRequest(request: Request, env: Env, url: URL, ctx?: Executio
     return handleApi(request, env, ctx);
   }
 
+  if (url.pathname === "/mcp/core") {
+    return handleMcp(request, env, { profile: "core" });
+  }
+
   if (url.pathname === "/mcp") {
-    return handleMcp(request, env);
+    return handleMcp(request, env, { profile: "full" });
   }
 
   const projectId = projectIdFromPath(url.pathname);
@@ -518,6 +555,93 @@ async function routeRequest(request: Request, env: Env, url: URL, ctx?: Executio
 function wantsMarkdown(request: Request): boolean {
   const accept = request.headers.get("accept") ?? "";
   return /\btext\/markdown\b/i.test(accept);
+}
+
+async function recordHttpAdoptionEvent(request: Request, url: URL, response: Response, env: Env, durationMs: number): Promise<void> {
+  if (url.pathname === "/connect" && request.method === "GET") {
+    const measurement = await measureResponse(response);
+    recordAdoptionEvent(env, {
+      name: "connect_page_view",
+      clientName: clientFromRequest(request),
+      campaignSource: campaignSourceFromRequest(request),
+      status: response.status,
+      durationMs,
+      responseSizeBucket: measurement.sizeBucket,
+      resultClass: response.status >= 500 ? "server_error" : "success"
+    });
+    return;
+  }
+
+  const operations: Record<string, string> = {
+    "/api/recommend": "recommend",
+    "/api/compare": "compare",
+    "/api/workflow": "workflow",
+    "/api/grp/query": "grp"
+  };
+  const operation = operations[url.pathname];
+  if (!operation || (request.method !== "GET" && request.method !== "POST")) {
+    return;
+  }
+  const measurement = await measureResponse(response);
+  const event = {
+    name: "rest_agent_call_completed",
+    clientName: clientFromRequest(request),
+    campaignSource: campaignSourceFromRequest(request),
+    operation,
+    status: response.status,
+    durationMs,
+    responseSizeBucket: measurement.sizeBucket,
+    source: measurement.source,
+    resultClass: restResultClass(response.status, measurement.errorCode)
+  } as const;
+  recordAdoptionEvent(env, event);
+  if (response.status < 400 && (operation === "workflow" || operation === "grp")) {
+    recordAdoptionEvent(env, { ...event, name: "workflow_completed" });
+  }
+}
+
+async function measureResponse(response: Response): Promise<{
+  sizeBucket: ReturnType<typeof responseSizeBucket>;
+  source: "d1" | "seed" | "unknown";
+  errorCode?: string;
+}> {
+  try {
+    const bytes = await response.clone().arrayBuffer();
+    let source: "d1" | "seed" | "unknown" = "unknown";
+    let errorCode: string | undefined;
+    if (response.headers.get("content-type")?.includes("application/json")) {
+      const payload = JSON.parse(new TextDecoder().decode(bytes)) as {
+        metadata?: { source?: unknown; data_source?: { source?: unknown } };
+        error?: { code?: unknown };
+      };
+      const reportedSource = payload.metadata?.source ?? payload.metadata?.data_source?.source;
+      if (reportedSource === "d1" || reportedSource === "seed") {
+        source = reportedSource;
+      }
+      if (typeof payload.error?.code === "string") {
+        errorCode = payload.error.code;
+      }
+    }
+    return { sizeBucket: responseSizeBucket(bytes.byteLength), source, errorCode };
+  } catch {
+    return { sizeBucket: "unknown", source: "unknown" };
+  }
+}
+
+function restResultClass(status: number, errorCode?: string): AdoptionResultClass {
+  if (status < 400) {
+    return "success";
+  }
+  if (errorCode === "d1_required") {
+    return "strict_source_rejection";
+  }
+  if (errorCode === "stale_page_cursor") {
+    return "stale_cursor";
+  }
+  if (status === 404 || errorCode?.endsWith("_not_found")) {
+    return "not_found";
+  }
+  return status >= 500 ? "server_error" : "client_error";
 }
 
 function legacyConsoleRedirect(url: URL): Response | null {
@@ -582,7 +706,7 @@ function projectIdFromPath(pathname: string): string | null {
 
   const slug = decodeURIComponent(shortMatch[1]);
   if (
-    ["api", "mcp", "graph", "atlas", "score", "explorer", "discover", "trends", "workflow", "docs", "api-docs", "quality", "coverage", "status", "trust", "benchmark", "operations", "integrations", "roadmap", "quickstart", "recipes", "examples", "journeys", "categories", "deployments", "compare", "alternatives", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "auth.md", "index.md", "docs.md", "agents.json", "agent-card.json", "api-catalog.json", "mcp.json", "skills.json", "favicon.ico"].includes(
+    ["api", "mcp", "graph", "atlas", "score", "explorer", "discover", "trends", "workflow", "docs", "api-docs", "quality", "coverage", "status", "trust", "benchmark", "operations", "integrations", "connect", "roadmap", "quickstart", "recipes", "examples", "journeys", "categories", "deployments", "compare", "alternatives", "topics", "badge", "og.svg", "openapi.json", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt", "auth.md", "index.md", "docs.md", "agents.json", "agent-card.json", "api-catalog.json", "mcp.json", "skills.json", "favicon.ico"].includes(
       slug
     )
   ) {

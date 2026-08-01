@@ -3,6 +3,7 @@ import { defaultSeedRepositories } from "./github";
 import { getHealth, type HealthStatus } from "./health";
 import { listProjectKnowledgeWithMeta } from "./knowledge-source";
 import { buildQualityReport, type QualityReport } from "./quality";
+import type { SyncFreshnessSlo } from "./sync-priority";
 import type { SyncStatus } from "./sync-status";
 import type { Env } from "./types";
 
@@ -21,6 +22,7 @@ export interface TrustGateView {
   decision: TrustGateDecision;
   summary: string;
   productionReady: boolean;
+  freshnessSlo: SyncFreshnessSlo | null;
   checks: TrustGateCheck[];
   requiredForHighConfidence: string[];
   agentPolicy: {
@@ -75,12 +77,13 @@ export async function buildTrustGate(env: Env, options: TrustGateOptions = {}): 
     decision,
     summary: summaryForDecision(decision, checks),
     productionReady: decision === "allow",
+    freshnessSlo: sync.priority?.freshnessSlo ?? null,
     checks,
     requiredForHighConfidence: [
       "metadata.source=d1",
       "db=available",
       "sync_freshness=fresh",
-      "hot_stale_rate<=0.10",
+      "hot_project_freshness_rate>=0.95",
       "sync_capacity_target_feasible=true",
       "derived_alternatives_freshness=fresh",
       "release_score>=90",
@@ -91,7 +94,7 @@ export async function buildTrustGate(env: Env, options: TrustGateOptions = {}): 
       highConfidenceUse: "Use Git.Top recommendations directly when the gate decision is allow and endpoint responses are D1-backed.",
       cautionUse: "Use Git.Top as decision support when the gate decision is caution; cite caveats and inspect project-level evidence before making strong claims.",
       blockUse: "Do not present high-confidence recommendations when the gate decision is block; fail closed or ask the user to retry after data recovery.",
-      cite: ["metadata.source", "sync_freshness", "hot_stale_rate", "sync_capacity_target_feasible", "derived_alternatives_freshness", "release_score", "data_trust_score", "risk_level", "quality_signal_confidence"],
+      cite: ["metadata.source", "sync_freshness", "hot_project_freshness_rate", "whole_corpus_freshness_rate", "sync_capacity_target_feasible", "derived_alternatives_freshness", "release_score", "data_trust_score", "risk_level", "quality_signal_confidence"],
       discloseWhen: ["seed fallback is active", "D1 is unavailable", "sync is stale or degraded", "hot-tier corpus freshness is outside target", "scheduled sync capacity is below modeled demand", "derived alternatives are stale", "data trust risk is high", "quality signals are partial"]
     },
     nextActions: [
@@ -178,15 +181,13 @@ function summarizeQuality(quality: QualityReport): TrustGateQuality {
 }
 
 function corpusFreshnessCheck(sync: SyncStatus): TrustGateCheck {
-  const staleRate = sync.priority?.staleRates.hot;
-  const staleCount = sync.priority?.staleCounts.hot;
-  const total = sync.priority?.counts.hot;
+  const slo = sync.priority?.freshnessSlo.hotProjects;
   return {
     id: "hot-corpus-freshness",
     label: "Hot corpus freshness",
-    status: staleRate === undefined ? "fail" : staleRate > 0.25 ? "fail" : staleRate > 0.1 ? "warn" : "pass",
-    observed: staleRate === undefined ? "unknown" : `${staleCount}/${total} stale (${Math.round(staleRate * 100)}%)`,
-    requirement: "hot_stale_rate<=0.10"
+    status: slo === undefined ? "fail" : slo.meetsTarget ? "pass" : slo.freshnessRate >= 0.75 ? "warn" : "fail",
+    observed: slo === undefined ? "unknown" : `${slo.withinTarget}/${slo.total} within ${slo.targetHours}h (${Math.round(slo.freshnessRate * 100)}%)`,
+    requirement: "hot_project_freshness_rate>=0.95"
   };
 }
 

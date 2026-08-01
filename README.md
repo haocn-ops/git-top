@@ -12,6 +12,27 @@ Production: [git.top](https://git.top)
 
 Repository: [github.com/haocn-ops/git-top](https://github.com/haocn-ops/git-top)
 
+## Connect An Agent
+
+Use the focused MCP profile for the shortest first connection:
+
+```sh
+codex mcp add git-top --url https://git.top/mcp/core
+claude mcp add --transport http --scope user git-top https://git.top/mcp/core
+```
+
+Then ask your agent:
+
+```text
+Use Git.Top to recommend three open-source browser-agent projects for Docker, then cite the data source and one caveat for each.
+```
+
+Full setup, client status, and REST alternatives: [git.top/connect](https://git.top/connect).
+
+Dated compatibility evidence and the distinction between configuration verification and real-client support: [git.top/compatibility](https://git.top/compatibility).
+
+Registry-ready copy, profiles, privacy boundaries, campaign links, and submission status: [git.top/distribution.json](https://git.top/distribution.json). An installable REST-first Agent Skill is available at [`skills/git-top-project-selection`](./skills/git-top-project-selection/).
+
 ## What Git.Top Does
 
 - Discover open-source AI projects by category, deployment target, and use case.
@@ -32,6 +53,7 @@ Repository: [github.com/haocn-ops/git-top](https://github.com/haocn-ops/git-top)
 - `/atlas` - explore ecosystem maps.
 - `/api/*` - consume structured knowledge.
 - `/mcp` - connect agents through MCP.
+- `/mcp/core` - connect a focused five-tool MCP profile for first-time use.
 
 ## Architecture
 
@@ -47,6 +69,9 @@ The project intentionally does not ship a separate Next.js app. Keeping Worker-r
 ## Documentation
 
 - [Coding agent guide](./AGENTS.md)
+- [AI agent adoption and distribution plan 2026-07-31](./docs/AI_AGENT_ADOPTION_AND_DISTRIBUTION_PLAN_2026-07-31.md)
+- [Agent client compatibility](./docs/AGENT_CLIENT_COMPATIBILITY.md)
+- [Agent distribution package](./docs/AGENT_DISTRIBUTION_PACKAGE.md)
 - [Agent-native assessment and optimization plan](./docs/AGENT_NATIVE_ASSESSMENT_AND_OPTIMIZATION_PLAN.md)
 - [Agent function test and improvement plan 2026-07-30](./docs/AGENT_FUNCTION_TEST_AND_IMPROVEMENT_PLAN_2026-07-30.md)
 - [Production freshness optimization plan 2026-07-14](./docs/PRODUCTION_FRESHNESS_OPTIMIZATION_PLAN_2026-07-14.md)
@@ -64,6 +89,7 @@ The project intentionally does not ship a separate Next.js app. Keeping Worker-r
 - [MCP tool behavior examples](./docs/MCP_TOOL_BEHAVIOR_EXAMPLES.md)
 - [MCP conformance matrix](./docs/MCP_CONFORMANCE_MATRIX.md)
 - [SDK-oriented examples](./docs/SDK_EXAMPLES.md)
+- [Adoption analytics runbook](./docs/ADOPTION_ANALYTICS_RUNBOOK.md)
 - [GRP examples](./docs/GRP_EXAMPLES.md)
 - [Agent quickstart](./docs/AGENT_QUICKSTART.md)
 - [MailAgents agent workflow article](./docs/MAILAGENTS_AGENT_WORKFLOW.md)

@@ -26,4 +26,4 @@ The validator checks that every listed tool is discoverable, publishes an object
 | `get_project_card` | project_id | agent_card, metrics, metadata | -32005 project not found; -32003 strict D1 |
 | `get_project_graph` | project_id, limit | graph, resolved_from, metadata | -32005 project not found; -32602 invalid limit; -32003 strict D1 |
 | `compare_projects` | project_ids, deployment | projects, decision_matrix, metadata | -32003 strict D1 where applicable |
-| `git_top_grp_query` | goal/mode/constraints/context | nodes, edges, solution_paths, evidence, metadata | -32602 invalid request; -32003 strict D1 |
+| `git_top_grp_query` | goal/mode/constraints/context/profile | profile, nodes, edges, solution_paths, evidence, metadata | -32602 invalid request/profile; -32003 strict D1 |
