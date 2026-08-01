@@ -319,6 +319,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.equal(distribution.endpoints.mcp_core, "https://git.top/mcp/core");
     assert.equal(distribution.installable_skill.name, "git-top-project-selection");
     assert.equal(distribution.submission_status.canonical_mcp_registry, "active");
+    assert.equal(distribution.submission_status.github_release, "live");
     assert.equal(distribution.submission_status.third_party_catalogs, "live");
     assert.equal(distribution.submission_status.smithery, "live");
     assert.equal(distribution.submission_status.glama, "live");
@@ -328,6 +329,7 @@ export async function runSmoke(args = [], env = process.env) {
     assert.equal(distribution.submission_artifacts.glama.public_listing_verified, true);
     assert.equal(distribution.submission_artifacts.glama.listing_url, "https://glama.ai/mcp/connectors/io.github.haocn-ops/git-top");
     assert.equal(distribution.submission_artifacts.glama.verification.discovered_tool_count, 5);
+    assert.equal(distribution.submission_artifacts.github_release.tag_name, "v0.1.0");
 
     const { status: skillsIndexStatus, body: skillsIndex } = await getJson(context, "/.well-known/agent-skills/index.json");
     assert.equal(skillsIndexStatus, 200);

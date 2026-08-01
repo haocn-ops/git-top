@@ -136,6 +136,17 @@
       "published_at": "2026-07-31T14:33:59.531212Z",
       "status": "active"
     },
+    "github_release": {
+      "tag_name": "v0.1.0",
+      "release_url": "https://github.com/haocn-ops/git-top/releases/tag/v0.1.0",
+      "published_at": "2026-08-01T01:40:37Z",
+      "target": "main",
+      "assets": [
+        "https://github.com/haocn-ops/git-top/releases/download/v0.1.0/server.json",
+        "https://github.com/haocn-ops/git-top/releases/download/v0.1.0/git-top-agent-distribution.json"
+      ],
+      "status": "live"
+    },
     "smithery": {
       "publish_method": "remote_url",
       "endpoint": "https://git.top/mcp/core",
@@ -179,6 +190,7 @@
   },
   "submission_status": {
     "canonical_mcp_registry": "active",
+    "github_release": "live",
     "third_party_catalogs": "live",
     "smithery": "live",
     "glama": "live",

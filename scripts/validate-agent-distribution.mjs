@@ -29,6 +29,7 @@ assert.equal(distribution.evidence.real_client_e2e_details.default_grp_profile, 
 assert.equal(distribution.evidence.real_client_e2e_details.compact_result_externalized, false);
 assert.equal(distribution.evidence.real_client_e2e_details.data_source, "d1");
 assert.equal(distribution.submission_status.canonical_mcp_registry, "active");
+assert.equal(distribution.submission_status.github_release, "live");
 assert.equal(distribution.submission_status.third_party_catalogs, "live");
 assert.equal(distribution.submission_status.smithery, "live");
 assert.equal(distribution.submission_status.glama, "live");
@@ -40,6 +41,10 @@ assert.equal(distribution.submission_artifacts.canonical_mcp_registry.published_
 assert.equal(distribution.submission_artifacts.canonical_mcp_registry.status, "active");
 assert.match(distribution.submission_artifacts.canonical_mcp_registry.published_at, /^2026-07-31T/);
 assert.match(distribution.submission_artifacts.canonical_mcp_registry.registry_api_url, /registry\.modelcontextprotocol\.io/);
+assert.equal(distribution.submission_artifacts.github_release.tag_name, "v0.1.0");
+assert.equal(distribution.submission_artifacts.github_release.status, "live");
+assert.equal(distribution.submission_artifacts.github_release.assets.length, 2);
+assert.match(distribution.submission_artifacts.github_release.release_url, /github\.com\/haocn-ops\/git-top\/releases\/tag\/v0\.1\.0/);
 assert.deepEqual(
   {
     endpoint: distribution.submission_artifacts.smithery.endpoint,

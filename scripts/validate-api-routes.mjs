@@ -522,6 +522,7 @@ async function testConnectAndMcpProfiles() {
   assert.equal(distributionBody.endpoints.mcp_core, "https://git.top/mcp/core");
   assert.equal(distributionBody.installable_skill.name, "git-top-project-selection");
   assert.equal(distributionBody.submission_status.canonical_mcp_registry, "active");
+  assert.equal(distributionBody.submission_status.github_release, "live");
   assert.equal(distributionBody.submission_status.third_party_catalogs, "live");
   assert.equal(distributionBody.submission_status.smithery, "live");
   assert.equal(distributionBody.submission_status.glama, "live");
@@ -531,6 +532,7 @@ async function testConnectAndMcpProfiles() {
   assert.equal(distributionBody.submission_artifacts.glama.public_listing_verified, true);
   assert.equal(distributionBody.submission_artifacts.glama.listing_url, "https://glama.ai/mcp/connectors/io.github.haocn-ops/git-top");
   assert.equal(distributionBody.submission_artifacts.glama.verification.discovered_tool_count, 5);
+  assert.equal(distributionBody.submission_artifacts.github_release.tag_name, "v0.1.0");
 }
 
 async function testClientCompatibilityRoute() {

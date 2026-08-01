@@ -8,6 +8,8 @@ Official Registry artifact: `distribution/server.json`
 
 Official Registry record: `io.github.haocn-ops/git-top` version `0.1.0`, published at `2026-07-31T14:33:59.531212Z`
 
+GitHub Release: `https://github.com/haocn-ops/git-top/releases/tag/v0.1.0`, published at `2026-08-01T01:40:37Z`
+
 Publication and audit procedure: `docs/EXTERNAL_DISTRIBUTION_RUNBOOK.md`
 
 ## Canonical Description
@@ -71,3 +73,5 @@ Use explicit, privacy-safe source attribution:
 The official Registry status is `active`. Smithery is publicly listed at `https://smithery.ai/servers/izhenghaocn/git-top`; its remote deployment probe succeeded, discovered the expected five core tools, and reported server version `0.1.0` on 2026-07-31. Smithery is therefore `live`.
 
 Glama's initial remote connector submission flow returned `A server with this URL already exists.` for `https://git.top/mcp/core`, indicating an existing record. Safari verification on 2026-08-01 found the public connector at `https://glama.ai/mcp/connectors/io.github.haocn-ops/git-top` and the server listing at `https://glama.ai/mcp/servers/haocn-ops/git-top`. Glama reports `Healthy`, Streamable HTTP, the expected core endpoint, and five available tools, so Glama is `live`. The aggregate third-party catalog state is `live`.
+
+GitHub Release `v0.1.0` is public and includes the validated official Registry `server.json` plus the reusable `git-top-agent-distribution.json` artifact.
