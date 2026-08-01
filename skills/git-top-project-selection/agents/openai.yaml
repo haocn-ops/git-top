@@ -1,0 +1,4 @@
+interface:
+  display_name: "Git.Top Project Selection"
+  short_description: "Evidence-backed open-source project decisions"
+  default_prompt: "Use $git-top-project-selection to compare open-source projects for this implementation decision."
