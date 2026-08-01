@@ -94,7 +94,10 @@ const tools = [
     inputSchema: {
       type: "object",
       properties: {
-        query: { type: "string" },
+        query: {
+          type: "string",
+          description: "Search terms, such as openai, cloudflare agent framework, or browser automation. Leave cursor empty for a new search."
+        },
         category: { type: "string" },
         deployment: { type: "string" },
         difficulty: { type: "string" },

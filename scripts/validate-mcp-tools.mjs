@@ -143,6 +143,8 @@ async function testDiscovery() {
   assert.match(searchTool.description, /metadata\.candidate_retrieval/);
   assert.match(searchTool.description, /metadata\.truncated/);
   assert.match(searchTool.description, /collection_metadata/);
+  assert.match(searchTool.input_schema.properties.query.description, /Search terms/);
+  assert.match(searchTool.input_schema.properties.query.description, /cursor empty/);
   assert.deepEqual(searchTool.input_schema.properties.ranking.enum, ["browse"]);
   assert.match(searchTool.input_schema.properties.ranking.description, /browse ranking/);
   assert.equal(searchTool.input_schema.properties.require_d1.type, "boolean");
