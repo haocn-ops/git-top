@@ -9,6 +9,11 @@ const interfaceYaml = await readFile(new URL("../skills/git-top-project-selectio
 const registryServer = JSON.parse(await readFile(new URL("../distribution/server.json", import.meta.url), "utf8"));
 const packageManifest = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 const distributionRunbook = await readFile(new URL("../docs/EXTERNAL_DISTRIBUTION_RUNBOOK.md", import.meta.url), "utf8");
+const codexPlugin = JSON.parse(await readFile(new URL("../plugins/git-top/.codex-plugin/plugin.json", import.meta.url), "utf8"));
+const claudePlugin = JSON.parse(await readFile(new URL("../plugins/git-top/.claude-plugin/plugin.json", import.meta.url), "utf8"));
+const claudeMarketplace = JSON.parse(await readFile(new URL("../.claude-plugin/marketplace.json", import.meta.url), "utf8"));
+const pluginMcp = JSON.parse(await readFile(new URL("../plugins/git-top/.mcp.json", import.meta.url), "utf8"));
+const pluginSkill = await readFile(new URL("../plugins/git-top/skills/git-top-project-selection/SKILL.md", import.meta.url), "utf8");
 const examples = buildAgentDecisionExamples();
 
 assert.equal(distribution.schema_version, "git-top.agent-distribution.v1");
@@ -33,7 +38,22 @@ assert.equal(distribution.submission_status.github_release, "live");
 assert.equal(distribution.submission_status.third_party_catalogs, "live");
 assert.equal(distribution.submission_status.smithery, "live");
 assert.equal(distribution.submission_status.glama, "live");
-assert.equal(distribution.submission_status.client_directories, "prepared_not_submitted");
+assert.equal(distribution.submission_status.client_directories, "partial_live");
+assert.equal(distribution.client_directories.codex.status, "blocked_identity_verification");
+assert.equal(distribution.client_directories.codex.submission_url, "https://platform.openai.com/plugins");
+assert.equal(distribution.client_directories.claude_code.status, "live_repo_marketplace");
+assert.equal(distribution.client_directories.claude_code.marketplace_path, ".claude-plugin/marketplace.json");
+assert.equal(codexPlugin.name, "git-top");
+assert.equal(codexPlugin.mcpServers, "./.mcp.json");
+assert.equal(codexPlugin.skills, "./skills/");
+assert.equal(codexPlugin.interface.privacyPolicyURL, "https://git.top/privacy");
+assert.equal(codexPlugin.interface.termsOfServiceURL, "https://git.top/terms");
+assert.equal(claudePlugin.name, "git-top");
+assert.equal(claudePlugin.mcpServers["git-top"].url, "https://git.top/mcp/core");
+assert.equal(claudeMarketplace.name, "git-top-tools");
+assert.equal(claudeMarketplace.plugins[0].source, "./plugins/git-top");
+assert.equal(pluginMcp.mcpServers["git-top"].url, "https://git.top/mcp/core");
+assert.match(pluginSkill, /^---\nname: git-top-project-selection\ndescription: /);
 assert.equal(distribution.submission_artifacts.canonical_mcp_registry.path, "distribution/server.json");
 assert.equal(distribution.submission_artifacts.canonical_mcp_registry.server_name, registryServer.name);
 assert.equal(distribution.submission_artifacts.canonical_mcp_registry.default_remote, distribution.endpoints.mcp_core);
@@ -92,6 +112,8 @@ assert.match(distributionRunbook, /Glama/);
 assert.match(distributionRunbook, /partial_live/);
 assert.match(distributionRunbook, /aggregate third-party catalog state is `live`/);
 assert.match(distributionRunbook, /(does not|do not) mark a channel live/i);
+assert.match(distributionRunbook, /plugins\/git-top/);
+assert.match(distributionRunbook, /live_repo_marketplace/);
 
 for (const [source, url] of Object.entries(distribution.campaign_links)) {
   const parsed = new URL(url);

@@ -1,0 +1,20 @@
+{
+  "name": "git-top",
+  "description": "Evidence-backed open-source project decisions through Git.Top REST and MCP.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Git.Top",
+    "url": "https://github.com/haocn-ops/git-top"
+  },
+  "homepage": "https://git.top/connect?source=claude-code-plugin",
+  "repository": "https://github.com/haocn-ops/git-top",
+  "license": "MIT",
+  "keywords": ["open-source", "project-selection", "mcp", "agents"],
+  "skills": ["./skills/git-top-project-selection"],
+  "mcpServers": {
+    "git-top": {
+      "type": "http",
+      "url": "https://git.top/mcp/core"
+    }
+  }
+}

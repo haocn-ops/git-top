@@ -1,0 +1,25 @@
+{
+  "name": "git-top-tools",
+  "owner": {
+    "name": "Git.Top",
+    "url": "https://github.com/haocn-ops/git-top"
+  },
+  "description": "Git.Top project selection tools for Claude Code.",
+  "plugins": [
+    {
+      "name": "git-top",
+      "source": "./plugins/git-top",
+      "description": "Evidence-backed open-source project decisions through Git.Top REST and MCP.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Git.Top",
+        "url": "https://github.com/haocn-ops/git-top"
+      },
+      "homepage": "https://git.top/connect?source=claude-code-marketplace",
+      "repository": "https://github.com/haocn-ops/git-top",
+      "license": "MIT",
+      "category": "Developer tools",
+      "tags": ["open-source", "project-selection", "mcp", "agents"]
+    }
+  ]
+}

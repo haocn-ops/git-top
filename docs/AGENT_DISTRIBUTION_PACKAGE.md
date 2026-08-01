@@ -2,7 +2,7 @@
 
 Version: 2026-07-31
 
-Status: active in the official MCP Registry and publicly listed on Smithery and Glama
+Status: active in the official MCP Registry and publicly listed on Smithery, Glama, and the repository-hosted Claude Code marketplace; Codex plugin package is blocked only by required organization identity verification
 
 Official Registry artifact: `distribution/server.json`
 
@@ -63,6 +63,8 @@ Use explicit, privacy-safe source attribution:
 - Other third-party MCP catalog: `https://git.top/connect?source=mcp-catalog`
 - GitHub: `https://git.top/connect?source=github`
 - Agent Skill: `https://git.top/connect?source=agent-skill`
+- Codex plugin submission: `https://platform.openai.com/plugins` (package: `plugins/git-top`)
+- Claude Code marketplace: `https://github.com/haocn-ops/git-top/tree/main/.claude-plugin`
 
 ## Verification Boundary
 
@@ -71,6 +73,10 @@ Use explicit, privacy-safe source attribution:
 - Real-client production E2E: Claude Code 2.1.220 and Codex CLI 0.145.0 passed on 2026-07-31. Both have dated D1-backed first-call, multi-tool, and error-recovery evidence in the compatibility report.
 
 The official Registry status is `active`. Smithery is publicly listed at `https://smithery.ai/servers/izhenghaocn/git-top`; its remote deployment probe succeeded, discovered the expected five core tools, and reported server version `0.1.0` on 2026-07-31. Smithery is therefore `live`.
+
+Codex public plugin submission is prepared at `plugins/git-top` with the required `.codex-plugin/plugin.json`, bundled Skill, remote core MCP configuration, privacy policy, terms URL, and read-only tool annotations. Safari reached the official submission portal on 2026-08-01, which reported that a verified individual or business identity is required before a draft can be created. The package is therefore `blocked_identity_verification`, not live; identity verification and later OpenAI review/publication remain owner-controlled steps.
+
+Claude Code has no equivalent central third-party submission directory. The repository now contains a Git-hosted marketplace at `.claude-plugin/marketplace.json`, which is the documented public distribution path. Install with `/plugin marketplace add https://github.com/haocn-ops/git-top` and `/plugin install git-top@git-top-tools`.
 
 Glama's initial remote connector submission flow returned `A server with this URL already exists.` for `https://git.top/mcp/core`, indicating an existing record. Safari verification on 2026-08-01 found the public connector at `https://glama.ai/mcp/connectors/io.github.haocn-ops/git-top` and the server listing at `https://glama.ai/mcp/servers/haocn-ops/git-top`. Glama reports `Healthy`, Streamable HTTP, the expected core endpoint, and five available tools, so Glama is `live`. The aggregate third-party catalog state is `live`.
 

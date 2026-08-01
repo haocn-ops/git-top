@@ -1,0 +1,33 @@
+{
+  "name": "git-top",
+  "version": "0.1.0",
+  "description": "Evidence-backed open-source project decisions through Git.Top REST and MCP.",
+  "author": {
+    "name": "Git.Top",
+    "url": "https://github.com/haocn-ops/git-top"
+  },
+  "homepage": "https://git.top/connect?source=codex-plugin",
+  "repository": "https://github.com/haocn-ops/git-top",
+  "license": "MIT",
+  "keywords": ["open-source", "project-selection", "mcp", "agents"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Git.Top",
+    "shortDescription": "Evidence-backed open-source project decisions",
+    "longDescription": "Find, inspect, recommend, compare, and cite open-source projects with provenance, evidence, confidence, and caveats.",
+    "developerName": "Git.Top",
+    "category": "Developer tools",
+    "capabilities": ["Read"],
+    "websiteURL": "https://git.top",
+    "privacyPolicyURL": "https://git.top/privacy",
+    "termsOfServiceURL": "https://git.top/terms",
+    "defaultPrompt": [
+      "Find and compare open-source projects for my task.",
+      "Check this dependency with Git.Top evidence and caveats.",
+      "Recommend a maintained project and cite the source fields."
+    ],
+    "brandColor": "#17796d",
+    "logo": "./assets/logo.svg"
+  }
+}

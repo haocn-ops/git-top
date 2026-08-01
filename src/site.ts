@@ -13,6 +13,8 @@ const agentDiscoveryLinks = [
   '<https://git.top/.well-known/mcp.json>; rel="mcp-server"; type="application/json"',
   '<https://git.top/.well-known/skills.json>; rel="agent-skills"; type="application/json"',
   '<https://git.top/distribution.json>; rel="alternate"; type="application/json"; title="Git.Top Agent Distribution Package"',
+  '<https://git.top/privacy>; rel="privacy-policy"; type="text/html"',
+  '<https://git.top/terms>; rel="terms-of-use"; type="text/html"',
   '<https://git.top/auth.md>; rel="authorization"; type="text/markdown"'
 ];
 
@@ -983,6 +985,8 @@ export function renderLlmsFullTxt(): Response {
       "",
       "- /robots.txt",
       "- /sitemap.xml",
+      "- /privacy",
+      "- /terms",
       "- /.well-known/security.txt",
       "- /connect",
       "- /compatibility",
@@ -1077,6 +1081,8 @@ function staticSitemapUrls(now: string): SitemapUrl[] {
     { path: "/journeys", changefreq: "weekly", priority: "0.9", lastmod: now },
     { path: "/integrations", changefreq: "weekly", priority: "0.8", lastmod: now },
     { path: "/connect", changefreq: "weekly", priority: "0.9", lastmod: now },
+    { path: "/privacy", changefreq: "monthly", priority: "0.5", lastmod: now },
+    { path: "/terms", changefreq: "monthly", priority: "0.5", lastmod: now },
     { path: "/compatibility", changefreq: "weekly", priority: "0.8", lastmod: now },
     { path: "/distribution.json", changefreq: "weekly", priority: "0.8", lastmod: now },
     { path: "/roadmap", changefreq: "weekly", priority: "0.8", lastmod: now },

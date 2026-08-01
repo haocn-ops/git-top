@@ -122,7 +122,30 @@
     "smithery": "https://git.top/connect?source=smithery",
     "glama": "https://git.top/connect?source=glama",
     "github": "https://git.top/connect?source=github",
-    "agent_skill": "https://git.top/connect?source=agent-skill"
+    "agent_skill": "https://git.top/connect?source=agent-skill",
+    "codex_plugin": "https://git.top/connect?source=codex-plugin",
+    "claude_code_marketplace": "https://git.top/connect?source=claude-code-marketplace"
+  },
+  "client_directories": {
+    "codex": {
+      "directory": "OpenAI universal Plugins Directory",
+      "status": "blocked_identity_verification",
+      "submission_url": "https://platform.openai.com/plugins",
+      "package_path": "plugins/git-top",
+      "public_listing": false,
+      "evidence_url": "https://developers.openai.com/plugins/deploy/submission",
+      "notes": "Safari verification on 2026-08-01 reached the official portal but the organization is not identity-verified, so OpenAI does not allow a draft to be created. Completing individual or business verification is an owner-controlled prerequisite; review and publication remain controlled by OpenAI."
+    },
+    "claude_code": {
+      "directory": "Git-hosted Claude Code marketplace",
+      "status": "live_repo_marketplace",
+      "marketplace_path": ".claude-plugin/marketplace.json",
+      "install_command": "/plugin marketplace add https://github.com/haocn-ops/git-top",
+      "plugin_install_command": "/plugin install git-top@git-top-tools",
+      "public_listing": true,
+      "evidence_url": "https://code.claude.com/docs/en/plugin-marketplaces",
+      "notes": "Claude Code distributes third-party plugins through Git-hosted marketplace catalogs rather than a central public submission directory."
+    }
   },
   "submission_artifacts": {
     "canonical_mcp_registry": {
@@ -194,6 +217,6 @@
     "third_party_catalogs": "live",
     "smithery": "live",
     "glama": "live",
-    "client_directories": "prepared_not_submitted"
+    "client_directories": "partial_live"
   }
 }

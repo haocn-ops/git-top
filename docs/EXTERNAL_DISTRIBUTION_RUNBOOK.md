@@ -53,7 +53,7 @@ Do not automate the interactive login or publication step from an untrusted envi
 
 Third-party catalogs and client directories should reuse `distribution/git-top-agent-distribution.json`, not maintain divergent product copy. Every listing must point to `/connect` with an explicit campaign source and record its submission date, listing URL, last audit date, and verification outcome before it is called live.
 
-The selected next channels are:
+The selected external catalog channels are:
 
 - Smithery, using its documented hosted-server URL flow with `https://git.top/mcp/core` and `https://git.top/connect?source=smithery`;
 - Glama, using its remote connector flow with the same core endpoint and `https://git.top/connect?source=glama`.
@@ -64,6 +64,10 @@ The canonical MCP Registry record `io.github.haocn-ops/git-top` version `0.1.0` 
 
 Smithery was published at `https://smithery.ai/servers/izhenghaocn/git-top` on 2026-07-31. Its deployment probe returned `SUCCESS`, discovered the expected five core tools, and reported `git-top` version `0.1.0`; the channel is `live`.
 
-Glama's initial Remote Connector submission returned `A server with this URL already exists.`. Safari verification on 2026-08-01 found the public connector at `https://glama.ai/mcp/connectors/io.github.haocn-ops/git-top` and the server listing at `https://glama.ai/mcp/servers/haocn-ops/git-top`; its status was `Healthy`, transport `Streamable HTTP`, endpoint `https://git.top/mcp/core`, and five tools. Glama is now `live`, and the aggregate third-party catalog state is `live`. Client directories remain `prepared_not_submitted`. The three-maintained-channel acceptance criterion is complete for the official MCP Registry, Smithery, and Glama. Worker version `b9b868d8-86fb-4a79-9ec7-9956940f5e96` exposes the confirmed Glama listing state in production, and the full production smoke suite passed.
+Glama's initial Remote Connector submission returned `A server with this URL already exists.`. Safari verification on 2026-08-01 found the public connector at `https://glama.ai/mcp/connectors/io.github.haocn-ops/git-top` and the server listing at `https://glama.ai/mcp/servers/haocn-ops/git-top`; its status was `Healthy`, transport `Streamable HTTP`, endpoint `https://git.top/mcp/core`, and five tools. Glama is now `live`, and the aggregate third-party catalog state is `live`. The three-maintained-channel acceptance criterion is complete for the official MCP Registry, Smithery, and Glama. Worker version `b9b868d8-86fb-4a79-9ec7-9956940f5e96` exposes the confirmed Glama listing state in production, and the full production smoke suite passed.
+
+Codex: `plugins/git-top` is a submission-ready package for the OpenAI universal Plugins Directory. Safari reached `https://platform.openai.com/plugins` on 2026-08-01, but the portal blocked draft creation because the organization still needs individual or business identity verification. Complete that owner-controlled prerequisite, then submit the package after confirming Apps Management write access. OpenAI review and publication are external gates, so the distribution JSON uses `blocked_identity_verification` rather than `live` until a public listing is independently verifiable.
+
+Claude Code: the official distribution model is a Git-hosted marketplace, not a central public submission portal. The repository marketplace is `.claude-plugin/marketplace.json`; users can add it with `/plugin marketplace add https://github.com/haocn-ops/git-top` and install with `/plugin install git-top@git-top-tools`. This channel is recorded as `live_repo_marketplace` because the public Git repository hosts the documented catalog.
 
 The installable Skill was published separately to the repository `main` branch in commit `0fefc63`; its raw GitHub URL returned HTTP 200 on 2026-08-01. The consolidated agent-adoption implementation was then published from `main` in commit `b071c9a` as GitHub Release `v0.1.0` at `https://github.com/haocn-ops/git-top/releases/tag/v0.1.0`. The Release includes the validated official Registry `server.json` and reusable distribution JSON assets.

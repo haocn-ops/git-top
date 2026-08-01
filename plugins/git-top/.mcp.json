@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "git-top": {
+      "type": "http",
+      "url": "https://git.top/mcp/core"
+    }
+  }
+}

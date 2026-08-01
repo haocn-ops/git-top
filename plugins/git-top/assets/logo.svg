@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Git.Top</title>
+  <desc id="desc">A dark green square with a connected node mark.</desc>
+  <rect width="512" height="512" rx="96" fill="#17313a"/>
+  <path d="M146 176h190M146 336h190M176 146v220M336 146v220" fill="none" stroke="#7ed6c3" stroke-width="24" stroke-linecap="round"/>
+  <circle cx="146" cy="176" r="38" fill="#f3c969"/>
+  <circle cx="336" cy="176" r="38" fill="#f3c969"/>
+  <circle cx="146" cy="336" r="38" fill="#f3c969"/>
+  <circle cx="336" cy="336" r="38" fill="#f3c969"/>
+  <path d="M210 256h92" stroke="#fff" stroke-width="22" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="34" fill="#fff"/>
+</svg>

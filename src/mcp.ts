@@ -492,10 +492,22 @@ const tools = [
   }
 ];
 
+// All exposed tools are read-only lookups or bounded computations. Keep the
+// annotations explicit so directory reviewers and clients can apply the
+// correct approval policy without inferring behavior from descriptions.
+const annotatedTools = tools.map((tool) => ({
+  ...tool,
+  annotations: {
+    readOnlyHint: true,
+    openWorldHint: false,
+    destructiveHint: false
+  }
+}));
+
 export async function handleMcp(request: Request, env: Env, options: { profile?: McpProfile } = {}): Promise<Response> {
   const requestStartedAt = Date.now();
   const profile = options.profile ?? "full";
-  const availableTools = profile === "core" ? tools.filter((tool) => coreToolNames.has(tool.name)) : tools;
+  const availableTools = profile === "core" ? annotatedTools.filter((tool) => coreToolNames.has(tool.name)) : annotatedTools;
   const endpoint = profile === "core" ? "/mcp/core" : "/mcp";
 
   if (request.method === "GET") {

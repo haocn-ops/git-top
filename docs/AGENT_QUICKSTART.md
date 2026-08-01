@@ -15,6 +15,8 @@ For a one-minute client setup, use [Connect](https://git.top/connect). Codex CLI
 Client support status is tracked separately at [Client Compatibility](https://git.top/compatibility); a valid configuration snippet is not by itself an end-to-end support claim.
 Agents without remote MCP support can install the repository skill at [`skills/git-top-project-selection`](../skills/git-top-project-selection/). Registry and catalog maintainers should use the versioned [distribution package](https://git.top/distribution.json).
 
+For Codex, the repository includes a submission-ready plugin package at [`plugins/git-top`](../plugins/git-top/); the public directory submission portal is [OpenAI Plugins](https://platform.openai.com/plugins). For Claude Code, add the repository marketplace with `/plugin marketplace add https://github.com/haocn-ops/git-top`, then install `/plugin install git-top@git-top-tools`.
+
 ```sh
 codex mcp add git-top --url https://git.top/mcp/core
 claude mcp add --transport http --scope user git-top https://git.top/mcp/core

@@ -37,6 +37,7 @@ import { renderStatusPage } from "./status-page";
 import { renderTrendsPage } from "./trends-page";
 import { renderTrustGatePage, renderTrustGateViewPage, type TrustGateView } from "./trust-gate";
 import { renderWorkflowPage } from "./workflow-page";
+import { renderPrivacyPolicyPage, renderTermsPage } from "./legal-pages";
 import { cachedPublicResponse, matchCachedPublicJson } from "./edge-cache";
 import { discoverAndSyncCandidateProjects } from "./candidate-discovery";
 import {
@@ -361,6 +362,14 @@ async function routeRequest(request: Request, env: Env, url: URL, ctx?: Executio
 
   if (url.pathname === "/integrations") {
     return renderIntegrationsPage();
+  }
+
+  if (url.pathname === "/privacy" || url.pathname === "/privacy-policy") {
+    return renderPrivacyPolicyPage();
+  }
+
+  if (url.pathname === "/terms" || url.pathname === "/terms-of-use") {
+    return renderTermsPage();
   }
 
   if (url.pathname === "/connect" && request.method === "GET") {

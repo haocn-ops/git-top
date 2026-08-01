@@ -220,6 +220,8 @@ export async function runSmoke(args = [], env = process.env) {
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/llms-full\.txt<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/quickstart<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/connect<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/privacy<\/loc>/);
+    assert.match(sitemap.text, /<loc>https:\/\/git\.top\/terms<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/compatibility<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/recipes<\/loc>/);
     assert.match(sitemap.text, /<loc>https:\/\/git\.top\/examples<\/loc>/);
@@ -323,7 +325,9 @@ export async function runSmoke(args = [], env = process.env) {
     assert.equal(distribution.submission_status.third_party_catalogs, "live");
     assert.equal(distribution.submission_status.smithery, "live");
     assert.equal(distribution.submission_status.glama, "live");
-    assert.equal(distribution.submission_status.client_directories, "prepared_not_submitted");
+    assert.equal(distribution.submission_status.client_directories, "partial_live");
+    assert.equal(distribution.client_directories.codex.status, "blocked_identity_verification");
+    assert.equal(distribution.client_directories.claude_code.status, "live_repo_marketplace");
     assert.equal(distribution.submission_artifacts.smithery.public_listing_verified, true);
     assert.equal(distribution.submission_artifacts.smithery.verification.discovered_tool_count, 5);
     assert.equal(distribution.submission_artifacts.glama.public_listing_verified, true);

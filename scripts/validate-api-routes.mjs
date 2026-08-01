@@ -526,7 +526,9 @@ async function testConnectAndMcpProfiles() {
   assert.equal(distributionBody.submission_status.third_party_catalogs, "live");
   assert.equal(distributionBody.submission_status.smithery, "live");
   assert.equal(distributionBody.submission_status.glama, "live");
-  assert.equal(distributionBody.submission_status.client_directories, "prepared_not_submitted");
+  assert.equal(distributionBody.submission_status.client_directories, "partial_live");
+  assert.equal(distributionBody.client_directories.codex.status, "blocked_identity_verification");
+  assert.equal(distributionBody.client_directories.claude_code.status, "live_repo_marketplace");
   assert.equal(distributionBody.submission_artifacts.smithery.public_listing_verified, true);
   assert.equal(distributionBody.submission_artifacts.smithery.verification.discovered_tool_count, 5);
   assert.equal(distributionBody.submission_artifacts.glama.public_listing_verified, true);

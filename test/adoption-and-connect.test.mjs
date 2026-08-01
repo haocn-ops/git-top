@@ -21,6 +21,18 @@ test("MCP core profile exposes only the first-use project decision tools", async
   ]);
   assert.equal(body.profiles.core.tool_count, 5);
   assert.equal(body.profiles.full.endpoint, "/mcp");
+  assert.ok(body.tools.every((tool) => tool.annotations?.read_only_hint === true));
+  assert.ok(body.tools.every((tool) => tool.annotations?.open_world_hint === false));
+  assert.ok(body.tools.every((tool) => tool.annotations?.destructive_hint === false));
+  const rpcResponse = await handleMcp(new Request("https://git.top/mcp/core", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} })
+  }), {}, { profile: "core" });
+  const rpcBody = await rpcResponse.json();
+  assert.ok(rpcBody.result.tools.every((tool) => tool.annotations?.readOnlyHint === true));
+  assert.ok(rpcBody.result.tools.every((tool) => tool.annotations?.openWorldHint === false));
+  assert.ok(rpcBody.result.tools.every((tool) => tool.annotations?.destructiveHint === false));
 });
 
 test("MCP core profile rejects full-surface tools without running them", async () => {
