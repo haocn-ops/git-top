@@ -4,7 +4,13 @@ import test from "node:test";
 
 import { collectionFreshness } from "../src/cards.ts";
 import { classifySyncPriority, selectPriorityRepositoryIds } from "../src/sync-priority.ts";
-import { scheduledDailyRefreshCapacity, scheduledRunsPerDay, shouldRunScheduledCandidateDiscovery } from "../src/sync-policy.ts";
+import {
+  scheduledCandidateCapacityReserve,
+  scheduledCandidateLimit,
+  scheduledDailyRefreshCapacity,
+  scheduledRunsPerDay,
+  shouldRunScheduledCandidateDiscovery
+} from "../src/sync-policy.ts";
 import { seedProjects } from "../src/seed.ts";
 import { assessPreventiveMaintenance, prioritizeRepositories } from "../scripts/preventive-maintenance-policy.mjs";
 import { upsertProjectKnowledge } from "../src/db-write-store.ts";
@@ -78,11 +84,14 @@ test("priority refresh preserves the exact ID of a stale case variant", () => {
 
 test("candidate discovery runs hourly while half-hour windows add refresh capacity", () => {
   assert.equal(scheduledRunsPerDay, 48);
-  assert.equal(scheduledDailyRefreshCapacity, 360);
-  assert.equal(shouldRunScheduledCandidateDiscovery({ minuteUtc: 0, capacityHeadroom: 193 }), true);
-  assert.equal(shouldRunScheduledCandidateDiscovery({ minuteUtc: 30, capacityHeadroom: 193 }), false);
-  assert.equal(shouldRunScheduledCandidateDiscovery({ minuteUtc: 0, capacityHeadroom: 0 }), true);
-  assert.equal(shouldRunScheduledCandidateDiscovery({ minuteUtc: 0, capacityHeadroom: -1 }), false);
+  assert.equal(scheduledCandidateLimit, 2);
+  assert.equal(scheduledCandidateCapacityReserve, 120);
+  assert.equal(scheduledDailyRefreshCapacity, 336);
+  assert.equal(shouldRunScheduledCandidateDiscovery({ minuteUtc: 0, capacityHeadroom: 193, overdueCount: 0 }), true);
+  assert.equal(shouldRunScheduledCandidateDiscovery({ minuteUtc: 30, capacityHeadroom: 193, overdueCount: 0 }), false);
+  assert.equal(shouldRunScheduledCandidateDiscovery({ minuteUtc: 0, capacityHeadroom: 120, overdueCount: 0 }), true);
+  assert.equal(shouldRunScheduledCandidateDiscovery({ minuteUtc: 0, capacityHeadroom: 119, overdueCount: 0 }), false);
+  assert.equal(shouldRunScheduledCandidateDiscovery({ minuteUtc: 0, capacityHeadroom: 193, overdueCount: 1 }), false);
 });
 
 test("scheduled maintenance treats empty workflow inputs as defaults", () => {

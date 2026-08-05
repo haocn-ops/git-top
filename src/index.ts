@@ -62,6 +62,7 @@ import {
 } from "./site";
 import { syncGithubProjects } from "./sync";
 import {
+  scheduledCandidateCapacityReserve,
   scheduledCandidateLimit,
   scheduledRefreshLimit,
   shouldRunScheduledCandidateDiscovery
@@ -141,10 +142,18 @@ async function runScheduledMaintenance(env: Env, now = new Date()): Promise<void
         capacityHeadroom = priority.capacity.headroom;
         runDiscovery = shouldRunScheduledCandidateDiscovery({
           minuteUtc: now.getUTCMinutes(),
-          capacityHeadroom
+          capacityHeadroom,
+          overdueCount
         });
         planningReady = true;
-        return { overdue_count: overdueCount, refresh_due_count: refreshDueCount, capacity_headroom: capacityHeadroom, run_discovery: runDiscovery };
+        return {
+          overdue_count: overdueCount,
+          refresh_due_count: refreshDueCount,
+          capacity_headroom: capacityHeadroom,
+          candidate_limit: scheduledCandidateLimit,
+          candidate_capacity_reserve: scheduledCandidateCapacityReserve,
+          run_discovery: runDiscovery
+        };
       }
     },
     {
@@ -157,10 +166,14 @@ async function runScheduledMaintenance(env: Env, now = new Date()): Promise<void
               ? "refresh_planning_unavailable"
               : now.getUTCMinutes() !== 0
                 ? "refresh_only_window"
-                : "insufficient_modeled_capacity",
+                : overdueCount > 0
+                  ? "stale_refresh_backlog"
+                  : "insufficient_modeled_capacity",
             overdue_count: overdueCount,
             refresh_due_count: refreshDueCount,
-            capacity_headroom: capacityHeadroom
+            capacity_headroom: capacityHeadroom,
+            candidate_limit: scheduledCandidateLimit,
+            candidate_capacity_reserve: scheduledCandidateCapacityReserve
           };
         }
         const result = await discoverAndSyncCandidateProjects(env, { trigger: "cron", maxCandidates: scheduledCandidateLimit });

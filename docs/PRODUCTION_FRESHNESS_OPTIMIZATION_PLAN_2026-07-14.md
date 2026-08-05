@@ -1,6 +1,7 @@
 # Git.Top Production Freshness Optimization Plan
 
 Date: 2026-07-14
+Updated: 2026-08-05
 
 ## Purpose
 
@@ -32,11 +33,12 @@ Production snapshot inspected on 2026-07-14:
 
 - Run at minute 0 and 30 each hour.
 - Allow at most 8 lightweight project syncs per run.
-- Let candidate discovery use at most 1 slot in every top-of-hour run.
-- Use the remaining 7 top-of-hour slots and all 8 half-hour slots for priority refresh or cursor progress.
-- Treat 360 refreshes per day as the scheduled maintenance capacity after deducting 24 candidate slots.
+- Let candidate discovery use at most 2 slots in every eligible top-of-hour run.
+- Use the remaining 6 or more top-of-hour slots and all 8 half-hour slots for priority refresh or cursor progress.
+- Treat 336 refreshes per day as the guaranteed scheduled maintenance capacity after deducting up to 48 candidate slots.
+- Run automatic discovery only when no project is overdue and modeled refresh headroom is at least 120 daily slots.
 
-The lightweight sync path uses approximately six GitHub requests per project. Eight projects plus one discovery search stays within the intended Worker external-request budget.
+The lightweight sync path uses approximately six GitHub requests per project. Candidate discovery shares the existing eight-project run budget, so the Worker external-request envelope does not increase.
 
 ### Priority tiers
 
@@ -89,8 +91,9 @@ Status: implemented in this change.
 
 Status: implemented in this change.
 
-- Attempt at most one scheduled candidate admission every hour while modeled refresh capacity remains feasible.
+- Attempt at most two scheduled candidate admissions every hour while there is no overdue backlog and at least 120 daily refresh slots remain as modeled reserve.
 - Add a half-hour refresh-only run so corpus growth does not compete with freshness maintenance.
+- Rotate three queries per category across updated/star sorting and the first three GitHub result pages so discovery does not repeatedly inspect the same narrow result set.
 - Queue projects six hours before their tier deadline, and align warm and cold deadlines with the seven-day quality freshness gate.
 - Allow priority selection from every D1 project, including repositories admitted after the curated seed corpus was created.
 - Preserve one cursor slot so the curated corpus continues to make deterministic progress.

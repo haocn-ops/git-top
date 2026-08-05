@@ -661,13 +661,13 @@ curl -X POST http://localhost:8787/api/admin/sync \
   -d '{"repositories":["cloudflare/agents","modelcontextprotocol/servers"],"limit":2}'
 ```
 
-Cron sync uses lightweight collection with an eight-repository per-run budget and runs at minute 0 and 30 each hour. Every top-of-hour run may use one slot to discover and admit a new project and uses the other seven for priority refresh or seed cursor progress; half-hour runs use all eight slots for refresh. This provides up to 24 new admissions and 360 existing-project refreshes per day. Priority refresh includes all D1-backed projects, including repositories admitted after the curated seed corpus was created, and skips inline derived alternatives refresh. Raw sync preserves an existing card's alternatives until the incremental derived refresh replaces them, so metadata refreshes do not create a temporary missing-alternatives gap. Admin sync defaults to refreshing derived alternatives for backward compatibility; pass `refresh_derived:false` for catch-up runs that should only update raw GitHub-backed project metadata.
+Cron sync uses lightweight collection with an eight-repository per-run budget and runs at minute 0 and 30 each hour. Every top-of-hour run may use up to two slots to discover and admit new projects and uses the remaining slots for priority refresh or seed cursor progress; half-hour runs use all eight slots for refresh. This provides up to 48 new admissions and at least 336 existing-project refreshes per day. Automatic discovery runs only when there are no overdue projects and modeled refresh capacity retains at least 120 daily slots of headroom. Priority refresh includes all D1-backed projects, including repositories admitted after the curated seed corpus was created, and skips inline derived alternatives refresh. Raw sync preserves an existing card's alternatives until the incremental derived refresh replaces them, so metadata refreshes do not create a temporary missing-alternatives gap. Admin sync defaults to refreshing derived alternatives for backward compatibility; pass `refresh_derived:false` for catch-up runs that should only update raw GitHub-backed project metadata.
 
 The response includes `github_request_metrics`, per-repository `repository_request_metrics`, `derived_refresh`, structured `renamed` mappings, and `unavailable` retirement events. When GitHub resolves a requested repository to a different canonical `full_name`, sync writes the canonical project first, retires the obsolete project ID and dependent rows, marks its candidate record as renamed, and emits the normal deletion tombstone through the project change feed. When a discovery-backed project returns a repository-level GitHub `404`, sync similarly retires its obsolete knowledge, marks the candidate `unavailable`, and reports the handled event without degrading the run. Curated seed repositories continue to fail closed on `404` until the seed corpus is reviewed. After `migrations/0006_github_request_cache.sql` is applied, repeated syncs can send GitHub validators and reuse cached JSON for `304 Not Modified` responses.
 
 ## Admin Candidate Discovery
 
-Candidate discovery requires `SYNC_SECRET`. It supplements the curated seed list by rotating GitHub search queries, storing candidates in `candidate_repositories`, and syncing up to five new repositories per run.
+Candidate discovery requires `SYNC_SECRET`. It supplements the curated seed list by rotating three GitHub search queries per category across updated/star sorting and the first three result pages, storing candidates in `candidate_repositories`, and syncing up to five new repositories per manual run.
 
 ```sh
 curl -X POST http://localhost:8787/api/admin/discovery \
@@ -679,9 +679,9 @@ curl -X POST http://localhost:8787/api/admin/discovery \
 Optional request fields:
 
 - `max_candidates`: maximum new candidates to sync, capped at 5.
-- `search_index`: deterministic index into the rotating query list.
+- `search_index`: deterministic index into the category, query, sort, and page rotation.
 
-The response includes `query`, `discovered_count`, `selected`, `synced`, `failed`, and the recorded `candidate-discovery` governance `run`.
+The response includes the selected `query` plan (`category`, `query`, `sort`, and `page`), `discovered_count`, `selected`, `synced`, `failed`, and the recorded `candidate-discovery` governance `run`.
 
 ## Admin Derived Alternatives
 

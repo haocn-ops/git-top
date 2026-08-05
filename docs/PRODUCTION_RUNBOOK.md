@@ -235,7 +235,7 @@ Healthy production should show:
 - `last_failed_sync_at` empty or older than the latest successful run.
 - `last_error` empty unless the most recent sync failed.
 
-Cron sync intentionally uses lightweight signal collection and keeps an eight-repository per-run budget. It runs at minute 0 and 30 each hour: top-of-hour runs reserve one slot for candidate discovery and seven for refresh, while half-hour runs use all eight slots for refresh. The resulting daily policy attempts up to 24 new admissions and provides 360 scheduled refresh slots after those candidate slots are deducted. Hot projects target two days; warm and cold projects share the quality gate's seven-day freshness deadline. Projects enter the due queue six hours before their tier deadline so they are refreshed before quality marks them stale. Priority refresh includes every D1-backed project, not only the curated seed corpus. The policy exposes modeled demand, capacity, headroom, due queues, and tier stale rates through `/api/sync/status`; see [Production Freshness Optimization Plan](./PRODUCTION_FRESHNESS_OPTIMIZATION_PLAN_2026-07-14.md).
+Cron sync intentionally uses lightweight signal collection and keeps an eight-repository per-run budget. It runs at minute 0 and 30 each hour: eligible top-of-hour runs reserve up to two slots for candidate discovery and use the remaining slots for refresh, while half-hour runs use all eight slots for refresh. The resulting daily policy attempts up to 48 new admissions and provides at least 336 scheduled refresh slots after those candidate slots are deducted. Discovery automatically pauses whenever any project is overdue or modeled refresh headroom is below 120 daily slots. Hot projects target two days; warm and cold projects share the quality gate's seven-day freshness deadline. Projects enter the due queue six hours before their tier deadline so they are refreshed before quality marks them stale. Priority refresh includes every D1-backed project, not only the curated seed corpus. The policy exposes modeled demand, capacity, headroom, due queues, and tier stale rates through `/api/sync/status`; see [Production Freshness Optimization Plan](./PRODUCTION_FRESHNESS_OPTIMIZATION_PLAN_2026-07-14.md).
 
 GitHub Actions also runs `production-preventive-maintenance` daily at 00:25 UTC. It consumes up to 20 structured due items and advances four persisted alternatives batches. The task fails on sync errors or unhealthy/stale runtime status; a remaining quality-stale backlog is reported through `outcome.stale_backlog` and the quality risk surfaces without turning a successfully executed compensation batch into a failed governance run. This is a compensation path for missed Worker cron windows, not a second full-corpus scheduler.
 
@@ -269,7 +269,7 @@ Admin sync responses include `github_request_metrics`, per-repository `repositor
 
 ## Candidate Discovery
 
-Candidate discovery rotates conservative GitHub search queries and records `task=candidate-discovery` governance runs. Trigger it manually when the corpus has plateaued or after applying discovery-related migrations:
+Candidate discovery rotates three conservative GitHub search queries per category across updated/star sorting and the first three result pages. It records the selected query plan and `task=candidate-discovery` governance runs. Trigger it manually when the corpus has plateaued or after applying discovery-related migrations:
 
 ```sh
 curl -X POST https://git.top/api/admin/discovery \
@@ -278,7 +278,7 @@ curl -X POST https://git.top/api/admin/discovery \
   -d '{"max_candidates":5}'
 ```
 
-Discovered repositories are stored as `quarantined` by default. Only repositories that pass activity, relevance, description, and minimum-authority admission signals become `approved` and enter the sync path. Inspect the governance run summary for `admitted`, `quarantined`, and structured admission reasons.
+Discovered repositories are stored as `quarantined` by default. Only repositories that pass activity, relevance, description, and minimum-authority admission signals become `approved` and enter the sync path. Inspect the governance run summary for `query`, `category`, `sort`, `page`, `candidate_limit`, `admitted`, `quarantined`, and structured admission reasons.
 
 Inspect recent discovery runs:
 

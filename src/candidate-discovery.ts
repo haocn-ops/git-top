@@ -9,6 +9,13 @@ interface CandidateDiscoveryOptions {
   searchIndex?: number;
 }
 
+export interface CandidateDiscoveryPlan {
+  category: Category;
+  query: string;
+  sort: "updated" | "stars";
+  page: number;
+}
+
 interface GithubSearchRepository {
   full_name?: string;
   name?: string;
@@ -42,20 +49,20 @@ export interface CandidateAdmissionDecision {
   };
 }
 
-const discoveryQueries: Array<{ category: Category; query: string }> = [
-  { category: "agent_framework", query: "ai agent framework" },
-  { category: "coding_agent", query: "coding agent llm" },
-  { category: "browser_agent", query: "browser automation agent" },
-  { category: "rag_framework", query: "rag framework llm" },
-  { category: "vector_database", query: "vector database embeddings" },
-  { category: "llm_gateway", query: "llm gateway openai compatible" },
-  { category: "llm_eval", query: "llm evaluation framework" },
-  { category: "prompt_tooling", query: "structured output llm" },
-  { category: "workflow_automation", query: "ai workflow automation" },
-  { category: "local_llm_runtime", query: "local llm inference server" },
-  { category: "ai_app_template", query: "llm app template" },
-  { category: "mcp_server", query: "model context protocol server" },
-  { category: "ai_observability", query: "llm observability tracing" }
+const discoveryQueries: Array<{ category: Category; queries: [string, string, string] }> = [
+  { category: "agent_framework", queries: ["ai agent framework", "multi agent framework llm", "tool calling agent framework"] },
+  { category: "coding_agent", queries: ["coding agent llm", "ai software engineer agent", "autonomous code agent"] },
+  { category: "browser_agent", queries: ["browser automation agent", "browser use ai agent", "web browsing agent llm"] },
+  { category: "rag_framework", queries: ["rag framework llm", "retrieval augmented generation framework", "ai knowledge base framework"] },
+  { category: "vector_database", queries: ["vector database embeddings", "vector search engine", "embedding similarity database"] },
+  { category: "llm_gateway", queries: ["llm gateway openai compatible", "ai model proxy gateway", "llm router api"] },
+  { category: "llm_eval", queries: ["llm evaluation framework", "ai model eval benchmark", "llm testing framework"] },
+  { category: "prompt_tooling", queries: ["structured output llm", "prompt management toolkit", "llm guardrails framework"] },
+  { category: "workflow_automation", queries: ["ai workflow automation", "llm workflow orchestration", "agent workflow builder"] },
+  { category: "local_llm_runtime", queries: ["local llm inference server", "local ai model runtime", "openai compatible inference server"] },
+  { category: "ai_app_template", queries: ["llm app template", "ai application starter", "generative ai app boilerplate"] },
+  { category: "mcp_server", queries: ["model context protocol server", "mcp server ai", "model context protocol integration"] },
+  { category: "ai_observability", queries: ["llm observability tracing", "ai agent monitoring", "llm telemetry platform"] }
 ];
 
 export async function discoverAndSyncCandidateProjects(env: Env, options: CandidateDiscoveryOptions = {}) {
@@ -65,11 +72,11 @@ export async function discoverAndSyncCandidateProjects(env: Env, options: Candid
 
   const startedAt = new Date();
   const trigger = options.trigger ?? "manual";
-  const query = discoveryQueries[normalizeSearchIndex(options.searchIndex ?? currentSearchIndex(), discoveryQueries.length)];
+  const plan = candidateDiscoveryPlan(options.searchIndex ?? currentSearchIndex());
 
   try {
     const maxCandidates = normalizeLimit(options.maxCandidates, 1, 5);
-    const discovered = await searchGithubCandidates(env, query.query, query.category);
+    const discovered = await searchGithubCandidates(env, plan);
     const existing = await listExistingRepositories(env);
     const newCandidates = discovered.filter((candidate) => !existing.has(candidate.repository.toLowerCase()));
     const admissionByRepository = new Map(
@@ -120,8 +127,11 @@ export async function discoverAndSyncCandidateProjects(env: Env, options: Candid
       durationMs: finishedAt.getTime() - startedAt.getTime(),
       summary: {
         source: "github_search",
-        query: query.query,
-        category: query.category,
+        query: plan.query,
+        category: plan.category,
+        sort: plan.sort,
+        page: plan.page,
+        candidate_limit: maxCandidates,
         discovered: discovered.length,
         admitted: admitted.map((candidate) => candidate.repository),
         renamed,
@@ -134,7 +144,7 @@ export async function discoverAndSyncCandidateProjects(env: Env, options: Candid
     });
 
     return {
-      query,
+      query: plan,
       discovered_count: discovered.length,
       selected: selected.map(toCandidateResponse),
       quarantined,
@@ -154,39 +164,42 @@ export async function discoverAndSyncCandidateProjects(env: Env, options: Candid
       durationMs: finishedAt.getTime() - startedAt.getTime(),
       summary: {
         source: "github_search",
-        query: query.query,
-        category: query.category
+        query: plan.query,
+        category: plan.category,
+        sort: plan.sort,
+        page: plan.page
       },
       error: message
     });
     return {
-      query,
+      query: plan,
       discovered_count: 0,
       selected: [],
       synced: [],
-      failed: [{ repository: query.query, error: message }],
+      failed: [{ repository: plan.query, error: message }],
       run
     };
   }
 }
 
-async function searchGithubCandidates(env: Env, query: string, category: Category): Promise<CandidateRepository[]> {
+async function searchGithubCandidates(env: Env, plan: CandidateDiscoveryPlan): Promise<CandidateRepository[]> {
   const url = new URL("https://api.github.com/search/repositories");
-  url.searchParams.set("q", `${query} stars:>=${minimumStarsForCategory(category)} archived:false fork:false`);
-  url.searchParams.set("sort", "updated");
+  url.searchParams.set("q", `${plan.query} stars:>=${minimumStarsForCategory(plan.category)} archived:false fork:false`);
+  url.searchParams.set("sort", plan.sort);
   url.searchParams.set("order", "desc");
   url.searchParams.set("per_page", "25");
+  url.searchParams.set("page", String(plan.page));
 
   const response = await fetch(url, {
     headers: githubHeaders(env)
   });
   if (!response.ok) {
-    throw new Error(`GitHub candidate search ${response.status} for ${query}: ${await response.text()}`);
+    throw new Error(`GitHub candidate search ${response.status} for ${plan.query}: ${await response.text()}`);
   }
 
   const body = (await response.json()) as { items?: GithubSearchRepository[] };
   return (body.items ?? [])
-    .map((repo) => toCandidate(repo, query, category))
+    .map((repo) => toCandidate(repo, plan.query, plan.category))
     .filter((candidate): candidate is CandidateRepository => candidate !== null);
 }
 
@@ -351,8 +364,17 @@ function currentSearchIndex(): number {
   return Math.floor(Date.now() / 1000 / 60 / 60);
 }
 
-function normalizeSearchIndex(value: number, length: number): number {
-  return Math.abs(Math.trunc(value)) % length;
+export function candidateDiscoveryPlan(searchIndex: number): CandidateDiscoveryPlan {
+  const normalizedIndex = Math.max(0, Math.trunc(Math.abs(searchIndex)));
+  const categoryIndex = normalizedIndex % discoveryQueries.length;
+  const cycleIndex = Math.floor(normalizedIndex / discoveryQueries.length);
+  const queryGroup = discoveryQueries[categoryIndex];
+  return {
+    category: queryGroup.category,
+    query: queryGroup.queries[cycleIndex % queryGroup.queries.length],
+    sort: Math.floor(cycleIndex / queryGroup.queries.length) % 2 === 0 ? "updated" : "stars",
+    page: Math.floor(cycleIndex / (queryGroup.queries.length * 2)) % 3 + 1
+  };
 }
 
 function normalizeLimit(value: number | undefined, defaultValue: number, max: number): number {

@@ -1874,7 +1874,7 @@ async function testSyncStatusWithMockD1() {
   assert.equal(healthy.body.priority.freshness_slo.whole_corpus.target_basis, "tier_policy");
   assert.equal(typeof healthy.body.priority.freshness_slo.whole_corpus.freshness_rate, "number");
   assert.equal(typeof healthy.body.priority.capacity.required_daily_syncs, "number");
-  assert.equal(healthy.body.priority.capacity.scheduled_daily_capacity, 360);
+  assert.equal(healthy.body.priority.capacity.scheduled_daily_capacity, 336);
   assert.equal(typeof healthy.body.priority.capacity.target_feasible, "boolean");
   assert.equal(typeof healthy.body.priority.refresh_due_counts.hot, "number");
   assert.ok(Array.isArray(healthy.body.priority.refresh_due_preview));

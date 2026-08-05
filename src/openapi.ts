@@ -2255,7 +2255,7 @@ function trustGateExample() {
         id: "sync-capacity",
         label: "Scheduled sync capacity",
         status: "pass",
-        observed: "100/360 required daily",
+        observed: "100/336 required daily",
         requirement: "sync_capacity_target_feasible=true"
       }
     ],
@@ -2283,7 +2283,7 @@ function trustGateExample() {
           hot_projects: { target_hours: 48, total: 80, within_target: 77, freshness_rate: 0.963, target_rate: 0.95, meets_target: true },
           whole_corpus: { target_basis: "tier_policy", total: 500, within_target: 493, freshness_rate: 0.986, target_rate: 0.95, meets_target: true }
         },
-        capacity: { scheduled_daily_capacity: 360, required_daily_syncs: 100, utilization: 0.278, headroom: 260, target_feasible: true }
+        capacity: { scheduled_daily_capacity: 336, required_daily_syncs: 100, utilization: 0.298, headroom: 236, target_feasible: true }
       }
     },
     quality: qualityExample(),

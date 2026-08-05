@@ -1,6 +1,7 @@
 export const scheduledSyncLimit = 8;
-export const scheduledCandidateLimit = 1;
+export const scheduledCandidateLimit = 2;
 export const scheduledCandidateRunsPerDay = 24;
+export const scheduledCandidateCapacityReserve = 120;
 export const scheduledRefreshLimit = scheduledSyncLimit;
 export const scheduledRunsPerDay = 48;
 export const scheduledDailyRefreshCapacity = scheduledRunsPerDay * scheduledSyncLimit - scheduledCandidateRunsPerDay * scheduledCandidateLimit;
@@ -17,8 +18,9 @@ export const syncTargetDays = {
 export interface CandidateDiscoveryDecisionInput {
   minuteUtc: number;
   capacityHeadroom: number;
+  overdueCount: number;
 }
 
 export function shouldRunScheduledCandidateDiscovery(input: CandidateDiscoveryDecisionInput): boolean {
-  return input.minuteUtc === 0 && input.capacityHeadroom >= 0;
+  return input.minuteUtc === 0 && input.overdueCount === 0 && input.capacityHeadroom >= scheduledCandidateCapacityReserve;
 }
