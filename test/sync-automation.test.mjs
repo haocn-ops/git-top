@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 
 import { collectionFreshness } from "../src/cards.ts";
-import { classifySyncPriority } from "../src/sync-priority.ts";
+import { classifySyncPriority, selectPriorityRepositoryIds } from "../src/sync-priority.ts";
 import { scheduledDailyRefreshCapacity, scheduledRunsPerDay, shouldRunScheduledCandidateDiscovery } from "../src/sync-policy.ts";
 import { seedProjects } from "../src/seed.ts";
 import { assessPreventiveMaintenance, prioritizeRepositories } from "../scripts/preventive-maintenance-policy.mjs";
@@ -53,6 +53,27 @@ test("cold projects refresh before the shared seven-day quality deadline", () =>
   assert.equal(dueSoon.targetIntervalDays, 7);
   assert.equal(dueSoon.refreshDue, true);
   assert.equal(dueSoon.overdue, false);
+});
+
+test("priority refresh preserves the exact ID of a stale case variant", () => {
+  const now = "2026-08-05T08:00:00.000Z";
+  const canonical = structuredClone(seedProjects[0]);
+  canonical.project.id = "microsoft/foundry-local";
+  canonical.project.syncedAt = now;
+
+  const staleVariant = structuredClone(canonical);
+  staleVariant.project.id = "microsoft/Foundry-Local";
+  staleVariant.project.syncedAt = "2026-07-16T08:00:00.000Z";
+
+  assert.deepEqual(
+    selectPriorityRepositoryIds(
+      [canonical, staleVariant],
+      [canonical.project.id, staleVariant.project.id],
+      1,
+      now
+    ),
+    [staleVariant.project.id]
+  );
 });
 
 test("candidate discovery runs hourly while half-hour windows add refresh capacity", () => {

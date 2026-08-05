@@ -161,13 +161,14 @@ export function selectPriorityRepositoryIds(
   }
 
   const allowed = new Map(allowedRepositories.map((repo) => [repo.toLowerCase(), repo]));
+  const allowedExact = new Set(allowedRepositories);
   return projects
     .map((project) => classifySyncPriority(project, nowIso))
     .filter((item) => item.refreshDue)
     .filter((item) => allowed.has(item.projectId.toLowerCase()))
     .sort((a, b) => b.priorityScore - a.priorityScore || b.staleDays - a.staleDays || a.projectId.localeCompare(b.projectId))
     .slice(0, Math.max(1, Math.min(50, Math.trunc(limit))))
-    .map((item) => allowed.get(item.projectId.toLowerCase())!);
+    .map((item) => (allowedExact.has(item.projectId) ? item.projectId : allowed.get(item.projectId.toLowerCase())!));
 }
 
 export function classifySyncPriority(project: SyncPriorityProject, nowIso = new Date().toISOString()): SyncPriorityItem {

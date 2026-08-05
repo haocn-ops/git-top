@@ -238,6 +238,37 @@ export async function retireRenamedProjectKnowledge(env: Env, requestedRepositor
   return true;
 }
 
+/**
+ * Remove obsolete project rows that differ from the GitHub canonical ID only
+ * by casing. The canonical row is written before this cleanup, so delete the
+ * obsolete requested ID exactly rather than matching case-insensitively.
+ */
+export async function retireCaseVariantProjectKnowledge(
+  env: Env,
+  requestedRepository: string,
+  canonicalRepository: string
+): Promise<boolean> {
+  if (!env.DB) {
+    throw new Error("D1 binding DB is required to retire case-variant project knowledge.");
+  }
+
+  const requested = requestedRepository.trim();
+  const canonical = canonicalRepository.trim();
+  if (!requested || !canonical || requested === canonical || requested.toLowerCase() !== canonical.toLowerCase()) {
+    return false;
+  }
+
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM star_snapshots WHERE project_id = ?").bind(requested),
+    env.DB.prepare("DELETE FROM classification_overrides WHERE project_id = ?").bind(requested),
+    env.DB.prepare("DELETE FROM project_metrics WHERE project_id = ?").bind(requested),
+    env.DB.prepare("DELETE FROM agent_cards WHERE project_id = ?").bind(requested),
+    env.DB.prepare("DELETE FROM projects WHERE id = ?").bind(requested)
+  ]);
+
+  return true;
+}
+
 export async function retireUnavailableProjectKnowledge(env: Env, repository: string, reason: string): Promise<void> {
   if (!env.DB) {
     throw new Error("D1 binding DB is required to retire unavailable project knowledge.");

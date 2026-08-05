@@ -1,7 +1,13 @@
 import { generateAgentCard } from "./cards";
 import { generateAlternatives } from "./alternatives";
 import { getSyncCursor, getStarsDeltaSnapshot, insertSyncRun, setSyncCursor } from "./db-sync-store";
-import { retireRenamedProjectKnowledge, retireUnavailableProjectKnowledge, updateProjectAlternatives, upsertProjectKnowledge } from "./db-write-store";
+import {
+  retireCaseVariantProjectKnowledge,
+  retireRenamedProjectKnowledge,
+  retireUnavailableProjectKnowledge,
+  updateProjectAlternatives,
+  upsertProjectKnowledge
+} from "./db-write-store";
 import { listProjectKnowledgeWithMeta } from "./knowledge-source";
 import { defaultSeedRepositories, GithubApiError, GithubClient, type GithubRequestMetrics } from "./github";
 import { calculateMetrics } from "./scoring";
@@ -124,6 +130,7 @@ export async function syncGithubProjects(env: Env, options: SyncOptions = {}): P
 
       validateProjectKnowledge(knowledge);
       await upsertProjectKnowledge(env, knowledge);
+      await retireCaseVariantProjectKnowledge(env, repository, repo.full_name);
       if (await retireRenamedProjectKnowledge(env, repository, repo.full_name)) {
         result.renamed.push({ from: repository, to: repo.full_name });
       }

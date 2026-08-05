@@ -4,7 +4,11 @@ import { handleApi } from "../src/api.ts";
 import { handleMcp } from "../src/mcp.ts";
 import { decodeChangeCursor, encodeChangeCursor, listProjectChanges } from "../src/change-feed.ts";
 import { projectProfileView } from "../src/project-profiles.ts";
-import { retireRenamedProjectKnowledge, retireUnavailableProjectKnowledge } from "../src/db-write-store.ts";
+import {
+  retireCaseVariantProjectKnowledge,
+  retireRenamedProjectKnowledge,
+  retireUnavailableProjectKnowledge
+} from "../src/db-write-store.ts";
 import { mockD1Env, mockD1ProjectId } from "../scripts/mock-d1.mjs";
 import { seedProjects } from "../src/seed.ts";
 
@@ -67,6 +71,35 @@ test("renamed repositories retire obsolete knowledge after canonical sync", asyn
 
   operations.length = 0;
   assert.equal(await retireRenamedProjectKnowledge(env, "Owner/Project", "owner/project"), false);
+  assert.equal(operations.length, 0);
+});
+
+test("case-only repository variants retire only the obsolete casing", async () => {
+  const operations = [];
+  const env = {
+    DB: {
+      prepare(sql) {
+        return {
+          bind(...values) {
+            return { sql, values };
+          }
+        };
+      },
+      async batch(statements) {
+        operations.push(...statements);
+        return statements.map(() => ({ success: true }));
+      }
+    }
+  };
+
+  assert.equal(await retireCaseVariantProjectKnowledge(env, "microsoft/Foundry-Local", "microsoft/foundry-local"), true);
+  assert.equal(operations.length, 5);
+  assert.ok(operations.every((operation) => /WHERE (?:project_id|id) = \?/.test(operation.sql)));
+  assert.deepEqual(operations[4].values, ["microsoft/Foundry-Local"]);
+
+  operations.length = 0;
+  assert.equal(await retireCaseVariantProjectKnowledge(env, "microsoft/foundry-local", "microsoft/foundry-local"), false);
+  assert.equal(await retireCaseVariantProjectKnowledge(env, "old/project", "new/project"), false);
   assert.equal(operations.length, 0);
 });
 
