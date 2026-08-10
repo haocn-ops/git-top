@@ -1,27 +1,18 @@
+import { cacheBustedPath, requestJsonWithRetry } from "./prod-http-client.mjs";
+
 const options = parseArgs(process.argv.slice(2));
 const baseUrl = normalizeBaseUrl(options.baseUrl ?? process.env.GIT_TOP_QUALITY_BASE_URL ?? "https://git.top");
-const target = options.target ?? `${baseUrl}/api/quality`;
+const target = options.target ?? `${baseUrl}${cacheBustedPath("/api/quality?require_d1=true")}`;
 const minScore = Number(options.minScore ?? process.env.MIN_QUALITY_SCORE ?? 90);
 const allowSeed = options.allowSeed === true || process.env.GIT_TOP_QUALITY_ALLOW_SEED === "1";
 
-let response;
+let report;
 try {
-  response = await fetch(target, {
-    headers: {
-      accept: "application/json"
-    }
-  });
+  report = await getQualityReport(target, { explicitTarget: Boolean(options.target) });
 } catch (error) {
   console.error(`Quality endpoint request failed for ${target}: ${formatError(error)}`);
   process.exit(1);
 }
-
-if (!response.ok) {
-  console.error(`Quality endpoint failed with HTTP ${response.status}`);
-  process.exit(1);
-}
-
-const report = await response.json();
 const releaseScore = report.release_score ?? report.score;
 const summary = {
   target,
@@ -106,6 +97,37 @@ function parseArgs(args) {
 
 function normalizeBaseUrl(value) {
   return String(value).replace(/\/+$/g, "");
+}
+
+async function getQualityReport(target, { explicitTarget }) {
+  if (!target.startsWith("http://") && !target.startsWith("https://")) {
+    const response = await fetch(target, { headers: { accept: "application/json" } });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    return response.json();
+  }
+  const targetUrl = new URL(target);
+  const configuredBaseUrls = process.env.GIT_TOP_QUALITY_BASE_URLS;
+  const baseUrls = configuredBaseUrls
+    ? parseBaseUrls(configuredBaseUrls)
+    : explicitTarget || targetUrl.origin !== "https://git.top"
+      ? [targetUrl.origin]
+      : [targetUrl.origin, "https://git-top.izhenghaocn.workers.dev"];
+  return requestJsonWithRetry({
+    path: `${targetUrl.pathname}${targetUrl.search}`,
+    init: { method: "GET", headers: { accept: "application/json" } },
+    baseUrls,
+    maxRetries: Number(process.env.GIT_TOP_QUALITY_MAX_RETRIES ?? 6),
+    timeoutMs: Number(process.env.GIT_TOP_QUALITY_TIMEOUT_MS ?? 30_000),
+    onRetry: ({ nextAttempt, maxRetries, baseUrl, delayMs, error }) => {
+      console.error(`Retrying quality check after ${formatError(error)} from ${baseUrl}; attempt ${nextAttempt}/${maxRetries} in ${delayMs}ms.`);
+    }
+  });
+}
+
+function parseBaseUrls(value) {
+  return Array.from(new Set(value.split(",").map(normalizeBaseUrl).filter(Boolean)));
 }
 
 function formatError(error) {

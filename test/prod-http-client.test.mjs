@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   ProductionHttpError,
   cacheBustedPath,
+  fetchWithRetry,
   isRetryableRequestError,
   parseRetryAfter,
   requestJsonWithRetry,
@@ -58,6 +59,24 @@ test("production HTTP client fails fast for permanent HTTP errors", async () => 
     }),
     /HTTP 401/
   );
+  assert.equal(requestCount, 1);
+});
+
+test("production response retry preserves permanent statuses for smoke assertions", async () => {
+  let requestCount = 0;
+  const response = await fetchWithRetry({
+    path: "/missing",
+    init: { method: "GET" },
+    baseUrls: ["https://git.top"],
+    maxRetries: 3,
+    timeoutMs: 1_000,
+    fetchImpl: async () => {
+      requestCount += 1;
+      return Response.json({ error: "missing" }, { status: 404 });
+    },
+    sleep: async () => assert.fail("permanent statuses must not be retried")
+  });
+  assert.equal(response.status, 404);
   assert.equal(requestCount, 1);
 });
 

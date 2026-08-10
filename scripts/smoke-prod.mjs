@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
+import { fetchWithRetry } from "./prod-http-client.mjs";
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   console.log(JSON.stringify(await runSmoke(process.argv.slice(2), process.env), null, 2));
@@ -10,9 +11,12 @@ export async function runSmoke(args = [], env = process.env) {
   const baseUrl = normalizeBaseUrl(options.baseUrl ?? env.GIT_TOP_SMOKE_BASE_URL ?? "https://git.top");
   const timeoutMs = Number(options.timeoutMs ?? env.GIT_TOP_SMOKE_TIMEOUT_MS ?? 10_000);
   const allowSeed = options.allowSeed === true || env.GIT_TOP_SMOKE_ALLOW_SEED === "1";
+  const baseUrls = smokeBaseUrls(baseUrl, env.GIT_TOP_SMOKE_BASE_URLS);
   const context = {
     allowSeed,
     baseUrl,
+    baseUrls,
+    maxRetries: Number(env.GIT_TOP_SMOKE_MAX_RETRIES ?? 4),
     results: [],
     timeoutMs
   };
@@ -861,10 +865,9 @@ async function getText(context, path, init = {}) {
 }
 
 async function getHead(context, path) {
-  const response = await fetch(`${context.baseUrl}${path}`, {
+  const response = await requestResponse(context, path, {
     method: "HEAD",
-    redirect: "manual",
-    signal: AbortSignal.timeout(context.timeoutMs)
+    redirect: "manual"
   });
   return {
     status: response.status,
@@ -883,46 +886,44 @@ async function postJson(context, path, body) {
 }
 
 async function requestText(context, path, init) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), context.timeoutMs);
-  try {
-    const response = await fetch(`${context.baseUrl}${path}`, {
-      ...init,
-      signal: controller.signal
-    });
-    return {
-      status: response.status,
-      headers: response.headers,
-      text: await response.text()
-    };
-  } finally {
-    clearTimeout(timeout);
-  }
+  const response = await requestResponse(context, path, init);
+  return {
+    status: response.status,
+    headers: response.headers,
+    text: await response.text()
+  };
 }
 
 async function requestJson(context, path, init) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), context.timeoutMs);
+  const response = await requestResponse(context, path, init);
+  const text = await response.text();
+  let body;
   try {
-    const response = await fetch(`${context.baseUrl}${path}`, {
-      ...init,
-      signal: controller.signal
-    });
-    const text = await response.text();
-    let body;
-    try {
-      body = text ? JSON.parse(text) : null;
-    } catch {
-      throw new Error(`Expected JSON from ${path}, got: ${text.slice(0, 200)}`);
-    }
-    return {
-      status: response.status,
-      headers: response.headers,
-      body
-    };
-  } finally {
-    clearTimeout(timeout);
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    throw new Error(`Expected JSON from ${path}, got: ${text.slice(0, 200)}`);
   }
+  return {
+    status: response.status,
+    headers: response.headers,
+    body
+  };
+}
+
+function requestResponse(context, path, init) {
+  return fetchWithRetry({
+    path,
+    init,
+    baseUrls: context.baseUrls,
+    maxRetries: context.maxRetries,
+    timeoutMs: context.timeoutMs,
+    baseDelayMs: 500,
+    maxDelayMs: 4_000,
+    onRetry: ({ nextAttempt, maxRetries, baseUrl, delayMs, error }) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Retrying smoke request ${path} after ${message} from ${baseUrl}; attempt ${nextAttempt}/${maxRetries} in ${delayMs}ms.`);
+    }
+  });
 }
 
 export function assertMetadata(metadata, { allowSeed = false } = {}) {
@@ -963,4 +964,11 @@ function parseArgs(args) {
 
 function normalizeBaseUrl(value) {
   return String(value).replace(/\/+$/g, "");
+}
+
+function smokeBaseUrls(baseUrl, configuredBaseUrls) {
+  if (configuredBaseUrls) {
+    return Array.from(new Set(configuredBaseUrls.split(",").map(normalizeBaseUrl).filter(Boolean)));
+  }
+  return baseUrl === "https://git.top" ? [baseUrl, "https://git-top.izhenghaocn.workers.dev"] : [baseUrl];
 }

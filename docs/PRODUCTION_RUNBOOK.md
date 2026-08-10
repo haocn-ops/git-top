@@ -101,6 +101,8 @@ batches, then runs the production quality and smoke checks. It receives
 `SYNC_SECRET` from the repository Actions secret and does not print the value.
 The stale refresh verifies its result against a cache-busted, D1-required
 quality response so a successful sync is not rejected by an older edge report.
+Production quality and smoke gates retry transient responses across the canonical
+and workers.dev origins while preserving strict D1 and response assertions.
 If a transient platform error interrupts alternatives after a completed batch,
 the task retries retryable network, rate-limit, and 5xx responses with bounded
 exponential backoff. If the retry budget is exhausted, its final structured

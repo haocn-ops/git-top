@@ -10,11 +10,47 @@ export async function requestJsonWithRetry({
   sleep = delay,
   onRetry = () => {}
 }) {
+  const response = await fetchWithRetry({
+    path,
+    init,
+    baseUrls,
+    maxRetries,
+    timeoutMs,
+    baseDelayMs,
+    maxDelayMs,
+    fetchImpl,
+    sleep,
+    onRetry
+  });
+  return parseJsonResponse(response, path);
+}
+
+export async function requestJson({ path, init, baseUrl, timeoutMs, fetchImpl = fetch }) {
+  const response = await fetchWithTimeout(`${baseUrl}${path}`, init, timeoutMs, fetchImpl);
+  return parseJsonResponse(response, path);
+}
+
+export async function fetchWithRetry({
+  path,
+  init,
+  baseUrls,
+  maxRetries,
+  timeoutMs,
+  baseDelayMs = 2_000,
+  maxDelayMs = 30_000,
+  fetchImpl = fetch,
+  sleep = delay,
+  onRetry = () => {}
+}) {
   let lastError;
   for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
     const baseUrl = baseUrls[(attempt - 1) % baseUrls.length];
     try {
-      return await requestJson({ path, init, baseUrl, timeoutMs, fetchImpl });
+      const response = await fetchWithTimeout(`${baseUrl}${path}`, init, timeoutMs, fetchImpl);
+      if (!isRetryableStatus(response.status)) {
+        return response;
+      }
+      throw await responseError(response, path);
     } catch (error) {
       lastError = error;
       if (attempt >= maxRetries || !isRetryableRequestError(error)) {
@@ -28,32 +64,40 @@ export async function requestJsonWithRetry({
   throw lastError ?? new Error(`Request failed for ${path}`);
 }
 
-export async function requestJson({ path, init, baseUrl, timeoutMs, fetchImpl = fetch }) {
+async function fetchWithTimeout(url, init, timeoutMs, fetchImpl) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetchImpl(`${baseUrl}${path}`, { ...init, signal: controller.signal });
-    const text = await response.text();
-    if (!response.ok) {
-      throw new ProductionHttpError(
-        `Request failed for ${path} with HTTP ${response.status}: ${responsePreview(text)}`,
-        {
-          status: response.status,
-          retryAfterMs: parseRetryAfter(response.headers.get("retry-after"))
-        }
-      );
-    }
-    try {
-      return text ? JSON.parse(text) : null;
-    } catch {
-      throw new ProductionHttpError(`Expected JSON from ${path}, got HTTP ${response.status}: ${text.slice(0, 200)}`, {
-        status: response.status,
-        retryable: false
-      });
-    }
+    return await fetchImpl(url, { ...init, signal: controller.signal });
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function parseJsonResponse(response, path) {
+  const text = await response.text();
+  if (!response.ok) {
+    throw responseErrorFromText(response, path, text);
+  }
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    throw new ProductionHttpError(`Expected JSON from ${path}, got HTTP ${response.status}: ${text.slice(0, 200)}`, {
+      status: response.status,
+      retryable: false
+    });
+  }
+}
+
+async function responseError(response, path) {
+  return responseErrorFromText(response, path, await response.text());
+}
+
+function responseErrorFromText(response, path, text) {
+  return new ProductionHttpError(`Request failed for ${path} with HTTP ${response.status}: ${responsePreview(text)}`, {
+    status: response.status,
+    retryAfterMs: parseRetryAfter(response.headers.get("retry-after"))
+  });
 }
 
 export class ProductionHttpError extends Error {
@@ -73,7 +117,10 @@ export function isRetryableRequestError(error) {
   if (error?.name === "AbortError" || error instanceof TypeError) {
     return true;
   }
-  const status = Number(error?.status);
+  return isRetryableStatus(Number(error?.status));
+}
+
+export function isRetryableStatus(status) {
   return status === 408 || status === 425 || status === 429 || status >= 500;
 }
 
