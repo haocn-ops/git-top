@@ -100,7 +100,10 @@ The task refreshes projects reported as stale, rebuilds alternatives in bounded
 batches, then runs the production quality and smoke checks. It receives
 `SYNC_SECRET` from the repository Actions secret and does not print the value.
 If a transient platform error interrupts alternatives after a completed batch,
-resume from the next reported offset instead of rebuilding earlier batches:
+the task retries retryable network, rate-limit, and 5xx responses with bounded
+exponential backoff. If the retry budget is exhausted, its final structured
+checkpoint reports `nextStartOffset` and `failedOffset`; resume from that offset
+instead of rebuilding earlier batches:
 
 ```sh
 gh workflow run Governance --ref main -f task=production-data-maintenance \
