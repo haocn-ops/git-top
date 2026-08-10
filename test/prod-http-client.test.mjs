@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   ProductionHttpError,
+  cacheBustedPath,
   isRetryableRequestError,
   parseRetryAfter,
   requestJsonWithRetry,
@@ -67,4 +68,5 @@ test("production HTTP retry policy covers transient failures and Retry-After", (
   assert.equal(parseRetryAfter("Wed, 21 Oct 2015 07:28:00 GMT", Date.parse("Wed, 21 Oct 2015 07:27:55 GMT")), 5_000);
   assert.equal(retryDelayMs({ attempt: 4, baseDelayMs: 2_000, maxDelayMs: 30_000 }), 16_000);
   assert.equal(retryDelayMs({ attempt: 2, baseDelayMs: 2_000, maxDelayMs: 30_000, retryAfterMs: 20_000 }), 20_000);
+  assert.equal(cacheBustedPath("/api/quality?require_d1=true", "run 42"), "/api/quality?require_d1=true&_=run%2042");
 });

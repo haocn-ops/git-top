@@ -95,6 +95,10 @@ export function parseRetryAfter(value, nowMs = Date.now()) {
   return Number.isFinite(timestamp) ? Math.max(0, timestamp - nowMs) : undefined;
 }
 
+export function cacheBustedPath(path, cacheKey = `${Date.now()}-${Math.random().toString(16).slice(2)}`) {
+  return `${path}${path.includes("?") ? "&" : "?"}_=${encodeURIComponent(cacheKey)}`;
+}
+
 function responsePreview(text) {
   if (!text) {
     return "empty response";
