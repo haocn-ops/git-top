@@ -1,5 +1,6 @@
 import type { GovernanceRun, SyncFailure, SyncRun } from "./types";
 import type { SyncPrioritySummary } from "./sync-priority";
+import { syncFreshnessThresholdHours } from "./sync-policy";
 
 export interface SyncStatusInput {
   cursor: number;
@@ -113,21 +114,27 @@ export function syncFreshness(runs: SyncRun[]): {
     };
   }
 
-  const hoursSinceSuccessfulSync = hoursBetween(lastSuccessfulRun.finishedAt, new Date().toISOString());
+  const nowIso = new Date().toISOString();
+  const hoursSinceSuccessfulSync = hoursBetween(lastSuccessfulRun.finishedAt, nowIso);
+  const elapsedMilliseconds = millisecondsBetween(lastSuccessfulRun.finishedAt, nowIso);
   return {
-    status: hoursSinceSuccessfulSync <= 24 ? "fresh" : "stale",
+    status: elapsedMilliseconds <= syncFreshnessThresholdHours * 60 * 60 * 1000 ? "fresh" : "stale",
     lastSuccessfulSyncAt: lastSuccessfulRun.finishedAt,
     hoursSinceSuccessfulSync
   };
 }
 
-function hoursBetween(startIso: string, endIso: string): number {
+function millisecondsBetween(startIso: string, endIso: string): number {
   const start = Date.parse(startIso);
   const end = Date.parse(endIso);
   if (!Number.isFinite(start) || !Number.isFinite(end)) {
     return 0;
   }
-  return Math.max(0, Math.floor((end - start) / 1000 / 60 / 60));
+  return Math.max(0, end - start);
+}
+
+function hoursBetween(startIso: string, endIso: string): number {
+  return Math.floor(millisecondsBetween(startIso, endIso) / 1000 / 60 / 60);
 }
 
 function derivedFreshness(runs: GovernanceRun[]): DerivedFreshnessStatus {

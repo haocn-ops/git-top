@@ -9,7 +9,7 @@ const baseUrls = Array.from(
   )
 );
 const syncSecret = process.env.SYNC_SECRET;
-const refreshLimit = boundedInteger(envValue("GIT_TOP_PREVENTIVE_REFRESH_LIMIT", 20), "refresh limit", 1, 40);
+const refreshLimit = boundedInteger(envValue("GIT_TOP_PREVENTIVE_REFRESH_LIMIT", 40), "refresh limit", 1, 40);
 const syncBatchSize = boundedInteger(envValue("GIT_TOP_STALE_BATCH_SIZE", 5), "sync batch size", 1, 10);
 const alternativesBatches = boundedInteger(envValue("GIT_TOP_PREVENTIVE_ALTERNATIVES_BATCHES", 4), "alternatives batches", 1, 8);
 const alternativesBatchSize = boundedInteger(envValue("GIT_TOP_ALTERNATIVES_BATCH_SIZE", 10), "alternatives batch size", 1, 25);

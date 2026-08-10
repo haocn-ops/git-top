@@ -7,6 +7,7 @@ import { governanceRunRow, mockD1Env, syncRunRow } from "../scripts/mock-d1.mjs"
 
 test("worker scheduled governance records the daily production health task in its UTC hour", async () => {
   const scheduledAt = new Date();
+  scheduledAt.setUTCDate(scheduledAt.getUTCDate() + 1);
   scheduledAt.setUTCHours(1, 0, 0, 0);
   const now = scheduledAt.toISOString();
   const env = mockD1Env({

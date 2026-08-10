@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { defaultSeedRepositories } from "../src/github.ts";
-import { syncHealth } from "../src/sync-status.ts";
+import { syncFreshness, syncHealth } from "../src/sync-status.ts";
 import { syncGithubProjects } from "../src/sync.ts";
 import { mockD1Env } from "../scripts/mock-d1.mjs";
 
@@ -51,4 +51,13 @@ test("sync retires discovery-backed GitHub 404 projects without degrading the ru
 test("a completed sync run with no failures is healthy even when it only retired unavailable data", () => {
   assert.equal(syncHealth([{ syncedCount: 0, failedCount: 0 }]), "healthy");
   assert.equal(syncHealth([{ syncedCount: 0, failedCount: 1 }]), "degraded");
+});
+
+test("sync freshness detects missed half-hour cron windows within two hours", () => {
+  const now = Date.now();
+  const recent = [{ syncedCount: 1, finishedAt: new Date(now - 90 * 60 * 1000).toISOString() }];
+  const delayed = [{ syncedCount: 1, finishedAt: new Date(now - 150 * 60 * 1000).toISOString() }];
+
+  assert.equal(syncFreshness(recent).status, "fresh");
+  assert.equal(syncFreshness(delayed).status, "stale");
 });

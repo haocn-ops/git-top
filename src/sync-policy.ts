@@ -6,6 +6,7 @@ export const scheduledRefreshLimit = scheduledSyncLimit;
 export const scheduledRunsPerDay = 48;
 export const scheduledDailyRefreshCapacity = scheduledRunsPerDay * scheduledSyncLimit - scheduledCandidateRunsPerDay * scheduledCandidateLimit;
 export const syncRefreshLeadHours = 6;
+export const syncFreshnessThresholdHours = 2;
 export const qualityFreshnessDays = 7;
 export const hotFreshnessTargetRate = 0.95;
 

@@ -172,7 +172,7 @@ Project records include `project.synced_at`, and metric records include `metrics
 curl http://localhost:8787/api/health
 ```
 
-Production health includes D1 availability, project counts, sync cursor, sync health, sync freshness, and the timestamp of the latest successful sync. Global sync freshness means the scheduler has completed useful work recently; it does not by itself prove that every priority tier meets its target. Use `/api/sync/status` for tier stale rates, modeled capacity, priority queues, GitHub sync details, and `derived.alternatives` freshness.
+Production health includes D1 availability, project counts, sync cursor, sync health, sync freshness, and the timestamp of the latest successful sync. Global sync freshness requires a successful sync within the last two hours, so four or more missed half-hour Cron windows become visible quickly; it does not by itself prove that every priority tier meets its target. Use `/api/sync/status` for tier stale rates, modeled capacity, priority queues, GitHub sync details, and `derived.alternatives` freshness.
 
 Project count fields:
 
@@ -743,7 +743,7 @@ The default `detail=summary` response returns up to five recent runs and five it
 Important sync status fields:
 
 - `health`: latest run health, based on success or failure.
-- `freshness`: `fresh` when a successful sync completed within the last 24 hours, `stale` after that, or `unknown` when no successful run is recorded.
+- `freshness`: `fresh` when a successful sync completed within the last two hours, `stale` after that, or `unknown` when no successful run is recorded.
 - `hours_since_successful_sync`
 - `cycle_complete`
 - `next_batch_wraps`

@@ -226,7 +226,7 @@ Healthy production should show:
 
 - `synced_count` moving toward the seed repository count.
 - `health` as `healthy` after a successful sync run.
-- `freshness` as `fresh` when a successful sync completed within the last 24 hours.
+- `freshness` as `fresh` when a successful sync completed within the last two hours. This allows normal Cron delivery delay while surfacing four or more missed half-hour windows.
 - `derived.alternatives.freshness` as `fresh` when global alternatives were rebuilt within the last seven days.
 - `priority.refresh_due_counts` near zero and `priority.stale_counts` at zero; Cron consumes the due queue before seed cursor fallback.
 - `hours_since_successful_sync` low enough for the current operating window.
@@ -237,7 +237,7 @@ Healthy production should show:
 
 Cron sync intentionally uses lightweight signal collection and keeps an eight-repository per-run budget. It runs at minute 0 and 30 each hour: eligible top-of-hour runs reserve up to two slots for candidate discovery and use the remaining slots for refresh, while half-hour runs use all eight slots for refresh. The resulting daily policy attempts up to 48 new admissions and provides at least 336 scheduled refresh slots after those candidate slots are deducted. Discovery automatically pauses whenever any project is overdue or modeled refresh headroom is below 120 daily slots. Hot projects target two days; warm and cold projects share the quality gate's seven-day freshness deadline. Projects enter the due queue six hours before their tier deadline so they are refreshed before quality marks them stale. Priority refresh includes every D1-backed project, not only the curated seed corpus. The policy exposes modeled demand, capacity, headroom, due queues, and tier stale rates through `/api/sync/status`; see [Production Freshness Optimization Plan](./PRODUCTION_FRESHNESS_OPTIMIZATION_PLAN_2026-07-14.md).
 
-GitHub Actions also runs `production-preventive-maintenance` daily at 00:25 UTC. It consumes up to 20 structured due items and advances four persisted alternatives batches. The task fails on sync errors or unhealthy/stale runtime status; a remaining quality-stale backlog is reported through `outcome.stale_backlog` and the quality risk surfaces without turning a successfully executed compensation batch into a failed governance run. This is a compensation path for missed Worker cron windows, not a second full-corpus scheduler.
+GitHub Actions also runs `production-preventive-maintenance` every four hours at minute 25 UTC. It consumes up to 40 structured due items and advances four persisted alternatives batches. When the primary Cron is healthy and nothing is due, the compensation run performs no repository sync. The task fails on sync errors or unhealthy/stale runtime status; a remaining quality-stale backlog is reported through `outcome.stale_backlog` and the quality risk surfaces without turning a successfully executed compensation batch into a failed governance run. This is a bounded compensation path for missed Worker Cron windows, not a second discovery scheduler.
 
 Trigger a small protected sync when needed:
 

@@ -61,7 +61,7 @@ Projects are warm when they are not hot but have snapshot-backed growth of at le
 
 ### Trust semantics
 
-Global job freshness remains useful for detecting a stopped scheduler, but high-confidence use also requires:
+Global job freshness requires a successful sync within two hours so repeated missed half-hour windows are detected promptly, but high-confidence use also requires:
 
 - hot stale rate at or below 10%;
 - scheduled refresh capacity at or above modeled daily demand;
@@ -105,6 +105,7 @@ Status: implemented in this change.
 - Run discovery, refresh, alternatives, and governance as isolated maintenance steps.
 - Alert on a failed step without preventing later steps from running.
 - Keep existing per-task governance records and operations alerts.
+- Run the bounded GitHub Actions compensation path every four hours with up to 40 refreshes so missed Cloudflare Cron windows cannot accumulate silently for a full day.
 
 ## Acceptance Criteria
 
