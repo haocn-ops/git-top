@@ -1,5 +1,5 @@
 import { writeFile } from "node:fs/promises";
-import { normalizeAnalyticsPoint, summarizeAdoptionEventSamples } from "../src/adoption-analytics.ts";
+import { normalizeAnalyticsPoint, summarizeAdoptionEventSamples, summarizeAdoptionLatencyBuckets } from "../src/adoption-analytics.ts";
 import { buildAdoptionAggregateQuery, buildAdoptionExcludedCountQuery, buildAdoptionLatencyQuery } from "../src/adoption-export.ts";
 import {
   adoptionReportWindows,
@@ -34,10 +34,10 @@ const report = buildAdoptionOperationsReport({
   monthlyExcludedEventCount,
   weeklyIncludedEventCount,
   monthlyIncludedEventCount,
-  weeklyMetrics: summarizeAdoptionEventSamples(weeklySamples, latencySummary(weeklyLatencyRows[0])),
-  monthlyMetrics: summarizeAdoptionEventSamples(monthlySamples, latencySummary(monthlyLatencyRows[0])),
-  weeklyPossiblyTruncated: weeklyRows.length >= options.limit,
-  monthlyPossiblyTruncated: monthlyRows.length >= options.limit,
+  weeklyMetrics: summarizeAdoptionEventSamples(weeklySamples, latencySummary(weeklyLatencyRows)),
+  monthlyMetrics: summarizeAdoptionEventSamples(monthlySamples, latencySummary(monthlyLatencyRows)),
+  weeklyPossiblyTruncated: weeklyRows.length >= options.limit || weeklyLatencyRows.length >= options.limit,
+  monthlyPossiblyTruncated: monthlyRows.length >= options.limit || monthlyLatencyRows.length >= options.limit,
   limit: options.limit,
   excludedCampaignSources: options.excludedCampaignSources
 });
@@ -67,7 +67,7 @@ async function aggregateWindow(hours) {
 
 async function latencyWindow(hours) {
   return queryAnalyticsEngine(
-    buildAdoptionLatencyQuery(hours, options.excludedCampaignSources),
+    buildAdoptionLatencyQuery(hours, options.excludedCampaignSources, options.limit),
     `${hours}-hour latency summary`
   );
 }
@@ -121,26 +121,17 @@ function totalSampleCount(samples) {
   return samples.reduce((total, sample) => total + sample.count, 0);
 }
 
-function latencySummary(row = {}) {
-  return {
-    sampleCount: boundedCount(row.sample_count ?? 0, "sample_count", true),
-    p50: optionalFiniteNumber(row.p50),
-    p95: optionalFiniteNumber(row.p95)
-  };
+function latencySummary(rows) {
+  return summarizeAdoptionLatencyBuckets(rows.map((row) => ({
+    durationMs: Number(row.double2),
+    count: Number(row.sample_count)
+  })));
 }
 
-function boundedCount(value, name, allowZero = false) {
+function boundedCount(value, name) {
   const count = Number(value);
-  if (!Number.isFinite(count) || !Number.isInteger(count) || count < (allowZero ? 0 : 1)) {
+  if (!Number.isFinite(count) || !Number.isInteger(count) || count < 1) {
     throw new Error(`Analytics Engine returned an invalid ${name}.`);
   }
   return count;
-}
-
-function optionalFiniteNumber(value) {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
 }

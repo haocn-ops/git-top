@@ -105,6 +105,11 @@ export interface AdoptionLatencySummary {
   p95: number | null;
 }
 
+export interface AdoptionLatencyBucket {
+  durationMs: number;
+  count: number;
+}
+
 const knownClients = ["codex", "claude", "cursor", "vscode", "windsurf", "chatgpt", "cline", "continue"] as const;
 
 /**
@@ -358,6 +363,21 @@ export function summarizeAdoptionEventSamples(
   };
 }
 
+export function summarizeAdoptionLatencyBuckets(buckets: readonly AdoptionLatencyBucket[]): AdoptionLatencySummary {
+  const normalized = buckets.map((bucket) => {
+    if (!Number.isFinite(bucket.durationMs) || bucket.durationMs < 0) {
+      throw new Error("Adoption latency duration must be a non-negative finite number.");
+    }
+    return { durationMs: bucket.durationMs, count: boundedEventCount(bucket.count) };
+  }).sort((a, b) => a.durationMs - b.durationMs);
+  const sampleCount = normalized.reduce((total, bucket) => total + bucket.count, 0);
+  return {
+    sampleCount,
+    p50: weightedPercentile(normalized, sampleCount, 0.5),
+    p95: weightedPercentile(normalized, sampleCount, 0.95)
+  };
+}
+
 export function clientFromRequest(request: Request): string | undefined {
   const userAgent = request.headers.get("user-agent")?.toLowerCase() ?? "";
   const explicitClient = request.headers.get("x-git-top-client");
@@ -489,6 +509,21 @@ function percentile(values: number[], quantile: number): number | null {
   const sorted = [...values].sort((a, b) => a - b);
   const index = Math.min(sorted.length - 1, Math.ceil(quantile * sorted.length) - 1);
   return sorted[Math.max(0, index)];
+}
+
+function weightedPercentile(buckets: readonly AdoptionLatencyBucket[], sampleCount: number, quantile: number): number | null {
+  if (sampleCount === 0) {
+    return null;
+  }
+  const target = Math.ceil(sampleCount * quantile);
+  let cumulative = 0;
+  for (const bucket of buckets) {
+    cumulative += bucket.count;
+    if (cumulative >= target) {
+      return bucket.durationMs;
+    }
+  }
+  return buckets.at(-1)?.durationMs ?? null;
 }
 
 function strongestDimension(values: Record<string, AdoptionDimensionSummary>): string | null {

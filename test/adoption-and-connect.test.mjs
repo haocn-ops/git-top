@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import worker from "../src/index.ts";
 import { handleMcp } from "../src/mcp.ts";
-import { normalizeAnalyticsPoint, recordAdoptionEvent, responseSizeBucket, summarizeAdoptionEventSamples, summarizeAdoptionEvents } from "../src/adoption-analytics.ts";
+import { normalizeAnalyticsPoint, recordAdoptionEvent, responseSizeBucket, summarizeAdoptionEventSamples, summarizeAdoptionEvents, summarizeAdoptionLatencyBuckets } from "../src/adoption-analytics.ts";
 import { adoptionAnalyticsDataset, buildAdoptionAggregateQuery, buildAdoptionExcludedCountQuery, buildAdoptionExportQuery, buildAdoptionLatencyQuery, parseAdoptionExportOptions } from "../src/adoption-export.ts";
 import { buildAdoptionOperationsReport, parseAdoptionReportOptions, renderAdoptionOperationsMarkdown } from "../src/adoption-report.ts";
 import { attributedEndpoint } from "../src/connect-page.ts";
@@ -291,6 +291,16 @@ test("weighted analytics samples preserve aggregate counts without expanding raw
   assert.throws(() => summarizeAdoptionEventSamples([{ event: { name: "mcp_initialize" }, count: 0 }]), /positive finite number/);
 });
 
+test("weighted latency buckets calculate exact p50 and p95 without raw events", () => {
+  assert.deepEqual(summarizeAdoptionLatencyBuckets([
+    { durationMs: 20, count: 5 },
+    { durationMs: 100, count: 4 },
+    { durationMs: 500, count: 1 }
+  ]), { sampleCount: 10, p50: 20, p95: 500 });
+  assert.deepEqual(summarizeAdoptionLatencyBuckets([]), { sampleCount: 0, p50: null, p95: null });
+  assert.throws(() => summarizeAdoptionLatencyBuckets([{ durationMs: -1, count: 1 }]), /non-negative finite number/);
+});
+
 test("analytics export query is fixed-field and bounded", () => {
   const options = parseAdoptionExportOptions(["--hours", "48", "--limit", "250", "--output", "events.json"]);
   assert.deepEqual(options, { hours: 48, limit: 250, output: "events.json" });
@@ -311,8 +321,9 @@ test("analytics export query is fixed-field and bounded", () => {
   assert.match(aggregateQuery, /GROUP BY blob1, blob2, blob3, blob4, blob5, blob6, blob7, blob8, blob9, double1/);
   assert.match(aggregateQuery, /blob8 NOT IN \('production-smoke'\)/);
   const latencyQuery = buildAdoptionLatencyQuery(168, ["production-smoke"]);
-  assert.match(latencyQuery, /quantile\(0\.95\)\(double2\) AS p95/);
+  assert.match(latencyQuery, /SELECT double2, COUNT\(\) AS sample_count/);
   assert.match(latencyQuery, /blob1 IN \('mcp_tool_call_completed', 'rest_agent_call_completed'\)/);
+  assert.match(latencyQuery, /GROUP BY double2 ORDER BY double2 ASC LIMIT 10000/);
 });
 
 test("analytics export options reject arbitrary or oversized requests", () => {

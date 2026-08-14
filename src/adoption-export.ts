@@ -74,12 +74,15 @@ export function buildAdoptionAggregateQuery(options: AdoptionExportQueryOptions)
   ].join(" ");
 }
 
-export function buildAdoptionLatencyQuery(hours: number, excludedCampaignSources: readonly string[]): string {
+export function buildAdoptionLatencyQuery(hours: number, excludedCampaignSources: readonly string[], limit = 10_000): string {
   return [
-    "SELECT COUNT() AS sample_count, quantile(0.5)(double2) AS p50, quantile(0.95)(double2) AS p95",
+    "SELECT double2, COUNT() AS sample_count",
     `FROM ${adoptionAnalyticsDataset}`,
     ...adoptionWhere(hours, excludedCampaignSources),
-    "AND blob1 IN ('mcp_tool_call_completed', 'rest_agent_call_completed')"
+    "AND blob1 IN ('mcp_tool_call_completed', 'rest_agent_call_completed')",
+    "GROUP BY double2",
+    "ORDER BY double2 ASC",
+    `LIMIT ${limit}`
   ].join(" ");
 }
 
