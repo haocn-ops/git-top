@@ -339,10 +339,13 @@ test("adoption report options keep production smoke excluded by default", () => 
 
 test("scheduled adoption report fails closed on missing credentials or truncated data", async () => {
   const workflow = await readFile(new URL("../.github/workflows/adoption-report.yml", import.meta.url), "utf8");
+  const packageManifest = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
   assert.match(workflow, /cron: "40 2 \* \* 1"/);
   assert.match(workflow, /CLOUDFLARE_ACCOUNT_ID: \$\{\{ secrets\.CLOUDFLARE_ACCOUNT_ID \}\}/);
   assert.match(workflow, /CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/);
   assert.match(workflow, /--summary-output "\$GITHUB_STEP_SUMMARY" --fail-on-truncated/);
   assert.match(workflow, /retention-days: 30/);
   assert.doesNotMatch(workflow, /adoption-events|raw-events/);
+  assert.match(packageManifest.scripts["adoption:report"], /--import \.\/scripts\/register-ts-loader\.mjs/);
+  assert.match(packageManifest.scripts["adoption:export"], /--import \.\/scripts\/register-ts-loader\.mjs/);
 });
