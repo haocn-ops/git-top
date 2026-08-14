@@ -1,4 +1,4 @@
-import { assessPreventiveMaintenance, prioritizeRepositories } from "./preventive-maintenance-policy.mjs";
+import { assessPreventiveMaintenance, selectPreventiveMaintenanceRepositories } from "./preventive-maintenance-policy.mjs";
 
 const baseUrls = Array.from(
   new Set(
@@ -36,7 +36,15 @@ const hotRepositories = refreshDueItems
 const dueRepositories = refreshDueItems
   .map((item) => item.project_id)
   .filter((projectId) => typeof projectId === "string");
-const repositories = prioritizeRepositories(staleRepositories, dueRepositories, refreshLimit, hotRepositories);
+const selection = selectPreventiveMaintenanceRepositories({
+  staleRepositories,
+  dueRepositories,
+  hotRepositories,
+  nextBatch: initialStatus.next_batch ?? [],
+  syncFreshness: initialStatus.freshness,
+  limit: refreshLimit
+});
+const repositories = selection.repositories;
 const syncRuns = [];
 const failures = [];
 
@@ -90,6 +98,7 @@ const outcome = assessPreventiveMaintenance({
 });
 const summary = {
   baseUrls,
+  recoveryMode: selection.recoveryMode,
   selectedRepositoryCount: repositories.length,
   repositories,
   syncRuns,

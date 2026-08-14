@@ -9,6 +9,7 @@ import {
   requestJsonWithRetry,
   retryDelayMs
 } from "../scripts/prod-http-client.mjs";
+import { smokeRequestInit } from "../scripts/smoke-prod.mjs";
 
 test("production HTTP client retries a transient HTML 503 and rotates origins", async () => {
   const requests = [];
@@ -88,4 +89,11 @@ test("production HTTP retry policy covers transient failures and Retry-After", (
   assert.equal(retryDelayMs({ attempt: 4, baseDelayMs: 2_000, maxDelayMs: 30_000 }), 16_000);
   assert.equal(retryDelayMs({ attempt: 2, baseDelayMs: 2_000, maxDelayMs: 30_000, retryAfterMs: 20_000 }), 20_000);
   assert.equal(cacheBustedPath("/api/quality?require_d1=true", "run 42"), "/api/quality?require_d1=true&_=run%2042");
+});
+
+test("production smoke tags every request so adoption reports can exclude operator traffic", () => {
+  const init = smokeRequestInit({ method: "POST", headers: { "content-type": "application/json", "x-git-top-source": "unexpected" } });
+  const headers = new Headers(init.headers);
+  assert.equal(headers.get("content-type"), "application/json");
+  assert.equal(headers.get("x-git-top-source"), "production-smoke");
 });

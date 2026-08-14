@@ -42,6 +42,14 @@ The token needs Analytics Engine read access only. Keep the export in an access-
 node scripts/summarize-adoption-metrics.mjs ./adoption-events.json
 ```
 
+For the recurring operator view, generate one bounded report that compares the latest 7 and 30 days:
+
+```sh
+pnpm adoption:report -- --output ./adoption-report.json
+```
+
+The report performs two fixed-field Analytics Engine queries, defaults to excluding events tagged `source=production-smoke`, and reports the exclusion count for each window. The production smoke client applies the equivalent `x-git-top-source` header to every request. Add other known operator-only campaign sources with `--exclude-source production-smoke,operator-check`. The output includes normalized daily-rate ratios, successful first-value calls, workflow completions, tool success, fallback, strict-source rejection, latency, and the existing bounded client/campaign/operation breakdowns. Treat `possibly_truncated=true` as a signal to shorten the window or add an access-controlled aggregation pipeline; increasing the query beyond 10,000 rows is intentionally unsupported.
+
 The command normalizes raw point fields through `normalizeAnalyticsPoint()` and then reports the discovery-to-first-value call counts, `firstValueCallsPerInitialization`, tool success rate, strict-source rejection rate, seed fallback rate, p50/p95 latency, and bounded client/campaign/operation breakdowns. `firstValueCallsPerInitialization` is an activity ratio and may exceed `1`; it is not an activation conversion rate. The structured `insights` identify the strongest client, campaign source, operation, and primary failure mode only when the corresponding sample contains positive activity; otherwise the field is `null`. Latency percentiles use the nearest-rank method over the exported bounded samples.
 
 The summary deliberately reports calls rather than unique users or sessions. Git.Top has no identity mechanism and must not infer retention, unique-user activation, or returning installs from request metadata.

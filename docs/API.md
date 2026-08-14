@@ -268,6 +268,7 @@ Supported filters:
 - `min_confidence`: `low`, `medium`, or `high`; requires all recorded classification signals to meet the threshold
 - `cloudflare_ready`
 - `ranking`: optional. Use `browse` for broad category/deployment discovery with larger result limits. Omit it for default exact-intent search ranking.
+- `profile`: optional response shape. `full` is the backward-compatible default and includes raw `knowledge` rows. Use `compact` for bounded identity, fit, score, and verification fields without duplicate raw knowledge; `decision` keeps the full decision card without raw knowledge; `evidence` returns evidence and confidence fields only.
 - `require_d1`: optional boolean. Use `true` when seed fallback must fail closed.
 - `limit`
 - `cursor`: opaque `page.next_cursor` from the previous response.
@@ -282,6 +283,12 @@ Browse ranking example:
 
 ```sh
 curl "http://localhost:8787/api/search?q=agent%20framework&category=agent_framework&deployment=cloudflare&ranking=browse&limit=10"
+```
+
+Compact Agent response example:
+
+```sh
+curl "http://localhost:8787/api/search?q=agent%20framework&limit=10&profile=compact&require_d1=true"
 ```
 
 Search, trending, and category lists return `page.offset`, `page.limit`, `page.has_more`, `page.next_cursor`, and `page.snapshot_id`. Cursors are bound to both the query and `metadata.snapshot_id`; restart without a cursor after `stale_page_cursor` because continuing across corpus snapshots could skip or duplicate projects.

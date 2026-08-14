@@ -4,6 +4,7 @@ import worker from "../src/index.ts";
 import { handleMcp } from "../src/mcp.ts";
 import { normalizeAnalyticsPoint, recordAdoptionEvent, responseSizeBucket, summarizeAdoptionEvents } from "../src/adoption-analytics.ts";
 import { adoptionAnalyticsDataset, buildAdoptionExportQuery, parseAdoptionExportOptions } from "../src/adoption-export.ts";
+import { buildAdoptionOperationsReport, parseAdoptionReportOptions } from "../src/adoption-report.ts";
 
 test("MCP core profile exposes only the first-use project decision tools", async () => {
   const response = await handleMcp(new Request("https://git.top/mcp/core"), {}, { profile: "core" });
@@ -265,4 +266,37 @@ test("analytics export options reject arbitrary or oversized requests", () => {
   assert.throws(() => parseAdoptionExportOptions(["--hours", "0"]), /hours must be an integer from 1 to 720/);
   assert.throws(() => parseAdoptionExportOptions(["--limit", "10001"]), /limit must be an integer from 1 to 10000/);
   assert.throws(() => parseAdoptionExportOptions(["--query", "SELECT 1"]), /Unknown option/);
+});
+
+test("adoption operations report compares bounded 7 and 30 day signals while excluding tagged smoke traffic", () => {
+  const organicFirstValue = { name: "mcp_tool_call_completed", operation: "recommend_project", resultClass: "success", source: "d1" };
+  const smokeFirstValue = { ...organicFirstValue, campaignSource: "production-smoke" };
+  const report = buildAdoptionOperationsReport({
+    weeklyEvents: [organicFirstValue, smokeFirstValue, { name: "workflow_completed", resultClass: "success", source: "d1" }],
+    monthlyEvents: [organicFirstValue, organicFirstValue, smokeFirstValue],
+    limit: 10_000,
+    generatedAt: "2026-08-14T00:00:00.000Z"
+  });
+
+  assert.equal(report.generated_at, "2026-08-14T00:00:00.000Z");
+  assert.equal(report.windows.last_7_days.excluded_event_count, 1);
+  assert.equal(report.windows.last_7_days.metrics.funnel.successfulFirstValueCalls, 1);
+  assert.equal(report.windows.last_30_days.metrics.funnel.successfulFirstValueCalls, 2);
+  assert.equal(report.trend.first_value_calls_daily_rate_ratio, 2.143);
+  assert.equal(report.adoption_signal.status, "early_signal");
+  assert.equal(report.measurement.identity_free, true);
+});
+
+test("adoption report options keep production smoke excluded by default", () => {
+  assert.deepEqual(parseAdoptionReportOptions([]), {
+    limit: 10_000,
+    output: null,
+    excludedCampaignSources: ["production-smoke"]
+  });
+  assert.deepEqual(parseAdoptionReportOptions(["--limit", "500", "--exclude-source", "production-smoke,operator-check", "--output", "report.json"]), {
+    limit: 500,
+    output: "report.json",
+    excludedCampaignSources: ["production-smoke", "operator-check"]
+  });
+  assert.throws(() => parseAdoptionReportOptions(["--limit", "10001"]), /limit must be an integer from 1 to 10000/);
 });

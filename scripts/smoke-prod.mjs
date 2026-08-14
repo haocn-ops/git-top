@@ -913,7 +913,7 @@ async function requestJson(context, path, init) {
 function requestResponse(context, path, init) {
   return fetchWithRetry({
     path,
-    init,
+    init: smokeRequestInit(init),
     baseUrls: context.baseUrls,
     maxRetries: context.maxRetries,
     timeoutMs: context.timeoutMs,
@@ -924,6 +924,12 @@ function requestResponse(context, path, init) {
       console.error(`Retrying smoke request ${path} after ${message} from ${baseUrl}; attempt ${nextAttempt}/${maxRetries} in ${delayMs}ms.`);
     }
   });
+}
+
+export function smokeRequestInit(init = {}) {
+  const headers = new Headers(init.headers);
+  headers.set("x-git-top-source", "production-smoke");
+  return { ...init, headers };
 }
 
 export function assertMetadata(metadata, { allowSeed = false } = {}) {

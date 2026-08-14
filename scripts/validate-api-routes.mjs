@@ -69,6 +69,8 @@ async function testSearchAndProjectRoutes() {
   assert.equal(search.status, 200);
   assert.equal(search.body.query.q, "cloudflare");
   assert.ok(search.body.projects.length > 0, "search should return at least one seed project");
+  assert.equal(search.body.profile, "full");
+  assert.ok(Array.isArray(search.body.knowledge), "full search should retain raw knowledge rows for backward compatibility");
   assert.equal(search.body.search.applied_filters.q, "cloudflare");
   assert.ok(search.body.search.known_filter_values.category.includes("agent_framework"));
   assertMetadata(search.body.metadata, "db_missing");
@@ -85,6 +87,18 @@ async function testSearchAndProjectRoutes() {
   assert.equal(browseSearch.body.page.limit, 8);
   assert.equal(browseSearch.body.page.snapshot_id, browseSearch.body.metadata.snapshot_id);
   assertMetadata(browseSearch.body.metadata, "db_missing");
+
+  const compactSearch = await getJson("/api/search?q=cloudflare&limit=3&profile=compact");
+  assert.equal(compactSearch.status, 200);
+  assert.equal(compactSearch.body.profile, "compact");
+  assert.equal(compactSearch.body.knowledge, undefined);
+  assert.ok(typeof compactSearch.body.projects[0].project_id === "string");
+  assert.ok(typeof compactSearch.body.projects[0].score === "number");
+  assert.equal(compactSearch.body.projects[0].quality_signals, undefined);
+
+  const invalidSearchProfile = await getJson("/api/search?q=cloudflare&profile=verbose");
+  assert.equal(invalidSearchProfile.status, 400);
+  assert.equal(invalidSearchProfile.body.error.code, "invalid_search_request");
 
   const emptySearch = await getJson("/api/search?query=agent&category=framework&deployment=cloudflare&language=typescript&cloudflare_ready=true&limit=5");
   assert.equal(emptySearch.status, 200);
@@ -1210,6 +1224,8 @@ async function testOpenApiDocument() {
   const searchParameterNames = openapi.body.paths["/api/search"].get.parameters.map((item) => item.name);
   assert.ok(searchParameterNames.includes("project_kind"));
   assert.ok(searchParameterNames.includes("min_confidence"));
+  assert.ok(searchParameterNames.includes("profile"));
+  assert.deepEqual(openapi.body.components.schemas.SearchResponse.properties.profile.enum, ["full", "compact", "decision", "evidence"]);
   const metadataProperties = openapi.body.components.schemas.Metadata.properties;
   assert.deepEqual(metadataProperties.candidate_retrieval.enum, ["d1_first"]);
   assert.equal(metadataProperties.candidate_count.type, "integer");

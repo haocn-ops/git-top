@@ -689,6 +689,10 @@ export async function handleApi(request: Request, env: Env, ctx?: ExecutionConte
   }
 
   if (path === "/api/search") {
+    const profile = parseSearchResponseProfile(url.searchParams.get("profile"));
+    if (!profile) {
+      return errorJson(400, "invalid_search_request", "profile must be full, compact, decision, or evidence.");
+    }
     const parsed = searchFiltersFromUrl(url);
     if (!parsed.ok) {
       return errorJson(400, parsed.code, parsed.message);
@@ -703,11 +707,13 @@ export async function handleApi(request: Request, env: Env, ctx?: ExecutionConte
       return paged;
     }
     const results = paged.projects;
+    const projects = profile === "full" ? results.map(toProjectKnowledgeView) : results.map((project) => projectProfileView(project, profile));
 
     return json({
+      profile,
       query: Object.fromEntries(url.searchParams.entries()),
-      projects: results.map(toProjectKnowledgeView),
-      knowledge: results,
+      projects,
+      ...(profile === "full" ? { knowledge: results } : {}),
       search: describeSearchResult(knowledge.projects, filters, results.length),
       page: paged.page,
       metadata: knowledge.metadata
@@ -1447,6 +1453,15 @@ async function handleWorkflowApi(request: Request, env: Env): Promise<Response> 
     ...buildAgentWorkflow(knowledge.projects, parsed.input),
     metadata: knowledge.metadata
   });
+}
+
+type SearchResponseProfile = "full" | ProjectResponseProfile;
+
+function parseSearchResponseProfile(value: string | null): SearchResponseProfile | null {
+  if (value === null || value === "" || value === "full") {
+    return "full";
+  }
+  return parseProjectResponseProfile(value);
 }
 
 function searchFiltersFromUrl(

@@ -88,6 +88,7 @@ export const openApiDocument = {
           queryParam("min_confidence", "Minimum classification confidence: low, medium, or high"),
           queryParam("cloudflare_ready", "Boolean Cloudflare readiness filter"),
           queryParam("ranking", "Use browse for broad category/deployment discovery"),
+          queryParam("profile", "Response profile: full (default), compact, decision, or evidence. Compact profiles omit raw knowledge rows."),
           queryParam("limit", "Maximum result count"),
           queryParam("cursor", "Opaque next_cursor bound to this query and corpus snapshot"),
           queryParam("require_d1", "Fail closed unless D1-backed data is available")
@@ -882,8 +883,9 @@ export const openApiDocument = {
       },
       SearchResponse: {
         type: "object",
-        required: ["query", "search", "projects", "page", "metadata"],
+        required: ["profile", "query", "search", "projects", "page", "metadata"],
         properties: {
+          profile: { type: "string", enum: ["full", "compact", "decision", "evidence"], default: "full" },
           query: { type: "object", additionalProperties: true },
           search: {
             type: "object",
@@ -903,7 +905,16 @@ export const openApiDocument = {
             },
             additionalProperties: true
           },
-          projects: { type: "array", items: { $ref: "#/components/schemas/ProjectCard" } },
+          projects: {
+            type: "array",
+            description: "Project cards shaped by profile. compact returns bounded identity, fit, score, and verification fields; full preserves the complete project card.",
+            items: { type: "object", additionalProperties: true }
+          },
+          knowledge: {
+            type: "array",
+            description: "Raw project knowledge rows retained only for the default full profile.",
+            items: { type: "object", additionalProperties: true }
+          },
           page: { $ref: "#/components/schemas/CursorPage" },
           metadata: { $ref: "#/components/schemas/Metadata" }
         },
@@ -2321,6 +2332,7 @@ function qualityExample() {
 
 function searchExample() {
   return {
+    profile: "full",
     query: { q: "cloudflare agent framework", limit: 3, require_d1: true },
     search: {
       applied_filters: { q: "cloudflare agent framework" },

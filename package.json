@@ -41,6 +41,7 @@
     "compatibility:validate": "node --experimental-strip-types --import ./scripts/register-ts-loader.mjs scripts/validate-client-compatibility.mjs",
     "adoption:review": "node --experimental-strip-types --import ./scripts/register-ts-loader.mjs scripts/summarize-adoption-metrics.mjs",
     "adoption:export": "node --experimental-strip-types scripts/export-adoption-metrics.mjs",
+    "adoption:report": "node --experimental-strip-types scripts/report-adoption-metrics.mjs",
     "distribution:validate": "node --experimental-strip-types --import ./scripts/register-ts-loader.mjs scripts/validate-agent-distribution.mjs",
     "eval:fixtures": "node --experimental-strip-types --import ./scripts/register-ts-loader.mjs scripts/validate-eval-fixtures.mjs",
     "eval:quality": "node --experimental-strip-types --import ./scripts/register-ts-loader.mjs scripts/eval-quality.mjs",

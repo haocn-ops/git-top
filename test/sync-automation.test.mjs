@@ -12,7 +12,11 @@ import {
   shouldRunScheduledCandidateDiscovery
 } from "../src/sync-policy.ts";
 import { seedProjects } from "../src/seed.ts";
-import { assessPreventiveMaintenance, prioritizeRepositories } from "../scripts/preventive-maintenance-policy.mjs";
+import {
+  assessPreventiveMaintenance,
+  prioritizeRepositories,
+  selectPreventiveMaintenanceRepositories
+} from "../scripts/preventive-maintenance-policy.mjs";
 import { upsertProjectKnowledge } from "../src/db-write-store.ts";
 
 test("priority refresh enters the queue six hours before the tier deadline", () => {
@@ -127,6 +131,51 @@ test("preventive maintenance puts hot refreshes ahead of older lower-tier work",
       ["hot/a", "hot/b"]
     ),
     ["hot/a", "hot/b", "warm/old"]
+  );
+});
+
+test("preventive maintenance performs one heartbeat sync when global freshness is stale but tier queues are empty", () => {
+  assert.deepEqual(
+    selectPreventiveMaintenanceRepositories({
+      staleRepositories: [],
+      dueRepositories: [],
+      nextBatch: ["example/heartbeat", "example/next"],
+      syncFreshness: "stale",
+      limit: 40
+    }),
+    {
+      repositories: ["example/heartbeat"],
+      recoveryMode: "stale_sync_heartbeat"
+    }
+  );
+  assert.deepEqual(
+    selectPreventiveMaintenanceRepositories({
+      staleRepositories: [],
+      dueRepositories: [],
+      nextBatch: ["example/heartbeat"],
+      syncFreshness: "fresh",
+      limit: 40
+    }),
+    {
+      repositories: [],
+      recoveryMode: null
+    }
+  );
+});
+
+test("preventive maintenance keeps prioritized work ahead of heartbeat recovery", () => {
+  assert.deepEqual(
+    selectPreventiveMaintenanceRepositories({
+      staleRepositories: ["stale/a"],
+      dueRepositories: ["due/a"],
+      nextBatch: ["example/heartbeat"],
+      syncFreshness: "stale",
+      limit: 2
+    }),
+    {
+      repositories: ["due/a", "stale/a"],
+      recoveryMode: null
+    }
   );
 });
 
