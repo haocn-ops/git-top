@@ -94,6 +94,17 @@ export interface AdoptionDimensionSummary {
   errors: number;
 }
 
+export interface AdoptionEventSample {
+  event: AdoptionEvent;
+  count: number;
+}
+
+export interface AdoptionLatencySummary {
+  sampleCount: number;
+  p50: number | null;
+  p95: number | null;
+}
+
 const knownClients = ["codex", "claude", "cursor", "vscode", "windsurf", "chatgpt", "cline", "continue"] as const;
 
 /**
@@ -187,7 +198,8 @@ export function normalizeAnalyticsPoint(point: AnalyticsEnginePoint): AdoptionEv
   const clientVersion = analyticsDimension(point.blob4, 32);
   const operation = analyticsDimension(point.blob5);
   const source = asEnum(point.blob7, ["d1", "seed", "unknown"]);
-  const campaignSource = analyticsDimension(point.blob8, 48);
+  const rawCampaignSource = analyticsDimension(point.blob8, 48);
+  const campaignSource = rawCampaignSource === "unknown" ? undefined : rawCampaignSource;
   const responseBucket = asEnum(point.blob9, ["empty", "small", "medium", "large", "very_large", "unknown"]);
   const status = finiteNumber(point.double1);
   const durationMs = finiteNumber(point.double2);
@@ -212,11 +224,30 @@ export function normalizeAnalyticsPoint(point: AnalyticsEnginePoint): AdoptionEv
  * has no identity mechanism and must not imply unique-user measurement.
  */
 export function summarizeAdoptionEvents(events: readonly AdoptionEvent[]): AdoptionMetricsSummary {
+  const latencySamples = events
+    .filter((event) => event.name === "mcp_tool_call_completed" || event.name === "rest_agent_call_completed")
+    .map((event) => event.durationMs)
+    .filter((value): value is number => Number.isFinite(value))
+    .map((value) => Math.min(600_000, Math.max(0, Number(value))));
+  return summarizeAdoptionEventSamples(
+    events.map((event) => ({ event, count: 1 })),
+    {
+      sampleCount: latencySamples.length,
+      p50: percentile(latencySamples, 0.5),
+      p95: percentile(latencySamples, 0.95)
+    }
+  );
+}
+
+export function summarizeAdoptionEventSamples(
+  samples: readonly AdoptionEventSample[],
+  latencyMs: AdoptionLatencySummary = { sampleCount: 0, p50: null, p95: null }
+): AdoptionMetricsSummary {
   const outcomes = emptyOutcomes();
   const byClient: Record<string, AdoptionDimensionSummary> = {};
   const byCampaignSource: Record<string, AdoptionDimensionSummary> = {};
   const byOperation: Record<string, AdoptionDimensionSummary> = {};
-  const latencySamples: number[] = [];
+  let eventCount = 0;
   let successfulInitializations = 0;
   let successfulToolDiscovery = 0;
   let successfulFirstValueCalls = 0;
@@ -232,50 +263,50 @@ export function summarizeAdoptionEvents(events: readonly AdoptionEvent[]): Adopt
   let campaignTaggedEvents = 0;
   let agentCallsWithCampaign = 0;
 
-  for (const event of events) {
+  for (const sample of samples) {
+    const event = sample.event;
+    const count = boundedEventCount(sample.count);
+    eventCount += count;
     const resultClass = event.resultClass ?? "unknown";
-    outcomes[resultClass] = (outcomes[resultClass] ?? 0) + 1;
+    outcomes[resultClass] = (outcomes[resultClass] ?? 0) + count;
     const successful = resultClass === "success";
     if (event.campaignSource) {
-      campaignTaggedEvents += 1;
+      campaignTaggedEvents += count;
     }
     if (event.name === "connect_page_view") {
-      connectPageViews += 1;
+      connectPageViews += count;
     }
     if (event.name === "connect_config_copy") {
-      connectConfigCopies += 1;
+      connectConfigCopies += count;
     }
     if (event.name === "mcp_initialize" && successful) {
-      successfulInitializations += 1;
+      successfulInitializations += count;
     }
     if (event.name === "mcp_tools_list" && successful) {
-      successfulToolDiscovery += 1;
+      successfulToolDiscovery += count;
     }
     if (event.name === "workflow_completed" && successful) {
-      successfulWorkflows += 1;
+      successfulWorkflows += count;
     }
     if (event.name === "mcp_tool_call_completed" || event.name === "rest_agent_call_completed") {
-      agentCalls += 1;
-      agentCallsWithCampaign += event.campaignSource ? 1 : 0;
-      if (Number.isFinite(event.durationMs)) {
-        latencySamples.push(Math.min(600_000, Math.max(0, Number(event.durationMs))));
-      }
+      agentCalls += count;
+      agentCallsWithCampaign += event.campaignSource ? count : 0;
       if (successful) {
-        successfulAgentCalls += 1;
-        successfulFirstValueCalls += 1;
+        successfulAgentCalls += count;
+        successfulFirstValueCalls += count;
         if (event.source === "seed") {
-          seedBackedAgentCalls += 1;
+          seedBackedAgentCalls += count;
         }
       }
     }
     if (event.name === "mcp_tool_call_completed") {
-      toolCalls += 1;
+      toolCalls += count;
       if (successful) {
-        successfulToolCalls += 1;
+        successfulToolCalls += count;
       }
     }
     if (resultClass === "strict_source_rejection") {
-      strictSourceRejections += 1;
+      strictSourceRejections += count;
     }
 
     const dimensions = [
@@ -288,13 +319,13 @@ export function summarizeAdoptionEvents(events: readonly AdoptionEvent[]): Adopt
         continue;
       }
       const summary = target[key] ?? emptyDimensionSummary();
-      updateDimensionSummary(summary, event, successful);
+      updateDimensionSummary(summary, event, successful, count);
       target[key] = summary;
     }
   }
 
   return {
-    eventCount: events.length,
+    eventCount,
     funnel: {
       connectPageViews,
       connectConfigCopies,
@@ -308,11 +339,7 @@ export function summarizeAdoptionEvents(events: readonly AdoptionEvent[]): Adopt
     toolSuccessRate: ratio(successfulToolCalls, toolCalls),
     strictSourceRejectionRate: ratio(strictSourceRejections, agentCalls),
     fallbackRate: ratio(seedBackedAgentCalls, successfulAgentCalls),
-    latencyMs: {
-      sampleCount: latencySamples.length,
-      p50: percentile(latencySamples, 0.5),
-      p95: percentile(latencySamples, 0.95)
-    },
+    latencyMs,
     attribution: {
       campaignTaggedEvents,
       agentCallsWithCampaign,
@@ -418,30 +445,37 @@ function emptyDimensionSummary(): AdoptionDimensionSummary {
   };
 }
 
-function updateDimensionSummary(summary: AdoptionDimensionSummary, event: AdoptionEvent, successful: boolean): void {
+function updateDimensionSummary(summary: AdoptionDimensionSummary, event: AdoptionEvent, successful: boolean, count: number): void {
   if (event.name === "connect_page_view") {
-    summary.connectPageViews += 1;
+    summary.connectPageViews += count;
   }
   if (event.name === "connect_config_copy") {
-    summary.configCopies += 1;
+    summary.configCopies += count;
   }
   if (event.name === "mcp_initialize" && successful) {
-    summary.initializeSuccesses += 1;
+    summary.initializeSuccesses += count;
   }
   if (event.name === "workflow_completed" && successful) {
-    summary.workflowCompletions += 1;
+    summary.workflowCompletions += count;
   }
   if (event.name === "mcp_tools_list" && successful) {
-    summary.toolDiscoverySuccesses += 1;
+    summary.toolDiscoverySuccesses += count;
   }
   if (event.name === "mcp_tool_call_completed" || event.name === "rest_agent_call_completed") {
-    summary.agentCalls += 1;
-    summary.firstValueCalls += successful ? 1 : 0;
-    summary.agentCallSuccesses += successful ? 1 : 0;
+    summary.agentCalls += count;
+    summary.firstValueCalls += successful ? count : 0;
+    summary.agentCallSuccesses += successful ? count : 0;
   }
   if (!successful && event.name !== "connect_page_view") {
-    summary.errors += 1;
+    summary.errors += count;
   }
+}
+
+function boundedEventCount(value: number): number {
+  if (!Number.isFinite(value) || value < 1) {
+    throw new Error("Adoption event sample count must be a positive finite number.");
+  }
+  return Math.floor(value);
 }
 
 function ratio(numerator: number, denominator: number): number | null {

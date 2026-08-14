@@ -14,6 +14,8 @@ interface AdoptionExportQueryOptions extends Pick<AdoptionExportOptions, "hours"
   excludedCampaignSources?: readonly string[];
 }
 
+const adoptionGroupColumns = ["blob1", "blob2", "blob3", "blob4", "blob5", "blob6", "blob7", "blob8", "blob9", "double1"] as const;
+
 export function parseAdoptionExportOptions(args: readonly string[]): AdoptionExportOptions {
   const options: AdoptionExportOptions = { ...adoptionExportDefaults, output: null };
   for (let index = 0; index < args.length; index += 1) {
@@ -61,8 +63,35 @@ export function buildAdoptionExcludedCountQuery(hours: number, excludedCampaignS
   ].join(" ");
 }
 
+export function buildAdoptionAggregateQuery(options: AdoptionExportQueryOptions): string {
+  return [
+    `SELECT ${adoptionGroupColumns.join(", ")}, COUNT() AS event_count`,
+    `FROM ${adoptionAnalyticsDataset}`,
+    ...adoptionWhere(options.hours, options.excludedCampaignSources ?? []),
+    `GROUP BY ${adoptionGroupColumns.join(", ")}`,
+    "ORDER BY event_count DESC",
+    `LIMIT ${options.limit}`
+  ].join(" ");
+}
+
+export function buildAdoptionLatencyQuery(hours: number, excludedCampaignSources: readonly string[]): string {
+  return [
+    "SELECT COUNT() AS sample_count, quantile(0.5)(double2) AS p50, quantile(0.95)(double2) AS p95",
+    `FROM ${adoptionAnalyticsDataset}`,
+    ...adoptionWhere(hours, excludedCampaignSources),
+    "AND blob1 IN ('mcp_tool_call_completed', 'rest_agent_call_completed')"
+  ].join(" ");
+}
+
 function sqlStringList(values: readonly string[]): string {
   return values.map((value) => `'${value.replace(/'/g, "''")}'`).join(", ");
+}
+
+function adoptionWhere(hours: number, excludedCampaignSources: readonly string[]): string[] {
+  return [
+    `WHERE timestamp >= NOW() - INTERVAL '${hours}' HOUR`,
+    ...(excludedCampaignSources.length > 0 ? [`AND blob8 NOT IN (${sqlStringList(excludedCampaignSources)})`] : [])
+  ];
 }
 
 function parseBoundedInteger(value: string | undefined, name: string, minimum: number, maximum: number): number {

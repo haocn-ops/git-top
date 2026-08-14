@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
-import { normalizeAnalyticsPoint } from "../src/adoption-analytics.ts";
-import { buildAdoptionExcludedCountQuery, buildAdoptionExportQuery } from "../src/adoption-export.ts";
+import { normalizeAnalyticsPoint, summarizeAdoptionEventSamples } from "../src/adoption-analytics.ts";
+import { buildAdoptionAggregateQuery, buildAdoptionExcludedCountQuery, buildAdoptionLatencyQuery } from "../src/adoption-export.ts";
 import {
   adoptionReportWindows,
   buildAdoptionOperationsReport,
@@ -15,17 +15,29 @@ if (!accountId || !token) {
   throw new Error("CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN are required; no analytics data was queried.");
 }
 
-const [weeklyRows, monthlyRows, weeklyExcludedEventCount, monthlyExcludedEventCount] = await Promise.all([
-  exportWindow(adoptionReportWindows.weeklyHours),
-  exportWindow(adoptionReportWindows.monthlyHours),
+const [weeklyRows, monthlyRows, weeklyExcludedEventCount, monthlyExcludedEventCount, weeklyLatencyRows, monthlyLatencyRows] = await Promise.all([
+  aggregateWindow(adoptionReportWindows.weeklyHours),
+  aggregateWindow(adoptionReportWindows.monthlyHours),
   excludedEventCount(adoptionReportWindows.weeklyHours),
-  excludedEventCount(adoptionReportWindows.monthlyHours)
+  excludedEventCount(adoptionReportWindows.monthlyHours),
+  latencyWindow(adoptionReportWindows.weeklyHours),
+  latencyWindow(adoptionReportWindows.monthlyHours)
 ]);
+const weeklySamples = aggregateSamples(weeklyRows);
+const monthlySamples = aggregateSamples(monthlyRows);
+const weeklyIncludedEventCount = totalSampleCount(weeklySamples);
+const monthlyIncludedEventCount = totalSampleCount(monthlySamples);
 const report = buildAdoptionOperationsReport({
-  weeklyEvents: weeklyRows.map(normalizeAnalyticsPoint),
-  monthlyEvents: monthlyRows.map(normalizeAnalyticsPoint),
+  weeklyEvents: [],
+  monthlyEvents: [],
   weeklyExcludedEventCount,
   monthlyExcludedEventCount,
+  weeklyIncludedEventCount,
+  monthlyIncludedEventCount,
+  weeklyMetrics: summarizeAdoptionEventSamples(weeklySamples, latencySummary(weeklyLatencyRows[0])),
+  monthlyMetrics: summarizeAdoptionEventSamples(monthlySamples, latencySummary(monthlyLatencyRows[0])),
+  weeklyPossiblyTruncated: weeklyRows.length >= options.limit,
+  monthlyPossiblyTruncated: monthlyRows.length >= options.limit,
   limit: options.limit,
   excludedCampaignSources: options.excludedCampaignSources
 });
@@ -45,12 +57,19 @@ if (options.failOnTruncated && (report.windows.last_7_days.possibly_truncated ||
   throw new Error("Adoption report reached the bounded export limit; refusing to treat truncated analytics as complete.");
 }
 
-async function exportWindow(hours) {
-  return queryAnalyticsEngine(buildAdoptionExportQuery({
+async function aggregateWindow(hours) {
+  return queryAnalyticsEngine(buildAdoptionAggregateQuery({
     hours,
     limit: options.limit,
     excludedCampaignSources: options.excludedCampaignSources
   }), `${hours}-hour window`);
+}
+
+async function latencyWindow(hours) {
+  return queryAnalyticsEngine(
+    buildAdoptionLatencyQuery(hours, options.excludedCampaignSources),
+    `${hours}-hour latency summary`
+  );
 }
 
 async function excludedEventCount(hours) {
@@ -92,4 +111,36 @@ async function queryAnalyticsEngine(query, context) {
 
 function boundedResponseDetail(value) {
   return value.replace(/\s+/g, " ").trim().slice(0, 500) || "empty response";
+}
+
+function aggregateSamples(rows) {
+  return rows.map((row) => ({ event: normalizeAnalyticsPoint(row), count: boundedCount(row?.event_count, "event_count") }));
+}
+
+function totalSampleCount(samples) {
+  return samples.reduce((total, sample) => total + sample.count, 0);
+}
+
+function latencySummary(row = {}) {
+  return {
+    sampleCount: boundedCount(row.sample_count ?? 0, "sample_count", true),
+    p50: optionalFiniteNumber(row.p50),
+    p95: optionalFiniteNumber(row.p95)
+  };
+}
+
+function boundedCount(value, name, allowZero = false) {
+  const count = Number(value);
+  if (!Number.isFinite(count) || !Number.isInteger(count) || count < (allowZero ? 0 : 1)) {
+    throw new Error(`Analytics Engine returned an invalid ${name}.`);
+  }
+  return count;
+}
+
+function optionalFiniteNumber(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }

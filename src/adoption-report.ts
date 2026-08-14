@@ -1,4 +1,4 @@
-import { normalizeCampaignSource, summarizeAdoptionEvents, type AdoptionEvent } from "./adoption-analytics";
+import { normalizeCampaignSource, summarizeAdoptionEvents, type AdoptionEvent, type AdoptionMetricsSummary } from "./adoption-analytics";
 
 export const adoptionReportWindows = {
   weeklyHours: 24 * 7,
@@ -28,6 +28,12 @@ interface AdoptionReportInput {
   monthlyEvents: readonly AdoptionEvent[];
   weeklyExcludedEventCount?: number;
   monthlyExcludedEventCount?: number;
+  weeklyIncludedEventCount?: number;
+  monthlyIncludedEventCount?: number;
+  weeklyMetrics?: AdoptionMetricsSummary;
+  monthlyMetrics?: AdoptionMetricsSummary;
+  weeklyPossiblyTruncated?: boolean;
+  monthlyPossiblyTruncated?: boolean;
   limit: number;
   excludedCampaignSources?: readonly string[];
   generatedAt?: string;
@@ -83,13 +89,19 @@ export function buildAdoptionOperationsReport({
   monthlyEvents,
   weeklyExcludedEventCount = 0,
   monthlyExcludedEventCount = 0,
+  weeklyIncludedEventCount,
+  monthlyIncludedEventCount,
+  weeklyMetrics,
+  monthlyMetrics,
+  weeklyPossiblyTruncated,
+  monthlyPossiblyTruncated,
   limit,
   excludedCampaignSources = defaultOperatorCampaignSources,
   generatedAt = new Date().toISOString()
 }: AdoptionReportInput) {
   const excludedSources = normalizedSources(excludedCampaignSources);
-  const weekly = summarizeWindow(weeklyEvents, adoptionReportWindows.weeklyHours, limit, excludedSources, weeklyExcludedEventCount);
-  const monthly = summarizeWindow(monthlyEvents, adoptionReportWindows.monthlyHours, limit, excludedSources, monthlyExcludedEventCount);
+  const weekly = summarizeWindow(weeklyEvents, adoptionReportWindows.weeklyHours, limit, excludedSources, weeklyExcludedEventCount, weeklyIncludedEventCount, weeklyMetrics, weeklyPossiblyTruncated);
+  const monthly = summarizeWindow(monthlyEvents, adoptionReportWindows.monthlyHours, limit, excludedSources, monthlyExcludedEventCount, monthlyIncludedEventCount, monthlyMetrics, monthlyPossiblyTruncated);
   const weeklyFirstValueCalls = weekly.metrics.funnel.successfulFirstValueCalls;
   const operationalReview = buildOperationalReview(weekly, monthly);
 
@@ -203,18 +215,22 @@ function summarizeWindow(
   hours: number,
   limit: number,
   excludedSources: readonly string[],
-  externallyExcludedEventCount = 0
+  externallyExcludedEventCount = 0,
+  includedEventCountOverride?: number,
+  metricsOverride?: AdoptionMetricsSummary,
+  possiblyTruncatedOverride?: boolean
 ) {
   const excluded = new Set(excludedSources);
   const includedEvents = events.filter((event) => !event.campaignSource || !excluded.has(event.campaignSource));
   const locallyExcludedEventCount = events.length - includedEvents.length;
+  const includedEventCount = includedEventCountOverride ?? includedEvents.length;
   return {
     hours,
-    exported_event_count: events.length + externallyExcludedEventCount,
+    exported_event_count: includedEventCount + locallyExcludedEventCount + externallyExcludedEventCount,
     excluded_event_count: locallyExcludedEventCount + externallyExcludedEventCount,
-    included_event_count: includedEvents.length,
-    possibly_truncated: includedEvents.length >= limit,
-    metrics: summarizeAdoptionEvents(includedEvents)
+    included_event_count: includedEventCount,
+    possibly_truncated: possiblyTruncatedOverride ?? includedEvents.length >= limit,
+    metrics: metricsOverride ?? summarizeAdoptionEvents(includedEvents)
   };
 }
 

@@ -48,7 +48,7 @@ For the recurring operator view, generate one bounded report that compares the l
 pnpm adoption:report -- --output ./adoption-report.json
 ```
 
-The report performs two fixed-field Analytics Engine queries, defaults to excluding events tagged `source=production-smoke`, and reports the exclusion count for each window. The production smoke client applies the equivalent `x-git-top-source` header to every request. Add other known operator-only campaign sources with `--exclude-source production-smoke,operator-check`. The output includes normalized daily-rate ratios, connect-page views, config copies, successful initializations, first-value calls, workflow completions, tool success, campaign attribution coverage, fallback, strict-source rejection, agent-call latency, and bounded client/campaign/operation breakdowns.
+The report performs fixed-field aggregate Analytics Engine queries for each window: bounded dimension counts, operator-source counts, and agent-call latency quantiles. It defaults to excluding events tagged `source=production-smoke` before aggregation and reports the exclusion count for each window. The production smoke client applies the equivalent `x-git-top-source` header to every request. Add other known operator-only campaign sources with `--exclude-source production-smoke,operator-check`. The output includes normalized daily-rate ratios, connect-page views, config copies, successful initializations, first-value calls, workflow completions, tool success, campaign attribution coverage, fallback, strict-source rejection, agent-call latency, and bounded client/campaign/operation breakdowns.
 
 Generate both JSON and a review-ready Markdown summary with:
 
@@ -56,7 +56,7 @@ Generate both JSON and a review-ready Markdown summary with:
 pnpm adoption:report -- --output ./adoption-report.json --summary-output ./adoption-report.md --fail-on-truncated
 ```
 
-The report excludes configured operator sources in Analytics Engine SQL before applying the 10,000-row bound, then uses a separate aggregate count query to retain the excluded-event total. `--fail-on-truncated` writes the bounded outputs and then fails the command when either non-operator query still reaches 10,000 rows. This prevents an incomplete organic-activity export from being treated as a complete operating report. Shorten the window or add a more strongly aggregated access-controlled query instead of increasing the supported bound.
+The report groups non-operator events by the bounded Analytics Engine dimensions before applying the 10,000-row bound, uses a separate aggregate count query to retain the excluded-event total, and computes latency quantiles without downloading individual event rows. `--fail-on-truncated` writes the bounded outputs and then fails the command when either grouped query still reaches 10,000 rows. This prevents an incomplete organic-activity export from being treated as a complete operating report. Reduce dimension cardinality instead of increasing the supported bound.
 
 The scheduled `.github/workflows/adoption-report.yml` workflow runs this report every Monday, validates the distribution and real-client compatibility contracts first, writes the Markdown view to the GitHub Actions Job Summary, and retains the aggregate JSON artifact for 30 days. It requires:
 

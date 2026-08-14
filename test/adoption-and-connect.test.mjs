@@ -3,8 +3,8 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import worker from "../src/index.ts";
 import { handleMcp } from "../src/mcp.ts";
-import { normalizeAnalyticsPoint, recordAdoptionEvent, responseSizeBucket, summarizeAdoptionEvents } from "../src/adoption-analytics.ts";
-import { adoptionAnalyticsDataset, buildAdoptionExcludedCountQuery, buildAdoptionExportQuery, parseAdoptionExportOptions } from "../src/adoption-export.ts";
+import { normalizeAnalyticsPoint, recordAdoptionEvent, responseSizeBucket, summarizeAdoptionEventSamples, summarizeAdoptionEvents } from "../src/adoption-analytics.ts";
+import { adoptionAnalyticsDataset, buildAdoptionAggregateQuery, buildAdoptionExcludedCountQuery, buildAdoptionExportQuery, buildAdoptionLatencyQuery, parseAdoptionExportOptions } from "../src/adoption-export.ts";
 import { buildAdoptionOperationsReport, parseAdoptionReportOptions, renderAdoptionOperationsMarkdown } from "../src/adoption-report.ts";
 import { attributedEndpoint } from "../src/connect-page.ts";
 
@@ -271,7 +271,24 @@ test("analytics engine rows normalize into the bounded adoption event contract",
     durationMs: 42
   });
   assert.equal(normalizeAnalyticsPoint({ blob1: "mcp_initialize", blob3: "unknown" }).clientName, "unknown");
+  assert.equal(normalizeAnalyticsPoint({ blob1: "mcp_initialize", blob8: "unknown" }).campaignSource, undefined);
   assert.throws(() => normalizeAnalyticsPoint({ blob1: "unknown_event" }), /Unknown adoption event name/);
+});
+
+test("weighted analytics samples preserve aggregate counts without expanding raw events", () => {
+  const summary = summarizeAdoptionEventSamples([
+    { event: { name: "mcp_initialize", resultClass: "success", campaignSource: "smithery" }, count: 12 },
+    { event: { name: "mcp_tool_call_completed", operation: "recommend_project", resultClass: "success", source: "d1", campaignSource: "smithery" }, count: 9 },
+    { event: { name: "mcp_tool_call_completed", operation: "recommend_project", resultClass: "client_error", campaignSource: "smithery" }, count: 1 }
+  ], { sampleCount: 10, p50: 120, p95: 450 });
+
+  assert.equal(summary.eventCount, 22);
+  assert.equal(summary.funnel.successfulInitializations, 12);
+  assert.equal(summary.funnel.successfulFirstValueCalls, 9);
+  assert.equal(summary.toolSuccessRate, 0.9);
+  assert.equal(summary.attribution.agentCallAttributionRate, 1);
+  assert.deepEqual(summary.latencyMs, { sampleCount: 10, p50: 120, p95: 450 });
+  assert.throws(() => summarizeAdoptionEventSamples([{ event: { name: "mcp_initialize" }, count: 0 }]), /positive finite number/);
 });
 
 test("analytics export query is fixed-field and bounded", () => {
@@ -289,6 +306,13 @@ test("analytics export query is fixed-field and bounded", () => {
   assert.match(buildAdoptionExcludedCountQuery(168, ["production-smoke"]), /COUNT\(\) AS event_count/);
   assert.match(buildAdoptionExcludedCountQuery(168, ["production-smoke"]), /blob8 IN \('production-smoke'\)/);
   assert.equal(buildAdoptionExcludedCountQuery(168, []), null);
+  const aggregateQuery = buildAdoptionAggregateQuery({ hours: 168, limit: 10_000, excludedCampaignSources: ["production-smoke"] });
+  assert.match(aggregateQuery, /COUNT\(\) AS event_count/);
+  assert.match(aggregateQuery, /GROUP BY blob1, blob2, blob3, blob4, blob5, blob6, blob7, blob8, blob9, double1/);
+  assert.match(aggregateQuery, /blob8 NOT IN \('production-smoke'\)/);
+  const latencyQuery = buildAdoptionLatencyQuery(168, ["production-smoke"]);
+  assert.match(latencyQuery, /quantile\(0\.95\)\(double2\) AS p95/);
+  assert.match(latencyQuery, /blob1 IN \('mcp_tool_call_completed', 'rest_agent_call_completed'\)/);
 });
 
 test("analytics export options reject arbitrary or oversized requests", () => {
