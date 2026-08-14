@@ -4,8 +4,9 @@ import type { Env } from "./types";
 const endpoint = "https://git.top/mcp/core";
 const verificationPrompt = "Use Git.Top to recommend three open-source browser-agent projects for Docker, then cite the data source and one caveat for each.";
 
-export function renderConnectPage(): Response {
-  return new Response(renderHtml(), {
+export function renderConnectPage(request?: Request): Response {
+  const campaignSource = request ? normalizeCampaignSource(new URL(request.url).searchParams.get("source")) : undefined;
+  return new Response(renderHtml(attributedEndpoint(campaignSource)), {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "public, max-age=300"
@@ -27,7 +28,16 @@ function recordConnectEvent(env: Env, client: string, campaignSource?: string): 
   recordAdoptionEvent(env, { name: "connect_config_copy", clientName: client, campaignSource });
 }
 
-function renderHtml(): string {
+export function attributedEndpoint(campaignSource?: string): string {
+  if (!campaignSource) {
+    return endpoint;
+  }
+  const url = new URL(endpoint);
+  url.searchParams.set("source", campaignSource);
+  return url.toString();
+}
+
+function renderHtml(mcpEndpoint: string): string {
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -82,7 +92,7 @@ function renderHtml(): string {
         <p class="eyebrow">Agent connection</p>
         <h1>Give your agent better open-source project decisions.</h1>
         <p class="lead">Connect Git.Top through MCP, then search, compare, recommend, and cite open-source projects with provenance and caveats.</p>
-        <div class="endpoint"><code>${endpoint}</code><button type="button" data-copy="${endpoint}" data-client="generic">Copy endpoint</button></div>
+        <div class="endpoint"><code>${mcpEndpoint}</code><button type="button" data-copy="${mcpEndpoint}" data-client="generic">Copy endpoint</button></div>
       </header>
       <section class="section">
         <h2>Three steps to first value</h2>
@@ -99,11 +109,11 @@ function renderHtml(): string {
         <div class="configs">
           <article class="config">
             <div class="config-head"><h3>Codex CLI, app, and IDE</h3><span class="status">Production E2E verified</span></div>
-            <pre id="codex-command">codex mcp add git-top --url ${endpoint}</pre>
+            <pre id="codex-command">codex mcp add git-top --url ${mcpEndpoint}</pre>
             <button type="button" data-copy-target="codex-command" data-client="codex">Copy Codex command</button>
             <p class="muted">The equivalent project-scoped configuration is:</p>
             <pre id="codex-config">[mcp_servers.git_top]
-url = "${endpoint}"
+url = "${mcpEndpoint}"
 enabled_tools = ["search_projects", "get_project", "recommend_project", "compare_projects", "get_agent_workflow"]
 default_tools_approval_mode = "approve"</pre>
             <button type="button" data-copy-target="codex-config" data-client="codex">Copy config.toml</button>
@@ -111,7 +121,7 @@ default_tools_approval_mode = "approve"</pre>
           </article>
           <article class="config">
             <div class="config-head"><h3>Claude Code</h3><span class="status">HTTP transport</span></div>
-            <pre id="claude-command">claude mcp add --transport http --scope user git-top ${endpoint}</pre>
+            <pre id="claude-command">claude mcp add --transport http --scope user git-top ${mcpEndpoint}</pre>
             <button type="button" data-copy-target="claude-command" data-client="claude">Copy Claude command</button>
             <p class="muted">Use the same endpoint in any Claude client that accepts a remote Streamable HTTP MCP server.</p>
           </article>

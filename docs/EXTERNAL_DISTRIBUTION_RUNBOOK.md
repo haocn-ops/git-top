@@ -53,6 +53,8 @@ Do not automate the interactive login or publication step from an untrusted envi
 
 Third-party catalogs and client directories should reuse `distribution/git-top-agent-distribution.json`, not maintain divergent product copy. Every listing must point to `/connect` with an explicit campaign source and record its submission date, listing URL, last audit date, and verification outcome before it is called live.
 
+The connection page preserves a normalized campaign source in every copied core MCP URL. For example, `https://git.top/connect?source=smithery` produces `https://git.top/mcp/core?source=smithery`. Verify that generated URL during each channel audit so the Analytics Engine report can connect listing activity to initialization, first-value calls, and completed workflows. Use one stable source per channel; do not put user, repository, prompt, or session data in the source value.
+
 The selected external catalog channels are:
 
 - Smithery, using its documented hosted-server URL flow with `https://git.top/mcp/core` and `https://git.top/connect?source=smithery`;

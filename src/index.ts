@@ -386,7 +386,7 @@ async function routeRequest(request: Request, env: Env, url: URL, ctx?: Executio
   }
 
   if (url.pathname === "/connect" && request.method === "GET") {
-    return renderConnectPage();
+    return renderConnectPage(request);
   }
 
   if (url.pathname === "/connect/event" && request.method === "POST") {

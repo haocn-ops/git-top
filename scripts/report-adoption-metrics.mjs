@@ -1,7 +1,12 @@
 import { writeFile } from "node:fs/promises";
 import { normalizeAnalyticsPoint } from "../src/adoption-analytics.ts";
 import { buildAdoptionExportQuery } from "../src/adoption-export.ts";
-import { adoptionReportWindows, buildAdoptionOperationsReport, parseAdoptionReportOptions } from "../src/adoption-report.ts";
+import {
+  adoptionReportWindows,
+  buildAdoptionOperationsReport,
+  parseAdoptionReportOptions,
+  renderAdoptionOperationsMarkdown
+} from "../src/adoption-report.ts";
 
 const options = parseAdoptionReportOptions(process.argv.slice(2));
 const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
@@ -27,6 +32,13 @@ if (options.output) {
   console.error(`Wrote bounded 7/30-day adoption report to ${options.output}.`);
 } else {
   process.stdout.write(output);
+}
+if (options.summaryOutput) {
+  await writeFile(options.summaryOutput, renderAdoptionOperationsMarkdown(report), "utf8");
+  console.error(`Wrote adoption operations summary to ${options.summaryOutput}.`);
+}
+if (options.failOnTruncated && (report.windows.last_7_days.possibly_truncated || report.windows.last_30_days.possibly_truncated)) {
+  throw new Error("Adoption report reached the bounded export limit; refusing to treat truncated analytics as complete.");
 }
 
 async function exportWindow(hours) {

@@ -1,0 +1,62 @@
+name: Adoption Report
+
+on:
+  schedule:
+    - cron: "40 2 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: git-top-adoption-report
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 25
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.23.0
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate distribution and client contracts
+        run: pnpm distribution:validate && pnpm compatibility:validate
+
+      - name: Verify analytics credentials
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$CLOUDFLARE_ACCOUNT_ID" ] || [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::CLOUDFLARE_ACCOUNT_ID and the Analytics Engine read token are required."
+            exit 1
+          fi
+
+      - name: Build bounded 7/30-day report
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: pnpm adoption:report -- --output adoption-report.json --summary-output "$GITHUB_STEP_SUMMARY" --fail-on-truncated
+
+      - name: Upload aggregate report
+        uses: actions/upload-artifact@v7
+        with:
+          name: adoption-report-${{ github.run_id }}
+          path: adoption-report.json
+          if-no-files-found: error
+          retention-days: 30

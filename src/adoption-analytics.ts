@@ -49,6 +49,7 @@ export interface AdoptionMetricsSummary {
   eventCount: number;
   funnel: {
     connectPageViews: number;
+    connectConfigCopies: number;
     successfulInitializations: number;
     successfulToolDiscovery: number;
     successfulFirstValueCalls: number;
@@ -64,6 +65,12 @@ export interface AdoptionMetricsSummary {
     p50: number | null;
     p95: number | null;
   };
+  attribution: {
+    campaignTaggedEvents: number;
+    agentCallsWithCampaign: number;
+    agentCallsWithoutCampaign: number;
+    agentCallAttributionRate: number | null;
+  };
   byClient: Record<string, AdoptionDimensionSummary>;
   byCampaignSource: Record<string, AdoptionDimensionSummary>;
   byOperation: Record<string, AdoptionDimensionSummary>;
@@ -76,6 +83,8 @@ export interface AdoptionMetricsSummary {
 }
 
 export interface AdoptionDimensionSummary {
+  connectPageViews: number;
+  configCopies: number;
   initializeSuccesses: number;
   toolDiscoverySuccesses: number;
   firstValueCalls: number;
@@ -213,23 +222,28 @@ export function summarizeAdoptionEvents(events: readonly AdoptionEvent[]): Adopt
   let successfulFirstValueCalls = 0;
   let successfulWorkflows = 0;
   let connectPageViews = 0;
+  let connectConfigCopies = 0;
   let toolCalls = 0;
   let successfulToolCalls = 0;
   let strictSourceRejections = 0;
   let agentCalls = 0;
   let successfulAgentCalls = 0;
   let seedBackedAgentCalls = 0;
+  let campaignTaggedEvents = 0;
+  let agentCallsWithCampaign = 0;
 
   for (const event of events) {
     const resultClass = event.resultClass ?? "unknown";
     outcomes[resultClass] = (outcomes[resultClass] ?? 0) + 1;
-    if (Number.isFinite(event.durationMs)) {
-      latencySamples.push(Math.min(600_000, Math.max(0, Number(event.durationMs))));
-    }
-
     const successful = resultClass === "success";
+    if (event.campaignSource) {
+      campaignTaggedEvents += 1;
+    }
     if (event.name === "connect_page_view") {
       connectPageViews += 1;
+    }
+    if (event.name === "connect_config_copy") {
+      connectConfigCopies += 1;
     }
     if (event.name === "mcp_initialize" && successful) {
       successfulInitializations += 1;
@@ -242,6 +256,10 @@ export function summarizeAdoptionEvents(events: readonly AdoptionEvent[]): Adopt
     }
     if (event.name === "mcp_tool_call_completed" || event.name === "rest_agent_call_completed") {
       agentCalls += 1;
+      agentCallsWithCampaign += event.campaignSource ? 1 : 0;
+      if (Number.isFinite(event.durationMs)) {
+        latencySamples.push(Math.min(600_000, Math.max(0, Number(event.durationMs))));
+      }
       if (successful) {
         successfulAgentCalls += 1;
         successfulFirstValueCalls += 1;
@@ -279,6 +297,7 @@ export function summarizeAdoptionEvents(events: readonly AdoptionEvent[]): Adopt
     eventCount: events.length,
     funnel: {
       connectPageViews,
+      connectConfigCopies,
       successfulInitializations,
       successfulToolDiscovery,
       successfulFirstValueCalls,
@@ -293,6 +312,12 @@ export function summarizeAdoptionEvents(events: readonly AdoptionEvent[]): Adopt
       sampleCount: latencySamples.length,
       p50: percentile(latencySamples, 0.5),
       p95: percentile(latencySamples, 0.95)
+    },
+    attribution: {
+      campaignTaggedEvents,
+      agentCallsWithCampaign,
+      agentCallsWithoutCampaign: agentCalls - agentCallsWithCampaign,
+      agentCallAttributionRate: ratio(agentCallsWithCampaign, agentCalls)
     },
     byClient,
     byCampaignSource,
@@ -381,6 +406,8 @@ function emptyOutcomes(): Record<AdoptionResultClass | "unknown", number> {
 
 function emptyDimensionSummary(): AdoptionDimensionSummary {
   return {
+    connectPageViews: 0,
+    configCopies: 0,
     initializeSuccesses: 0,
     toolDiscoverySuccesses: 0,
     firstValueCalls: 0,
@@ -392,6 +419,12 @@ function emptyDimensionSummary(): AdoptionDimensionSummary {
 }
 
 function updateDimensionSummary(summary: AdoptionDimensionSummary, event: AdoptionEvent, successful: boolean): void {
+  if (event.name === "connect_page_view") {
+    summary.connectPageViews += 1;
+  }
+  if (event.name === "connect_config_copy") {
+    summary.configCopies += 1;
+  }
   if (event.name === "mcp_initialize" && successful) {
     summary.initializeSuccesses += 1;
   }

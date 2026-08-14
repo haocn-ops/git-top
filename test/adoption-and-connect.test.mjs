@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import worker from "../src/index.ts";
 import { handleMcp } from "../src/mcp.ts";
 import { normalizeAnalyticsPoint, recordAdoptionEvent, responseSizeBucket, summarizeAdoptionEvents } from "../src/adoption-analytics.ts";
 import { adoptionAnalyticsDataset, buildAdoptionExportQuery, parseAdoptionExportOptions } from "../src/adoption-export.ts";
-import { buildAdoptionOperationsReport, parseAdoptionReportOptions } from "../src/adoption-report.ts";
+import { buildAdoptionOperationsReport, parseAdoptionReportOptions, renderAdoptionOperationsMarkdown } from "../src/adoption-report.ts";
+import { attributedEndpoint } from "../src/connect-page.ts";
 
 test("MCP core profile exposes only the first-use project decision tools", async () => {
   const response = await handleMcp(new Request("https://git.top/mcp/core"), {}, { profile: "core" });
@@ -132,6 +134,7 @@ test("connect page and config event are public and degrade without analytics", a
   const pageText = await page.text();
   assert.equal(page.status, 200);
   assert.match(pageText, /https:\/\/git\.top\/mcp\/core/);
+  assert.match(pageText, /https:\/\/git\.top\/mcp\/core\?source=test/);
   assert.match(pageText, /codex mcp add git-top/);
   assert.match(pageText, /claude mcp add --transport http/);
 
@@ -139,6 +142,16 @@ test("connect page and config event are public and degrade without analytics", a
   assert.equal(event.status, 204);
   const genericEvent = await worker.fetch(new Request("https://git.top/connect/event?client=generic&source=catalog", { method: "POST" }), {}, executionContext);
   assert.equal(genericEvent.status, 204);
+});
+
+test("connect campaign attribution continues into copied MCP endpoints", async () => {
+  assert.equal(attributedEndpoint(), "https://git.top/mcp/core");
+  assert.equal(attributedEndpoint("mcp-registry"), "https://git.top/mcp/core?source=mcp-registry");
+
+  const page = await worker.fetch(new Request("https://git.top/connect?source=Smithery%20Campaign"), {}, { waitUntil() {} });
+  const pageText = await page.text();
+  assert.match(pageText, /https:\/\/git\.top\/mcp\/core\?source=smitherycampaign/);
+  assert.doesNotMatch(pageText, /Smithery%20Campaign/);
 });
 
 test("analytics response size buckets stay bounded", () => {
@@ -161,6 +174,7 @@ test("analytics write failures are isolated from product responses", () => {
 test("adoption metrics summarize the funnel without implying unique users", () => {
   const summary = summarizeAdoptionEvents([
     { name: "connect_page_view", campaignSource: "registry", resultClass: "success", durationMs: 12 },
+    { name: "connect_config_copy", campaignSource: "registry", resultClass: "success" },
     { name: "mcp_initialize", clientName: "codex", resultClass: "success", durationMs: 20 },
     { name: "mcp_tools_list", clientName: "codex", resultClass: "success", durationMs: 30 },
     { name: "mcp_tool_call_completed", clientName: "codex", operation: "recommend_project", resultClass: "success", source: "d1", durationMs: 100 },
@@ -168,9 +182,10 @@ test("adoption metrics summarize the funnel without implying unique users", () =
     { name: "workflow_completed", clientName: "codex", resultClass: "success", source: "d1", durationMs: 300 }
   ]);
 
-  assert.equal(summary.eventCount, 6);
+  assert.equal(summary.eventCount, 7);
   assert.deepEqual(summary.funnel, {
     connectPageViews: 1,
+    connectConfigCopies: 1,
     successfulInitializations: 1,
     successfulToolDiscovery: 1,
     successfulFirstValueCalls: 1,
@@ -180,8 +195,10 @@ test("adoption metrics summarize the funnel without implying unique users", () =
   assert.equal(summary.toolSuccessRate, 0.5);
   assert.equal(summary.strictSourceRejectionRate, 0.5);
   assert.equal(summary.fallbackRate, 0);
-  assert.deepEqual(summary.latencyMs, { sampleCount: 6, p50: 30, p95: 300 });
+  assert.deepEqual(summary.latencyMs, { sampleCount: 2, p50: 100, p95: 200 });
   assert.deepEqual(summary.byClient.codex, {
+    connectPageViews: 0,
+    configCopies: 0,
     initializeSuccesses: 1,
     toolDiscoverySuccesses: 1,
     firstValueCalls: 1,
@@ -191,6 +208,8 @@ test("adoption metrics summarize the funnel without implying unique users", () =
     errors: 1
   });
   assert.deepEqual(summary.byCampaignSource.registry, {
+    connectPageViews: 1,
+    configCopies: 1,
     initializeSuccesses: 0,
     toolDiscoverySuccesses: 0,
     firstValueCalls: 0,
@@ -198,6 +217,12 @@ test("adoption metrics summarize the funnel without implying unique users", () =
     agentCalls: 0,
     agentCallSuccesses: 0,
     errors: 0
+  });
+  assert.deepEqual(summary.attribution, {
+    campaignTaggedEvents: 2,
+    agentCallsWithCampaign: 0,
+    agentCallsWithoutCampaign: 2,
+    agentCallAttributionRate: 0
   });
   assert.equal(summary.byOperation.recommend_project.agentCallSuccesses, 1);
   assert.equal(summary.byOperation.get_project.errors, 1);
@@ -285,18 +310,39 @@ test("adoption operations report compares bounded 7 and 30 day signals while exc
   assert.equal(report.trend.first_value_calls_daily_rate_ratio, 2.143);
   assert.equal(report.adoption_signal.status, "early_signal");
   assert.equal(report.measurement.identity_free, true);
+  assert.equal(report.operational_review.status, "attention");
+  assert.ok(report.operational_review.items.some((item) => item.code === "campaign_attribution_below_target"));
+  const markdown = renderAdoptionOperationsMarkdown(report);
+  assert.match(markdown, /Git\.Top Adoption Operations Report/);
+  assert.match(markdown, /MCP tool success rate/);
+  assert.match(markdown, /Counts are bounded events and calls, not unique users/);
 });
 
 test("adoption report options keep production smoke excluded by default", () => {
   assert.deepEqual(parseAdoptionReportOptions([]), {
     limit: 10_000,
     output: null,
+    summaryOutput: null,
+    failOnTruncated: false,
     excludedCampaignSources: ["production-smoke"]
   });
-  assert.deepEqual(parseAdoptionReportOptions(["--limit", "500", "--exclude-source", "production-smoke,operator-check", "--output", "report.json"]), {
+  assert.deepEqual(parseAdoptionReportOptions(["--limit", "500", "--exclude-source", "production-smoke,operator-check", "--output", "report.json", "--summary-output", "summary.md", "--fail-on-truncated"]), {
     limit: 500,
     output: "report.json",
+    summaryOutput: "summary.md",
+    failOnTruncated: true,
     excludedCampaignSources: ["production-smoke", "operator-check"]
   });
   assert.throws(() => parseAdoptionReportOptions(["--limit", "10001"]), /limit must be an integer from 1 to 10000/);
+  assert.throws(() => parseAdoptionReportOptions(["--summary-output", "--bad"]), /summary-output requires a file path/);
+});
+
+test("scheduled adoption report fails closed on missing credentials or truncated data", async () => {
+  const workflow = await readFile(new URL("../.github/workflows/adoption-report.yml", import.meta.url), "utf8");
+  assert.match(workflow, /cron: "40 2 \* \* 1"/);
+  assert.match(workflow, /CLOUDFLARE_ACCOUNT_ID: \$\{\{ secrets\.CLOUDFLARE_ACCOUNT_ID \}\}/);
+  assert.match(workflow, /CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/);
+  assert.match(workflow, /--summary-output "\$GITHUB_STEP_SUMMARY" --fail-on-truncated/);
+  assert.match(workflow, /retention-days: 30/);
+  assert.doesNotMatch(workflow, /adoption-events|raw-events/);
 });

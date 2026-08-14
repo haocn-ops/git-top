@@ -48,7 +48,22 @@ For the recurring operator view, generate one bounded report that compares the l
 pnpm adoption:report -- --output ./adoption-report.json
 ```
 
-The report performs two fixed-field Analytics Engine queries, defaults to excluding events tagged `source=production-smoke`, and reports the exclusion count for each window. The production smoke client applies the equivalent `x-git-top-source` header to every request. Add other known operator-only campaign sources with `--exclude-source production-smoke,operator-check`. The output includes normalized daily-rate ratios, successful first-value calls, workflow completions, tool success, fallback, strict-source rejection, latency, and the existing bounded client/campaign/operation breakdowns. Treat `possibly_truncated=true` as a signal to shorten the window or add an access-controlled aggregation pipeline; increasing the query beyond 10,000 rows is intentionally unsupported.
+The report performs two fixed-field Analytics Engine queries, defaults to excluding events tagged `source=production-smoke`, and reports the exclusion count for each window. The production smoke client applies the equivalent `x-git-top-source` header to every request. Add other known operator-only campaign sources with `--exclude-source production-smoke,operator-check`. The output includes normalized daily-rate ratios, connect-page views, config copies, successful initializations, first-value calls, workflow completions, tool success, campaign attribution coverage, fallback, strict-source rejection, agent-call latency, and bounded client/campaign/operation breakdowns.
+
+Generate both JSON and a review-ready Markdown summary with:
+
+```sh
+pnpm adoption:report -- --output ./adoption-report.json --summary-output ./adoption-report.md --fail-on-truncated
+```
+
+`--fail-on-truncated` writes the bounded outputs and then fails the command when either query reaches 10,000 rows. This prevents an incomplete export from being treated as a complete operating report. Shorten the window or add an access-controlled aggregation pipeline instead of increasing the query above the supported bound.
+
+The scheduled `.github/workflows/adoption-report.yml` workflow runs this report every Monday, validates the distribution and real-client compatibility contracts first, writes the Markdown view to the GitHub Actions Job Summary, and retains the aggregate JSON artifact for 30 days. It requires:
+
+- `CLOUDFLARE_ACCOUNT_ID` as a GitHub Actions secret;
+- `CLOUDFLARE_API_TOKEN` as a GitHub Actions secret using a dedicated Cloudflare token with Account Analytics read access for the Git.Top account.
+
+Do not reuse the Worker deployment token when a narrower read-only analytics token is available. Never print the token or upload raw Analytics Engine rows as a workflow artifact.
 
 The command normalizes raw point fields through `normalizeAnalyticsPoint()` and then reports the discovery-to-first-value call counts, `firstValueCallsPerInitialization`, tool success rate, strict-source rejection rate, seed fallback rate, p50/p95 latency, and bounded client/campaign/operation breakdowns. `firstValueCallsPerInitialization` is an activity ratio and may exceed `1`; it is not an activation conversion rate. The structured `insights` identify the strongest client, campaign source, operation, and primary failure mode only when the corresponding sample contains positive activity; otherwise the field is `null`. Latency percentiles use the nearest-rank method over the exported bounded samples.
 
