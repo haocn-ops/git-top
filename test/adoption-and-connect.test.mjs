@@ -279,7 +279,8 @@ test("analytics export query is fixed-field and bounded", () => {
   assert.deepEqual(options, { hours: 48, limit: 250, output: "events.json" });
   const query = buildAdoptionExportQuery(options);
   assert.match(query, new RegExp(`FROM ${adoptionAnalyticsDataset}`));
-  assert.match(query, /SELECT blob1, blob2, blob3, blob4, blob5, blob6, blob7, blob8, blob9, double1, double2/);
+  assert.match(query, /SELECT blob1, blob2, blob3, blob4, blob5, blob6, blob7, blob8, blob9, double1, double2, timestamp/);
+  assert.match(query, /ORDER BY timestamp DESC/);
   assert.match(query, /INTERVAL '48' HOUR/);
   assert.match(query, /LIMIT 250/);
   assert.doesNotMatch(query, /prompt|argument|result|repository/i);

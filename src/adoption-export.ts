@@ -35,7 +35,7 @@ export function parseAdoptionExportOptions(args: readonly string[]): AdoptionExp
 
 export function buildAdoptionExportQuery(options: Pick<AdoptionExportOptions, "hours" | "limit">): string {
   return [
-    "SELECT blob1, blob2, blob3, blob4, blob5, blob6, blob7, blob8, blob9, double1, double2",
+    "SELECT blob1, blob2, blob3, blob4, blob5, blob6, blob7, blob8, blob9, double1, double2, timestamp",
     `FROM ${adoptionAnalyticsDataset}`,
     `WHERE timestamp >= NOW() - INTERVAL '${options.hours}' HOUR`,
     "ORDER BY timestamp DESC",
