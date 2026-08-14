@@ -26,6 +26,8 @@ export const adoptionLearningTargets = {
 interface AdoptionReportInput {
   weeklyEvents: readonly AdoptionEvent[];
   monthlyEvents: readonly AdoptionEvent[];
+  weeklyExcludedEventCount?: number;
+  monthlyExcludedEventCount?: number;
   limit: number;
   excludedCampaignSources?: readonly string[];
   generatedAt?: string;
@@ -79,13 +81,15 @@ export function parseAdoptionReportOptions(args: readonly string[]): AdoptionRep
 export function buildAdoptionOperationsReport({
   weeklyEvents,
   monthlyEvents,
+  weeklyExcludedEventCount = 0,
+  monthlyExcludedEventCount = 0,
   limit,
   excludedCampaignSources = defaultOperatorCampaignSources,
   generatedAt = new Date().toISOString()
 }: AdoptionReportInput) {
   const excludedSources = normalizedSources(excludedCampaignSources);
-  const weekly = summarizeWindow(weeklyEvents, adoptionReportWindows.weeklyHours, limit, excludedSources);
-  const monthly = summarizeWindow(monthlyEvents, adoptionReportWindows.monthlyHours, limit, excludedSources);
+  const weekly = summarizeWindow(weeklyEvents, adoptionReportWindows.weeklyHours, limit, excludedSources, weeklyExcludedEventCount);
+  const monthly = summarizeWindow(monthlyEvents, adoptionReportWindows.monthlyHours, limit, excludedSources, monthlyExcludedEventCount);
   const weeklyFirstValueCalls = weekly.metrics.funnel.successfulFirstValueCalls;
   const operationalReview = buildOperationalReview(weekly, monthly);
 
@@ -194,15 +198,22 @@ export function renderAdoptionOperationsMarkdown(report: ReturnType<typeof build
   return lines.join("\n");
 }
 
-function summarizeWindow(events: readonly AdoptionEvent[], hours: number, limit: number, excludedSources: readonly string[]) {
+function summarizeWindow(
+  events: readonly AdoptionEvent[],
+  hours: number,
+  limit: number,
+  excludedSources: readonly string[],
+  externallyExcludedEventCount = 0
+) {
   const excluded = new Set(excludedSources);
   const includedEvents = events.filter((event) => !event.campaignSource || !excluded.has(event.campaignSource));
+  const locallyExcludedEventCount = events.length - includedEvents.length;
   return {
     hours,
-    exported_event_count: events.length,
-    excluded_event_count: events.length - includedEvents.length,
+    exported_event_count: events.length + externallyExcludedEventCount,
+    excluded_event_count: locallyExcludedEventCount + externallyExcludedEventCount,
     included_event_count: includedEvents.length,
-    possibly_truncated: events.length >= limit,
+    possibly_truncated: includedEvents.length >= limit,
     metrics: summarizeAdoptionEvents(includedEvents)
   };
 }

@@ -10,6 +10,10 @@ export interface AdoptionExportOptions {
   output: string | null;
 }
 
+interface AdoptionExportQueryOptions extends Pick<AdoptionExportOptions, "hours" | "limit"> {
+  excludedCampaignSources?: readonly string[];
+}
+
 export function parseAdoptionExportOptions(args: readonly string[]): AdoptionExportOptions {
   const options: AdoptionExportOptions = { ...adoptionExportDefaults, output: null };
   for (let index = 0; index < args.length; index += 1) {
@@ -33,14 +37,32 @@ export function parseAdoptionExportOptions(args: readonly string[]): AdoptionExp
   return options;
 }
 
-export function buildAdoptionExportQuery(options: Pick<AdoptionExportOptions, "hours" | "limit">): string {
+export function buildAdoptionExportQuery(options: AdoptionExportQueryOptions): string {
+  const excludedSources = options.excludedCampaignSources ?? [];
   return [
     "SELECT blob1, blob2, blob3, blob4, blob5, blob6, blob7, blob8, blob9, double1, double2, timestamp",
     `FROM ${adoptionAnalyticsDataset}`,
     `WHERE timestamp >= NOW() - INTERVAL '${options.hours}' HOUR`,
+    excludedSources.length > 0 ? `AND blob8 NOT IN (${sqlStringList(excludedSources)})` : "",
     "ORDER BY timestamp DESC",
     `LIMIT ${options.limit}`
+  ].filter(Boolean).join(" ");
+}
+
+export function buildAdoptionExcludedCountQuery(hours: number, excludedCampaignSources: readonly string[]): string | null {
+  if (excludedCampaignSources.length === 0) {
+    return null;
+  }
+  return [
+    "SELECT COUNT(*) AS event_count",
+    `FROM ${adoptionAnalyticsDataset}`,
+    `WHERE timestamp >= NOW() - INTERVAL '${hours}' HOUR`,
+    `AND blob8 IN (${sqlStringList(excludedCampaignSources)})`
   ].join(" ");
+}
+
+function sqlStringList(values: readonly string[]): string {
+  return values.map((value) => `'${value.replace(/'/g, "''")}'`).join(", ");
 }
 
 function parseBoundedInteger(value: string | undefined, name: string, minimum: number, maximum: number): number {

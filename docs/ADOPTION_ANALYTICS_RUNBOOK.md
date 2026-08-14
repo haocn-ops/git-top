@@ -56,7 +56,7 @@ Generate both JSON and a review-ready Markdown summary with:
 pnpm adoption:report -- --output ./adoption-report.json --summary-output ./adoption-report.md --fail-on-truncated
 ```
 
-`--fail-on-truncated` writes the bounded outputs and then fails the command when either query reaches 10,000 rows. This prevents an incomplete export from being treated as a complete operating report. Shorten the window or add an access-controlled aggregation pipeline instead of increasing the query above the supported bound.
+The report excludes configured operator sources in Analytics Engine SQL before applying the 10,000-row bound, then uses a separate aggregate count query to retain the excluded-event total. `--fail-on-truncated` writes the bounded outputs and then fails the command when either non-operator query still reaches 10,000 rows. This prevents an incomplete organic-activity export from being treated as a complete operating report. Shorten the window or add a more strongly aggregated access-controlled query instead of increasing the supported bound.
 
 The scheduled `.github/workflows/adoption-report.yml` workflow runs this report every Monday, validates the distribution and real-client compatibility contracts first, writes the Markdown view to the GitHub Actions Job Summary, and retains the aggregate JSON artifact for 30 days. It requires:
 

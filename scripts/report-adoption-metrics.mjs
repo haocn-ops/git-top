@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { normalizeAnalyticsPoint } from "../src/adoption-analytics.ts";
-import { buildAdoptionExportQuery } from "../src/adoption-export.ts";
+import { buildAdoptionExcludedCountQuery, buildAdoptionExportQuery } from "../src/adoption-export.ts";
 import {
   adoptionReportWindows,
   buildAdoptionOperationsReport,
@@ -15,13 +15,17 @@ if (!accountId || !token) {
   throw new Error("CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN are required; no analytics data was queried.");
 }
 
-const [weeklyRows, monthlyRows] = await Promise.all([
+const [weeklyRows, monthlyRows, weeklyExcludedEventCount, monthlyExcludedEventCount] = await Promise.all([
   exportWindow(adoptionReportWindows.weeklyHours),
-  exportWindow(adoptionReportWindows.monthlyHours)
+  exportWindow(adoptionReportWindows.monthlyHours),
+  excludedEventCount(adoptionReportWindows.weeklyHours),
+  excludedEventCount(adoptionReportWindows.monthlyHours)
 ]);
 const report = buildAdoptionOperationsReport({
   weeklyEvents: weeklyRows.map(normalizeAnalyticsPoint),
   monthlyEvents: monthlyRows.map(normalizeAnalyticsPoint),
+  weeklyExcludedEventCount,
+  monthlyExcludedEventCount,
   limit: options.limit,
   excludedCampaignSources: options.excludedCampaignSources
 });
@@ -42,13 +46,34 @@ if (options.failOnTruncated && (report.windows.last_7_days.possibly_truncated ||
 }
 
 async function exportWindow(hours) {
+  return queryAnalyticsEngine(buildAdoptionExportQuery({
+    hours,
+    limit: options.limit,
+    excludedCampaignSources: options.excludedCampaignSources
+  }), `${hours}-hour window`);
+}
+
+async function excludedEventCount(hours) {
+  const query = buildAdoptionExcludedCountQuery(hours, options.excludedCampaignSources);
+  if (!query) {
+    return 0;
+  }
+  const rows = await queryAnalyticsEngine(query, `${hours}-hour exclusion count`);
+  const count = Number(rows[0]?.event_count ?? 0);
+  if (!Number.isFinite(count) || count < 0) {
+    throw new Error(`Analytics Engine returned an invalid excluded event count for the ${hours}-hour window.`);
+  }
+  return count;
+}
+
+async function queryAnalyticsEngine(query, context) {
   const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId)}/analytics_engine/sql`, {
     method: "POST",
     headers: {
       authorization: `Bearer ${token}`,
       "content-type": "text/plain"
     },
-    body: buildAdoptionExportQuery({ hours, limit: options.limit })
+    body: query
   });
 
   const responseText = await response.text();
@@ -56,11 +81,11 @@ async function exportWindow(hours) {
   try {
     payload = JSON.parse(responseText);
   } catch {
-    throw new Error(`Analytics Engine returned a non-JSON response for the ${hours}-hour window (HTTP ${response.status}): ${boundedResponseDetail(responseText)}`);
+    throw new Error(`Analytics Engine returned a non-JSON response for the ${context} (HTTP ${response.status}): ${boundedResponseDetail(responseText)}`);
   }
   if (!response.ok || payload?.success === false) {
     const detail = Array.isArray(payload?.errors) ? payload.errors.map((error) => error?.message ?? String(error)).join("; ") : `HTTP ${response.status}`;
-    throw new Error(`Analytics Engine ${hours}-hour export failed: ${detail}`);
+    throw new Error(`Analytics Engine ${context} failed: ${detail}`);
   }
   return Array.isArray(payload?.data) ? payload.data : [];
 }

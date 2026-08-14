@@ -4,7 +4,7 @@ import test from "node:test";
 import worker from "../src/index.ts";
 import { handleMcp } from "../src/mcp.ts";
 import { normalizeAnalyticsPoint, recordAdoptionEvent, responseSizeBucket, summarizeAdoptionEvents } from "../src/adoption-analytics.ts";
-import { adoptionAnalyticsDataset, buildAdoptionExportQuery, parseAdoptionExportOptions } from "../src/adoption-export.ts";
+import { adoptionAnalyticsDataset, buildAdoptionExcludedCountQuery, buildAdoptionExportQuery, parseAdoptionExportOptions } from "../src/adoption-export.ts";
 import { buildAdoptionOperationsReport, parseAdoptionReportOptions, renderAdoptionOperationsMarkdown } from "../src/adoption-report.ts";
 import { attributedEndpoint } from "../src/connect-page.ts";
 
@@ -284,6 +284,11 @@ test("analytics export query is fixed-field and bounded", () => {
   assert.match(query, /INTERVAL '48' HOUR/);
   assert.match(query, /LIMIT 250/);
   assert.doesNotMatch(query, /prompt|argument|result|repository/i);
+  const filteredQuery = buildAdoptionExportQuery({ ...options, excludedCampaignSources: ["production-smoke"] });
+  assert.match(filteredQuery, /blob8 NOT IN \('production-smoke'\)/);
+  assert.match(buildAdoptionExcludedCountQuery(168, ["production-smoke"]), /COUNT\(\*\) AS event_count/);
+  assert.match(buildAdoptionExcludedCountQuery(168, ["production-smoke"]), /blob8 IN \('production-smoke'\)/);
+  assert.equal(buildAdoptionExcludedCountQuery(168, []), null);
 });
 
 test("analytics export options reject arbitrary or oversized requests", () => {
@@ -317,6 +322,22 @@ test("adoption operations report compares bounded 7 and 30 day signals while exc
   assert.match(markdown, /Git\.Top Adoption Operations Report/);
   assert.match(markdown, /MCP tool success rate/);
   assert.match(markdown, /Counts are bounded events and calls, not unique users/);
+});
+
+test("adoption report accounts for operator events excluded in Analytics Engine SQL", () => {
+  const report = buildAdoptionOperationsReport({
+    weeklyEvents: [{ name: "mcp_initialize", resultClass: "success" }],
+    monthlyEvents: [{ name: "mcp_initialize", resultClass: "success" }],
+    weeklyExcludedEventCount: 12_000,
+    monthlyExcludedEventCount: 30_000,
+    limit: 10_000,
+    generatedAt: "2026-08-14T00:00:00.000Z"
+  });
+
+  assert.equal(report.windows.last_7_days.exported_event_count, 12_001);
+  assert.equal(report.windows.last_7_days.excluded_event_count, 12_000);
+  assert.equal(report.windows.last_7_days.included_event_count, 1);
+  assert.equal(report.windows.last_7_days.possibly_truncated, false);
 });
 
 test("adoption report options keep production smoke excluded by default", () => {
