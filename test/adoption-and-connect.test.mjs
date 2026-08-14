@@ -335,7 +335,7 @@ test("analytics export options reject arbitrary or oversized requests", () => {
 });
 
 test("adoption operations report compares bounded 7 and 30 day signals while excluding tagged smoke traffic", () => {
-  const organicFirstValue = { name: "mcp_tool_call_completed", operation: "recommend_project", resultClass: "success", source: "d1" };
+  const organicFirstValue = { name: "mcp_tool_call_completed", operation: "recommend_project", resultClass: "success", source: "d1", campaignSource: "registry" };
   const smokeFirstValue = { ...organicFirstValue, campaignSource: "production-smoke" };
   const report = buildAdoptionOperationsReport({
     weeklyEvents: [organicFirstValue, smokeFirstValue, { name: "workflow_completed", resultClass: "success", source: "d1" }],
@@ -349,14 +349,32 @@ test("adoption operations report compares bounded 7 and 30 day signals while exc
   assert.equal(report.windows.last_7_days.metrics.funnel.successfulFirstValueCalls, 1);
   assert.equal(report.windows.last_30_days.metrics.funnel.successfulFirstValueCalls, 2);
   assert.equal(report.trend.first_value_calls_daily_rate_ratio, 2.143);
-  assert.equal(report.adoption_signal.status, "early_signal");
+  assert.equal(report.adoption_signal.status, "early_attributed_signal");
+  assert.equal(report.adoption_signal.attributed_successful_first_value_calls_7d, 1);
+  assert.equal(report.adoption_signal.observed_successful_first_value_calls_7d, 1);
   assert.equal(report.measurement.identity_free, true);
-  assert.equal(report.operational_review.status, "attention");
-  assert.ok(report.operational_review.items.some((item) => item.code === "campaign_attribution_below_target"));
+  assert.equal(report.operational_review.status, "healthy");
   const markdown = renderAdoptionOperationsMarkdown(report);
   assert.match(markdown, /Git\.Top Adoption Operations Report/);
   assert.match(markdown, /MCP tool success rate/);
   assert.match(markdown, /Counts are bounded events and calls, not unique users/);
+});
+
+test("adoption status does not claim unattributed operational calls as adoption", () => {
+  const unattributedCall = { name: "mcp_tool_call_completed", operation: "compare_projects", resultClass: "success", source: "d1" };
+  const report = buildAdoptionOperationsReport({
+    weeklyEvents: [unattributedCall],
+    monthlyEvents: [unattributedCall],
+    limit: 10_000,
+    generatedAt: "2026-08-14T00:00:00.000Z"
+  });
+
+  assert.equal(report.adoption_signal.status, "no_attributed_first_value_signal");
+  assert.equal(report.adoption_signal.attributed_successful_first_value_calls_7d, 0);
+  assert.equal(report.adoption_signal.observed_successful_first_value_calls_7d, 1);
+  assert.equal(report.adoption_signal.unattributed_agent_calls_7d, 1);
+  assert.ok(report.operational_review.items.some((item) => item.code === "no_attributed_first_value_signal"));
+  assert.equal(report.operational_review.targets[1].actual, 0);
 });
 
 test("adoption report accounts for operator events excluded in Analytics Engine SQL", () => {

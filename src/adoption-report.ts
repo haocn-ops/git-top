@@ -102,8 +102,10 @@ export function buildAdoptionOperationsReport({
   const excludedSources = normalizedSources(excludedCampaignSources);
   const weekly = summarizeWindow(weeklyEvents, adoptionReportWindows.weeklyHours, limit, excludedSources, weeklyExcludedEventCount, weeklyIncludedEventCount, weeklyMetrics, weeklyPossiblyTruncated);
   const monthly = summarizeWindow(monthlyEvents, adoptionReportWindows.monthlyHours, limit, excludedSources, monthlyExcludedEventCount, monthlyIncludedEventCount, monthlyMetrics, monthlyPossiblyTruncated);
-  const weeklyFirstValueCalls = weekly.metrics.funnel.successfulFirstValueCalls;
-  const operationalReview = buildOperationalReview(weekly, monthly);
+  const weeklyAttributed = attributedCampaignTotals(weekly.metrics);
+  const monthlyAttributed = attributedCampaignTotals(monthly.metrics);
+  const weeklyFirstValueCalls = weeklyAttributed.successfulFirstValueCalls;
+  const operationalReview = buildOperationalReview(weekly, monthly, weeklyAttributed, monthlyAttributed);
 
   return {
     generated_at: generatedAt,
@@ -136,9 +138,13 @@ export function buildAdoptionOperationsReport({
       interpretation: "A ratio above 1 means the recent 7-day daily rate is above the overlapping 30-day daily rate; it is directional, not a retention or cohort metric."
     },
     adoption_signal: {
-      status: weeklyFirstValueCalls === 0 ? "no_first_value_signal" : weeklyFirstValueCalls < 5 ? "early_signal" : "measurable_signal",
-      successful_first_value_calls_7d: weeklyFirstValueCalls,
-      successful_workflows_7d: weekly.metrics.funnel.successfulWorkflows
+      status: weeklyFirstValueCalls === 0 ? "no_attributed_first_value_signal" : weeklyFirstValueCalls < 5 ? "early_attributed_signal" : "measurable_attributed_signal",
+      attributed_successful_initializations_7d: weeklyAttributed.successfulInitializations,
+      attributed_successful_first_value_calls_7d: weeklyFirstValueCalls,
+      attributed_successful_workflows_7d: weeklyAttributed.successfulWorkflows,
+      observed_successful_first_value_calls_7d: weekly.metrics.funnel.successfulFirstValueCalls,
+      unattributed_agent_calls_7d: weekly.metrics.attribution.agentCallsWithoutCampaign,
+      note: "Adoption status uses campaign-attributed activity only. Unattributed calls remain operational traffic and must not be claimed as users or organic adoption."
     },
     operational_review: operationalReview
   };
@@ -171,6 +177,7 @@ export function renderAdoptionOperationsMarkdown(report: ReturnType<typeof build
     `| Config copies | ${weeklyMetrics.funnel.connectConfigCopies} | ${monthlyMetrics.funnel.connectConfigCopies} |`,
     `| Successful MCP initializations | ${weeklyMetrics.funnel.successfulInitializations} | ${monthlyMetrics.funnel.successfulInitializations} |`,
     `| Successful first-value calls | ${weeklyMetrics.funnel.successfulFirstValueCalls} | ${monthlyMetrics.funnel.successfulFirstValueCalls} |`,
+    `| Attributed first-value calls | ${report.adoption_signal.attributed_successful_first_value_calls_7d} | ${attributedCampaignTotals(monthlyMetrics).successfulFirstValueCalls} |`,
     `| Successful workflows | ${weeklyMetrics.funnel.successfulWorkflows} | ${monthlyMetrics.funnel.successfulWorkflows} |`,
     `| MCP tool success rate | ${formatRate(weeklyMetrics.toolSuccessRate)} | ${formatRate(monthlyMetrics.toolSuccessRate)} |`,
     `| Agent-call attribution rate | ${formatRate(weeklyMetrics.attribution.agentCallAttributionRate)} | ${formatRate(monthlyMetrics.attribution.agentCallAttributionRate)} |`,
@@ -236,7 +243,9 @@ function summarizeWindow(
 
 function buildOperationalReview(
   weekly: ReturnType<typeof summarizeWindow>,
-  monthly: ReturnType<typeof summarizeWindow>
+  monthly: ReturnType<typeof summarizeWindow>,
+  weeklyAttributed: ReturnType<typeof attributedCampaignTotals>,
+  monthlyAttributed: ReturnType<typeof attributedCampaignTotals>
 ) {
   const items: Array<{ code: string; severity: "info" | "warning" | "critical"; message: string; action: string }> = [];
   if (weekly.possibly_truncated || monthly.possibly_truncated) {
@@ -247,11 +256,11 @@ function buildOperationalReview(
       action: "Shorten the window or add an access-controlled aggregate pipeline before using the report for decisions."
     });
   }
-  if (weekly.metrics.funnel.successfulFirstValueCalls === 0) {
+  if (weeklyAttributed.successfulFirstValueCalls === 0) {
     items.push({
-      code: "no_first_value_signal",
+      code: "no_attributed_first_value_signal",
       severity: "info",
-      message: "No non-operator successful first-value calls were observed in the last 7 days.",
+      message: `No campaign-attributed successful first-value calls were observed in the last 7 days; ${weekly.metrics.funnel.successfulFirstValueCalls} successful calls remain unattributed operational activity.`,
       action: "Run one attributed distribution experiment and verify the campaign reaches an MCP tool call."
     });
   }
@@ -285,7 +294,7 @@ function buildOperationalReview(
   const hasWarning = items.some((item) => item.severity === "warning");
   const status = hasCritical
     ? "unreliable"
-    : weekly.metrics.funnel.successfulFirstValueCalls === 0
+    : weeklyAttributed.successfulFirstValueCalls === 0
       ? "no_signal"
       : hasWarning
         ? "attention"
@@ -294,13 +303,29 @@ function buildOperationalReview(
     status,
     items,
     targets: [
-      targetProgress("Successful MCP initializations (30d)", monthly.metrics.funnel.successfulInitializations, adoptionLearningTargets.successfulInitializations30d),
-      targetProgress("Successful first-value calls (30d)", monthly.metrics.funnel.successfulFirstValueCalls, adoptionLearningTargets.successfulFirstValueCalls30d),
-      targetProgress("Successful workflows (7d)", weekly.metrics.funnel.successfulWorkflows, adoptionLearningTargets.successfulWorkflows7d),
+      targetProgress("Attributed MCP initializations (30d)", monthlyAttributed.successfulInitializations, adoptionLearningTargets.successfulInitializations30d),
+      targetProgress("Attributed first-value calls (30d)", monthlyAttributed.successfulFirstValueCalls, adoptionLearningTargets.successfulFirstValueCalls30d),
+      targetProgress("Attributed workflows (7d)", weeklyAttributed.successfulWorkflows, adoptionLearningTargets.successfulWorkflows7d),
       rateTargetProgress("MCP tool success rate (7d)", weekly.metrics.toolSuccessRate, adoptionLearningTargets.toolSuccessRate7d),
       rateTargetProgress("Agent-call attribution rate (7d)", attributionRate, adoptionLearningTargets.agentCallAttributionRate7d)
     ]
   };
+}
+
+function attributedCampaignTotals(metrics: AdoptionMetricsSummary) {
+  return Object.entries(metrics.byCampaignSource).reduce((totals, [source, campaign]) => {
+    if (source === "unknown") {
+      return totals;
+    }
+    totals.successfulInitializations += campaign.initializeSuccesses;
+    totals.successfulFirstValueCalls += campaign.firstValueCalls;
+    totals.successfulWorkflows += campaign.workflowCompletions;
+    return totals;
+  }, {
+    successfulInitializations: 0,
+    successfulFirstValueCalls: 0,
+    successfulWorkflows: 0
+  });
 }
 
 function targetProgress(label: string, actual: number, target: number) {

@@ -58,6 +58,8 @@ pnpm adoption:report -- --output ./adoption-report.json --summary-output ./adopt
 
 The report groups non-operator events by the bounded Analytics Engine dimensions before applying the 10,000-row bound, uses a separate aggregate count query to retain the excluded-event total, and computes latency quantiles without downloading individual event rows. `--fail-on-truncated` writes the bounded outputs and then fails the command when either grouped query still reaches 10,000 rows. This prevents an incomplete organic-activity export from being treated as a complete operating report. Reduce dimension cardinality instead of increasing the supported bound.
 
+The report deliberately separates observed operational calls from adoption evidence. `adoption_signal.status` and the 30-day learning targets use campaign-attributed initialization, first-value, and workflow counts. Anonymous or otherwise unattributed calls remain visible for success-rate, capacity, and latency review, but they are not labeled as users, organic adoption, or target progress.
+
 The scheduled `.github/workflows/adoption-report.yml` workflow runs this report every Monday, validates the distribution and real-client compatibility contracts first, writes the Markdown view to the GitHub Actions Job Summary, and retains the aggregate JSON artifact for 30 days. It requires:
 
 - `CLOUDFLARE_ACCOUNT_ID` as a GitHub Actions secret;
