@@ -54,7 +54,7 @@ export function buildAdoptionExcludedCountQuery(hours: number, excludedCampaignS
     return null;
   }
   return [
-    "SELECT COUNT(*) AS event_count",
+    "SELECT COUNT() AS event_count",
     `FROM ${adoptionAnalyticsDataset}`,
     `WHERE timestamp >= NOW() - INTERVAL '${hours}' HOUR`,
     `AND blob8 IN (${sqlStringList(excludedCampaignSources)})`

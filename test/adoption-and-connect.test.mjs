@@ -286,7 +286,7 @@ test("analytics export query is fixed-field and bounded", () => {
   assert.doesNotMatch(query, /prompt|argument|result|repository/i);
   const filteredQuery = buildAdoptionExportQuery({ ...options, excludedCampaignSources: ["production-smoke"] });
   assert.match(filteredQuery, /blob8 NOT IN \('production-smoke'\)/);
-  assert.match(buildAdoptionExcludedCountQuery(168, ["production-smoke"]), /COUNT\(\*\) AS event_count/);
+  assert.match(buildAdoptionExcludedCountQuery(168, ["production-smoke"]), /COUNT\(\) AS event_count/);
   assert.match(buildAdoptionExcludedCountQuery(168, ["production-smoke"]), /blob8 IN \('production-smoke'\)/);
   assert.equal(buildAdoptionExcludedCountQuery(168, []), null);
 });
