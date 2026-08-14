@@ -51,15 +51,20 @@ async function exportWindow(hours) {
     body: buildAdoptionExportQuery({ hours, limit: options.limit })
   });
 
+  const responseText = await response.text();
   let payload;
   try {
-    payload = await response.json();
+    payload = JSON.parse(responseText);
   } catch {
-    throw new Error(`Analytics Engine returned a non-JSON response for the ${hours}-hour window (HTTP ${response.status}).`);
+    throw new Error(`Analytics Engine returned a non-JSON response for the ${hours}-hour window (HTTP ${response.status}): ${boundedResponseDetail(responseText)}`);
   }
   if (!response.ok || payload?.success === false) {
     const detail = Array.isArray(payload?.errors) ? payload.errors.map((error) => error?.message ?? String(error)).join("; ") : `HTTP ${response.status}`;
     throw new Error(`Analytics Engine ${hours}-hour export failed: ${detail}`);
   }
   return Array.isArray(payload?.data) ? payload.data : [];
+}
+
+function boundedResponseDetail(value) {
+  return value.replace(/\s+/g, " ").trim().slice(0, 500) || "empty response";
 }

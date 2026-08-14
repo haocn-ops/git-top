@@ -18,11 +18,12 @@ const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${en
   body: query
 });
 
+const responseText = await response.text();
 let payload;
 try {
-  payload = await response.json();
+  payload = JSON.parse(responseText);
 } catch {
-  throw new Error(`Analytics Engine returned a non-JSON response (HTTP ${response.status}).`);
+  throw new Error(`Analytics Engine returned a non-JSON response (HTTP ${response.status}): ${boundedResponseDetail(responseText)}`);
 }
 
 if (!response.ok || payload?.success === false) {
@@ -37,4 +38,8 @@ if (options.output) {
   console.error(`Exported ${rows.length} bounded Analytics Engine rows to ${options.output}.`);
 } else {
   process.stdout.write(output);
+}
+
+function boundedResponseDetail(value) {
+  return value.replace(/\s+/g, " ").trim().slice(0, 500) || "empty response";
 }
