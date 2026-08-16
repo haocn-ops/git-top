@@ -88,6 +88,19 @@ Refresh projects reported as `stale_sync` after the seed cursor cycle:
 SYNC_SECRET=... pnpm sync:prod:stale
 ```
 
+When the seed cursor is healthy but the corpus still reports a small
+`remaining_count`, use the bounded catch-up Governance task. It refreshes one
+full seed cycle with lite GitHub signals, then records quality and smoke gates:
+
+```sh
+gh workflow run Governance --ref main -f task=production-seed-catchup
+```
+
+The task defaults to 13 rounds of 40 repositories (520 slots, including one
+wraparound) and fails closed if any sync round reports a failure. Adjust the
+round and limit values only when the seed corpus size or GitHub rate budget
+requires it; keep the total bounded and review the resulting governance run.
+
 When the secret is stored only in GitHub Actions, run both maintenance passes and
 their production gates through the manual Governance workflow:
 

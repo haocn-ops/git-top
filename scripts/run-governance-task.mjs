@@ -19,6 +19,24 @@ const taskDefinitions = {
   "production-preventive-maintenance": {
     commands: [["pnpm", "maintenance:prod:preventive"]]
   },
+  "production-seed-catchup": {
+    commands: [
+      [
+        "pnpm",
+        "sync:prod:catchup",
+        "--",
+        "--rounds",
+        process.env.GIT_TOP_CATCHUP_ROUNDS ?? "13",
+        "--limit",
+        process.env.GIT_TOP_CATCHUP_LIMIT ?? "40",
+        "--signal-depth",
+        "lite",
+        "--refresh-cycle"
+      ],
+      ["pnpm", "quality:check"],
+      ["pnpm", "smoke:prod"]
+    ]
+  },
   "production-alternatives-segment": {
     commands: [["pnpm", "alternatives:prod:refresh"]]
   },
