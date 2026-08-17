@@ -15,7 +15,7 @@ if (!accountId || !token) {
   throw new Error("CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN are required; no analytics data was queried.");
 }
 
-const [weeklyRows, monthlyRows, weeklyExcludedEventCount, monthlyExcludedEventCount, weeklyLatencyRows, monthlyLatencyRows] = await Promise.all([
+const [weeklyRows, monthlyRows, weeklyExplicitExcludedEventCount, monthlyExplicitExcludedEventCount, weeklyLatencyRows, monthlyLatencyRows] = await Promise.all([
   aggregateWindow(adoptionReportWindows.weeklyHours),
   aggregateWindow(adoptionReportWindows.monthlyHours),
   excludedEventCount(adoptionReportWindows.weeklyHours),
@@ -23,8 +23,12 @@ const [weeklyRows, monthlyRows, weeklyExcludedEventCount, monthlyExcludedEventCo
   latencyWindow(adoptionReportWindows.weeklyHours),
   latencyWindow(adoptionReportWindows.monthlyHours)
 ]);
-const weeklySamples = aggregateSamples(weeklyRows);
-const monthlySamples = aggregateSamples(monthlyRows);
+const weeklyPartition = partitionAggregateSamples(weeklyRows);
+const monthlyPartition = partitionAggregateSamples(monthlyRows);
+const weeklySamples = weeklyPartition.included;
+const monthlySamples = monthlyPartition.included;
+const weeklyExcludedEventCount = weeklyExplicitExcludedEventCount + weeklyPartition.inferredOperatorEventCount;
+const monthlyExcludedEventCount = monthlyExplicitExcludedEventCount + monthlyPartition.inferredOperatorEventCount;
 const weeklyIncludedEventCount = totalSampleCount(weeklySamples);
 const monthlyIncludedEventCount = totalSampleCount(monthlySamples);
 const report = buildAdoptionOperationsReport({
@@ -115,6 +119,20 @@ function boundedResponseDetail(value) {
 
 function aggregateSamples(rows) {
   return rows.map((row) => ({ event: normalizeAnalyticsPoint(row), count: boundedCount(row?.event_count, "event_count") }));
+}
+
+function partitionAggregateSamples(rows) {
+  const excluded = new Set(options.excludedCampaignSources);
+  const included = [];
+  let inferredOperatorEventCount = 0;
+  for (const sample of aggregateSamples(rows)) {
+    if (sample.event.campaignSource && excluded.has(sample.event.campaignSource)) {
+      inferredOperatorEventCount += sample.count;
+    } else {
+      included.push(sample);
+    }
+  }
+  return { included, inferredOperatorEventCount };
 }
 
 function totalSampleCount(samples) {

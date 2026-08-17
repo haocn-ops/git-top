@@ -555,7 +555,7 @@ async function routeRequest(request: Request, env: Env, url: URL, ctx?: Executio
     return handleApi(request, env, ctx);
   }
 
-  if (url.pathname === "/mcp/core") {
+  if (url.pathname === "/mcp/core" || /^\/mcp\/core\/source\/[a-z0-9][a-z0-9._-]{0,47}$/i.test(url.pathname)) {
     return handleMcp(request, env, { profile: "core" });
   }
 

@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import worker from "../src/index.ts";
 import { handleMcp } from "../src/mcp.ts";
-import { normalizeAnalyticsPoint, recordAdoptionEvent, responseSizeBucket, summarizeAdoptionEventSamples, summarizeAdoptionEvents, summarizeAdoptionLatencyBuckets } from "../src/adoption-analytics.ts";
+import { campaignSourceFromRequest, normalizeAdoptionOperation, normalizeAnalyticsPoint, operatorCampaignSourceForOperation, recordAdoptionEvent, responseSizeBucket, summarizeAdoptionEventSamples, summarizeAdoptionEvents, summarizeAdoptionLatencyBuckets } from "../src/adoption-analytics.ts";
 import { adoptionAnalyticsDataset, buildAdoptionAggregateQuery, buildAdoptionExcludedCountQuery, buildAdoptionExportQuery, buildAdoptionLatencyQuery, parseAdoptionExportOptions } from "../src/adoption-export.ts";
 import { buildAdoptionOperationsReport, parseAdoptionReportOptions, renderAdoptionOperationsMarkdown } from "../src/adoption-report.ts";
 import { attributedEndpoint } from "../src/connect-page.ts";
@@ -134,9 +134,10 @@ test("connect page and config event are public and degrade without analytics", a
   const pageText = await page.text();
   assert.equal(page.status, 200);
   assert.match(pageText, /https:\/\/git\.top\/mcp\/core/);
-  assert.match(pageText, /https:\/\/git\.top\/mcp\/core\?source=test/);
+  assert.match(pageText, /https:\/\/git\.top\/mcp\/core\/source\/test\?source=test/);
   assert.match(pageText, /codex mcp add git-top/);
   assert.match(pageText, /claude mcp add --transport http/);
+  assert.match(pageText, /keepalive: true/);
 
   const event = await worker.fetch(new Request("https://git.top/connect/event?client=codex", { method: "POST" }), {}, executionContext);
   assert.equal(event.status, 204);
@@ -146,12 +147,52 @@ test("connect page and config event are public and degrade without analytics", a
 
 test("connect campaign attribution continues into copied MCP endpoints", async () => {
   assert.equal(attributedEndpoint(), "https://git.top/mcp/core");
-  assert.equal(attributedEndpoint("mcp-registry"), "https://git.top/mcp/core?source=mcp-registry");
+  assert.equal(attributedEndpoint("mcp-registry"), "https://git.top/mcp/core/source/mcp-registry?source=mcp-registry");
+  assert.equal(attributedEndpoint(".."), "https://git.top/mcp/core?source=..");
 
   const page = await worker.fetch(new Request("https://git.top/connect?source=Smithery%20Campaign"), {}, { waitUntil() {} });
   const pageText = await page.text();
-  assert.match(pageText, /https:\/\/git\.top\/mcp\/core\?source=smitherycampaign/);
+  assert.match(pageText, /https:\/\/git\.top\/mcp\/core\/source\/smitherycampaign\?source=smitherycampaign/);
   assert.doesNotMatch(pageText, /Smithery%20Campaign/);
+});
+
+test("source-bearing MCP paths preserve attribution when clients drop query parameters", async () => {
+  const points = [];
+  const endpointUrl = new URL(attributedEndpoint("mcp-registry"));
+  endpointUrl.search = "";
+  const response = await worker.fetch(new Request(endpointUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} })
+  }), {
+    ADOPTION_ANALYTICS: { writeDataPoint(point) { points.push(point); } }
+  }, { waitUntil() {} });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("access-control-allow-origin"), "*");
+  assert.equal(points[0].blobs[7], "mcp-registry");
+  assert.equal(campaignSourceFromRequest(new Request(`${endpointUrl}?source=query-source`, {
+    headers: { "x-git-top-source": "operator-check" }
+  })), "operator-check");
+});
+
+test("verification probes are bounded and tagged as operator traffic", async () => {
+  const points = [];
+  const probe = "__verifymcp_auth_probe_284d115eadabcf3e__";
+  const response = await handleMcp(new Request("https://git.top/mcp/core", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: probe, arguments: {} } })
+  }), {
+    ADOPTION_ANALYTICS: { writeDataPoint(point) { points.push(point); } }
+  }, { profile: "core" });
+
+  assert.equal(response.status, 400);
+  assert.equal(normalizeAdoptionOperation(probe), "verification_probe");
+  assert.equal(operatorCampaignSourceForOperation(probe), "operator-check");
+  assert.equal(points[0].blobs[4], "verification_probe");
+  assert.equal(points[0].blobs[7], "operator-check");
+  assert.equal(normalizeAnalyticsPoint({ blob1: "mcp_tool_call_completed", blob5: probe, blob8: "unknown" }).campaignSource, "operator-check");
 });
 
 test("analytics response size buckets stay bounded", () => {
@@ -313,16 +354,20 @@ test("analytics export query is fixed-field and bounded", () => {
   assert.doesNotMatch(query, /prompt|argument|result|repository/i);
   const filteredQuery = buildAdoptionExportQuery({ ...options, excludedCampaignSources: ["production-smoke"] });
   assert.match(filteredQuery, /blob8 NOT IN \('production-smoke'\)/);
+  const operatorFilteredQuery = buildAdoptionExportQuery({ ...options, excludedCampaignSources: ["production-smoke", "operator-check"] });
+  assert.match(operatorFilteredQuery, /blob5 NOT LIKE '__verifymcp_auth_probe_%'/);
   assert.match(buildAdoptionExcludedCountQuery(168, ["production-smoke"]), /COUNT\(\) AS event_count/);
   assert.match(buildAdoptionExcludedCountQuery(168, ["production-smoke"]), /blob8 IN \('production-smoke'\)/);
+  assert.match(buildAdoptionExcludedCountQuery(168, ["production-smoke", "operator-check"]), /blob5 LIKE '__verifymcp_auth_probe_%'/);
   assert.equal(buildAdoptionExcludedCountQuery(168, []), null);
   const aggregateQuery = buildAdoptionAggregateQuery({ hours: 168, limit: 10_000, excludedCampaignSources: ["production-smoke"] });
   assert.match(aggregateQuery, /COUNT\(\) AS event_count/);
   assert.match(aggregateQuery, /GROUP BY blob1, blob2, blob3, blob4, blob5, blob6, blob7, blob8, blob9, double1/);
   assert.match(aggregateQuery, /blob8 NOT IN \('production-smoke'\)/);
-  const latencyQuery = buildAdoptionLatencyQuery(168, ["production-smoke"]);
+  const latencyQuery = buildAdoptionLatencyQuery(168, ["production-smoke", "operator-check"]);
   assert.match(latencyQuery, /SELECT double2, COUNT\(\) AS sample_count/);
   assert.match(latencyQuery, /blob1 IN \('mcp_tool_call_completed', 'rest_agent_call_completed'\)/);
+  assert.match(latencyQuery, /blob5 NOT LIKE '__verifymcp_auth_probe_%'/);
   assert.match(latencyQuery, /GROUP BY double2 ORDER BY double2 ASC LIMIT 10000/);
 });
 
@@ -377,6 +422,25 @@ test("adoption status does not claim unattributed operational calls as adoption"
   assert.equal(report.operational_review.targets[1].actual, 0);
 });
 
+test("adoption report exposes a bounded failure-operation breakdown", () => {
+  const successfulCall = { name: "mcp_tool_call_completed", operation: "get_project", resultClass: "success", source: "d1", campaignSource: "registry" };
+  const failedCall = { ...successfulCall, resultClass: "client_error" };
+  const report = buildAdoptionOperationsReport({
+    weeklyEvents: [successfulCall, failedCall],
+    monthlyEvents: [successfulCall, failedCall],
+    limit: 10_000,
+    generatedAt: "2026-08-17T00:00:00.000Z"
+  });
+
+  assert.deepEqual(report.operational_review.failure_operations_7d, [{
+    operation: "get_project",
+    error_count: 1,
+    agent_call_count: 2,
+    error_rate: 0.5
+  }]);
+  assert.match(renderAdoptionOperationsMarkdown(report), /\| get_project \| 1 \| 2 \| 50\.0% \|/);
+});
+
 test("adoption report accounts for operator events excluded in Analytics Engine SQL", () => {
   const report = buildAdoptionOperationsReport({
     weeklyEvents: [{ name: "mcp_initialize", resultClass: "success" }],
@@ -393,13 +457,13 @@ test("adoption report accounts for operator events excluded in Analytics Engine 
   assert.equal(report.windows.last_7_days.possibly_truncated, false);
 });
 
-test("adoption report options keep production smoke excluded by default", () => {
+test("adoption report options keep known operator traffic excluded by default", () => {
   assert.deepEqual(parseAdoptionReportOptions([]), {
     limit: 10_000,
     output: null,
     summaryOutput: null,
     failOnTruncated: false,
-    excludedCampaignSources: ["production-smoke"]
+    excludedCampaignSources: ["production-smoke", "operator-check"]
   });
   assert.deepEqual(parseAdoptionReportOptions(["--limit", "500", "--exclude-source", "production-smoke,operator-check", "--output", "report.json", "--summary-output", "summary.md", "--fail-on-truncated"]), {
     limit: 500,

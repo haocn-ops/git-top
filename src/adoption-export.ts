@@ -44,8 +44,7 @@ export function buildAdoptionExportQuery(options: AdoptionExportQueryOptions): s
   return [
     "SELECT blob1, blob2, blob3, blob4, blob5, blob6, blob7, blob8, blob9, double1, double2, timestamp",
     `FROM ${adoptionAnalyticsDataset}`,
-    `WHERE timestamp >= NOW() - INTERVAL '${options.hours}' HOUR`,
-    excludedSources.length > 0 ? `AND blob8 NOT IN (${sqlStringList(excludedSources)})` : "",
+    ...adoptionWhere(options.hours, excludedSources),
     "ORDER BY timestamp DESC",
     `LIMIT ${options.limit}`
   ].filter(Boolean).join(" ");
@@ -55,11 +54,15 @@ export function buildAdoptionExcludedCountQuery(hours: number, excludedCampaignS
   if (excludedCampaignSources.length === 0) {
     return null;
   }
+  const excludedPredicates = [`blob8 IN (${sqlStringList(excludedCampaignSources)})`];
+  if (excludedCampaignSources.includes("operator-check")) {
+    excludedPredicates.push("blob5 LIKE '__verifymcp_auth_probe_%'");
+  }
   return [
     "SELECT COUNT() AS event_count",
     `FROM ${adoptionAnalyticsDataset}`,
     `WHERE timestamp >= NOW() - INTERVAL '${hours}' HOUR`,
-    `AND blob8 IN (${sqlStringList(excludedCampaignSources)})`
+    `AND (${excludedPredicates.join(" OR ")})`
   ].join(" ");
 }
 
@@ -93,7 +96,8 @@ function sqlStringList(values: readonly string[]): string {
 function adoptionWhere(hours: number, excludedCampaignSources: readonly string[]): string[] {
   return [
     `WHERE timestamp >= NOW() - INTERVAL '${hours}' HOUR`,
-    ...(excludedCampaignSources.length > 0 ? [`AND blob8 NOT IN (${sqlStringList(excludedCampaignSources)})`] : [])
+    ...(excludedCampaignSources.length > 0 ? [`AND blob8 NOT IN (${sqlStringList(excludedCampaignSources)})`] : []),
+    ...(excludedCampaignSources.includes("operator-check") ? ["AND blob5 NOT LIKE '__verifymcp_auth_probe_%'"] : [])
   ];
 }
 
