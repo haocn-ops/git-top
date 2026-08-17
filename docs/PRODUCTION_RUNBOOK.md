@@ -88,6 +88,41 @@ Refresh projects reported as `stale_sync` after the seed cursor cycle:
 SYNC_SECRET=... pnpm sync:prod:stale
 ```
 
+When the seed cursor is healthy but the corpus still reports a small
+`remaining_count`, use the bounded catch-up Governance task. It refreshes one
+full seed cycle with lite GitHub signals, then records quality and smoke gates:
+
+```sh
+gh workflow run Governance --repo haocn-ops/git-top \
+  --ref <deployed-ref> -f task=production-seed-catchup
+```
+
+The task defaults to 500 rounds of one repository (one complete seed cycle)
+and fails closed if any sync round reports a failure. The single-repository
+batch avoids exhausting the Worker subrequest limit on high-signal projects.
+Transient GitHub `429` and `5xx` repository failures are retried at the same
+cursor up to three times; permanent failures and Worker-limit failures stop the
+task immediately. Transient production HTTP failures receive eight bounded
+retries that rotate between the canonical and workers.dev origins. Adjust the
+round and limit values only when the seed corpus size or GitHub rate budget
+requires it; keep the total bounded and review the resulting governance run.
+
+Do not treat a successful Governance conclusion as proof that calibration is
+complete. Watch the run, then verify its structured end state:
+
+```sh
+gh run watch <governance-run-id> --repo haocn-ops/git-top --exit-status
+gh run view <governance-run-id> --repo haocn-ops/git-top --log \
+  | rg 'remaining_count|cycle_complete|productionReady|hotFreshnessRate|wholeCorpusFreshnessRate|releaseScore|"passed"|"failed"'
+```
+
+Closure requires `remaining_count=0`, `cycle_complete=true`, no failed
+repository syncs, D1-backed production readiness, and successful quality and
+smoke commands. Quality and smoke can pass while a coverage-accounting defect
+still leaves the seed cycle incomplete. See the
+[2026-08-17 seed coverage release retrospective](./PRODUCTION_RELEASE_RETROSPECTIVE_2026-08-17.md)
+for the incident pattern and reusable checklist.
+
 When the secret is stored only in GitHub Actions, run both maintenance passes and
 their production gates through the manual Governance workflow:
 
@@ -130,6 +165,35 @@ gh workflow run Governance --ref main -f task=production-alternatives-segment \
 ```
 
 ## Deploy
+
+The default production path is the protected GitHub Release workflow. Prefer a
+validated, merged `main` ref. Dispatch from the exact ref whose PR preview and
+validation passed:
+
+```sh
+gh workflow run Release --repo haocn-ops/git-top --ref <validated-ref>
+gh run list --repo haocn-ops/git-top --workflow Release --limit 5
+gh run watch <release-run-id> --repo haocn-ops/git-top --exit-status
+```
+
+The `production` Environment requires approval. The workflow captures the
+current Worker version before mutation, applies at most one selected additive
+migration, deploys, runs production smoke and quality checks, and automatically
+rolls back the Worker when a post-deploy gate fails. Record the release run URL
+and deployed SHA.
+
+An explicitly approved branch release must be merged back promptly. Before the
+next release, prove that the deployed SHA is reachable from `origin/main`:
+
+```sh
+git fetch origin main
+git merge-base --is-ancestor <deployed-sha> origin/main
+```
+
+Do not release an older `main` over a production-only branch fix.
+
+Direct deployment is a break-glass path for an explicitly authorized recovery,
+not the normal release procedure:
 
 ```sh
 pnpm run deploy
@@ -181,7 +245,14 @@ pnpm eval:production-snapshot
 
 This check requires D1-backed health, quality, review, and benchmark responses. It fails when the absolute production-versus-fixture review-count delta exceeds `10`; use `PRODUCTION_REVIEW_COUNT_DELTA_MAX` or `--max-review-delta` only to apply a reviewed threshold change. Requests time out after 10 seconds by default and can be adjusted with `GIT_TOP_PRODUCTION_EVAL_TIMEOUT_MS` or `--timeout-ms`. The command is part of `daily-production-health`, but remains separate from PR validation so CI stays deterministic.
 
-The Release workflow supports same-repository PR preview uploads and manually dispatched production delivery. Configure `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as GitHub secrets, then protect the GitHub `production` Environment with required reviewers. The environment and account ID are configured for this repository; `CLOUDFLARE_API_TOKEN` must still be added before the workflow can upload. Production dispatch accepts at most one explicit migration path matching `migrations/NNNN_name.sql`; migrations must be additive and backward compatible because Worker rollback does not reverse D1 schema changes. A failed production smoke or quality check automatically rolls the Worker back to the version captured before deployment.
+The Release workflow supports same-repository PR preview uploads and manually dispatched production delivery. Configure `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as GitHub secrets, then protect the GitHub `production` Environment with required reviewers. The environment, account ID, and deployment token are configured for this repository; verify secret metadata and resource scope before release rather than assuming the token is still valid. Never print or document the token value. Restrict it to the Git.Top Cloudflare account and `git.top` zone, with only the capabilities needed for Worker version listing, deploy, rollback, the selected D1 migration, and route management. Production dispatch accepts at most one explicit migration path matching `migrations/NNNN_name.sql`; migrations must be additive and backward compatible because Worker rollback does not reverse D1 schema changes. A failed production smoke or quality check automatically rolls the Worker back to the version captured before deployment.
+
+A successful preview upload does not prove that production-only version
+management calls are authorized. If the production preflight fails at
+`wrangler versions list` with Cloudflare authentication error `10000`, stop
+before deploy, correct or rotate the scoped token, update the GitHub Actions
+secret, and rerun the same validated SHA. Do not bypass the protected workflow
+with a local deploy.
 
 GitHub Actions can run the local public V1 release gate with production smoke disabled when Actions is enabled for the account:
 

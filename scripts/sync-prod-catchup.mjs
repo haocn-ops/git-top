@@ -1,5 +1,9 @@
 const options = parseArgs(process.argv.slice(2));
-const baseUrl = normalizeBaseUrl(options.baseUrl ?? process.env.GIT_TOP_SYNC_BASE_URL ?? "https://git.top");
+const baseUrls = configuredBaseUrls(
+  options.baseUrl,
+  process.env.GIT_TOP_SYNC_BASE_URLS ?? process.env.GIT_TOP_SYNC_BASE_URL ?? "https://git.top,https://git-top.izhenghaocn.workers.dev"
+);
+const baseUrl = baseUrls[0];
 const syncSecret = options.syncSecret ?? process.env.SYNC_SECRET;
 const limit = positiveInteger(options.limit ?? process.env.GIT_TOP_SYNC_LIMIT ?? 40, "limit");
 const rounds = positiveInteger(options.rounds ?? process.env.GIT_TOP_SYNC_ROUNDS ?? 1, "rounds");
@@ -8,6 +12,10 @@ const signalDepth = options.signalDepth ?? process.env.GIT_TOP_SYNC_SIGNAL_DEPTH
 const refreshCycle = options.refreshCycle ?? process.env.GIT_TOP_SYNC_REFRESH_CYCLE === "true";
 const delayMs = positiveInteger(options.delayMs ?? process.env.GIT_TOP_SYNC_DELAY_MS ?? 1_000, "delay-ms");
 const maxRetries = positiveInteger(options.maxRetries ?? process.env.GIT_TOP_SYNC_MAX_RETRIES ?? 3, "max-retries");
+const maxFailedRoundRetries = nonNegativeInteger(
+  options.maxFailedRoundRetries ?? process.env.GIT_TOP_SYNC_FAILED_ROUND_RETRIES ?? 3,
+  "max-failed-round-retries"
+);
 
 if (!syncSecret) {
   throw new Error("SYNC_SECRET is required. Set it in the environment or pass --sync-secret.");
@@ -25,7 +33,20 @@ for (let round = 1; round <= rounds; round += 1) {
     break;
   }
 
-  const result = await postSync({ limit, signal_depth: signalDepth, refresh_derived: false });
+  let result;
+  let failedRoundRetries = 0;
+  for (;;) {
+    result = await postSync({ limit, signal_depth: signalDepth, refresh_derived: false });
+    if (!hasOnlyRetryableRepositoryFailures(result.failed) || failedRoundRetries >= maxFailedRoundRetries) {
+      break;
+    }
+    failedRoundRetries += 1;
+    console.error(
+      `Retrying sync round ${round}/${rounds} after ${result.failed.length} transient repository failure(s); ` +
+        `attempt ${failedRoundRetries}/${maxFailedRoundRetries}.`
+    );
+    await delay(delayMs * failedRoundRetries * 2);
+  }
   const nextOffset = result.nextOffset ?? result.next_offset;
   runs.push({
     round,
@@ -33,6 +54,7 @@ for (let round = 1; round <= rounds; round += 1) {
     nextOffset,
     synced: result.synced,
     failed: result.failed,
+    failedRoundRetries,
     alternativesUpdated: result.alternativesUpdated ?? result.alternatives_updated ?? 0
   });
   console.error(`Completed sync round ${round}/${rounds}: offset ${result.offset} -> ${nextOffset}, synced ${result.synced.length}, failed ${result.failed.length}.`);
@@ -58,12 +80,14 @@ console.log(
   JSON.stringify(
     {
       baseUrl,
+      baseUrls,
       limit,
       roundsRequested: rounds,
       signalDepth,
       refreshCycle,
       delayMs,
       maxRetries,
+      maxFailedRoundRetries,
       runs,
       status
     },
@@ -80,7 +104,7 @@ async function getStatus() {
   let lastError;
   for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
     try {
-      const { status, body } = await requestJson("/api/sync/status", { method: "GET" });
+      const { status, body } = await requestJson("/api/sync/status", { method: "GET" }, baseUrls[(attempt - 1) % baseUrls.length]);
       if (status === 200) {
         return body;
       }
@@ -109,7 +133,7 @@ async function postSync(body) {
           "content-type": "application/json"
         },
         body: JSON.stringify(body)
-      });
+      }, baseUrls[(attempt - 1) % baseUrls.length]);
       if (status === 200) {
         return responseBody;
       }
@@ -127,11 +151,11 @@ async function postSync(body) {
   throw lastError ?? new Error("admin sync failed without a response");
 }
 
-async function requestJson(path, init) {
+async function requestJson(path, init, requestBaseUrl = baseUrl) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(`${baseUrl}${path}`, {
+    const response = await fetch(`${requestBaseUrl}${path}`, {
       ...init,
       signal: controller.signal
     });
@@ -202,6 +226,11 @@ function parseArgs(args) {
       index += 1;
     } else if (arg.startsWith("--max-retries=")) {
       parsed.maxRetries = arg.slice("--max-retries=".length);
+    } else if (arg === "--max-failed-round-retries") {
+      parsed.maxFailedRoundRetries = args[index + 1];
+      index += 1;
+    } else if (arg.startsWith("--max-failed-round-retries=")) {
+      parsed.maxFailedRoundRetries = arg.slice("--max-failed-round-retries=".length);
     } else {
       throw new Error(`Unknown option: ${arg}`);
     }
@@ -217,8 +246,35 @@ function positiveInteger(value, name) {
   return number;
 }
 
+function nonNegativeInteger(value, name) {
+  const number = Number(value);
+  if (!Number.isInteger(number) || number < 0) {
+    throw new Error(`${name} must be a non-negative integer.`);
+  }
+  return number;
+}
+
+function hasOnlyRetryableRepositoryFailures(failures) {
+  return (
+    Array.isArray(failures) &&
+    failures.length > 0 &&
+    failures.every((failure) =>
+      /GitHub API (?:429|5\d\d)\b|(?:network|fetch|request) (?:error|failed)|timed? out|ECONNRESET/i.test(String(failure?.error ?? ""))
+    )
+  );
+}
+
 function normalizeBaseUrl(value) {
   return value.replace(/\/+$/, "");
+}
+
+function configuredBaseUrls(explicitBaseUrl, configuredValue) {
+  const values = explicitBaseUrl ? [explicitBaseUrl] : String(configuredValue).split(",");
+  const normalized = [...new Set(values.map((value) => normalizeBaseUrl(value.trim())).filter(Boolean))];
+  if (normalized.length === 0) {
+    throw new Error("At least one sync base URL is required.");
+  }
+  return normalized;
 }
 
 function delay(milliseconds) {

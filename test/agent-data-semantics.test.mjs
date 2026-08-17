@@ -63,11 +63,14 @@ test("renamed repositories retire obsolete knowledge after canonical sync", asyn
   };
 
   assert.equal(await retireRenamedProjectKnowledge(env, "old-owner/project", "new-owner/project"), true);
-  assert.equal(operations.length, 6);
+  assert.equal(operations.length, 7);
   assert.match(operations[4].sql, /DELETE FROM projects/);
   assert.deepEqual(operations[4].values, ["old-owner/project"]);
   assert.match(operations[5].sql, /UPDATE candidate_repositories/);
   assert.match(operations[5].values[0], /Repository renamed to new-owner\/project/);
+  assert.match(operations[6].sql, /INSERT INTO sync_state/);
+  assert.equal(operations[6].values[0], "repository_alias:old-owner/project");
+  assert.equal(operations[6].values[1], "new-owner/project");
 
   operations.length = 0;
   assert.equal(await retireRenamedProjectKnowledge(env, "Owner/Project", "owner/project"), false);
