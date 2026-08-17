@@ -99,9 +99,11 @@ gh workflow run Governance --ref main -f task=production-seed-catchup
 The task defaults to 500 rounds of one repository (one complete seed cycle)
 and fails closed if any sync round reports a failure. The single-repository
 batch avoids exhausting the Worker subrequest limit on high-signal projects.
-Adjust the round and limit values only when the seed corpus size or GitHub rate
-budget requires it; keep the total bounded and review the resulting governance
-run.
+Transient GitHub `429` and `5xx` repository failures are retried at the same
+cursor up to three times; permanent failures and Worker-limit failures stop the
+task immediately. Adjust the round and limit values only when the seed corpus
+size or GitHub rate budget requires it; keep the total bounded and review the
+resulting governance run.
 
 When the secret is stored only in GitHub Actions, run both maintenance passes and
 their production gates through the manual Governance workflow:
