@@ -111,6 +111,7 @@ export interface AdoptionLatencyBucket {
 }
 
 const knownClients = ["codex", "claude", "cursor", "vscode", "windsurf", "chatgpt", "cline", "continue"] as const;
+const attributedMcpCorePathPattern = /^\/mcp\/core\/source\/([a-z0-9][a-z0-9._-]{0,47})$/i;
 
 /**
  * Analytics Engine is optional so local development and deployments without the
@@ -174,10 +175,14 @@ export function normalizeCampaignSource(value: string | null): string | undefine
 
 export function campaignSourceFromRequest(request: Request): string | undefined {
   const url = new URL(request.url);
-  const pathSource = url.pathname.match(/^\/mcp\/core\/source\/([a-z0-9][a-z0-9._-]{0,47})$/i)?.[1];
+  const pathSource = url.pathname.match(attributedMcpCorePathPattern)?.[1];
   return normalizeCampaignSource(
     request.headers.get("x-git-top-source") ?? url.searchParams.get("source") ?? pathSource ?? null
   );
+}
+
+export function isAttributedMcpCorePath(pathname: string): boolean {
+  return attributedMcpCorePathPattern.test(pathname);
 }
 
 export function normalizeAdoptionOperation(value: unknown): string | undefined {

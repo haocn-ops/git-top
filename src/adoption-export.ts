@@ -15,6 +15,7 @@ interface AdoptionExportQueryOptions extends Pick<AdoptionExportOptions, "hours"
 }
 
 const adoptionGroupColumns = ["blob1", "blob2", "blob3", "blob4", "blob5", "blob6", "blob7", "blob8", "blob9", "double1"] as const;
+const historicalVerificationProbeLikePattern = "'\\\\_\\\\_verifymcp\\\\_auth\\\\_probe\\\\_%\\\\_\\\\_'";
 
 export function parseAdoptionExportOptions(args: readonly string[]): AdoptionExportOptions {
   const options: AdoptionExportOptions = { ...adoptionExportDefaults, output: null };
@@ -56,7 +57,7 @@ export function buildAdoptionExcludedCountQuery(hours: number, excludedCampaignS
   }
   const excludedPredicates = [`blob8 IN (${sqlStringList(excludedCampaignSources)})`];
   if (excludedCampaignSources.includes("operator-check")) {
-    excludedPredicates.push("blob5 LIKE '__verifymcp_auth_probe_%'");
+    excludedPredicates.push(`blob5 LIKE ${historicalVerificationProbeLikePattern}`);
   }
   return [
     "SELECT COUNT() AS event_count",
@@ -97,7 +98,7 @@ function adoptionWhere(hours: number, excludedCampaignSources: readonly string[]
   return [
     `WHERE timestamp >= NOW() - INTERVAL '${hours}' HOUR`,
     ...(excludedCampaignSources.length > 0 ? [`AND blob8 NOT IN (${sqlStringList(excludedCampaignSources)})`] : []),
-    ...(excludedCampaignSources.includes("operator-check") ? ["AND blob5 NOT LIKE '__verifymcp_auth_probe_%'"] : [])
+    ...(excludedCampaignSources.includes("operator-check") ? [`AND blob5 NOT LIKE ${historicalVerificationProbeLikePattern}`] : [])
   ];
 }
 

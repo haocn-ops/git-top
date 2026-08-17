@@ -30,6 +30,7 @@ import { buildCursorPage, pageQueryKey, PageCursorError, resolvePageOffset } fro
 import {
   campaignSourceFromRequest,
   clientFromRequest,
+  isAttributedMcpCorePath,
   normalizeClientName,
   normalizeClientVersion,
   recordAdoptionEvent,
@@ -511,7 +512,10 @@ export async function handleMcp(request: Request, env: Env, options: { profile?:
   const requestStartedAt = Date.now();
   const profile = options.profile ?? "full";
   const availableTools = profile === "core" ? annotatedTools.filter((tool) => coreToolNames.has(tool.name)) : annotatedTools;
-  const endpoint = profile === "core" ? "/mcp/core" : "/mcp";
+  const requestPath = new URL(request.url).pathname;
+  const endpoint = profile === "core"
+    ? (isAttributedMcpCorePath(requestPath) ? requestPath : "/mcp/core")
+    : "/mcp";
 
   if (request.method === "GET") {
     const agentMap = buildAgentMap();

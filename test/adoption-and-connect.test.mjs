@@ -160,6 +160,9 @@ test("source-bearing MCP paths preserve attribution when clients drop query para
   const points = [];
   const endpointUrl = new URL(attributedEndpoint("mcp-registry"));
   endpointUrl.search = "";
+  const discovery = await worker.fetch(new Request(endpointUrl), {}, { waitUntil() {} });
+  assert.equal(discovery.status, 200);
+  assert.equal((await discovery.json()).endpoint, endpointUrl.pathname);
   const response = await worker.fetch(new Request(endpointUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -355,10 +358,12 @@ test("analytics export query is fixed-field and bounded", () => {
   const filteredQuery = buildAdoptionExportQuery({ ...options, excludedCampaignSources: ["production-smoke"] });
   assert.match(filteredQuery, /blob8 NOT IN \('production-smoke'\)/);
   const operatorFilteredQuery = buildAdoptionExportQuery({ ...options, excludedCampaignSources: ["production-smoke", "operator-check"] });
-  assert.match(operatorFilteredQuery, /blob5 NOT LIKE '__verifymcp_auth_probe_%'/);
+  const verificationProbePattern = String.raw`'\\_\\_verifymcp\\_auth\\_probe\\_%\\_\\_'`;
+  assert.ok(operatorFilteredQuery.includes(`blob5 NOT LIKE ${verificationProbePattern}`));
+  assert.doesNotMatch(operatorFilteredQuery, /LIKE '__verifymcp_auth_probe_%'/);
   assert.match(buildAdoptionExcludedCountQuery(168, ["production-smoke"]), /COUNT\(\) AS event_count/);
   assert.match(buildAdoptionExcludedCountQuery(168, ["production-smoke"]), /blob8 IN \('production-smoke'\)/);
-  assert.match(buildAdoptionExcludedCountQuery(168, ["production-smoke", "operator-check"]), /blob5 LIKE '__verifymcp_auth_probe_%'/);
+  assert.ok(buildAdoptionExcludedCountQuery(168, ["production-smoke", "operator-check"])?.includes(`blob5 LIKE ${verificationProbePattern}`));
   assert.equal(buildAdoptionExcludedCountQuery(168, []), null);
   const aggregateQuery = buildAdoptionAggregateQuery({ hours: 168, limit: 10_000, excludedCampaignSources: ["production-smoke"] });
   assert.match(aggregateQuery, /COUNT\(\) AS event_count/);
@@ -367,7 +372,7 @@ test("analytics export query is fixed-field and bounded", () => {
   const latencyQuery = buildAdoptionLatencyQuery(168, ["production-smoke", "operator-check"]);
   assert.match(latencyQuery, /SELECT double2, COUNT\(\) AS sample_count/);
   assert.match(latencyQuery, /blob1 IN \('mcp_tool_call_completed', 'rest_agent_call_completed'\)/);
-  assert.match(latencyQuery, /blob5 NOT LIKE '__verifymcp_auth_probe_%'/);
+  assert.ok(latencyQuery.includes(`blob5 NOT LIKE ${verificationProbePattern}`));
   assert.match(latencyQuery, /GROUP BY double2 ORDER BY double2 ASC LIMIT 10000/);
 });
 

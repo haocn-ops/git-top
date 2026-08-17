@@ -669,6 +669,34 @@ export const openApiDocument = {
           "400": jsonResponse("MCP core JSON-RPC error result", "#/components/schemas/McpJsonRpcErrorResponse", mcpJsonRpcErrorExample())
         }
       }
+    },
+    "/mcp/core/source/{source}": {
+      parameters: [
+        {
+          ...pathParam("source", "Normalized campaign source preserved when an MCP client removes query parameters"),
+          schema: { type: "string", pattern: "^[a-z0-9][a-z0-9._-]{0,47}$" }
+        }
+      ],
+      get: {
+        summary: "Discover the focused Git.Top MCP core profile while preserving campaign attribution.",
+        responses: { "200": jsonResponse("Attributed MCP core profile discovery", "#/components/schemas/McpDiscoveryResponse", mcpCoreDiscoveryExample("https://git.top/mcp/core/source/smithery")) }
+      },
+      post: {
+        summary: "Call the focused MCP core profile via an attributed JSON-RPC endpoint.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/McpJsonRpcRequest" }
+            }
+          }
+        },
+        responses: {
+          "200": jsonResponse("Attributed MCP core JSON-RPC success result", "#/components/schemas/McpJsonRpcSuccessResponse", mcpJsonRpcSuccessExample()),
+          "202": { description: "Accepted JSON-RPC notification with no response body." },
+          "400": jsonResponse("Attributed MCP core JSON-RPC error result", "#/components/schemas/McpJsonRpcErrorResponse", mcpJsonRpcErrorExample())
+        }
+      }
     }
   },
   components: {
@@ -2826,10 +2854,10 @@ function mcpDiscoveryExample() {
   };
 }
 
-function mcpCoreDiscoveryExample() {
+function mcpCoreDiscoveryExample(endpoint = "https://git.top/mcp/core") {
   return {
     ...mcpDiscoveryExample(),
-    endpoint: "https://git.top/mcp/core",
+    endpoint,
     profile: "core",
     profiles: {
       core: { endpoint: "https://git.top/mcp/core", tool_count: 5 },
