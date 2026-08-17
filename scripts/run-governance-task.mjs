@@ -26,9 +26,9 @@ const taskDefinitions = {
         "sync:prod:catchup",
         "--",
         "--rounds",
-        process.env.GIT_TOP_CATCHUP_ROUNDS ?? "13",
+        process.env.GIT_TOP_CATCHUP_ROUNDS ?? "500",
         "--limit",
-        process.env.GIT_TOP_CATCHUP_LIMIT ?? "40",
+        process.env.GIT_TOP_CATCHUP_LIMIT ?? "1",
         "--signal-depth",
         "lite",
         "--refresh-cycle"

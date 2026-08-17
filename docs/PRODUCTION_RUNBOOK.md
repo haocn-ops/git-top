@@ -96,10 +96,12 @@ full seed cycle with lite GitHub signals, then records quality and smoke gates:
 gh workflow run Governance --ref main -f task=production-seed-catchup
 ```
 
-The task defaults to 13 rounds of 40 repositories (520 slots, including one
-wraparound) and fails closed if any sync round reports a failure. Adjust the
-round and limit values only when the seed corpus size or GitHub rate budget
-requires it; keep the total bounded and review the resulting governance run.
+The task defaults to 500 rounds of one repository (one complete seed cycle)
+and fails closed if any sync round reports a failure. The single-repository
+batch avoids exhausting the Worker subrequest limit on high-signal projects.
+Adjust the round and limit values only when the seed corpus size or GitHub rate
+budget requires it; keep the total bounded and review the resulting governance
+run.
 
 When the secret is stored only in GitHub Actions, run both maintenance passes and
 their production gates through the manual Governance workflow:
