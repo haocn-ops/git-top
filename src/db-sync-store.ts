@@ -22,6 +22,11 @@ interface SyncPriorityProjectLoad {
   syncedProjects: SyncPriorityProject[];
 }
 
+interface RepositoryAlias {
+  from: string;
+  to: string;
+}
+
 export async function getSyncCursor(env: Env): Promise<number> {
   return getSyncStateNumber(env, "seed_cursor");
 }
@@ -129,11 +134,12 @@ export async function getSyncStatus(env: Env, seedRepositories: string[] = [], o
         syncedProjects: options.priorityProjectsAreSynced === false ? [] : options.priorityProjects
       })
     : loadSyncPriorityProjects(env);
-  const [cursor, recentRuns, indexedCount, priorityLoad, derivedRun, derivedProgressRun] = await Promise.all([
+  const [cursor, recentRuns, indexedCount, priorityLoad, repositoryAliases, derivedRun, derivedProgressRun] = await Promise.all([
     getSyncCursor(env),
     listSyncRuns(env, recentRunLimit),
     getSyncedProjectCount(env),
     priorityProjectsPromise,
+    listRepositoryAliases(env),
     getLatestGovernanceRun(env, "derived:alternatives"),
     getLatestGovernanceRun(env, "derived:alternatives-progress")
   ]);
@@ -141,11 +147,29 @@ export async function getSyncStatus(env: Env, seedRepositories: string[] = [], o
     cursor,
     recentRuns,
     indexedCount,
-    seedSyncedCount: countSyncedSeedProjects(priorityLoad.syncedProjects, seedRepositories),
+    seedSyncedCount: countSyncedSeedProjects(priorityLoad.syncedProjects, seedRepositories, repositoryAliases),
     seedRepositories,
     priority: buildSyncPrioritySummary(priorityLoad.priorityProjects, new Date().toISOString(), priorityPreviewLimit),
     derivedRuns: [derivedRun, derivedProgressRun].filter((run): run is NonNullable<typeof run> => run !== null)
   });
+}
+
+async function listRepositoryAliases(env: Env): Promise<RepositoryAlias[]> {
+  if (!env.DB) {
+    return [];
+  }
+
+  try {
+    const rows = await env.DB.prepare("SELECT key, value FROM sync_state WHERE key LIKE 'repository_alias:%'").all<{
+      key: string;
+      value: string;
+    }>();
+    return (rows.results ?? [])
+      .map((row) => ({ from: row.key.slice("repository_alias:".length), to: row.value }))
+      .filter((alias) => alias.from && alias.to);
+  } catch {
+    return [];
+  }
 }
 
 export async function getSyncedProjectCount(env: Env): Promise<number> {
@@ -294,15 +318,25 @@ function rowToSyncPriorityProject(row: Record<string, unknown>): SyncPriorityPro
   };
 }
 
-function countSyncedSeedProjects(projects: SyncPriorityProject[], seedRepositories: string[]): number {
+export function countSyncedSeedProjects(
+  projects: SyncPriorityProject[],
+  seedRepositories: string[],
+  repositoryAliases: RepositoryAlias[] = []
+): number {
   const seedIds = new Set(seedRepositories.map((repository) => repository.trim().toLowerCase()).filter(Boolean));
   if (seedIds.size === 0) {
     return 0;
   }
-  return Math.min(
-    seedIds.size,
-    projects.reduce((count, project) => count + (seedIds.has(project.project.id.toLowerCase()) ? 1 : 0), 0)
-  );
+  const projectIds = new Set(projects.map((project) => project.project.id.toLowerCase()));
+  const coveredSeedIds = new Set([...seedIds].filter((seedId) => projectIds.has(seedId)));
+  for (const alias of repositoryAliases) {
+    const from = alias.from.trim().toLowerCase();
+    const to = alias.to.trim().toLowerCase();
+    if (seedIds.has(from) && projectIds.has(to)) {
+      coveredSeedIds.add(from);
+    }
+  }
+  return coveredSeedIds.size;
 }
 
 function parseSignalConfidence(value: unknown): ProjectMetrics["signalConfidence"] | undefined {

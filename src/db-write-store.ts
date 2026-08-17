@@ -224,6 +224,7 @@ export async function retireRenamedProjectKnowledge(env: Env, requestedRepositor
   }
 
   const retiredAt = new Date().toISOString().slice(0, 10);
+  const recordedAt = new Date().toISOString();
   await env.DB.batch([
     env.DB.prepare("DELETE FROM star_snapshots WHERE lower(project_id) = lower(?)").bind(requested),
     env.DB.prepare("DELETE FROM classification_overrides WHERE lower(project_id) = lower(?)").bind(requested),
@@ -232,7 +233,14 @@ export async function retireRenamedProjectKnowledge(env: Env, requestedRepositor
     env.DB.prepare("DELETE FROM projects WHERE lower(id) = lower(?)").bind(requested),
     env.DB
       .prepare("UPDATE candidate_repositories SET status = 'failed', last_error = ? WHERE lower(repository) = lower(?)")
-      .bind(`Repository renamed to ${canonical} during sync on ${retiredAt}`, requested)
+      .bind(`Repository renamed to ${canonical} during sync on ${retiredAt}`, requested),
+    env.DB
+      .prepare(
+        `INSERT INTO sync_state (key, value, updated_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+      )
+      .bind(`repository_alias:${requested.toLowerCase()}`, canonical, recordedAt)
   ]);
 
   return true;

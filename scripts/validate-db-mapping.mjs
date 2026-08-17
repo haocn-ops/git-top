@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { getStarsDeltaSnapshot, getSyncStatus, getSyncedProjectCount } from "../src/db-sync-store.ts";
+import { countSyncedSeedProjects, getStarsDeltaSnapshot, getSyncStatus, getSyncedProjectCount } from "../src/db-sync-store.ts";
 import { getHealth } from "../src/health.ts";
 import { listProjectKnowledgeWithMeta } from "../src/knowledge-source.ts";
 import { buildGeneratedKnowledgeFixtures } from "./eval-fixtures.mjs";
@@ -12,6 +12,7 @@ await testLegacyOptionalColumnFallback();
 await testFallbackMetadata();
 await testHealthCountSemantics();
 await testSyncStatusMapping();
+testRenamedSeedCoverage();
 await testStarSnapshotDelta();
 
 console.log("Validated DB row mapping, metadata, sync status, and star snapshot logic.");
@@ -251,4 +252,23 @@ async function testStarSnapshotDelta() {
 
   const missing = await getStarsDeltaSnapshot(mockD1Env(), mockD1ProjectId, 1234, "2026-06-20T00:00:00Z");
   assert.equal(missing, null);
+}
+
+function testRenamedSeedCoverage() {
+  const canonical = buildGeneratedKnowledgeFixtures()[0].knowledge;
+  const priorityProject = {
+    project: canonical.project,
+    agentCard: canonical.agentCard,
+    metrics: canonical.metrics
+  };
+  assert.equal(
+    countSyncedSeedProjects([priorityProject], ["old-owner/project"], [
+      { from: "old-owner/project", to: canonical.project.id }
+    ]),
+    1
+  );
+  assert.equal(
+    countSyncedSeedProjects([], ["old-owner/project"], [{ from: "old-owner/project", to: canonical.project.id }]),
+    0
+  );
 }
