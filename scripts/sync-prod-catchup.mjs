@@ -1,5 +1,9 @@
 const options = parseArgs(process.argv.slice(2));
-const baseUrl = normalizeBaseUrl(options.baseUrl ?? process.env.GIT_TOP_SYNC_BASE_URL ?? "https://git.top");
+const baseUrls = configuredBaseUrls(
+  options.baseUrl,
+  process.env.GIT_TOP_SYNC_BASE_URLS ?? process.env.GIT_TOP_SYNC_BASE_URL ?? "https://git.top,https://git-top.izhenghaocn.workers.dev"
+);
+const baseUrl = baseUrls[0];
 const syncSecret = options.syncSecret ?? process.env.SYNC_SECRET;
 const limit = positiveInteger(options.limit ?? process.env.GIT_TOP_SYNC_LIMIT ?? 40, "limit");
 const rounds = positiveInteger(options.rounds ?? process.env.GIT_TOP_SYNC_ROUNDS ?? 1, "rounds");
@@ -76,6 +80,7 @@ console.log(
   JSON.stringify(
     {
       baseUrl,
+      baseUrls,
       limit,
       roundsRequested: rounds,
       signalDepth,
@@ -99,7 +104,7 @@ async function getStatus() {
   let lastError;
   for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
     try {
-      const { status, body } = await requestJson("/api/sync/status", { method: "GET" });
+      const { status, body } = await requestJson("/api/sync/status", { method: "GET" }, baseUrls[(attempt - 1) % baseUrls.length]);
       if (status === 200) {
         return body;
       }
@@ -128,7 +133,7 @@ async function postSync(body) {
           "content-type": "application/json"
         },
         body: JSON.stringify(body)
-      });
+      }, baseUrls[(attempt - 1) % baseUrls.length]);
       if (status === 200) {
         return responseBody;
       }
@@ -146,11 +151,11 @@ async function postSync(body) {
   throw lastError ?? new Error("admin sync failed without a response");
 }
 
-async function requestJson(path, init) {
+async function requestJson(path, init, requestBaseUrl = baseUrl) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(`${baseUrl}${path}`, {
+    const response = await fetch(`${requestBaseUrl}${path}`, {
       ...init,
       signal: controller.signal
     });
@@ -261,6 +266,15 @@ function hasOnlyRetryableRepositoryFailures(failures) {
 
 function normalizeBaseUrl(value) {
   return value.replace(/\/+$/, "");
+}
+
+function configuredBaseUrls(explicitBaseUrl, configuredValue) {
+  const values = explicitBaseUrl ? [explicitBaseUrl] : String(configuredValue).split(",");
+  const normalized = [...new Set(values.map((value) => normalizeBaseUrl(value.trim())).filter(Boolean))];
+  if (normalized.length === 0) {
+    throw new Error("At least one sync base URL is required.");
+  }
+  return normalized;
 }
 
 function delay(milliseconds) {

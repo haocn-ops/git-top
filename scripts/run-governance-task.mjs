@@ -31,6 +31,10 @@ const taskDefinitions = {
         process.env.GIT_TOP_CATCHUP_LIMIT ?? "1",
         "--signal-depth",
         "lite",
+        "--max-retries",
+        process.env.GIT_TOP_CATCHUP_MAX_RETRIES ?? "8",
+        "--timeout-ms",
+        process.env.GIT_TOP_CATCHUP_TIMEOUT_MS ?? "120000",
         "--refresh-cycle"
       ],
       ["pnpm", "quality:check"],

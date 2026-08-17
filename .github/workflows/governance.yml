@@ -81,6 +81,8 @@ jobs:
           GIT_TOP_PREVENTIVE_REFRESH_LIMIT: "40"
           GIT_TOP_CATCHUP_ROUNDS: "500"
           GIT_TOP_CATCHUP_LIMIT: "1"
+          GIT_TOP_CATCHUP_MAX_RETRIES: "8"
+          GIT_TOP_CATCHUP_TIMEOUT_MS: "120000"
           GIT_TOP_SYNC_FAILED_ROUND_RETRIES: "3"
           GIT_TOP_ALTERNATIVES_START_OFFSET: ${{ inputs.alternatives_start_offset }}
           GIT_TOP_ALTERNATIVES_BATCH_SIZE: ${{ inputs.alternatives_batch_size }}
