@@ -29,11 +29,16 @@ function recordConnectEvent(env: Env, client: string, campaignSource?: string): 
 }
 
 export function attributedEndpoint(campaignSource?: string): string {
-  if (!campaignSource) {
+  const normalizedSource = normalizeCampaignSource(campaignSource ?? null);
+  if (!normalizedSource) {
     return endpoint;
   }
   const url = new URL(endpoint);
-  url.searchParams.set("source", campaignSource);
+  // Some MCP clients normalize away query parameters but keep the URL path.
+  if (/^[a-z0-9][a-z0-9._-]{0,47}$/.test(normalizedSource)) {
+    url.pathname = `${url.pathname}/source/${normalizedSource}`;
+  }
+  url.searchParams.set("source", normalizedSource);
   return url.toString();
 }
 
@@ -140,12 +145,14 @@ default_tools_approval_mode = "approve"</pre>
     </main>
     <script>
       (() => {
-        const endpoint = (client) => {
+        const endpoint = async (client) => {
           try {
             const source = new URLSearchParams(window.location.search).get('source');
             const query = new URLSearchParams({ client });
             if (source) query.set('source', source);
-            navigator.sendBeacon('/connect/event?' + query.toString());
+            const url = '/connect/event?' + query.toString();
+            if (navigator.sendBeacon && navigator.sendBeacon(url)) return;
+            await fetch(url, { method: 'POST', keepalive: true, credentials: 'same-origin' });
           } catch {}
         };
         const copy = async (value, client) => {

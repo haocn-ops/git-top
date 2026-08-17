@@ -5,7 +5,7 @@ export const adoptionReportWindows = {
   monthlyHours: 24 * 30
 } as const;
 
-export const defaultOperatorCampaignSources = ["production-smoke"] as const;
+export const defaultOperatorCampaignSources = ["production-smoke", "operator-check"] as const;
 
 export interface AdoptionReportOptions {
   limit: number;
@@ -116,7 +116,7 @@ export function buildAdoptionOperationsReport({
     },
     exclusions: {
       campaign_sources: excludedSources,
-      note: "Keep production validation traffic tagged with source=production-smoke so it stays outside adoption KPIs."
+      note: "Keep production validation traffic tagged with source=production-smoke and verification probes tagged with source=operator-check so they stay outside adoption KPIs."
     },
     windows: {
       last_7_days: weekly,
@@ -155,6 +155,7 @@ export function renderAdoptionOperationsMarkdown(report: ReturnType<typeof build
   const monthly = report.windows.last_30_days;
   const weeklyMetrics = weekly.metrics;
   const monthlyMetrics = monthly.metrics;
+  const failureOperations = report.operational_review.failure_operations_7d;
   const campaignRows = Object.entries(weeklyMetrics.byCampaignSource)
     .filter(([source]) => source !== "unknown")
     .sort(([sourceA, valueA], [sourceB, valueB]) =>
@@ -209,9 +210,18 @@ export function renderAdoptionOperationsMarkdown(report: ReturnType<typeof build
       lines.push(`- **${item.code}**: ${item.message} Action: ${item.action}`);
     }
   }
+  lines.push("", "## Failure Operations (7 days)", "");
+  if (failureOperations.length === 0) {
+    lines.push("No failed agent-call operations were observed.");
+  } else {
+    lines.push("| Operation | Failures | Agent calls | Failure rate |", "| --- | ---: | ---: | ---: |");
+    for (const failure of failureOperations) {
+      lines.push(`| ${failure.operation} | ${failure.error_count} | ${failure.agent_call_count} | ${formatRate(failure.error_rate)} |`);
+    }
+  }
   lines.push(
     "",
-    "> Counts are bounded events and calls, not unique users, installs, sessions, retention, or conversion. Operator traffic is excluded only when it carries an explicit campaign source.",
+    "> Counts are bounded events and calls, not unique users, installs, sessions, retention, or conversion. Operator traffic is excluded when it carries an operator source or matches a bounded known verification-probe pattern.",
     ""
   );
   return lines.join("\n");
@@ -248,6 +258,7 @@ function buildOperationalReview(
   monthlyAttributed: ReturnType<typeof attributedCampaignTotals>
 ) {
   const items: Array<{ code: string; severity: "info" | "warning" | "critical"; message: string; action: string }> = [];
+  const failureOperations = summarizeFailureOperations(weekly.metrics);
   if (weekly.possibly_truncated || monthly.possibly_truncated) {
     items.push({
       code: "analytics_export_truncated",
@@ -286,7 +297,7 @@ function buildOperationalReview(
       code: "campaign_attribution_below_target",
       severity: "warning",
       message: `Only ${formatRate(attributionRate)} of agent calls carry a campaign source.`,
-      action: "Use attributed /connect links and preserve the generated source query on the MCP endpoint."
+      action: "Use attributed /connect links and preserve the generated source-bearing MCP endpoint."
     });
   }
 
@@ -302,6 +313,7 @@ function buildOperationalReview(
   return {
     status,
     items,
+    failure_operations_7d: failureOperations,
     targets: [
       targetProgress("Attributed MCP initializations (30d)", monthlyAttributed.successfulInitializations, adoptionLearningTargets.successfulInitializations30d),
       targetProgress("Attributed first-value calls (30d)", monthlyAttributed.successfulFirstValueCalls, adoptionLearningTargets.successfulFirstValueCalls30d),
@@ -310,6 +322,21 @@ function buildOperationalReview(
       rateTargetProgress("Agent-call attribution rate (7d)", attributionRate, adoptionLearningTargets.agentCallAttributionRate7d)
     ]
   };
+}
+
+function summarizeFailureOperations(metrics: AdoptionMetricsSummary) {
+  return Object.entries(metrics.byOperation)
+    .filter(([, operation]) => operation.errors > 0 && operation.agentCalls > 0)
+    .sort(([nameA, valueA], [nameB, valueB]) =>
+      valueB.errors - valueA.errors || valueB.agentCalls - valueA.agentCalls || nameA.localeCompare(nameB)
+    )
+    .slice(0, 10)
+    .map(([operation, values]) => ({
+      operation,
+      error_count: values.errors,
+      agent_call_count: values.agentCalls,
+      error_rate: Number((values.errors / values.agentCalls).toFixed(3))
+    }));
 }
 
 function attributedCampaignTotals(metrics: AdoptionMetricsSummary) {

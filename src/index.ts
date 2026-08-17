@@ -76,6 +76,7 @@ import { sendOperationsAlert } from "./operations-alert";
 import {
   campaignSourceFromRequest,
   clientFromRequest,
+  isAttributedMcpCorePath,
   recordAdoptionEvent,
   responseSizeBucket,
   type AdoptionResultClass
@@ -555,7 +556,7 @@ async function routeRequest(request: Request, env: Env, url: URL, ctx?: Executio
     return handleApi(request, env, ctx);
   }
 
-  if (url.pathname === "/mcp/core") {
+  if (url.pathname === "/mcp/core" || isAttributedMcpCorePath(url.pathname)) {
     return handleMcp(request, env, { profile: "core" });
   }
 

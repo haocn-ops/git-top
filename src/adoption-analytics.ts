@@ -111,6 +111,7 @@ export interface AdoptionLatencyBucket {
 }
 
 const knownClients = ["codex", "claude", "cursor", "vscode", "windsurf", "chatgpt", "cline", "continue"] as const;
+const attributedMcpCorePathPattern = /^\/mcp\/core\/source\/([a-z0-9][a-z0-9._-]{0,47})$/i;
 
 /**
  * Analytics Engine is optional so local development and deployments without the
@@ -123,16 +124,19 @@ export function recordAdoptionEvent(env: Env, event: AdoptionEvent): void {
   }
 
   try {
+    const operation = normalizeAdoptionOperation(event.operation);
+    const inferredCampaignSource = operatorCampaignSourceForOperation(operation);
+    const campaignSource = normalizeCampaignSource(inferredCampaignSource ?? event.campaignSource ?? null);
     env.ADOPTION_ANALYTICS.writeDataPoint({
       blobs: [
         event.name,
         dimension(event.profile, "unknown"),
         dimension(event.clientName, "unknown"),
         dimension(event.clientVersion, "unknown"),
-        dimension(event.operation, "unknown"),
+        dimension(operation, "unknown"),
         dimension(event.resultClass, "unknown"),
         dimension(event.source, "unknown"),
-        dimension(event.campaignSource, "unknown"),
+        dimension(campaignSource, "unknown"),
         dimension(event.responseSizeBucket, "unknown")
       ],
       doubles: [
@@ -171,7 +175,29 @@ export function normalizeCampaignSource(value: string | null): string | undefine
 
 export function campaignSourceFromRequest(request: Request): string | undefined {
   const url = new URL(request.url);
-  return normalizeCampaignSource(url.searchParams.get("source") ?? request.headers.get("x-git-top-source"));
+  const pathSource = url.pathname.match(attributedMcpCorePathPattern)?.[1];
+  return normalizeCampaignSource(
+    request.headers.get("x-git-top-source") ?? url.searchParams.get("source") ?? pathSource ?? null
+  );
+}
+
+export function isAttributedMcpCorePath(pathname: string): boolean {
+  return attributedMcpCorePathPattern.test(pathname);
+}
+
+export function normalizeAdoptionOperation(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const normalized = value.trim().replace(/[^a-z0-9._:-]/gi, "").slice(0, 64);
+  if (!normalized) {
+    return undefined;
+  }
+  return isVerificationProbeOperation(normalized) ? "verification_probe" : normalized;
+}
+
+export function operatorCampaignSourceForOperation(value: unknown): string | undefined {
+  return value === "verification_probe" || isVerificationProbeOperation(value) ? "operator-check" : undefined;
 }
 
 export function responseSizeBucket(bytes: number | undefined): AdoptionEvent["responseSizeBucket"] {
@@ -201,10 +227,11 @@ export function normalizeAnalyticsPoint(point: AnalyticsEnginePoint): AdoptionEv
   const profile = asEnum(point.blob2, ["core", "full"]);
   const clientName = analyticsDimension(point.blob3);
   const clientVersion = analyticsDimension(point.blob4, 32);
-  const operation = analyticsDimension(point.blob5);
+  const operation = normalizeAdoptionOperation(point.blob5);
   const source = asEnum(point.blob7, ["d1", "seed", "unknown"]);
   const rawCampaignSource = analyticsDimension(point.blob8, 48);
-  const campaignSource = rawCampaignSource === "unknown" ? undefined : rawCampaignSource;
+  const campaignSource = operatorCampaignSourceForOperation(operation)
+    ?? (rawCampaignSource === "unknown" ? undefined : rawCampaignSource);
   const responseBucket = asEnum(point.blob9, ["empty", "small", "medium", "large", "very_large", "unknown"]);
   const status = finiteNumber(point.double1);
   const durationMs = finiteNumber(point.double2);
@@ -433,6 +460,10 @@ function analyticsDimension(value: unknown, maximumLength = 64): string | undefi
   }
   const normalized = value.trim().replace(/[^a-z0-9._:-]/gi, "").slice(0, maximumLength);
   return normalized || undefined;
+}
+
+function isVerificationProbeOperation(value: unknown): boolean {
+  return typeof value === "string" && /^__verifymcp_auth_probe_[a-f0-9]{8,64}__$/i.test(value);
 }
 
 function finiteNumber(value: unknown): number | undefined {

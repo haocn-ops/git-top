@@ -1,4 +1,5 @@
 import { listProjectKnowledgeWithMeta } from "./knowledge-source";
+import { isAttributedMcpCorePath } from "./adoption-analytics";
 import { alternativeAliasPaths, compareAliasPaths, graphAliasPaths, scoreAliasPaths } from "./project-aliases";
 import type { Env } from "./types";
 
@@ -181,6 +182,7 @@ export function isPublicCorsPath(pathname: string): boolean {
     pathname.startsWith("/api/") ||
     pathname === "/mcp" ||
     pathname === "/mcp/core" ||
+    isAttributedMcpCorePath(pathname) ||
     pathname === "/openapi.json" ||
     pathname === "/llms.txt" ||
     pathname === "/llms-full.txt" ||

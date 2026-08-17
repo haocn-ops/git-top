@@ -1084,6 +1084,8 @@ async function testOpenApiDocument() {
   assert.ok(openapi.body.paths["/api/score"].post, "OpenAPI should document structured score POST endpoint");
   assert.ok(openapi.body.paths["/api/graph"].post, "OpenAPI should document structured graph POST endpoint");
   assert.ok(openapi.body.paths["/mcp/core"], "OpenAPI should document the MCP core endpoint");
+  assert.ok(openapi.body.paths["/mcp/core/source/{source}"], "OpenAPI should document the attributed MCP core endpoint");
+  assert.equal(openapi.body.paths["/mcp/core/source/{source}"].parameters[0].schema.pattern, "^[a-z0-9][a-z0-9._-]{0,47}$");
   assert.ok(openapi.body.components.schemas.ProjectLookupRequest, "OpenAPI should include ProjectLookupRequest schema");
   assert.ok(openapi.body.components.schemas.ProjectsBatchRequest, "OpenAPI should include ProjectsBatchRequest schema");
   assert.ok(openapi.body.components.schemas.ProjectChangesResponse, "OpenAPI should include ProjectChangesResponse schema");
@@ -1156,6 +1158,9 @@ async function testOpenApiDocument() {
   assertOpenApiResponseSchema(openapi.body, "/mcp/core", "get", "McpDiscoveryResponse");
   assertOpenApiResponseSchema(openapi.body, "/mcp/core", "post", "McpJsonRpcSuccessResponse");
   assertOpenApiResponseSchema(openapi.body, "/mcp/core", "post", "McpJsonRpcErrorResponse", "400");
+  assertOpenApiResponseSchema(openapi.body, "/mcp/core/source/{source}", "get", "McpDiscoveryResponse");
+  assertOpenApiResponseSchema(openapi.body, "/mcp/core/source/{source}", "post", "McpJsonRpcSuccessResponse");
+  assertOpenApiResponseSchema(openapi.body, "/mcp/core/source/{source}", "post", "McpJsonRpcErrorResponse", "400");
   assertOpenApiResponseExample(openapi.body, "/api/health", "get", ["metadata"]);
   assertOpenApiResponseExample(openapi.body, "/api/trust", "get", ["decision", "required_for_high_confidence"]);
   assertOpenApiResponseExample(openapi.body, "/api/benchmark", "get", ["evaluation", "explanations", "known_limitations", "metadata"]);

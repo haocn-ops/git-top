@@ -31,7 +31,7 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
   {
     concept: "Agent connection",
     humanPage: "/connect",
-    rest: ["GET /connect", "GET /mcp/core", "GET /mcp"],
+    rest: ["GET /connect", "GET /mcp/core", "POST /mcp/core", "GET /mcp/core/source/:source", "POST /mcp/core/source/:source", "GET /mcp", "POST /mcp"],
     mcpTools: ["search_projects", "get_project", "recommend_project", "compare_projects", "get_agent_workflow"],
     outputFields: ["profiles.core", "profiles.full", "tools", "endpoint"],
     trustFields: ["metadata.source", "metadata.reason", "require_d1", "evidence", "caveats"],
@@ -121,7 +121,7 @@ export const agentSurfaceMap: AgentSurfaceMapEntry[] = [
   {
     concept: "API and MCP discovery",
     humanPage: "/topics/open-source-knowledge-graph-api",
-    rest: ["GET /connect", "GET /distribution.json", "GET /.well-known/skills.json", "GET /api/agent-map", "GET /openapi.json", "GET /mcp/core", "GET /mcp", "GET /llms.txt", "GET /llms-full.txt"],
+    rest: ["GET /connect", "GET /distribution.json", "GET /.well-known/skills.json", "GET /api/agent-map", "GET /openapi.json", "GET /mcp/core", "POST /mcp/core", "GET /mcp/core/source/:source", "POST /mcp/core/source/:source", "GET /mcp", "POST /mcp", "GET /llms.txt", "GET /llms-full.txt"],
     mcpTools: [],
     outputFields: ["surfaces", "openapi_url", "schema_url", "llms_url", "distribution_url", "installable_skill", "recommended_agent_flow", "trust_policy"],
     trustFields: ["trust_policy.high_confidence_source", "trust_policy.strict_mode", "distribution.evidence", "distribution.submission_status", "surfaces[].trust_fields"],
